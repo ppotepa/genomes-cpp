@@ -1,0 +1,178 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.2 - GENERATOR_DESCRIPTOR_AND_CONTEXT
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define generic generator registration and per-run GenerationContext without renderer/gameplay globals, including scratch, jobs, cancellation, seed and read-only artifact access.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.4_CANCELLATION_AND_JOB_GROUPS.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/GeneratorId.hpp
+    engine/proc/include/genomes/proc/GeneratorDescriptor.hpp
+    engine/proc/include/genomes/proc/GenerationContext.hpp
+    engine/proc/include/genomes/proc/GeneratorRegistry.hpp
+    tests/native/proc/generator_context_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GeneratorDescriptor has stable GeneratorId/string name, semantic version, input/output type IDs, deterministic flag, execution policy CPU/GPU-capable, cache policy.
+
+2. GenerationContext is per request/job: SeedPath, JobSystem&, ScratchContext&, CancelToken, ArtifactReader&, Diagnostics context, optional ComputeService interface pointer nullable until Stage 8.
+
+3. Registry is immutable after bootstrap for runtime fast reads; duplicate stable ID/name fails startup.
+
+4. Generator implementation is callable/service object injected into registry; no static global discovery magic.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define GeneratorVersion {major,minor,patch} and stable GeneratorId from explicit string hash/declared constant.
+
+STEP 2
+    Define descriptor validation: nonempty name, nonzero version/type IDs, deterministic/cache compatibility.
+
+STEP 3
+    Implement registry builder then freeze() producing immutable sorted vector + lookup maps.
+
+STEP 4
+    Implement GenerationContext as non-owning references with lifetime documented; no owning service pointers.
+
+STEP 5
+    Add fake generator tests proving no render/Infantry dependency and duplicate registration failure.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BOOT:
+    builder.add(TerrainGenerator.descriptor, instance)
+    builder.add(BuildingGenerator.descriptor, instance)
+    registry := builder.freeze()
+
+RUN:
+    entry := registry.find(id)
+    ctx := GenerationContext(seedPath, jobs, scratch, cancel, artifacts, diagnostics)
+    return entry.generator.generate(input, ctx)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    duplicate id
+    duplicate name
+    freeze prevents mutation
+    context references valid
+    descriptor validation
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] registry immutable after freeze
+    [ ] context no renderer/gameplay
+    [ ] stable generator versions
+    [ ] duplicate detection
+    [ ] tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    global generator singleton
+    service locator lookups inside generator
+    mutable registry during generation
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] registry immutable after freeze
+    [ ] context no renderer/gameplay
+    [ ] stable generator versions
+    [ ] duplicate detection
+    [ ] tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.2
