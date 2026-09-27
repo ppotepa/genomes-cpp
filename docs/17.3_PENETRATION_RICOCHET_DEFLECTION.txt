@@ -1,0 +1,207 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 17.3 - PENETRATION_RICOCHET_DEFLECTION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port ammunition/material contact strategy for penetration, residual velocity,
+ricochet/glance and angular deflection as bounded gameplay mechanics using
+ImpactSolver results and explicit material/profile calibration.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/17.2_PROJECTILE_SPATIAL_TRACE.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE distinction between material work, contact loss, residual flight,
+ricochet/glance and penetration; current narrow calibration overrides remain
+ammunition/material-specific instead of contaminating global material profiles.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/ballistics/include/genomes/ballistics/ContactStrategy.hpp
+    modules/ballistics/src/PenetrationStrategy.cpp
+    modules/ballistics/src/RicochetStrategy.cpp
+    tests/native/ballistics/penetration_ricochet_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Penetration outcome depends on strategy/profile, material sample, actual traveled thickness/path, incidence angle, projectile deformation/integrity and current energy/state. No universal "AP always penetrates" shortcut.
+
+2. Residual velocity magnitude is derived from remaining translational energy/mass after accounted work/loss; direction can deflect based on normal/tangent strategy. Solver never preserves old speed while subtracting energy separately.
+
+3. Ricochet decision uses incidence relative to surface, material/profile thresholds and projectile state; material-wide thresholds may have narrow per-ammunition overrides. Every override records provenance/confidence/gameplay status.
+
+4. Ricochet output world velocity is energy-consistent and separates normal/tangential response; no energy creation. Glance may retain contact/continue depending strategy.
+
+5. Penetration creates DamageField channel only when actual path crosses material/exit. Local crater/dent without full traversal is distinct outcome.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+ContactStrategy tables immutable grouped by StrategyId/MaterialId. Per-contact calculations stack/value types. Calibration fixtures stored under reference/fixtures/ballistics.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-PHYS-KINETIC-001
+    MATH-VEC-DOT-001
+    MATH-VEC-REJECT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/ballistics-calibration.md
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::js/destruction/materialImpact.js
+    SOURCE::js/destruction/impactProfiles.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Port current material-work/penetration strategy with named version and exact SOURCE profile data; document gameplay-only ranges.
+
+STEP 2
+    Compute incidence cosine/angle robustly from normalized relative velocity/contact normal, handling near-zero speed as stop.
+
+STEP 3
+    For penetration, consume work over actual layer intervals; after each interval derive remaining speed from energy and apply deformation/deflection strategy.
+
+STEP 4
+    For ricochet candidate, evaluate threshold/override, compute reflected/deflected direction and energy loss; clamp to no-gain, update trace boundary/contact state.
+
+STEP 5
+    Generate structural DamageCommands from deposited material work/channel geometry, not directly detach.
+
+STEP 6
+    Create sweep tests over incidence angles/materials/ammunition profiles including current steel checkpoint and non-steel gameplay-only expectations.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CONTACT:
+    E_in := kinetic(state)
+    incidence := acos(clamp(-dot(unit(relativeV), normal),-1,1))
+
+    if strategy.shouldRicochet(profile,material,incidence,state):
+        E_out := max(0, E_in - ricochetLoss(...))
+        dir := strategy.ricochetDirection(...)
+        state.velocity := dir * sqrt(2*E_out/state.mass)
+        return Ricochet
+
+    traversal := impactSolver.consume material intervals
+    if traversal.reachesExit and E_remaining > threshold:
+        dir := strategy.exitDeflection(...)
+        velocity := dir * sqrt(2*E_remaining/mass)
+        emit hole/channel damage
+        return Penetrated
+    else:
+        emit local dent/crater damage
+        return Stopped/Embedded
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Independent contacts solve in projectile jobs. Damage commands committed later. Calibration tables immutable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid normal/near-zero relative speed resolves to explicit stop/no-contact status. Missing profile/material override falls back to strategy base rules and logs calibration class, not random defaults.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+No hidden RNG unless explicit seed passed for stochastic breakup/roughness. Angle/material sweep stable across worker count.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Table/function dispatch grouped by strategy; avoid trig where dot thresholds suffice in hot path after validation/benchmark, but preserve exact documented semantics.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE calibration fixtures are gameplay behavior, not scientific validation. Native changes to coefficients require profile version bump and parity approval.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    thin/thick wall residual
+    two layers
+    opposite direction layer order
+    steel ricochet angle sweep
+    concrete/brick/wood gameplay sweep
+    no energy gain
+    dent vs through hole
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] actual path work
+    [ ] energy-consistent residual velocity
+    [ ] ricochet separate
+    [ ] narrow overrides
+    [ ] damage outcomes differentiated
+    [ ] sweep fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    AP ignores thickness
+    global material threshold changed to fit one round
+    ricochet reflection preserving impossible energy
+    hole emitted before exit confirmed
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] actual path work
+    [ ] energy-consistent residual velocity
+    [ ] ricochet separate
+    [ ] narrow overrides
+    [ ] damage outcomes differentiated
+    [ ] sweep fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next ballistics chapter.
+
+END OF CHAPTER 17.3
