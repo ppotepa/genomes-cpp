@@ -1,0 +1,218 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 3.1 - JOB SYSTEM CORE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement a shared native worker pool and task submission core that all later
+CPU subsystems use instead of permanent per-subsystem threads.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+    TARGET::docs/2.4_MEMORY_ARENAS_AND_SCRATCH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/jobs/CMakeLists.txt
+    engine/jobs/include/genomes/jobs/JobSystem.hpp
+    engine/jobs/include/genomes/jobs/JobHandle.hpp
+    engine/jobs/include/genomes/jobs/JobContext.hpp
+    engine/jobs/src/JobSystem.cpp
+    tests/native/jobs/job_system_tests.cpp
+    benchmarks/jobs/job_system_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. JobSystem owns N worker threads plus external submitters. Default worker count = max(1, hardware_concurrency - reservedMainThreads) with explicit override for tests.
+
+2. Job is a small move-only callable or function pointer + context; scheduling metadata is separate from domain data.
+
+3. JobHandle identifies completion state and can be waited from external thread. Worker waits must execute/assist runnable jobs rather than block when safe.
+
+4. JobContext exposes worker-local ScratchContext, worker index for diagnostics only, cancellation query placeholder, and JobSystem reference.
+
+5. Shutdown has Drain and CancelPending modes with deterministic lifetime semantics.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement worker pool with one global concurrent injection queue initially; work-stealing deques arrive in 3.2.
+
+STEP 2
+    Use condition_variable/semaphore to sleep idle workers; no spin loop when idle.
+
+STEP 3
+    Implement submit returning JobHandle backed by ref-counted/internal completion node owned by scheduler, not shared_ptr in hot domain data.
+
+STEP 4
+    Implement wait(handle): external waiter blocks; worker waiter assists executeOne until handle completes.
+
+STEP 5
+    Implement fence/counter primitive for multiple jobs.
+
+STEP 6
+    Implement clean shutdown and tests for jobs completing before destruction.
+
+STEP 7
+    Add benchmark for submit+execute throughput at 1/2/4/... workers.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WORKER LOOP:
+    while running:
+        if tryPopGlobal(job):
+            execute(job)
+            complete(job)
+            continue
+        sleepUntilWorkOrShutdown()
+
+SUBMIT:
+    node := allocateJobNode()
+    node.pending := 1
+    enqueueGlobal(node)
+    wakeOneWorker()
+    return handle(node)
+
+WAIT:
+    if callerIsWorker:
+        while !handle.complete:
+            if !executeOneRunnable():
+                shortWait()
+    else:
+        handle.waitCondition()
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single job
+    100k jobs
+    nested submit
+    worker wait assistance
+    external wait
+    shutdown drain
+    zero/one worker override
+    exceptions prohibited/translated according policy
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] shared worker pool
+    [ ] idle workers sleep
+    [ ] worker wait assists
+    [ ] clean shutdown
+    [ ] 100k jobs complete exactly once
+    [ ] thread sanitizer-ready ownership
+    [ ] benchmark scales beyond one worker where hardware allows
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one OS thread per subsystem
+    busy-spin idle loop
+    domain code storing worker index
+    job callback outliving captured references
+    shared_ptr graph as primary scheduler representation
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] shared worker pool
+    [ ] idle workers sleep
+    [ ] worker wait assists
+    [ ] clean shutdown
+    [ ] 100k jobs complete exactly once
+    [ ] thread sanitizer-ready ownership
+    [ ] benchmark scales beyond one worker where hardware allows
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 3.1
