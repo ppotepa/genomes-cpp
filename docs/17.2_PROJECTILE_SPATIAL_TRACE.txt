@@ -1,0 +1,235 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 17.2 - PROJECTILE_SPATIAL_TRACE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement persistent projectile flight integration and swept spatial tracing against
+terrain, static/dynamic structures, rubble and targets using broadphase indexes,
+continuous segment/substep logic and explicit contact boundaries.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/17.1_PROJECTILE_STATE_AND_AMMO_STRATEGY.txt
+    TARGET::docs/13.6_PHYSICS_QUERY_SERVICE.txt
+    TARGET::docs/16.5_RUBBLE_FIELD.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE sequential obstacle contacts, material-frame/layer traversal, moving-part
+swept bounds, ground-contact at any horizontal position, tracking-limit behavior
+and render-independent simulation results.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/ballistics/include/genomes/ballistics/BallisticsWorld.hpp
+    modules/ballistics/include/genomes/ballistics/ProjectileTraceQuery.hpp
+    modules/ballistics/src/BallisticsWorld.cpp
+    modules/ballistics/src/ProjectileTraceQuery.cpp
+    tests/native/ballistics/projectile_trace_tests.cpp
+    benchmarks/ballistics/projectile_trace_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. BallisticsWorld advances projectiles at fixed simulation tick with strategy-selected aerodynamic integration and bounded adaptive substeps based on travel distance/contact risk. Projectile remains persistent across obstacles until stopped/detonated/ground/limit.
+
+2. Trace broadphase combines WorldQuery static BVH/building logical structural index, dynamic physics/body spatial index, target damage geometry and RubbleField tiles. Candidates are sorted by swept distance/t with stable semantic tie-break; broadphase candidate is rechecked against actual geometry.
+
+3. Moving target bounds include linear swept extent over dt and, where necessary, conservative angular/shape bounds. Physics snapshot provides target motion state for relative contact input.
+
+4. Ground is semantic Terrain/Rubble surface provider; projectile crossing from above to below surface emits actual intersection GroundContact. No arbitrary horizontal ground extent. If no ground/provider or no contact before configured age/travel limit, end TrackingLimit.
+
+5. Material traversal uses logical Solid/Assembly geometry, not only physics collider, so holes/damage/air gaps and physicalSolidId interfaces remain authoritative.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Active projectile SoA/chunks plus per-projectile small contact/trace query state. Broadphase candidate buffers are ScratchContext-owned. Trace history/presentation recorder is separate diagnostic subsystem, not required for simulation.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GEO-RAY-001
+    MATH-GEO-RAY-TRIANGLE-001
+    MATH-VEC-DIST2-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RAY-AABB-SLAB-001
+    ALG-GEO-RAY-TRIANGLE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::docs/destruction/energy-acceptance.md
+    SOURCE::js/destruction/ballistics.js
+    SOURCE::js/destruction/projectileTrace.js
+    SOURCE::tests/destruction_spatial.cjs
+    SOURCE::tests/destruction_trace.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define BallisticsEnvironment gravity/air density/wind/ground provider/tracking limits and fixed-step integration contract.
+
+STEP 2
+    Implement strategy aerodynamic integration with full velocity/orientation; isolate numerical integrator version. Start with semi-implicit/RK scheme matching SOURCE fixture tolerance.
+
+STEP 3
+    Compute swept segment for substep and query broadphase candidates from region/world indexes, rubble and dynamic targets. Do not scan all solids.
+
+STEP 4
+    Narrow-phase candidates against current logical geometry/material assembly and choose nearest valid hit by t then stable semantic ID.
+
+STEP 5
+    Advance projectile to hit point, call ImpactSolver/strategy, preserve residual projectile/contact state, then continue remaining substep/travel if penetrated/ricocheted; cap contacts/substep and record explicit limit.
+
+STEP 6
+    Implement ground intersection and tracking-limit terminal states.
+
+STEP 7
+    Add moving-target swept-bound test, sequential walls, holes, rubble and render OFF/ON independence fixture.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FIXED STEP projectile:
+    strategy.aerodynamicStep(state, dt)
+    timeRemaining := dt
+    contacts := 0
+
+    while timeRemaining > 0 and state.flightActive:
+        subdt := chooseBoundedSubstep(state,timeRemaining)
+        from := state.position
+        predicted := integratePosition(state,subdt)
+
+        candidates := broadphaseSwept(from,predicted,subdt)
+        hit := nearestActualHit(candidates, from,predicted)
+
+        groundHit := terrain/rubble surface crossing
+        choose nearest hit/ground event
+
+        if none:
+            state.position := predicted
+            state.travel += distance(from,predicted)
+            timeRemaining -= subdt
+            continue
+
+        advance exactly to hit fraction/time
+        if ground: finish GroundContact
+        else:
+            impactResult := impactSolver.step(...)
+            emit damage/physics commands
+            apply result to projectile
+            if penetrated/ricochet: continue remaining time
+            else finish stopped/detonation candidate
+
+        if ++contacts > maxContactsPerStep:
+            finish/contact-limit diagnostic
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Projectiles partition into jobs. Each job reads immutable world/physics query snapshots and writes projectile states + thread-local impact commands. Target damage commits happen after trace batch, then world logical index rebuild once per target/batch.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Spatial query PartialUnloaded obeys policy: active combat regions should be pinned; unknown required geometry causes Deferred/RegionUnavailable rather than tracing through empty unknown space. Contact/substep caps record explicit diagnostic.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate sort t + stable semantic ID. Fixed-step state and deterministic target snapshot. Parallel projectile completion does not define damage commit order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Spatial broadphase, swept BVH, batch projectile jobs, reuse scratch. Benchmark 1k/10k/100k projectiles and dense building/rubble scenes.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Port SOURCE behavior and acceptance scenarios while replacing JS all-object scans. Trace presentation compression moves to separate diagnostic/presentation service.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    no drag constant velocity
+    gravity energy check
+    two sequential walls
+    hole pass-through
+    moving target
+    rubble hit
+    ground any XZ
+    tracking limit
+    render independence
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] persistent flight
+    [ ] broadphase+narrowphase
+    [ ] moving sweep
+    [ ] sequential contacts
+    [ ] ground/limit
+    [ ] holes/rubble
+    [ ] batch benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    hitscan replacement for all projectiles
+    global scan of every part per substep
+    physics collider alone as damaged wall truth
+    ending projectile after first penetration
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] persistent flight
+    [ ] broadphase+narrowphase
+    [ ] moving sweep
+    [ ] sequential contacts
+    [ ] ground/limit
+    [ ] holes/rubble
+    [ ] batch benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next ballistics chapter.
+
+END OF CHAPTER 17.2
