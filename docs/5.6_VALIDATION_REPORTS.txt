@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.6 - VALIDATION_REPORTS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Formalize generator validation as structured data with severities, stable codes, spatial/semantic context and machine-readable reports instead of assertions or UI-only strings.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+    TARGET::docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/Validation.hpp
+    engine/proc/src/Validation.cpp
+    tests/native/proc/validation_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ValidationSeverity = Info, Warning, Error, Fatal. Only Error/Fatal make artifact invalid by default; policy may promote warnings in tests.
+
+2. ValidationCode is stable domain-specific numeric/string ID. Human message is not used for machine decisions.
+
+3. ValidationIssue may carry artifact/node ID, semantic object ID, world bounds/position and key-value diagnostics.
+
+4. ValidationReport preserves stable issue order: by phase, stable object key, code.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement ValidationIssue/Report and merge(childReport,prefixContext).
+
+STEP 2
+    Implement hasErrors/isValid/countByCode.
+
+STEP 3
+    Implement canonical JSON serialization for reference fixtures.
+
+STEP 4
+    Add validator interface returning report without mutating input.
+
+STEP 5
+    Add policy object for warning promotion/limits.
+
+STEP 6
+    Integrate hook point into GenerationGraph publish gate.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+VALIDATE ARTIFACT:
+    report := validator.validate(artifact)
+    stableSort(report.issues, phase/object/code)
+    if report.hasError:
+        return Failure(ValidationFailed, report)
+    return Success(report)
+
+MERGE:
+    for issue in child:
+        copy := issue
+        copy.context.prepend(parentContext)
+        parent.add(copy)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    stable issue order
+    merge context
+    warning policy
+    JSON roundtrip
+    generation publish rejects errors
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] stable codes
+    [ ] machine-readable report
+    [ ] spatial context optional
+    [ ] generation hook
+    [ ] warning promotion tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    parsing human error strings
+    asserting on expected invalid procedural candidate
+    validator mutating artifact
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] stable codes
+    [ ] machine-readable report
+    [ ] spatial context optional
+    [ ] generation hook
+    [ ] warning promotion tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.6
