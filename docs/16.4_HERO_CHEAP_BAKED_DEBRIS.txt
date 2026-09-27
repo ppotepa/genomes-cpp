@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 16.4 - HERO_CHEAP_BAKED_DEBRIS
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Formalize the three-tier debris lifecycle preserving material and visibility while
-bounding expensive rigid bodies: HERO dynamic bodies -> CHEAP ballistic/gravity
-records -> BAKED persistent rubble.
+Formalize the destruction representation lifecycle HERO rigid body -> CHEAP airborne approximation -> BAKED persistent rubble, with conservation and deterministic promotion/demotion decisions.
 
 ======================================================================
 REQUIRES
@@ -23,20 +22,20 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
     TARGET::docs/16.3_STRUCTURAL_LINKS_AND_DAMAGE_FIELDS.txt
     TARGET::docs/13.5_DYNAMIC_BODY_COMMAND_BUFFERS.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-Latest SOURCE rubble-field lifecycle, including pool-pressure demotion/direct
-deposit, sleeping-but-dynamic behavior, no one-frame collision hole during bake,
-material-volume conservation and deterministic representation accounting.
+SOURCE pool-pressure behavior: material never disappears when body budgets fill; active bodies demote, cheap overflow deposits directly, microscopic/unrepresentable hulls become rubble volume.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Later visual polish and domain integrations not explicitly owned by this chapter.
+No full rubble tile implementation details (16.5) and no Jolt adapter details (16.6).
 
 ======================================================================
 TARGET FILE TREE
@@ -45,127 +44,131 @@ TARGET FILE TREE
     modules/destruction/include/genomes/destruction/DebrisRecord.hpp
     modules/destruction/src/DebrisLifecycle.cpp
     tests/native/destruction/debris_lifecycle_tests.cpp
-    benchmarks/destruction/debris_lifecycle_benchmark.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Debris representation tier is separate from semantic detached material identity. DebrisRecord stores stable DebrisId, source StructuralElementId(s), material-volume mix, transform/velocities, semantic geometry/artifact refs and tier.
+1. Every detached material volume is in exactly one representation bucket: SOURCE_ATTACHED, HERO, CHEAP, BAKED, or explicitly REMOVED_BY_DAMAGE with ledger entry.
 
-2. Hero tier uses Jolt dynamic body for important/large/near/interactive chunks under explicit retained and awake budgets. Sleeping hero remains dynamic and can wake/fall if support changes.
+2. Budgets are policy, never deletion rules. HERO overflow -> CHEAP; CHEAP overflow -> BAKED/direct deposit.
 
-3. Cheap tier stores simplified position/orientation/linear/angular velocity, bounds, material mix and optional retained visual mesh handle; integrates gravity/ground/rubble collision approximately without full body contacts.
+3. Demotion decision uses stable priority tuple (importance, awake/sleep state, age, stable ID) and never container iteration accident.
 
-4. Baked tier transfers material volume into RubbleField. If hero budget full -> cheap; if cheap budget full/unrepresentable -> direct baked deposit. No material disappears because representation budget is exhausted.
+4. Settling is two-phase: deposit all candidates/build new static pile representation, then retire old dynamic bodies, preventing one-frame collision holes.
 
-5. Bake order: deposit all settling candidates -> rebuild/commit affected rubble collision/field -> only then destroy old hero/cheap representations.
+5. RepresentationAccounting reports per-bucket volume and per-material totals.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Hero table small bounded handles; Cheap SoA arrays for position/velocity/orientation/volume/material mix; Baked volume lives in RubbleField. RepresentationAccounting aggregates hero+cheap+baked by material/source.
+DebrisRecord stores stable debris ID, source component IDs, material volumes, transform/linear/angular state, representation enum, age/ticks, importance. No render pointer in semantic record.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    N/A
+    DATA-UNIT-001
+    MATH-PHYS-MOMENTUM-001
+    MATH-PHYS-KINETIC-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-PAR-STABLE-COMMIT-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/destruction/physics.js
+    SOURCE::docs/destruction/rubble-field.md
+    SOURCE::tests/destruction_lifecycle.cjs
+    SOURCE::tests/destruction_rubble.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define tier selection policy using volume/importance/distance/activity and budgets; defaults may start from SOURCE 128 awake/512 retained/1024 cheap but are configurable and benchmarked.
+    Define DebrisRepresentation enum and immutable source material-volume packet schema.
 
 STEP 2
-    Implement hero spawn via PhysicsCommandBuffer; failure/unrepresentable convex falls back to cheap/baked, not material loss.
+    Implement lifecycle budgets configurable per world/profile, not hardcoded globally.
 
 STEP 3
-    Implement cheap integrator fixed tick with gravity and collision against Terrain/Rubble surfaceHeight; orientation integrates angular velocity with bounded approximation.
+    Implement deterministic admission: HERO if qualified/budget; else CHEAP; direct BAKED if cheap budget exhausted or shape unrepresentable.
 
 STEP 4
-    Implement settle candidate detection including hero sleep/contact support and cheap ground contact.
+    Implement demotion preserving linear/angular state and material volume.
 
 STEP 5
-    Implement batch bake transaction depositing volume first, rebuilding rubble representation, then removing old tier records/bodies.
+    Implement settle candidate collection and two-phase commit interface to RubbleField.
 
 STEP 6
-    Implement demotion hero->cheap preserving linear/angular state and semantic identity.
+    Implement RepresentationAccounting with epsilon-free exact semantic volume where using double volumes; tolerance only at physics-derived transforms.
 
 STEP 7
-    Implement RepresentationAccounting exact sums and conservation tests by material.
+    Port SOURCE synthetic collapse scenarios and overflow cases.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 SPAWN DETACHED:
-    if qualifiesHero and heroBudget.available:
-        if physicsShapeBuild succeeds:
-            create hero
-            return
-    if cheapBudget.available:
-        create cheap record
-        return
-    rubble.deposit(materialVolumes, position)
-    mark baked
+    packet := makeMaterialPacket(component)
+    if heroEligible(packet) and heroAwakeCount < heroBudget:
+        create HERO record
+    else if cheapCount < cheapBudget:
+        create CHEAP record
+    else:
+        enqueue DirectBake(packet)
 
-BAKE BATCH:
-    candidates := settled hero + cheap
-    transaction:
-        for d in candidates:
-            rubble.deposit(d.materialVolumes, d.position, spread)
-        rubble.flushDirtySemanticTiles()
-        collisionUpdate := compile dirty rubble
-        commit collision/field
-        for d in candidates:
-            remove hero body / cheap record
-            d.tier := Baked
-    assert accounting conserved
+SETTLE:
+    candidates := collectSettledInStableIdOrder()
+    for record in candidates:
+        rubble.deposit(record.materialVolumes, record.worldState)
+    rubble.flushDirty()
+    barrier/commit successful
+    for record in candidates:
+        retire dynamic representation
+        record.representation := BAKED
+
+ACCOUNT:
+    total := attached + hero + cheap + baked + removedByDamage
+    compare to originalSourceVolume by material
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Hero physics state read after physics step. Cheap arrays integrate in parallel batches, generating settle commands. Rubble deposits commit under tile ownership. Tier transitions occur at deterministic commit points.
+Lifecycle decisions can be computed per region but quota arbitration/commit is deterministic. Physics commands are buffered; render proxies subscribe after semantic representation transition.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Unrepresentable physics hull, budget pressure or collider failure triggers explicit fallback tier and metric; never silent deletion. If rubble tile/collision compile fails, keep prior debris tier until safe fallback field representation exists.
+Failed HERO collider creation falls back to CHEAP/BAKED with diagnostic; never loses material. Failed rubble deposit is fatal/transaction rollback because conservation would be violated.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Tier policy may depend on semantic importance/distance profile but must not depend on particle-quality settings. Conservation and DebrisId stable; visual priority may be camera-dependent without affecting semantic material.
+Stable priority/tie-break IDs. Settle commit ordered by debris ID/region. No dependence on Jolt body allocation order.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Expensive active bodies naturally decay into cheap/baked forms. Cheap SoA integration and batch bakes; no physics body per tiny fragment.
+Bound active rigid bodies. Demotion/bake naturally reduces expensive state. Track counts and transition rates in telemetry.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Use latest SOURCE rubble-field semantics as authoritative over older building-damage docs that deleted overflow debris.
+Preserve current default conceptual budgets as compatibility profile; exact counts may be retuned only by explicit benchmark chapter.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    hero spawn
-    hero budget -> cheap
-    cheap budget -> direct bake
-    demotion preserves velocity
-    batch bake no collision hole state ordering
-    material accounting exact
-    sleeping hero remains dynamic
+    hero admission
+    hero overflow to cheap
+    cheap overflow to baked
+    shape failure fallback
+    demotion preserves volume/state
+    two-phase settling
+    per-material conservation
+    deterministic priority
 
 ======================================================================
 COMMANDS TO RUN
@@ -175,39 +178,38 @@ COMMANDS TO RUN
     ctest --preset dev-debug --output-on-failure
 
 
+
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
     [ ] three-tier lifecycle
-    [ ] budget fallback no loss
-    [ ] demotion
-    [ ] batch bake ordering
-    [ ] material conservation
-    [ ] configurable budgets
-    [ ] benchmark
+    [ ] no overflow deletion
+    [ ] two-phase settle
+    [ ] accounting per material
+    [ ] deterministic quotas
+    [ ] physics/render decoupled
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    deleting debris when physics pool full
-    turning sleeping hero Fixed
-    removing hero before rubble collider/field commit
-    quality setting changing semantic material preservation
+    dropping debris when pools full
+    removing body before replacement collision exists
+    using render visibility alone to delete authoritative material
+    nondeterministic eviction
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
     [ ] three-tier lifecycle
-    [ ] budget fallback no loss
-    [ ] demotion
-    [ ] batch bake ordering
-    [ ] material conservation
-    [ ] configurable budgets
-    [ ] benchmark
+    [ ] no overflow deletion
+    [ ] two-phase settle
+    [ ] accounting per material
+    [ ] deterministic quotas
+    [ ] physics/render decoupled
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next chapter in the master index.
+Continue with 16.5 RUBBLE_FIELD.
 
 END OF CHAPTER 16.4

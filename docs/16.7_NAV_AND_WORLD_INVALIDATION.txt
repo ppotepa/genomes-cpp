@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 16.7 - NAV_AND_WORLD_INVALIDATION
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Connect committed destruction changes to world queries, static/dynamic spatial
-indexes, render extraction, collision and navigation using revisioned dirty
-bounds so every representation describes the same damage state.
+Connect destruction commits to region/world/navigation invalidation using bounded dirty bounds and revisioned events, so structural changes rebuild only affected spatial/nav/render derivatives.
 
 ======================================================================
 REQUIRES
@@ -23,134 +22,149 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
     TARGET::docs/16.6_DESTRUCTION_PHYSICS_INTEGRATION.txt
     TARGET::docs/14.6_DYNAMIC_NAV_INVALIDATION.txt
     TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE requirement that a hit changes the same state seen by ballistics,
-support graph, visible geometry and collision, with grouped/batched synchronization
-rather than one full rebuild per event.
+Immediate semantic destruction state, future-query correctness, rubble navigation hooks and the principle that secondary representations lag only through explicit revisioned rebuild queues.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Later visual polish and domain integrations not explicitly owned by this chapter.
+No implementation of Recast itself (Stage 14 already owns backend); this chapter wires destruction producer to generic invalidation consumers.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
-    modules/destruction/include/genomes/destruction/DestructionChangeSet.hpp
+    modules/destruction/include/genomes/destruction/DestructionInvalidation.hpp
     modules/destruction/src/DestructionInvalidation.cpp
+    engine/world/include/genomes/world/DirtyBounds.hpp
     tests/native/destruction/destruction_invalidation_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. DestructionChangeSet is emitted once per committed damage batch/building and contains target/building revision, changed StructuralElementIds, removed/added hole geometry, detached debris IDs, dirty world bounds, rubble dirty tiles and reason/tick.
+1. Every committed geometry/support/rubble change emits DirtyBounds{worldAabb, reasonMask, sourceRevision, region IDs}.
 
-2. Consumers subscribe through explicit world event/command bus: Building render compiler/chunk manager, Collision compiler/physics, Nav invalidation, WorldQuery static/dynamic index updater, cover/threat fields. They compare source revision/generation and discard stale rebuild results.
+2. Consumers are independent: NavigationDirty, StaticQueryDirty, RenderRepresentationDirty, PhysicsDirty. One failed consumer does not roll back already authoritative semantic damage unless its contract requires transaction.
 
-3. World logical ballistic query reads latest committed structural DamageField/Holes immediately. Expensive render/collision/nav rebuild may lag by bounded ticks but revision mismatch is visible; no old geometry may be resurrected after target element Removed.
+3. Dirty bounds coalesce spatially/temporally with deterministic rules and maximum expansion limits; never mark entire world for a local hole by default.
 
-4. Finishes/details owned by structural element follow owner removal state in render representation; they are not independent immortal visual objects.
+4. Queries against semantic destruction state are correct immediately. Compiled nav/render/static proxies expose revision and may be conservatively stale until rebuild.
+
+5. Region unload/load persists dirty semantic revision so derived data is rebuilt or loaded at matching artifact revision.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+DirtyBounds compact value type: AABB3, reason bitmask, source Object/Region IDs, semanticRevision. Per-consumer dirty queues are region-bucketed.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    N/A
+    MATH-AABB-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-SPATIAL-HASH-001
+    ALG-PAR-STABLE-COMMIT-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/world/worldDestructionHost.js
+    SOURCE::js/destruction/rubbleField.js
+    SOURCE::docs/destruction/rubble-field.md
+    SOURCE::tests/world_building_spatial_index.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define DestructionChangeSet schema and publish at semantic transaction commit.
+    Define reason flags: StructuralGeometry, RubbleSurface, Traversability, Cover, StaticCollision, Presentation.
 
 STEP 2
-    Update logical Building/MaterialModel spatial index immediately or through same commit so next projectile trace sees holes/removals.
+    At destruction commit, compute conservative world AABB from affected semantic parts/tiles and emit one or more DirtyBounds.
 
 STEP 3
-    Route dirty bounds to building render/collision compilers and NavDirtyBounds; group repeated element changes.
+    Implement deterministic coalescing within region/grid bucket using union if overlap/near threshold and revision compatibility.
 
 STEP 4
-    Add generation/revision token to asynchronous rebuild jobs and reject stale completion.
+    Feed NavigationWorld dirty tile API from Traversability/Structural changes.
 
 STEP 5
-    Update WorldQuery snapshots atomically with new target revision and dynamic debris memberships.
+    Feed world static query/BVH incremental rebuild or overlay path.
 
 STEP 6
-    Implement representation consistency diagnostic comparing semantic element revision vs render/physics/nav revision lag.
+    Feed presentation extraction dirty revisions; do not force full scene rebuild.
+
+STEP 7
+    Test destruction near region boundary marks all overlapping regions/tiles.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-COMMIT DAMAGE:
-    apply damage fields/structural states
-    reindex logical target once
-    changeSet := aggregate dirty elements/bounds/revision
-    publish changeSet
+EMIT:
+    dirty := boundsOf(changedSemanticData)
+    reasons := deriveReasonMask(change)
+    for region in world.regionsOverlapping(dirty):
+        queues[region].push({dirty,reasons,revision})
 
-CONSUMER:
-    job := rebuild(changeSet.revision)
-    on complete:
-        if currentSemanticRevision != job.sourceRevision:
-            discard
-        else swap representation
+COALESCE:
+    stable_sort queue by minCell, revision, sourceId
+    for event in queue:
+        if compatible(last,event) and distance(last,event) <= threshold:
+            last.bounds := union(last.bounds,event.bounds)
+            last.reasons |= event.reasons
+        else:
+            output.push(event)
 
-REMOVED ELEMENT:
-    all later rebuild inputs omit element and owned finish details
-    stale jobs with prior revision cannot commit
+CONSUME NAV:
+    for dirty in navQueue:
+        nav.markTilesDirty(dirty.bounds, dirty.revision)
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Semantic destruction commit is single owner per target; downstream compiler jobs parallel. World/index snapshot swap uses revisions, not shared mutable geometry.
+Producers write thread-local dirty events. Commit merges/sorts. Consumers may rebuild in parallel after semantic commit and publish by revision.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Failed render rebuild keeps last visual with diagnostic but semantic/ballistic state stays authoritative; failed collision/nav rebuild triggers conservative safety representation or retry according subsystem, never reintroduces removed solid.
+Consumer rebuild failure leaves dirty item pending and keeps previous conservative representation; report telemetry. Invalid/nonfinite bounds is programmer error.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-ChangeSet ordering stable by StructuralElementId/DebrisId. Async completion order does not alter semantic revision.
+Coalescing uses stable sort and fixed thresholds, independent of worker completion.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-One logical reindex per damage batch/cascade; dirty bounds localized; downstream jobs coalesce revisions to latest.
+Bound dirty region expansion; benchmark 10k small impacts vs tile/BVH rebuild counts. Coalescing must reduce duplicate rebuilds.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Directly addresses SOURCE historical bugs where visual/collider/model diverged or queued jobs recreated removed sections.
+SOURCE has ad-hoc world bridges; TARGET replaces with generic revisioned invalidation, preserving behavior not coupling.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    hole visible to next logical trace before render rebuild
-    stale rebuild discarded
-    finish detail removed with owner
-    one nav dirty batch
-    one index rebuild per blast batch
+    local dirty bounds
+    cross-region dirty
+    coalescing stable
+    reason masks
+    nav tile marking
+    stale revision rejected
+    failed consumer retains dirty
 
 ======================================================================
 COMMANDS TO RUN
@@ -160,35 +174,36 @@ COMMANDS TO RUN
     ctest --preset dev-debug --output-on-failure
 
 
+
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] single ChangeSet
-    [ ] revision tokens
-    [ ] logical query immediate
-    [ ] all representations invalidated
-    [ ] stale resurrection impossible
+    [ ] revisioned dirty event
+    [ ] region-boundary correct
+    [ ] nav/world/render consumers wired
+    [ ] local not global invalidation
+    [ ] failure retry
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    each representation maintaining independent damage truth
-    rebuild whole world per hit
-    queued stale mesh/collider restoring removed element
-    waiting renderer before semantic commit
+    rebuild whole world per impact
+    camera-driven invalidation
+    clearing dirty flag before successful publish
+    consumer mutating semantic destruction state
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] single ChangeSet
-    [ ] revision tokens
-    [ ] logical query immediate
-    [ ] all representations invalidated
-    [ ] stale resurrection impossible
+    [ ] revisioned dirty event
+    [ ] region-boundary correct
+    [ ] nav/world/render consumers wired
+    [ ] local not global invalidation
+    [ ] failure retry
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next chapter in the master index.
+Continue with 16.8 DESTRUCTION_REFERENCE_PARITY.
 
 END OF CHAPTER 16.7

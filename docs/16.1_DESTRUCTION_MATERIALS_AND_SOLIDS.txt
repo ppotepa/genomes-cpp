@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 16.1 - DESTRUCTION_MATERIALS_AND_SOLIDS
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Port the semantic destruction material/solid model into native C++ while
-preserving layered assemblies, explicit voids/air gaps, material frames,
-physicalSolidId semantics and gameplay-calibrated material behavior.
+Port the generic destruction material/solid model into native C++ without coupling it to buildings, Infantry, Jolt or rendering. The result is the semantic substrate for impacts, structural damage, rubble and ballistics.
 
 ======================================================================
 REQUIRES
@@ -23,157 +22,155 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
-    TARGET::docs/11.7_STRUCTURAL_AND_MATERIAL_MODEL.txt
     TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
+    TARGET::docs/4.6_STATIC_BVH_AND_QUERY_SERVICE.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE contracts material-assembly-1, ordered layers, explicit air gaps,
-physicalSolidId continuity, local material frames, seed-stable local material
-sampling and the rule that coefficients are game-model parameters rather than
-certified real-world ballistic data.
+Material layers, physicalSolidId/assembly identity, explicit void/air intervals, local material frames, deterministic local material fields, density/strength/gameplay coefficients and the rule that mesh subdivision does not create fake physical interfaces.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Later visual polish and domain integrations not explicitly owned by this chapter.
+No projectile solver, no structural detachment, no Jolt body creation, no render mesh mutation.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
     modules/destruction/CMakeLists.txt
-    modules/destruction/include/genomes/destruction/MaterialCatalog.hpp
-    modules/destruction/include/genomes/destruction/MaterialAssembly.hpp
+    modules/destruction/include/genomes/destruction/Material.hpp
     modules/destruction/include/genomes/destruction/Solid.hpp
-    modules/destruction/include/genomes/destruction/MaterialField.hpp
-    modules/destruction/src/MaterialCatalog.cpp
+    modules/destruction/include/genomes/destruction/MaterialAssembly.hpp
     modules/destruction/src/MaterialAssembly.cpp
     tests/native/destruction/material_solid_tests.cpp
-    reference/schemas/material_assembly_v1.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. MaterialId identifies a versioned gameplay material profile. MaterialProfile stores density, elastic/plastic/crush/fracture response parameters, porous/packing behavior, surface response categories and calibration metadata. Every value carries provenance class: measured-reference, derived, or gameplay-tuned.
+1. MaterialId and PhysicalSolidId are strong semantic IDs. Material definition contains density plus explicitly named game-model coefficients; do not label calibration as certified engineering data.
 
-2. MaterialAssembly exposes assemblyId, physicalSolidId, local MaterialFrame {origin,normal,tangent,bitangent}, ordered MaterialLayer intervals and explicit Air/Void intervals. A contiguous technical mesh split sharing one physicalSolidId does not create a new physical interface.
+2. MaterialAssembly owns an ordered sequence of Layer{material,start,end,physicalSolidId}. start/end are distances along MaterialFrame.normal from MaterialFrame.origin. void/air layers contribute path/time but zero material resistance.
 
-3. Layer interval start/end are scalar distances along MaterialFrame.normal. Traversal from opposite direction reverses encounter order but does not redefine layer locations. Undeclared gaps are treated according explicit assembly validation policy, never silently filled with material.
+3. Adjacent technical mesh pieces sharing one physicalSolidId remain one physical interface unless a declared gap separates them.
 
-4. MaterialField provides bounded deterministic local variation (strength/density/porosity/etc.) sampled in material-local coordinates from a stable seed. Rotation/translation of the world object must not change local material pattern.
+4. MaterialFrame = origin + orthonormal normal/tangent basis in world/semantic coordinates. Rotation/translation of the assembly must transform the frame equivariantly.
 
-5. Solid/StructuralPart carries stable semantic IDs, assembly/material refs, immutable base geometry/topology, current DamageField handle/revision and dynamic representation state. Rendering/physics bodies are not the source of destruction truth.
+5. MaterialField sampling is deterministic from stable seed/path and local coordinates; sampling result may vary spatially but cannot depend on render tessellation.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Material catalog is immutable SoA/cold data. MaterialAssembly stores small ordered layer vector. MaterialField parameters are compact analytic/noise descriptors; no dense voxel field unless a later profile explicitly chooses one. Solid records reference geometry/artifact IDs and damage state by stable handles.
+Prefer compact immutable catalogs and contiguous layer arrays. MaterialDefinition is POD-like numeric data. MaterialAssembly stores Span/vector of layers plus transform/frame and bounds; renderer handles are forbidden.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    DATA-UNIT-001
     DATA-COORD-001
+    DATA-UNIT-001
     MATH-VEC-DOT-001
+    MATH-GEO-RAY-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    ALG-PAR-STABLE-COMMIT-001
+    ALG-RNG-SEED-TREE-001
+    ALG-RAY-AABB-SLAB-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    SOURCE::docs/destruction/contracts.md
-    SOURCE::docs/destruction/data-sources.md
-    SOURCE::docs/destruction/material-response-calibration.json
     SOURCE::js/destruction/catalogs.js
-    SOURCE::js/destruction/materialModel.js
     SOURCE::js/destruction/solid.js
+    SOURCE::js/destruction/materialModel.js
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::tests/destruction_core.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define MaterialProfile schema and import current SOURCE material IDs/parameters with explicit calibration/provenance fields; do not relabel gameplay coefficients as engineering constants.
+    Define MaterialId, MaterialDefinition and a versioned MaterialCatalog API. Port current material names/coefficients as gameplay calibration data with source provenance.
 
 STEP 2
-    Define MaterialFrame transform helpers world<->material local and test rotation/translation equivariance.
+    Define MaterialFrame validation: finite vectors, nonzero normal, normalized orthogonal basis within explicit tolerance.
 
 STEP 3
-    Define MaterialLayer/Assembly validation: monotonic intervals, positive thickness for solids, explicit void/air, stable physicalSolidId, no NaN/overlap ambiguity.
+    Define Layer and MaterialAssembly. Validate ordered non-overlapping intervals; allow explicit void/air layers; reject negative thickness.
 
 STEP 4
-    Implement deterministic MaterialField sample(localPoint, property) using SeedPath/StableHash child streams or analytic noise; sampling must not mutate RNG state.
+    Implement world-to-material and material-to-world transforms used by sampling and traversal.
 
 STEP 5
-    Define Solid/StructuralPart semantic record and immutable base-shape reference suitable for building structural elements and generic test fixtures.
+    Implement deterministic material-field sample interface using SeedPath/stable IDs, independent of mesh triangles.
 
 STEP 6
-    Add canonical serialization schemas/fixtures and SOURCE parity cases: single layer, layered wall, two glass panes with air gap, technical sections same physicalSolidId.
+    Translate SOURCE destruction-core fixtures for layered wall, reversed wall, two panes with air gap and shared physicalSolidId technical sections.
+
+STEP 7
+    Add serialization-ready version fields but defer binary format to owning schema chapter.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-TRACE ASSEMBLY INTERVALS:
-    localStart := dot(worldStart - frame.origin, frame.normal)
-    localEnd   := dot(worldEnd   - frame.origin, frame.normal)
-    direction := sign(localEnd-localStart)
+VALIDATE ASSEMBLY:
+    require layers sorted by start
+    previousEnd := 0
+    for layer in layers:
+        require layer.end >= layer.start
+        require layer.start >= previousEnd - tolerance
+        if layer.start > previousEnd:
+            implicitGap := [previousEnd, layer.start] with zero resistance
+        previousEnd := layer.end
 
-    intervals := assembly.layers sorted by start
-    if direction < 0:
-        iterate reversed
+SAMPLE MATERIAL:
+    local := worldToMaterial(frame, worldPoint)
+    stream := SeedTree(rootSeed).child("material-field", physicalSolidId)
+    return field.sample(local, stream)
 
-    for layer in intervals intersecting [min,max]:
-        travel := intersectionLength(segmentInterval, layer.interval)
-        if layer.kind == Air/Void:
-            resistance := 0
-        else:
-            localPoint := frame.toLocal(contactPoint)
-            sampled := materialField.sample(localPoint)
-            emit Traversal(layer, travel, sampled)
-
-MATERIAL FIELD:
-    key := stableHash(materialField.seed, quantized/local semantic coordinate, propertyId)
-    variation := deterministicNoise(key)
-    return baseProperty * boundedVariation(variation)
+INTERFACE GROUP:
+    contiguous sections with same physicalSolidId and no real gap
+        => one physical contact
+    declared air/void or positive gap
+        => contact terminates
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Material catalogs/assemblies are immutable after publication. Solid damage mutation is staged through destruction command buffers; workers read immutable geometry/material frames and write local impact results.
+Material catalogs are immutable after initialization. Assemblies may be read concurrently. Damage mutation belongs to later command-buffer stages, not this chapter.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Invalid assembly returns ValidationReport with stable codes (overlap, missing frame, negative thickness, nonfinite). Missing optional calibration data selects documented gameplay default; missing required material ID is hard error.
+Invalid layer topology returns ValidationReport/Result error with assembly/layer IDs. Missing material ID is NotFound. No silent default material in production path.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Material sampling depends only on local coordinates, seed and material-field version. World transform, worker count and trace direction do not change intrinsic sampled material values.
+Catalog ordering and field seeds use stable IDs. Hash-map iteration never defines layer order. Identical input/version/seed yields identical semantic sampling.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Layer traversal O(layer count), normally very small. MaterialField analytic sampling avoids allocating dense fields. Spatial broadphase belongs to 17.2/physics/world indexes, not material assembly scans.
+Layer traversal is O(L) for small layer counts; no heap allocation per query. Assembly broadphase uses spatial structures from Stage 4, not scans of all solids.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Port current SOURCE values under explicit native catalog version. Preserve legacy compatibility profiles where parity requires exact behavior; improved material models get new version IDs.
+Export selected SOURCE material assemblies into TARGET reference fixtures. Preserve legacy names/calibration; improvements require a versioned material profile rather than rewriting existing fixture expectations.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    single material interval
-    two layers + void
-    reverse traversal ordering
-    same physicalSolidId continuity
-    material-field transform equivariance
-    schema validation
-    SOURCE calibration fixture import
+    material catalog exact IDs
+    layer ordering/void gaps
+    shared physicalSolid interface
+    reversed traversal order
+    frame rotation equivariance
+    deterministic material field
+    invalid assembly diagnostics
 
 ======================================================================
 COMMANDS TO RUN
@@ -183,39 +180,41 @@ COMMANDS TO RUN
     ctest --preset dev-debug --output-on-failure
 
 
+
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] versioned material catalog
-    [ ] assembly/frame schema
-    [ ] explicit air gaps
+    [ ] material catalog native
+    [ ] versioned assembly contract
+    [ ] explicit void semantics
     [ ] physicalSolidId semantics
-    [ ] deterministic local material field
-    [ ] game-model provenance documented
-    [ ] tests pass
+    [ ] frame transform tested
+    [ ] deterministic field tested
+    [ ] legacy fixtures exported
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    calling gameplay coefficients certified V50/FEM values
-    using render material as destruction material
-    world-space RNG field that changes after rotation
-    treating technical mesh seams as material interfaces
+    Diligent/Jolt types in semantic headers
+    using mesh triangle boundaries as material interfaces
+    calling game coefficients real-world certified data
+    unordered layer iteration
+    global RNG
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] versioned material catalog
-    [ ] assembly/frame schema
-    [ ] explicit air gaps
+    [ ] material catalog native
+    [ ] versioned assembly contract
+    [ ] explicit void semantics
     [ ] physicalSolidId semantics
-    [ ] deterministic local material field
-    [ ] game-model provenance documented
-    [ ] tests pass
+    [ ] frame transform tested
+    [ ] deterministic field tested
+    [ ] legacy fixtures exported
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next chapter in the master index.
+Continue with 16.2 IMPACT_SOLVER_PORT.
 
 END OF CHAPTER 16.1

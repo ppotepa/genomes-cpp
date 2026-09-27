@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 16.3 - STRUCTURAL_LINKS_AND_DAMAGE_FIELDS
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Implement local material DamageField plus structural support/connectivity graph so
-impacts create holes/cracks/weakness first and components detach only when local
-integrity/support rules fail.
+Implement generic local material damage fields and structural support graph state so repeated damage accumulates locally and structural detachment occurs only through explicit support failure.
 
 ======================================================================
 REQUIRES
@@ -23,27 +22,26 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
     TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
-    TARGET::docs/11.7_STRUCTURAL_AND_MATERIAL_MODEL.txt
+    TARGET::docs/4.5_SPATIAL_HASH_AND_DYNAMIC_GRID.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE material-damage-field-1 behavior, bounded local cells, holes/removed
-volume, terminal damage state, and directed support rules where foundations
-anchor the structure and loss of support can detach components.
+SOURCE material-damage-field-1 semantics: bounded cells for crush/cracks/weakness/rear damage, holes/channels with removed volume, diagnostic aggregate damage, and the rule that panels detach through support failure rather than arbitrary hit thresholds.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Later visual polish and domain integrations not explicitly owned by this chapter.
+No debris physics lifecycle and no rubble baking yet.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
     modules/destruction/include/genomes/destruction/DamageField.hpp
     modules/destruction/include/genomes/destruction/StructuralGraph.hpp
-    modules/destruction/include/genomes/destruction/DamageCommands.hpp
     modules/destruction/src/DamageField.cpp
     modules/destruction/src/StructuralGraph.cpp
     tests/native/destruction/damage_field_tests.cpp
@@ -52,125 +50,122 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. DamageField is local to StructuralElement/Solid and stores bounded cells or sparse tiles with crush, crack, weakness, rearDamage plus explicit Hole records containing channel geometry and removedVolume. Aggregate damage is diagnostic only.
+1. DamageField is defined in stable local material coordinates, not render vertices. Cell resolution/bounds are explicit and versioned.
 
-2. Damage application is spatial/local: ImpactResult deposits energy/work into nearby cells and may cut a through-channel only after penetration geometry confirms traversal. A local hit never automatically destroys an entire wall.
+2. Damage channels/holes store centerline/radius/depth/removedVolume and deterministic IDs. Aggregate part.damage is diagnostic derived state, never the sole damage truth.
 
-3. StructuralGraph is directed support graph with element category, anchors, edge support type/cost/span and current integrity. Foundation/world anchors are explicit; roof/slab/side support rules come from building structural model.
+3. StructuralGraph nodes represent semantic structural parts; edges represent supports/connections with capacity/state. Render mesh groups are not structural nodes by default.
 
-4. Detach eligibility requires structural/support failure or explicit terminal destruction rule. Geometry subdivision limit does not make remaining wall immortal: at budget/depth limit, state transitions to weakened/terminal/detach/remove according documented policy.
+4. Damage events update local fields first; support weakening is derived from affected semantic region/material and emits StructuralStateChange commands.
 
-5. DamageField geometry and structural graph revisions are semantic sources for render collision/nav compilers; all representations consume same committed damage revision.
+5. Detachment occurs when graph/support policy marks a component unsupported/failed.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Damage cells use sparse/local grid keyed in material frame with fixed maximum cells per element/chunk; Hole vector bounded by geometry budget and can merge overlapping channels. Structural graph uses compact adjacency arrays plus mutable integrity/status arrays keyed StructuralElementId.
+DamageField uses bounded dense or sparse cell tiles chosen by chapter constants; cells store compact floats/quantized fields after benchmark. StructuralGraph uses contiguous node/edge arrays with stable IDs and adjacency offsets.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    DATA-UNIT-001
-    MATH-SPATIAL-GRID-001
+    DATA-COORD-001
+    MATH-VEC-DIST2-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-SPATIAL-HASH-001
+    ALG-GRID-CONNECTIVITY-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    SOURCE::docs/destruction/contracts.md
-    SOURCE::docs/destruction/building-damage-research.md
     SOURCE::js/destruction/surfaceDamage.js
-    SOURCE::tests/building_destruction_v6.cjs
+    SOURCE::js/destruction/materialModel.js
+    SOURCE::js/buildings/buildingDamageChunkManager.js
+    SOURCE::docs/destruction/contracts.md
     SOURCE::tests/building_damage_chunks.cjs
+    SOURCE::tests/building_destruction_quality.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define DamageFieldConfig cellSize/maxCells/maxHoles/merge tolerances and material-local coordinates.
+    Define DamageCell channels and HoleRecord schema with local frame/bounds.
 
 STEP 2
-    Port impact deposition into crush/crack/weakness/rearDamage metrics with versioned gameplay calibration.
+    Implement deterministic mapping from local point/radius to affected cell range.
 
 STEP 3
-    Implement Hole creation/merge and removed-volume accounting tied to actual penetrated channel/crater geometry.
+    Apply ImpactDamageCommand into cells using bounded falloff kernel; preserve removed volume accounting separately.
 
 STEP 4
-    Build StructuralGraph from Building StructuralModel support edges; import foundation anchors, vertical alignment and limited lateral spans as data-driven graph rules.
+    Define StructuralNode/StructuralEdge and immutable topology plus mutable damage/support state arrays.
 
 STEP 5
-    Implement support reachability/path-cost check after batched damage/removal commands; process cascade in stable element-ID order per wave.
+    Implement support evaluation using deterministic graph traversal from foundation/anchor nodes.
 
 STEP 6
-    Define StructuralState Intact/Damaged/TerminalDebris/Detached/Removed and legal transitions.
+    Emit DetachComponentCommand only after support evaluation; never remove geometry in-place here.
 
 STEP 7
-    Emit BuildingChanged/CollisionDirty/NavDirty/RenderDirty bounds once per batch after semantic commit.
+    Translate building damage chunk/quality fixtures into semantic tests independent of renderer.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 APPLY DAMAGE:
-    local := element.frame.toLocal(impact.point)
-    cells := damageField.cellsWithin(local, radius)
-    distribute work/impulse metrics deterministically
-    if impact penetrated:
-        hole := channel(entry,exit,radii,removedVolume)
-        merge/add hole within budget
-    update integrity metrics
+    bounds := cellsOverlapping(localPoint, radius)
+    for cell in stableIndexOrder(bounds):
+        d := distance(cell.center, localPoint)
+        if d > radius: continue
+        w := falloff(d/radius)
+        cell.crush += energy * w * coeff.crush
+        cell.crack += energy * w * coeff.crack
+        cell.weakness := clamp(cell.weakness + ..., 0, 1)
 
-SUPPORT CASCADE:
-    dirty := elements whose integrity/support changed
-    repeat waves bounded by element count:
-        detachList := []
-        for element in dirty sorted ID:
-            if element is anchor: continue
-            if !hasValidSupportPath(element, graph, span/cost limits):
-                detachList.push(element)
-        if empty: break
-        mark all detachList Detached
-        dirty := neighbors affected
-    emit one representation invalidation batch
+SUPPORT:
+    supported := flood/DFS from anchor nodes over edges where edge.capacityRemaining > 0
+    for structural node in stableIdOrder:
+        if node was supported and now !supported:
+            commands.push(DetachComponent(node.componentId))
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Impact jobs emit DamageCommands. One destruction commit owns DamageField/StructuralGraph mutation per target/building. Different buildings can commit in parallel if world event ordering does not conflict.
+Damage updates to one field require exclusive owned tile/range or command reduction. Different structures can update in parallel. Support graph evaluation reads committed damage state and writes local result buffers.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Damage budget overflow uses explicit merge/coarsen/terminal policy and reports metrics; it must not restore original geometry or silently discard removed material.
+Out-of-bounds damage is clipped/reported according to command contract. Invalid topology (dangling edge, duplicate ID) rejected at compile/validation time.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Damage cell addressing/material-local field and cascade waves stable by element IDs. Simultaneous hits are committed by semantic sequence key.
+Cell iteration and graph traversal use stable index order. Floating accumulation for multiple same-tick impacts uses deterministic command sort/reduction policy from 15.4.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Local sparse cells, spatially limited support rechecks, batched representation invalidation. No full building mesh/collider rebuild per impact.
+Damage cost proportional to affected cells, never whole building mesh. Support evaluation should operate on compact graph; dirty-component incremental evaluation may be added after correctness benchmark.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve latest SOURCE behavior over older contradictory docs. The persistent rubble/conservation path in 16.4-16.5 supersedes legacy "delete debris when pool full".
+Building-specific panels adapt into generic structural graph. Preserve lazy damage representation and existing tests as invariant/behavioral evidence.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    local damage not whole wall
+    local damage locality
     hole removed volume
-    hole merge
-    support foundation path
-    remove support cascade
-    budget terminal behavior
-    batched invalidation
+    repeat-hit accumulation
+    rotation/local-frame invariance
+    support chain failure
+    multiple anchors
+    detachment only after support failure
+    same-tick deterministic impact order
 
 ======================================================================
 COMMANDS TO RUN
@@ -180,38 +175,38 @@ COMMANDS TO RUN
     ctest --preset dev-debug --output-on-failure
 
 
+
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] bounded DamageField
-    [ ] holes/volume
-    [ ] directed support graph
-    [ ] legal states
-    [ ] support cascade
-    [ ] shared semantic revision for representations
+    [ ] damage field semantic not mesh-based
+    [ ] removed volume tracked
+    [ ] structural graph stable IDs
+    [ ] support traversal deterministic
+    [ ] detachment command only
+    [ ] legacy invariants translated
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    wall HP only model
-    detaching on every penetration
-    making cut-depth limit invulnerable
-    render mesh as damage source
-    discarding removed volume on budget overflow
+    detaching panel on arbitrary damage scalar alone
+    per-triangle damage as authoritative state
+    nondeterministic atomic float accumulation
+    renderer mutation inside damage system
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] bounded DamageField
-    [ ] holes/volume
-    [ ] directed support graph
-    [ ] legal states
-    [ ] support cascade
-    [ ] shared semantic revision for representations
+    [ ] damage field semantic not mesh-based
+    [ ] removed volume tracked
+    [ ] structural graph stable IDs
+    [ ] support traversal deterministic
+    [ ] detachment command only
+    [ ] legacy invariants translated
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next chapter in the master index.
+Continue with 16.4 HERO_CHEAP_BAKED_DEBRIS.
 
 END OF CHAPTER 16.3

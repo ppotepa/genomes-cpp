@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 16.8 - DESTRUCTION_REFERENCE_PARITY
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Create SOURCE-to-TARGET destruction parity suite covering material traversal,
-damage fields, structural collapse, debris lifecycle, rubble conservation,
-representation invalidation and full-building shot/blast scenarios.
+Freeze and execute the destruction migration parity gate. Export minimal SOURCE fixtures, compare native semantic results/invariants, run stress/conservation scenarios and decide whether native destruction is eligible for integrated use.
 
 ======================================================================
 REQUIRES
@@ -23,142 +22,156 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
+    TARGET::docs/16.1_DESTRUCTION_MATERIALS_AND_SOLIDS.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+    TARGET::docs/16.3_STRUCTURAL_LINKS_AND_DAMAGE_FIELDS.txt
+    TARGET::docs/16.4_HERO_CHEAP_BAKED_DEBRIS.txt
+    TARGET::docs/16.5_RUBBLE_FIELD.txt
+    TARGET::docs/16.6_DESTRUCTION_PHYSICS_INTEGRATION.txt
     TARGET::docs/16.7_NAV_AND_WORLD_INVALIDATION.txt
     TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-All current SOURCE destruction contracts/tests/calibration evidence, with latest
-rubble-field semantics taking precedence where older documents conflict.
+All destruction contracts and tests enumerated in 0.2, especially conservation, physical-solid interfaces, local damage, hero/cheap/baked lifecycle and world invalidation behavior.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Later visual polish and domain integrations not explicitly owned by this chapter.
+Does not delete SOURCE code. Legacy retirement remains Stage 20.7.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
-    reference/fixtures/destruction/
-    reference/schemas/destruction_fixture_v1.txt
-    tools/reference_export/destruction_export.*
+    reference/fixtures/destruction/README.txt
+    reference/fixtures/destruction/*.json
     tests/native/parity/destruction_parity_tests.cpp
-    docs/reports/DESTRUCTION_PARITY_V1.txt
+    tools/reference/export_destruction_reference.*
+    docs/parity/16.8_DESTRUCTION_PARITY_REPORT.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Parity fixture groups: material assemblies/layers, local DamageField/hole, structural support cascades, building adapter full target, hero/cheap/baked accounting, rubble field operations, blast geometry effects, lifecycle/dispose.
+1. Parity report records exact SOURCE commit, TARGET commit, fixture schema/exporter version and per-case parity class.
 
-2. Conservation hard invariant: for collapse-only material transfer, source detached solid volume ~= hero + cheap + baked + explicitly removed/excavated/unrepresented categories, with every nonconserved category separately accounted. No unexplained loss.
+2. Do not require identical Rapier/Jolt body transforms where invariant/behavioral parity is correct. Require strong semantic parity for material interval traversal, energy bookkeeping and conservation fixtures.
 
-3. SOURCE tests are mapped individually: destruction_core, building_destruction_v6, building_damage_chunks/lazy/quality, destruction_rubble/spatial/lifecycle/effects. Each has native test/report counterpart.
+3. Historical fixture expected values are immutable once accepted; updates create new fixture version with reason/source commit.
 
-4. Numerical parity tolerances are explicit per material/work/damage field. Visual effect differences are P4 and never substitute semantic parity.
+4. All SOURCE destruction test requirements must be mapped to native test or explicitly superseded by stronger documented test.
+
+5. Parity status categories: PASS, FAIL, BLOCKED_SOURCE, INTENTIONAL_VERSIONED_CHANGE. No silent skip.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Fixtures contain normalized semantic inputs/results, not Three.js/Rapier objects. Full-building fixtures reference exported BuildingPlan/Structural model or reproduce via TARGET building fixture IDs.
+Fixture sets separated: materials, impacts, damage-fields, structural, rubble, lifecycle, integration. JSON for semantic values; optional binary only for compact geometry arrays with metadata.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    N/A
+    MATH-PHYS-KINETIC-001
+    DATA-COMPLEXITY-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-PAR-STABLE-COMMIT-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
     SOURCE::docs/destruction/contracts.md
+    SOURCE::docs/destruction/energy-acceptance.md
     SOURCE::docs/destruction/rubble-field.md
-    SOURCE::docs/destruction/building-damage-research.md
-    SOURCE::docs/destruction/material-response-calibration.json
     SOURCE::tests/destruction_core.cjs
-    SOURCE::tests/destruction_rubble.cjs
     SOURCE::tests/destruction_lifecycle.cjs
-    SOURCE::tests/building_destruction_v6.cjs
+    SOURCE::tests/destruction_rubble.cjs
+    SOURCE::tests/destruction_spatial.cjs
+    SOURCE::tests/building_destruction_quality.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Create exact SOURCE commit-pinned exporters for small semantic material/impact/damage/rubble cases and full-building metrics.
+    Pin exact SOURCE commit and build exporter scripts without copying SOURCE modules into TARGET.
 
 STEP 2
-    Resolve documentation conflicts by recording source contract version and selecting latest authoritative rubble/conservation behavior; list deviations in report.
+    Export deterministic minimal cases: layered wall, glass pair/air gap, technical split, thin/thick, moving target, local damage, support failure, rubble deposits/removals, body-budget collapse.
 
 STEP 3
-    Export at least: layered wall both directions, two glass panes+air, technical split same physicalSolidId, penetration hole, support removal cascade, hero->cheap->baked transitions, tile overflow, rubble excavation/redeposit, HE breach fixture.
+    Implement native fixture loader/comparator with explicit numeric tolerances documented per field.
 
 STEP 4
-    Run native results and invariant validators; compare energy/volume/material accounting.
+    Translate every 0.2 destruction test category to native test mapping table.
 
 STEP 5
-    Map every relevant SOURCE destruction test filename to native fixture/test.
+    Run Debug correctness and Release stress/benchmark; record environment but do not invent absolute performance budget without baseline.
 
 STEP 6
-    Generate DESTRUCTION_PARITY_V1 report with zero unapproved semantic regressions before SOURCE destruction path becomes reference-only.
+    Produce parity report listing PASS/FAIL for each fixture/invariant and any intentional algorithm-version changes.
+
+STEP 7
+    Only after full PASS mark Stage 16 IMPLEMENTED/eligible; do not remove SOURCE.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-FOR fixture:
-    sourceExpected := fixture
-    native := runNativeScenario(input)
+FOR fixture IN sorted(fixtures by id):
+    legacyExpected := fixture.expected
+    native := runNative(fixture.input)
+    result := compareByParityClass(native, legacyExpected, fixture.policy)
+    report.add(fixture.id, result)
 
-    compare material traversal/contact boundaries
-    compare required numeric metrics/tolerances
-    validate damage/structure invariants
-    accounting := native.representationAccounting()
-    assert explainedVolumeBalance(accounting)
-    assert no stale representation state
-    report fixture result
+require report.count == fixtures.count
+require no status == SILENT_SKIP
 
-REPORT:
-    require every mapped SOURCE test category has native evidence
-    require zero unexplained material/energy accounting regressions
+CONSERVATION:
+    detachedByMaterial ~= hero + cheap + baked + removedRecorded
+    tolerance := fixture.explicitTolerance
+
+ELIGIBLE :=
+    all required fixtures PASS
+    and all invariant tests PASS
+    and no unmapped SOURCE acceptance requirement
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Fixtures/scenarios may run parallel isolated worlds; report sorted by fixture ID. Full building stress cases can be serial for reproducibility/resources.
+Parity tests explicitly run selected semantic cases at 1 and N worker counts where destruction jobs parallelize. Expected semantic results must not depend on worker count.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Any unexplained conservation loss, stale-representation resurrection or invalid support state is hard parity failure, not an approved visual divergence.
+SOURCE unavailable -> BLOCKED_SOURCE only for regeneration; committed fixtures still allow native tests. Any fixture schema mismatch fails loudly.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Fixtures pin SOURCE commit, target schema/generator versions and seeds. Native parallel/single-thread scenarios must produce same semantic damage accounting where physics trajectory exactness is not required.
+Fixture ordering/provenance exact. Native worker-count determinism tested. Physics invariant tests allow documented backend tolerance.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Parity suite correctness-first. Performance compared separately against SOURCE benchmark intent and native stress metrics; do not require browser timing equality.
+Record impact throughput, damage-field update, rubble deposit/query, active-body collapse transition. Compare trends/budgets, not browser FPS.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Passing 16.8 allows destruction semantic SOURCE code to be REFERENCE_ONLY, but ballistic Stage17 and full-world Stage20 must also pass before legacy runtime retirement.
+Successful 16.8 permits native destruction integration, not SOURCE deletion. Update 0.2 retirement ledger status.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    fixture provenance
-    SOURCE test mapping
-    conservation
-    layer/contact parity
-    collapse
-    stale rebuild
-    full-building scenarios
+    all exported fixtures
+    1 vs N worker deterministic semantic result
+    rubble conservation stress
+    body-budget stress
+    invalid-layer cases
+    dirty-region locality
 
 ======================================================================
 COMMANDS TO RUN
@@ -168,37 +181,40 @@ COMMANDS TO RUN
     ctest --preset dev-debug --output-on-failure
 
 
+
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] comprehensive fixtures
-    [ ] latest contract conflict resolved
-    [ ] all SOURCE destruction categories mapped
-    [ ] conservation hard gate
-    [ ] report generated
-    [ ] zero unapproved semantic regressions
+    [ ] exact provenance
+    [ ] all SOURCE requirements mapped
+    [ ] no silent skipped fixtures
+    [ ] semantic parity pass
+    [ ] conservation pass
+    [ ] stress pass
+    [ ] report committed
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    deleting old fixture when native differs
-    treating old contradictory debris deletion as latest contract
-    using visual screenshot as destruction correctness
-    hiding unrepresented energy/material without ledger category
+    editing expected fixture to match a bug
+    claiming parity from visuals only
+    requiring exact Jolt/Rapier trajectories unnecessarily
+    deleting SOURCE after pass
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] comprehensive fixtures
-    [ ] latest contract conflict resolved
-    [ ] all SOURCE destruction categories mapped
-    [ ] conservation hard gate
-    [ ] report generated
-    [ ] zero unapproved semantic regressions
+    [ ] exact provenance
+    [ ] all SOURCE requirements mapped
+    [ ] no silent skipped fixtures
+    [ ] semantic parity pass
+    [ ] conservation pass
+    [ ] stress pass
+    [ ] report committed
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next chapter in the master index.
+Stage 16 complete. Continue with Stage 17 Ballistics.
 
 END OF CHAPTER 16.8
