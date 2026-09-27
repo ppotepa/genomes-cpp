@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.4 - COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement thread-local simulation command/event buffers and deterministic structural/gameplay commit, eliminating unsafe cross-job entity mutation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.3_SYSTEM_SCHEDULING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/CommandBuffer.hpp
+    engine/simulation/include/genomes/simulation/SimulationCommand.hpp
+    engine/simulation/src/CommandCommit.cpp
+    tests/native/simulation/command_buffer_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Commands have stable type, target/source IDs, phase/tick and SemanticSequenceKey derived from source system/entity/local ordinal. Completion time/thread index is never sequence.
+
+2. Structural commands: CreateEntity, DestroyEntity, Add/RemoveComponent, Set archetype initialization. Domain commands later extend via typed event channels rather than a giant variant if scalability demands.
+
+3. Conflicts have explicit policy per command class: Destroy dominates later mutation; duplicate Add may error/coalesce; create IDs assigned at commit in stable request order or preallocated deterministic token.
+
+4. Thread/job local buffers use scratch; gather then stable radix/sort only when ordering conflict can affect semantics.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define SemanticSequenceKey tuple {phase,SystemId,sourcePersistent/EntityId,localOrdinal}.
+
+STEP 2
+    Implement CommandWriter localOrdinal monotonic within source invocation.
+
+STEP 3
+    Gather buffers after system graph phase.
+
+STEP 4
+    Partition commands by target/type to parallel validate where safe; stable commit structural changes.
+
+STEP 5
+    Implement temporary EntityCreateToken resolved to EntityId table after stable creation sort.
+
+STEP 6
+    Add conflict diagnostics and fuzz different job completion order.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WRITER:
+    key := {phase,system,source,localOrdinal++}
+    local.push(Command(key,...))
+
+COMMIT:
+    commands := concatenate locals
+    stableSort(commands,key)
+    for command:
+        if target already destroyed: ignore/report by policy
+        validate
+        apply structural/domain command
+    resolve createTokens
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Writers local/no locks. Only commit owner mutates ECS structure. Commit itself may parallelize disjoint targets only after deterministic conflict grouping.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Same semantic inputs produce same command order regardless scheduler. Entity create resolution stable.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Avoid sorting commands that provably commute via partition/group optimization later; baseline correctness first.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    shuffled producer order
+    destroy conflict
+    create token
+    duplicate add
+    100k commands
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] thread-local buffers
+    [ ] semantic key
+    [ ] stable commit
+    [ ] conflict policy
+    [ ] schedule-shuffle parity
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    atomic mutation of arbitrary ECS state from workers
+    thread index in semantic sequence
+    completion-order entity IDs
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] thread-local buffers
+    [ ] semantic key
+    [ ] stable commit
+    [ ] conflict policy
+    [ ] schedule-shuffle parity
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.4
