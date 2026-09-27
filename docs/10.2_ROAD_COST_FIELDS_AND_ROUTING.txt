@@ -1,0 +1,190 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.2 - ROAD_COST_FIELDS_AND_ROUTING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement terrain/hydrology/urbanity-aware cost fields and cost-routed macro road paths using A* with admissible heuristic and deterministic tie-breaking.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.1_PORT_ROAD_GRAPH_PRIMITIVES.txt
+    TARGET::docs/9.6_HYDROLOGY_FIELDS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/roads/include/genomes/roads/RoadCostField.hpp
+    modules/roads/include/genomes/roads/RoadRouter.hpp
+    modules/roads/src/RoadRouter.cpp
+    tests/native/roads/road_routing_tests.cpp
+    benchmarks/roads/road_routing_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RoadCostField samples positive traversal multiplier/cost per raster/cell from slope, water, protected/reserved masks, urban attraction and road class.
+
+2. A* search domain grid/graph is explicit. Heuristic = Euclidean distance * global minimum per-meter cost for admissibility.
+
+3. Bridge-capable major classes may cross water with high/bridge construction cost; local classes may treat water impassable unless crossing candidate exists.
+
+4. Router returns polyline + cost + bridge-crossing annotations; smoothing cannot introduce forbidden-cell crossings.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GRAPH-PATH-COST-001
+    MATH-GRAPH-HEURISTIC-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRAPH-ASTAR-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    REF-HART-NILSSON-RAPHAEL-1968
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Build aligned RoadCostFieldArtifact from terrain slope/hydrology and urbanity inputs.
+
+STEP 2
+    Implement grid A* with binary heap, gScore arrays and visit generation stamps to avoid clearing huge arrays every route.
+
+STEP 3
+    Use deterministic priority tuple (f,g,nodeStableIndex) for ties.
+
+STEP 4
+    Reconstruct path, simplify line-of-sight/cost-aware only when every replacement segment respects field constraints.
+
+STEP 5
+    Annotate water crossing intervals for later bridge edge creation.
+
+STEP 6
+    Benchmark route batches and reuse search buffers through scratch/context.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+A*:
+    g[start]=0
+    push(start, f=h(start), tie=startIndex)
+    while open:
+        cur := popMin()
+        if cur == goal: reconstruct
+        for neighbor in neighbors(cur) stable order:
+            step := distance*cost(neighbor,class)
+            tentative := g[cur]+step
+            if tentative < g[neighbor]:
+                came[neighbor]=cur
+                g[neighbor]=tentative
+                f=tentative+h(neighbor)
+                push/update
+    return NoPath
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    flat straight route
+    hill avoidance
+    water major bridge candidate
+    local water block
+    admissible heuristic vs Dijkstra cost
+    stable tie path
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] positive field
+    [ ] A* optimal vs Dijkstra fixtures
+    [ ] water policy
+    [ ] deterministic ties
+    [ ] batch benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    negative costs
+    heuristic overestimating undocumented
+    post-smoothing crossing forbidden water
+    allocating full maps per route
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] positive field
+    [ ] A* optimal vs Dijkstra fixtures
+    [ ] water policy
+    [ ] deterministic ties
+    [ ] batch benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.2
