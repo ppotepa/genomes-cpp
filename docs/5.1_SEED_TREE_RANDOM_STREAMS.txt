@@ -55,12 +55,20 @@ Required compatibility adapters:
     LegacyBuildingDeriveSeed32
     LegacyCitySeedTree32
     LegacyPlantLabelStream32
+    LegacyInfantryGenome32
+    LegacyEquipmentHash32
+    LegacyFaceAnimator32
+    LegacySettlement32
 
 See:
     ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-BUILDING-DERIVE32-001
     ALG-RNG-CITY-SEEDTREE32-001
     ALG-RNG-PLANT-LABEL32-001
+    ALG-RNG-INFANTRY-GENOME32-001
+    ALG-RNG-EQUIPMENT-HASH32-001
+    ALG-RNG-FACE-ANIMATOR32-001
+    ALG-RNG-SETTLEMENT32-001
 
 3. Default canonical native v1 is PCG32 with 64-bit state/stream selector,
 seeded from the canonical native SeedPath/StableHash tuple.
@@ -114,11 +122,18 @@ STEP 4
     Implement LegacyMulberry32 exact 32-bit JS semantics for parity fixtures.
 
 STEP 5
-    Implement the three known SOURCE seed-derivation compatibility paths:
+    Implement the known SOURCE seed-derivation compatibility paths:
         Buildings.deriveSeed(seed,path)
         procedural-city SeedTree/hashString/hash32 path
         plantGenerator stream(seed,label)
+        InfantryGenome base/body/face seed domains
+        EquipmentSeed hash/slot/item-variant derivation
+        FaceAnimator seed XOR stream
+        simple settlement root/building seed rules
+
     Freeze independent golden vectors for each.
+
+    Treat this list as a compatibility registry, not one "legacy RNG" switch.
 
 STEP 6
     Implement unbiased bounded uint generation via rejection threshold.
@@ -183,6 +198,10 @@ TESTS TO ADD
     building deriveSeed golden vectors
     city SeedTree golden vectors
     plant label stream golden vectors
+    Infantry base/body/face golden vectors
+    Equipment seed/hash golden vectors
+    FaceAnimator compatibility stream vectors
+    simple-settlement seed vectors
     bounded integer no out of range
     parallel shuffled order equality
 

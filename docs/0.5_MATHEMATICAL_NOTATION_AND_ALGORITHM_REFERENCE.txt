@@ -2227,3 +2227,73 @@ IMPORTANT MIGRATION RULE:
     SOURCE contains multiple historical seed-derivation families.
     "Legacy-compatible RNG" therefore means both the random stream algorithm
     AND the domain-specific seed derivation function.
+
+
+ALG-RNG-INFANTRY-GENOME32-001
+
+SOURCE:
+    SOURCE::js/units/infantryGenome.js
+
+Compatibility streams:
+    base  := LegacyMulberry32(uint32(seed))
+    body  := LegacyMulberry32(uint32(seed XOR 0x8b7a3d11))
+    face  := LegacyMulberry32(uint32(seed XOR 0x51f15e37))
+
+The exact SOURCE gene draw order is part of exact compatibility. Reordering or
+inserting a draw changes all following genes in that stream and therefore
+requires a new Infantry genome generator version.
+
+
+ALG-RNG-EQUIPMENT-HASH32-001
+
+SOURCE:
+    SOURCE::js/equipment/equipment.js
+
+hash(seed,text):
+    h := uint32(2166136261 XOR uint32(seed))
+    for each text code unit:
+        h := uint32(imul(h XOR codeUnit, 16777619))
+    h := uint32(imul(h XOR (h >>> 16), 0x7feb352d))
+    h := uint32(imul(h XOR (h >>> 15), 0x846ca68b))
+    h := uint32(h XOR (h >>> 16))
+    return h
+
+Derived SOURCE keys:
+    EquipmentSeed.fromUnit(unitSeed)
+        = hash(unitSeed, "EQUIPMENT/v1")
+
+    slot choice RNG seed
+        = hash(equipmentSeed, "slot/" + slot)
+
+    item variant RNG seed
+        = hash(equipmentSeed, slot + "/" + definitionId)
+
+The random stream used after deriving these seeds is LegacyMulberry32.
+
+
+ALG-RNG-FACE-ANIMATOR32-001
+
+SOURCE:
+    SOURCE::js/animation/faceAnimator.js
+
+Compatibility random stream:
+    LegacyMulberry32(uint32(unitSeed XOR 0x9e3779b9))
+
+SOURCE consumes this stream sequentially for blink/attention/saccade scheduling.
+A future event-indexed stream is a valid native improvement only under a new
+face-animation algorithm version and must not be called exact SOURCE parity.
+
+
+ALG-RNG-SETTLEMENT32-001
+
+SOURCE:
+    SOURCE::js/world/settlementGenerator.js
+
+Compatibility root stream:
+    LegacyMulberry32(uint32(config.seed XOR 0x51e77e))
+
+Compatibility building seed for building ordinal id:
+    uint32(config.seed + imul(id + 1, 0x9e3779b1))
+
+This belongs to the legacy simple-settlement compatibility scenario. It is not
+the native city SeedTree.

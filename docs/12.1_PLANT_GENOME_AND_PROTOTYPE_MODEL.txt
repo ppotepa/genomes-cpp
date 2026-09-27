@@ -44,13 +44,35 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. PlantGenome is compact semantic DNA: species ID, root seed, stable traits (height/girth/branching/crown/asymmetry/leaf density/color/etc.) and optional runtime damage/season state separated where identity vs transient differs.
+1. PlantGenome is compact semantic DNA: species ID, root seed and stable genes.
+For SOURCE plants-1.0.0, exact genes are:
+    stature
+    spread
+    branching
+    crookedness
+    foliage
+    leafSize
+    fruiting
+    girth
+    damage
+
+SOURCE creates the genome itself from LegacyMulberry32(raw uint32 seed).
+Age and season are NOT biological genome genes; they are separate prototype/
+presentation state inputs. The damage gene is part of SOURCE genome identity.
 
 2. PlantPrototypeArtifact describes branch skeleton/primitive recipes, foliage clusters, collision/interaction bounds and semantic LOD recipe set. LODs derive from same genome/skeleton identity.
 
 3. Species catalog is data/versioned and no renderer material objects live in it.
 
-4. PrototypeKey includes species/genome generator version + stable genome + age/season parameters that actually affect geometry.
+4. PrototypeKey includes the CORRECT vegetation generator/version domain plus
+stable genome and geometry-affecting age/season/detail inputs.
+
+Do NOT use the global building generator version for vegetation cache identity.
+SOURCE currently contains an accidental coupling in plantGenerator.js where
+skeletonGeometryKey reads R.Config.GENERATOR_VERSION (currently
+building-6.0.0) even though version.json declares environmentGeneratorVersion
+plants-1.0.0. TARGET intentionally fixes this by using explicit vegetation
+version domains.
 
 ======================================================================
 DATA LAYOUT
@@ -83,7 +105,8 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-RNG-MULBERRY32-LEGACY-001
+    ALG-RNG-PLANT-LABEL32-001
 
 ======================================================================
 SOURCE REFERENCES
@@ -113,11 +136,21 @@ STEP 5
 ======================================================================
 PSEUDOCODE
 ======================================================================
-CREATE GENOME:
-    rng := seed.child("plant-genome", plantId)
-    for trait in species.traits stable order:
-        genome[trait] := sample species distribution using trait child stream
-    return genome
+CREATE GENOME - SOURCE COMPATIBILITY plants-1.0.0:
+    rng := LegacyMulberry32(uint32(seed))
+    genome.stature     := .25 + rng.next()*.5
+    genome.spread      := .25 + rng.next()*.5
+    genome.branching   := .25 + rng.next()*.5
+    genome.crookedness := .25 + rng.next()*.5
+    genome.foliage     := .25 + rng.next()*.5
+    genome.leafSize    := .25 + rng.next()*.5
+    genome.fruiting    := .25 + rng.next()*.5
+    genome.girth       := overrideOr(.5)
+    genome.damage      := overrideOr(0)
+
+A NEW native vegetation genome version MAY replace sequential draws with
+semantic child streams, but it is then a versioned behavior change and must not
+be compared as exact plants-1.0.0 parity.
 
 PROTOTYPE:
     skeleton := growBranchSkeleton(genome, age)
@@ -154,6 +187,8 @@ SOURCE::js/environment/plantCatalog.js and plantGenerator.js remain reference un
 TESTS TO ADD
 ======================================================================
     same seed same genome
+    exact SOURCE plants-1.0.0 gene draw-order vectors
+    all 20 SOURCE species IDs/catalog rows
     LOD identity
     trait stream independence
     catalog schema

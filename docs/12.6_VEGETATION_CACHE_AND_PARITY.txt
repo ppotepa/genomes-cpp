@@ -56,7 +56,8 @@ PUBLIC CONTRACTS
 DATA LAYOUT
 ======================================================================
 Cache keys are explicit tuples:
-    generator version
+    explicit vegetation generator version (environmentGeneratorVersion /
+    PlantGenome version domain), never the building generator version
     species/prototype definition version
     genome/seed hash
     geometry-affecting age/season/detail parameters
@@ -65,7 +66,11 @@ Cache entries hold immutable PlantPrototypeArtifact plus byte size/refcount and
 derived representation handles owned by the corresponding renderer cache.
 
 Parity fixtures store:
-    SOURCE commit/generator version
+    SOURCE commit
+    SOURCE version.json environmentGeneratorVersion
+    PlantGenome.version
+    and, separately, the observed legacy accidental R.Config.GENERATOR_VERSION
+    value where needed to explain historical cache keys
     species/seed/state/detail
     semantic genome
     branch/skeleton metrics
