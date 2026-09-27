@@ -1,0 +1,197 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.6 - OPENINGS_STAIRS_ROOFS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Generate doors/windows, stair openings/geometry recipe and roofs from semantic plan while maintaining structural/circulation constraints and procedural variation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.5_CIRCULATION_AND_ROOM_SOLVER.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/infantry gameplay integration unless explicitly named.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/include/genomes/buildings/OpeningSolver.hpp
+    modules/buildings/include/genomes/buildings/RoofPlan.hpp
+    modules/buildings/src/OpeningSolver.cpp
+    modules/buildings/src/RoofSolver.cpp
+    tests/native/buildings/opening_roof_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Door openings connect adjacent spaces or exterior entrance and align with circulation; every required adjacency/access edge maps to at least one passable opening.
+
+2. Window placement depends on exterior wall runs, room use/daylight target, structural margins and spacing. Windows never span corners/doors/cores blindly.
+
+3. Stair semantic recipe from 11.4 creates slab openings, flights/landings and rail/headroom clearance metadata.
+
+4. RoofPlan is semantic surfaces/ridges/valleys/eaves by footprint decomposition and RoofFamily constraints; geometry compiler comes later.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Building semantic data uses stable IDs, compact arrays and polygons/cells. Render/physics/nav representations are separate compiler outputs.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::js/buildings/buildingAssemblies.js
+    SOURCE::tests/building_roof_quality.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Extract wall runs from room/exterior topology with stable WallRunId.
+
+STEP 2
+    Place required doors first: entrance, room-corridor, required room adjacency; choose location maximizing clearance from corners/other openings.
+
+STEP 3
+    Place optional doors only after graph connectivity validation.
+
+STEP 4
+    Place windows per room exterior run using target window-to-wall range/profile and stable spacing; validate lintel/sill and structural reserved zones.
+
+STEP 5
+    Create floor slab voids matching stair/core recipes and verify headroom swept volumes.
+
+STEP 6
+    Generate roof candidate family Flat/Gable/Hip/Shed/composed by macro footprint; solve ridge axis from principal/macro axes and drainage; validate no inverted/self-intersecting roof surfaces.
+
+STEP 7
+    Emit RoofPlan surfaces with slope plane equations/adjacency.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DOORS:
+    for required adjacency edge in stable order:
+        runs := shared wall runs
+        candidates := positions excluding margin/openings
+        choose best clearance + circulation alignment
+        create OpeningId
+
+WINDOWS:
+    for room exterior run:
+        usable := run minus margins/doors/structure
+        count := choose from usableLength,target spacing
+        distribute symmetrically/jittered by seed
+        validate every opening
+
+ROOF:
+    family := choose allowed family from shape/program/seed
+    axes := macro/principal axes
+    build roof surfaces/ridges
+    validate coverage and positive drainage slope
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+One BuildingPlan candidate is owned by one job until frozen. Batch jobs are independent by BuildingId/SeedPath and merge in stable ID order.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Bounded solvers return typed failure/fallback reasons and ValidationReport. Invalid building candidates are never partially committed.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate order, tie-breaking and RNG streams are stable by semantic IDs. Worker count and hash-map iteration do not affect the plan.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unbounded backtracking. Batch independent buildings over JobSystem.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    door graph connectivity
+    no opening overlap
+    window corner margins
+    stair slab opening
+    gable/hip/flat plan
+    L footprint composed roof
+    roof area/coverage
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] required doors
+    [ ] windows constrained
+    [ ] stair clearance metadata
+    [ ] semantic roof plan
+    [ ] quality tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    windows as texture only
+    door placement ignoring room graph
+    roof geometry without semantic surfaces
+    stairs clipping floor slab/headroom
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] required doors
+    [ ] windows constrained
+    [ ] stair clearance metadata
+    [ ] semantic roof plan
+    [ ] quality tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.6
