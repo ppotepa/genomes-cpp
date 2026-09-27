@@ -1,0 +1,214 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 2.5 - SERIALIZATION AND SCHEMA FOUNDATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define versioned canonical serialization primitives for fixtures, artifacts and
+save-oriented schemas without prematurely selecting one monolithic object
+reflection system.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+    TARGET::docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/schema/CMakeLists.txt
+    engine/schema/include/genomes/schema/SchemaVersion.hpp
+    engine/schema/include/genomes/schema/BinaryWriter.hpp
+    engine/schema/include/genomes/schema/BinaryReader.hpp
+    engine/schema/include/genomes/schema/CanonicalJson.hpp
+    engine/schema/src/BinaryWriter.cpp
+    engine/schema/src/BinaryReader.cpp
+    tests/native/schema/serialization_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SchemaVersion is {major, minor}. Major incompatible; minor backward-compatible additive only when reader rules explicitly allow it.
+
+2. Canonical binary encoding uses explicit little-endian integers, IEEE-754 bit encoding where floats are allowed, length-prefixed UTF-8 strings, and no raw struct dumps.
+
+3. BinaryReader is bounds-checked and returns Result. Malformed data never causes unchecked pointer arithmetic or allocation based on unbounded length.
+
+4. CanonicalJson is for fixtures/debug interchange, with deterministic object-key ordering and deterministic numeric formatting; production artifact binary format may differ later.
+
+5. Every serialized root includes magic/type id, schema version, payload length and content/checksum field once artifact hashing chapter defines it.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement SchemaVersion comparisons and compatibility helper.
+
+STEP 2
+    Implement BinaryWriter appendU8/U16/U32/U64/I*/F32/F64/string/bytes in canonical endian.
+
+STEP 3
+    Implement BinaryReader mirror functions with cursor bounds checks and maximum length guards.
+
+STEP 4
+    Implement canonical JSON helper using selected small dependency only if 1.2 policy approves; otherwise define interface and minimal deterministic writer for fixture metadata.
+
+STEP 5
+    Add round-trip tests and fixed golden byte vectors independent of host endian.
+
+STEP 6
+    Add malformed/truncated/oversized input tests.
+
+STEP 7
+    Document that pointers, size_t, enum underlying layout and padding are never serialized implicitly.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WRITE STRING:
+    require utf8ValidatedOrPolicyAllowsBytes
+    writeU32(length)
+    writeBytes(data)
+
+READ STRING:
+    n := readU32()
+    if n > limits.maxStringBytes: fail SizeLimit
+    if remaining < n: fail Truncated
+    return viewOrOwnedString(next n bytes)
+
+ROOT:
+    write magic
+    write typeId
+    write schema.major
+    write schema.minor
+    write payloadLength
+    write payload
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    integer endian golden bytes
+    float bit roundtrip
+    string length guard
+    truncated buffer
+    schema compatibility
+    canonical JSON key order
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] no raw struct serialization
+    [ ] bounds-checked reader
+    [ ] explicit endian
+    [ ] schema compatibility rules
+    [ ] golden bytes committed
+    [ ] malformed data tests
+    [ ] all tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    reinterpret_cast whole object to bytes
+    serializing size_t
+    unbounded allocation from file length fields
+    locale-dependent float formatting
+    silent major-version acceptance
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] no raw struct serialization
+    [ ] bounds-checked reader
+    [ ] explicit endian
+    [ ] schema compatibility rules
+    [ ] golden bytes committed
+    [ ] malformed data tests
+    [ ] all tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 2.5
