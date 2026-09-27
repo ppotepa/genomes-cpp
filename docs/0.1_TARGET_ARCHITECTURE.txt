@@ -1,0 +1,879 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 0.1 - TARGET ARCHITECTURE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+
+Define the target architecture that every later implementation chapter must
+follow.
+
+This chapter makes NO destructive migration. It defines boundaries and
+contracts.
+
+The entire existing Genomes project remains product scope. The native engine is
+a migration and architectural improvement path, not a replacement that may
+discard current behavior.
+
+======================================================================
+REQUIRES
+======================================================================
+
+Repository:
+    ppotepa/genomes
+
+Read before implementation work:
+    README.md
+    version.json
+    docs/00_START.txt
+    docs/01_ARCHITEKTURA.txt
+    docs/26_CACHE_I_WYDAJNOSC.md
+    docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    docs/30_RESEARCH_PROCEDURALNYCH_BUDYNKOW.md
+    docs/31_ATLAS_ARCHITEKTURY_PROCEDURALNEJ.md
+    docs/destruction/README.md
+    prototypes/procedural-city/index.html
+    prototypes/procedural-road-graph-lab/index.html
+    prototypes/procedural-building-generator/index.html
+    js/loader.js
+    js/world/battlefield.js
+    js/world/settlementGenerator.js
+    js/terrain.js
+    js/ai/battlefieldAIManager.js
+
+======================================================================
+PRESERVES
+======================================================================
+
+All current Genomes capabilities remain requirements, including:
+
+    deterministic seeded generation
+    existing browser labs
+    terrain generation
+    vegetation / rocks
+    procedural buildings
+    city and road prototypes
+    infantry genome and phenotype
+    procedural anatomy / rig
+    procedural surface generation
+    locomotion, posture, IK, face animation
+    equipment / weapon geometry / weapon handling
+    ballistics
+    destruction
+    rubble
+    AI experiments
+    existing test suites
+    existing research and design documentation
+
+No existing system is deleted in Chapter 0.1.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No C++ source implementation yet.
+No CMake bootstrap yet.
+No third-party dependency import yet.
+No replacement of JS runtime.
+No Diligent initialization yet.
+No ECS implementation yet.
+No Jolt/Recast integration yet.
+
+Those belong to later executable chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Future native tree:
+
+    /engine
+        /foundation
+        /memory
+        /jobs
+        /math
+        /schema
+        /io
+        /assets
+
+        /geometry
+        /spatial
+        /proc
+        /world
+        /simulation
+
+        /render
+            /core
+            /graph
+            /gpu_scene
+            /compute
+            /diligent
+            /passes
+
+        /physics
+            /core
+            /jolt
+
+        /navigation
+            /core
+            /recast
+
+    /modules
+        /terrain
+        /hydrology
+        /roads
+        /city
+        /buildings
+        /vegetation
+        /destruction
+        /ballistics
+
+        /infantry
+        /weapons
+        /combat
+        /vehicles
+
+    /apps
+        /game
+        /headless
+        /proc_viewer
+        /benchmark
+        /editor
+
+    /tests
+        /unit
+        /integration
+        /determinism
+        /parity
+        /stress
+        /performance
+
+    /reference
+        /fixtures
+        /schemas
+        /golden
+
+Existing:
+    /js
+    /prototypes
+    /building-lab
+    /docs
+    /tests
+
+remain during migration.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+A. ENGINE VS MODULES
+
+engine/*:
+    generic reusable framework.
+    Must not depend on Infantry, weapons, combat or any specific game faction.
+
+modules/*:
+    domain implementations built on engine services.
+
+Dependency:
+
+    modules -> engine
+
+Forbidden:
+
+    engine -> modules/infantry
+    engine -> modules/weapons
+    engine/proc -> gameplay
+
+
+B. PROCEDURAL FRAMEWORK
+
+Procedural generation is an engine-level abstraction.
+
+Conceptual contracts:
+
+    Seed
+    SeedPath
+    RandomStream
+
+    GenerationContext
+    GeneratorDescriptor
+    GenerationGraph
+    GenerationArtifact
+    ArtifactStore
+    ValidationReport
+    GenerationTrace
+
+Generator rule:
+
+    semantic inputs
+        -> deterministic semantic output
+
+The generator does NOT create Diligent resources, Jolt bodies or Recast tiles.
+
+
+C. SEMANTIC MODEL FIRST
+
+Example:
+
+    BuildingSpec
+        -> BuildingPlan
+        -> BuildingSemanticModel
+
+then independent compilers:
+
+    BuildingSemanticModel -> RenderRepresentation
+    BuildingSemanticModel -> PhysicsRepresentation
+    BuildingSemanticModel -> NavigationRepresentation
+    BuildingSemanticModel -> DestructionRepresentation
+
+A triangle mesh is not the authoritative building model.
+
+
+D. THREE WORLD REPRESENTATIONS
+
+1. Procedural / Semantic World
+    road graphs
+    terrain fields
+    parcels
+    building plans
+    generation artifacts
+
+2. Authoritative Simulation World
+    dynamic entities
+    gameplay state
+    projectiles
+    active destruction
+    simulation clocks
+
+3. Presentation World
+    GPU scene
+    render instances
+    animation presentation
+    VFX
+    debug visualization
+
+One-way conceptual flow:
+
+    semantic/world data
+        -> simulation/runtime state
+        -> presentation snapshot
+        -> GPU scene
+
+Rendering never becomes authoritative state.
+
+
+E. STATIC VS DYNAMIC WORLD
+
+Static databases:
+    TerrainDatabase
+    RoadDatabase
+    ParcelDatabase
+    BuildingDatabase
+    VegetationInstanceDatabase
+    StaticBVH
+    NavTileStore
+
+Dynamic data:
+    ECS entities
+    projectiles
+    active debris
+    vehicles
+    temporary interaction objects
+
+Do NOT represent every tree, road segment or parcel as a dynamic ECS entity.
+
+
+F. RENDER BOUNDARY
+
+Diligent types are confined to:
+
+    engine/render/diligent/*
+    implementation details of renderer backends
+
+Generic systems see engine handles:
+
+    BufferHandle
+    TextureHandle
+    PipelineHandle
+    MeshHandle
+    MaterialHandle
+
+Generic procedural/world/simulation code must not include Diligent headers.
+
+
+G. PHYSICS BOUNDARY
+
+Generic domain code talks to:
+
+    PhysicsWorld
+    PhysicsBodyHandle
+    PhysicsShapeHandle
+    PhysicsQuery
+    PhysicsCommandBuffer
+
+Jolt classes remain in:
+
+    engine/physics/jolt/*
+
+
+H. NAVIGATION BOUNDARY
+
+Generic code talks to:
+
+    NavigationWorld
+    NavTileHandle
+    PathRequest
+    PathResult
+    NavDirtyBounds
+
+Recast/Detour stays behind navigation backend files.
+
+
+I. GPU COMPUTE BOUNDARY
+
+Generic service:
+
+    ComputeService
+
+Backends:
+    CPU
+    Diligent compute
+    optional CUDA
+
+CUDA must never be required for correctness.
+
+J. MATHEMATICAL / ALGORITHM SPECIFICATION
+
+Canonical mathematical and algorithm definitions live in:
+
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+Later implementation chapters MUST reference stable IDs:
+
+    MATH-*
+    ALG-*
+    NUM-*
+    REF-*
+
+for nontrivial geometry, graph algorithms, numerical predicates, sampling,
+physics definitions and parallel algorithms.
+
+A chapter must not ask an implementation agent to "implement A*", "do polygon
+intersection", "add a robust orientation test" or similar without either:
+
+    - naming the canonical reference ID from 0.5,
+    - or adding the missing definition/reference to 0.5 first.
+
+The purpose is to make mathematical meaning, degeneracy policy, deterministic
+tie-breaking and source provenance explicit and stable across successive agents.
+
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+Data-oriented layout is preferred for hot runtime data.
+
+Bad target:
+
+    class Soldier {
+        Transform transform;
+        AI ai;
+        Weapon weapon;
+        ...
+        virtual Update();
+    }
+
+Preferred conceptual layout:
+
+    TransformChunk
+    VelocityChunk
+    HealthChunk
+    TargetChunk
+    NavigationChunk
+
+or an archetype/chunk ECS producing equivalent contiguous access.
+
+Hot/cold split:
+
+    HOT
+        position
+        heading
+        velocity
+        flags
+        health
+        target id
+        nav state
+
+    COLD
+        genome
+        detailed appearance
+        history
+        verbose metadata
+
+Do not freeze the exact ECS backend in Chapter 0.1.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+Chapter 0.1 itself only establishes architecture.
+
+Every later chapter must implement within these constraints:
+
+STEP 1
+    Preserve the old implementation until parity exists.
+
+STEP 2
+    Extract semantic/data contracts from current JS/prototypes.
+
+STEP 3
+    Implement generic engine primitives below domain modules.
+
+STEP 4
+    Implement native semantic generator/runtime.
+
+STEP 5
+    Add deterministic/invariant/parity tests.
+
+STEP 6
+    Add renderer/physics/navigation compilers as consumers.
+
+STEP 7
+    Benchmark.
+
+STEP 8
+    Only then consider retiring the old implementation.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+1. ENGINE BOOT CONCEPT
+
+    function bootEngine(config):
+        foundation = Foundation(config)
+
+        jobs = JobSystem(
+            workerCount = detectHardwareThreads() - reservedThreads
+        )
+
+        artifacts = ArtifactStore(config.cache)
+
+        procedural = ProceduralService(
+            jobs = jobs,
+            artifacts = artifacts
+        )
+
+        world = WorldService(
+            jobs = jobs,
+            procedural = procedural
+        )
+
+        physics = PhysicsService(config.physicsBackend)
+        navigation = NavigationService(config.navigationBackend)
+
+        if config.headless == false:
+            render = RenderService(config.renderBackend)
+        else:
+            render = null
+
+        simulation = SimulationService(
+            jobs = jobs,
+            world = world,
+            physics = physics,
+            navigation = navigation
+        )
+
+        return EngineServices(...)
+
+
+2. GENERATION CONCEPT
+
+    function generateWorld(worldSpec, rootSeed):
+        request = GenerationRequest(worldSpec, rootSeed)
+
+        candidate = GenerationTransaction()
+
+        terrain = proc.run("terrain", request)
+        validate(terrain)
+
+        hydrology = proc.run("hydrology", terrain)
+        validate(hydrology)
+
+        cityGraph = proc.run("city", terrain, hydrology)
+        validate(cityGraph)
+
+        buildingRequests = cityGraph.buildingRequests
+
+        buildingPlans = parallel_map(buildingRequests):
+            plan = proc.run("building", request)
+            validate(plan)
+            return plan
+
+        candidate.add(
+            terrain,
+            hydrology,
+            cityGraph,
+            buildingPlans
+        )
+
+        if candidate.allValid():
+            world.commit(candidate)
+        else:
+            discard(candidate)
+
+
+3. PARALLEL GENERATION RULE
+
+    parallel_for each independent building request:
+        childSeed = seedTree.child("building", stableBuildingId)
+
+        output = BuildingGenerator.generate(
+            input,
+            childSeed,
+            threadLocalScratch
+        )
+
+        threadLocalResults.push(output)
+
+    barrier
+
+    sort threadLocalResults by stableBuildingId
+
+    deterministicCommit(threadLocalResults)
+
+Job scheduling order MUST NOT change generator random streams.
+
+
+4. SIMULATION TICK CONCEPT
+
+    function fixedTick(snapshotRead, stateWrite):
+        taskA = jobs.parallelFor(
+            batchesOf(dynamicEntities),
+            perceptionSystem
+        )
+
+        taskB = jobs.parallelFor(
+            batchesOf(navRequests),
+            navigationSystem
+        )
+
+        movementTask = jobs.after(taskA, taskB):
+            movementSystem()
+
+        physicsTask = jobs.after(movementTask):
+            physics.step()
+
+        projectileTask = jobs.after(physicsTask):
+            ballistics.step()
+
+        damageTask = jobs.after(projectileTask):
+            destruction.consumeImpacts()
+
+        jobs.wait(damageTask)
+
+        deterministicCommit(allCommandBuffers)
+
+        presentationSnapshot.publish(stateWrite)
+
+
+5. RENDER CONCEPT
+
+    simulation publishes immutable PresentationSnapshot N
+
+    renderer:
+        snapshot = acquireLatestSnapshot()
+
+        RenderExtraction.diff(snapshot, GPUScene)
+
+        uploadChangedTransforms()
+        uploadChangedInstances()
+
+        buildRenderGraph():
+            depthPrepass
+            gpuCull
+            shadow
+            opaque
+            vegetation
+            transparent
+            debug
+            post
+
+        executeRenderGraph()
+
+
+6. MODULE REMOVAL TEST
+
+    disable modules:
+        infantry
+        weapons
+        combat
+
+    build:
+        genomes_headless
+        genomes_proc_viewer
+        genomes_benchmark
+
+    assert:
+        terrain generation works
+        hydrology works
+        roads work
+        city works
+        buildings work
+        vegetation works
+        render works
+        world queries work
+
+If this fails because engine code includes Infantry headers,
+the architecture is violated.
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+1. One shared engine JobSystem.
+2. Avoid permanent "AI thread", "building thread", "physics thread" ownership.
+3. Systems create jobs; workers steal runnable jobs.
+4. Jobs read immutable snapshots or explicitly owned mutable ranges.
+5. Cross-system mutations are written to command/event buffers.
+6. Commit happens at defined synchronization points.
+7. Thread-local scratch memory is preferred for temporary solver state.
+8. Renderer consumes immutable presentation snapshots.
+9. Render thread/frame cannot own authoritative simulation state.
+10. Physics backend should integrate through the common job infrastructure where
+    supported.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Generation uses transactional semantics.
+
+Bad:
+
+    mutate active world continuously while generating replacement world
+
+Preferred:
+
+    candidate = build()
+    validate(candidate)
+
+    if valid:
+        atomic/controlled commit
+    else:
+        destroy candidate
+        retain existing active world
+
+Recoverable generation errors return typed errors/reports.
+
+Crashes/asserts are for programmer-contract violations, not expected invalid
+procedural candidates.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+1. No global RNG in procedural core.
+2. Random stream derives from:
+       rootSeed
+       generator id
+       generator version if required
+       semantic stable id / SeedPath
+3. Thread scheduling order may never determine RNG consumption order.
+4. Parallel results are committed in a stable semantic ordering.
+5. Artifact identity contains generator/version/input hashes, not only seed.
+6. Determinism tests run with different worker counts.
+7. Presentation/GPU visual effects need not be bit-identical unless explicitly
+   promoted to authoritative simulation.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+1. Algorithmic complexity before micro-optimization.
+2. Spatial broadphase before N^2 perception.
+3. Shared high-level paths before per-unit global A*.
+4. Batch jobs; do not create millions of tiny scheduling tasks.
+5. SoA/chunks for hot data.
+6. No allocations in hot loops unless proven acceptable.
+7. Static world data uses specialized databases, not ECS by default.
+8. GPU compute is for large uniform workloads.
+9. Avoid frequent CPU <-> GPU readback ping-pong.
+10. Every critical subsystem gets:
+        1 thread benchmark
+        2
+        4
+        8
+        16
+        32 where hardware permits.
+11. No optimization is accepted solely because it "should be faster".
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+The browser implementation is a reference implementation throughout migration.
+
+For each major system a later chapter must define one of:
+
+    EXACT PARITY
+    INVARIANT PARITY
+    BEHAVIORAL PARITY
+    FEATURE PARITY
+
+Examples:
+
+Road graph:
+    invariant/topology parity may be sufficient.
+
+Building generator:
+    selected golden seeds + invariant parity.
+
+Ballistics:
+    numerical/behavioral parity with current acceptance fixtures.
+
+Infantry:
+    genome/appearance/pose/reference parity for selected seeds and tests.
+
+Legacy removal is allowed only when:
+    native implementation passes its chapter parity gate,
+    dependent native systems use it,
+    the old path is not the only implementation of a preserved feature.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+No native tests are added by Chapter 0.1 because native bootstrap does not yet
+exist.
+
+However later tests MUST include architecture tests such as:
+
+    build without Infantry module
+    determinism 1 worker vs N workers
+    no engine/proc dependency on render/Diligent
+    no world dependency on gameplay modules
+    headless generation without GPU
+
+Chapter 0.2 will create the parity inventory used to ensure no current feature
+is forgotten.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+N/A for source implementation.
+
+Documentation verification:
+    confirm this chapter exists in docs/
+    confirm MASTER INDEX references 0.1
+    confirm no existing files were deleted
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+Chapter 0.1 is complete when:
+
+1. Architecture clearly separates engine from domain modules.
+2. Infantry can conceptually be removed without destroying procedural engine.
+3. Procedural framework is a first-class engine subsystem.
+4. Diligent is isolated behind render subsystem.
+5. Jolt and Recast/Detour are backend choices behind generic contracts.
+6. CUDA is optional.
+7. Semantic models are independent from render/physics representations.
+8. Static world and dynamic ECS are separate concepts.
+9. One shared job system is the target.
+10. Determinism is independent of thread scheduling.
+11. Existing project functionality is explicitly preserved during migration.
+12. Legacy implementation remains until a later parity chapter retires it.
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    rewrite the project from zero and discard current features
+    move procedural logic directly into renderer code
+    let Diligent types leak into generators
+    let Jolt types leak into domain data
+    make every static object an ECS entity without benchmark justification
+    use one OS thread per subsystem as primary scheduling architecture
+    make CUDA mandatory
+    use render objects as authoritative gameplay objects
+    consume random numbers from shared global RNG in parallel generators
+    remove JS/prototypes before parity gates
+    design Infantry as an engine dependency
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[x] preserve-existing-functionality rule defined
+[x] engine/modules dependency direction defined
+[x] procedural framework role defined
+[x] semantic/simulation/presentation split defined
+[x] static/dynamic world split defined
+[x] ECS scope defined
+[x] job-system target defined
+[x] deterministic parallel generation rule defined
+[x] renderer boundary defined
+[x] physics boundary defined
+[x] navigation boundary defined
+[x] compute/CUDA boundary defined
+[x] migration/parity principle defined
+[x] architectural removal test for Infantry defined
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next chapter:
+
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+
+It must inspect the entire relevant TARGET/SOURCE repository and build a complete mapping:
+
+    existing path / symbol / feature
+        -> preserve requirement
+        -> target native module
+        -> implementation chapter
+        -> parity test/evidence
+        -> old-path retirement chapter
+
+The inventory must include all current prototypes, not only the main runtime.
