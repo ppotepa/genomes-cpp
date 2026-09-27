@@ -58,7 +58,13 @@ PUBLIC CONTRACTS
 
 3. Nose-crush kinetic work budget is finite and separated from explosive energy.
 
-4. Fragmentation profile defines requested count, body mass fraction, explosive energy fraction, mass spread and deterministic pattern. Fragment set conserves represented mass/energy according to profile ledger.
+4. Fragmentation profile defines requested count, body mass fraction, explosive
+energy fraction, mass spread and deterministic pattern. Fragment set conserves
+represented mass/energy according to profile ledger.
+
+Global active-fragment admission for the SOURCE compatibility world is bounded
+by BallisticsWorld.maxFragments = 2048. Fragment-profile requested count and
+world capacity are separate concepts.
 
 5. Opposite radial fragment pairs are generated together; capacity truncation drops complete pairs where possible and records omitted mass/energy instead of increasing survivors.
 
@@ -180,6 +186,7 @@ TESTS TO ADD
     opposite pair radial momentum
     capacity whole-pair omission
     inherited velocity
+    SOURCE 2048 global fragment capacity behavior
     zero capacity ledger
     profile deterministic
 

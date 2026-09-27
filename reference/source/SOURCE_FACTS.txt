@@ -459,3 +459,51 @@ At native 60 Hz compatibility:
 
 These are SimpleCombat compatibility profile values, not generic AI engine
 limits.
+
+
+======================================================================
+16. BALLISTICS WORLD / TRACE PROFILE
+======================================================================
+
+SOURCE::js/destruction/ballistics.js
+
+BallisticsWorld compatibility:
+    maxProjectiles:   256
+    maxFragments:     2048
+    no-ground tracking time: 15 s
+    ground-enabled tracking time: 120 s
+
+Adaptive flight interval:
+    max segment travel:
+        projectile 12 m
+        fragment    6 m
+
+    sagitta:
+        clamp(diameter * .2, .00035 m, .003 m)
+
+    curveDt:
+        sqrt(8 * sagitta / lateralAcceleration)
+        when lateralAcceleration > 1e-8
+
+    dt lower bound:
+        1e-7 s
+
+SOURCE environment defaults:
+    density:    1.225
+    gravity:    [0, -9.80665, 0] m/s^2
+    soundSpeed: 343 m/s
+    wind:       [0,0,0]
+
+SOURCE::js/destruction/projectileTrace.js
+
+Default trace history/group limit:
+    10
+
+Compression thresholds:
+    maxSegmentLength: 2 m
+    maxChordError:    0.08 m
+    maxAngularChange: 1 degree
+    maxEnergyError:   0.005
+
+These are compatibility/debug-profile facts, not mandatory native tuning for
+all production configurations.

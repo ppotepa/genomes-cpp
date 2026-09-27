@@ -97,7 +97,16 @@ STEP 1
     Pin SOURCE commit and export isolated BallisticsWorld cases with deterministic seeds and simple MaterialModel fixtures.
 
 STEP 2
-    Export vacuum/gravity/drag, thin-thick, multiple obstacles, layers both directions, glass+air, technical split, ricochet, ground/timeout, HE profiles and history/tree semantics.
+    Export vacuum/gravity/drag, thin-thick, multiple obstacles, layers both
+directions, glass+air, technical split, ricochet, ground/timeout, HE profiles
+and history/tree semantics.
+
+Include compatibility fixtures for:
+    maxProjectiles=256
+    maxFragments=2048
+    maxTrackingTime 15/120 s
+    adaptive max travel 12/6 m
+    sagitta clamp 0.00035..0.003 m
 
 STEP 3
     Implement native comparator for vectors/scalars/ledger/contact sequences/trace hierarchy.
@@ -165,6 +174,8 @@ TESTS TO ADD
     1/N workers
     scalar/batched parity
     HE energy/mass
+    projectile/fragment capacity profile
+    adaptive interval profile
     ground/timeout
     manual acceptance mapping completeness
 

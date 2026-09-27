@@ -56,7 +56,41 @@ PUBLIC CONTRACTS
 
 2. Flight acceleration uses explicit Environment{wind,density,gravity,soundSpeed}; no camera dependence. Integration method and constants are versioned.
 
-3. Adaptive flight interval is bounded by remaining fixed step, maximum travel distance and curvature/chord error. Continuous segment query prevents tunneling through thin materials.
+3. Adaptive flight interval is bounded by remaining fixed step, maximum travel
+distance and curvature/chord error. Continuous segment query prevents tunneling
+through thin materials.
+
+Pinned SOURCE compatibility formula:
+    speed = max(1, |v|)
+    dir = normalize(v)
+    a = acceleration(v)
+    lateral = a - dir * dot(a,dir)
+    curve = |lateral|
+
+    sagitta =
+        clamp(
+            projectileDiameter * 0.2,
+            0.00035 m,
+            0.003 m
+        )
+
+    curveDt =
+        curve > 1e-8
+            ? sqrt(8 * sagitta / curve)
+            : remaining
+
+    maxDistance =
+        fragment ? 6 m : 12 m
+
+    dt =
+        max(
+            1e-7,
+            min(
+                remaining,
+                maxDistance / speed,
+                curveDt
+            )
+        )
 
 4. WorldQueryService returns sorted semantic hits across static/dynamic/rubble/terrain sources. Ballistics does not know renderer or Jolt object pointers.
 
@@ -113,7 +147,15 @@ STEP 5
     Implement ground-plane/terrain intersection as explicit world query source and terminal GroundContact event.
 
 STEP 6
-    Implement tracking lifetime by age/tick, with compatibility defaults 15s no ground / 120s with ground as profile values.
+    Implement tracking lifetime by age/tick, with compatibility defaults:
+    15 s when no ground plane is enabled
+    120 s when a ground plane is enabled
+
+Pinned SOURCE BallisticsWorld compatibility capacities:
+    maxProjectiles = 256 non-fragment projectiles/pending admission policy
+    maxFragments   = 2048 fragment projectiles
+
+These are runtime profile values, not generic engine compile-time limits.
 
 STEP 7
     Implement bounded pending/projectile capacity policy with explicit rejection reason and metrics.
@@ -188,6 +230,10 @@ TESTS TO ADD
     vacuum constant velocity
     gravity energy change
     drag energy decrease
+    SOURCE adaptive interval formula fixtures
+    maxDistance 12m projectile / 6m fragment
+    capacity 256 projectiles / 2048 fragments
+    15s/120s tracking profile
     adaptive thin obstacle hit
     multiple sequential hits
     ground contact
