@@ -1,0 +1,204 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.6 - CUDA_DILIGENT_INTEROP
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+When 21.5 demonstrates value, prototype zero/minimal-copy interoperability between CUDA and the underlying D3D12/Vulkan resources used by Diligent, using external memory and semaphore primitives with strict capability/device matching.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/21.5_CUDA_BACKEND_SPIKE.txt
+    TARGET::docs/7.2_RENDER_DEVICE_HANDLES_AND_CAPABILITIES.txt
+    TARGET::docs/8.3_ASYNC_COMPUTE_SCHEDULING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer abstraction and generic compute fallback; interop is a backend-private optimization.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No assumption Diligent exposes every native handle uniformly; implementation may require a narrow backend extension layer and may remain disabled on unsupported paths.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/compute/cuda/CudaInterop.*
+    engine/render/diligent/DiligentNativeInterop.*
+    tests/native/compute/cuda_interop_tests.cpp
+    benchmarks/compute/cuda_interop_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Interop only enabled when CUDA device matches render physical device using robust identifier (UUID/LUID as platform/API supports).
+
+2. Shared buffers/images are created with exportable memory flags by native D3D12/Vulkan backend path and imported into CUDA through supported external memory handles.
+
+3. Synchronization uses imported external semaphores/fences/timeline where supported; ownership/order is explicit. No CPU busy wait.
+
+4. Diligent/native handle escape is confined to DiligentNativeInterop backend file; generic render/compute APIs remain handle-based.
+
+5. Unsupported backend/driver/resource format automatically falls back to normal Diligent compute or copy path.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+InteropResource private record: RenderBufferHandle, native exported handle metadata, cudaExternalMemory, mapped pointer/array, semaphore pair/timeline values, device generation.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/graphics-interop.html
+    https://docs.vulkan.org/guide/latest/queues.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Inspect pinned Diligent backend APIs for safe native object access/export requirements; do not assume undocumented handles.
+
+STEP 2
+    Implement physical-device match on D3D12 (adapter LUID where appropriate) and Vulkan (device UUID), following CUDA guide.
+
+STEP 3
+    Create dedicated interop-capable buffer path with external memory flags and lifetime ownership.
+
+STEP 4
+    Import memory into CUDA and map; import/export synchronization semaphore/timeline.
+
+STEP 5
+    Implement Render->CUDA and CUDA->Render dependency handshakes without host copies.
+
+STEP 6
+    Test lifecycle: outstanding semaphore operations completed before destruction; device reset invalidates interop resources.
+
+STEP 7
+    Benchmark interop vs ordinary upload/readback and Diligent compute.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE INTEROP BUFFER:
+    renderNative := createExportableBuffer(size,usage)
+    externalHandle := exportMemoryHandle(renderNative)
+    cudaMem := cudaImportExternalMemory(externalHandle,size)
+    cudaPtr := map(cudaMem)
+    semRenderToCuda := export/import semaphore
+    semCudaToRender := export/import semaphore
+
+CUDA PASS:
+    renderQueue.signal(renderToCuda, value)
+    cudaStream.waitExternal(renderToCuda,value)
+    launch(cudaPtr)
+    cudaStream.signalExternal(cudaToRender,value2)
+    renderQueue.wait(cudaToRender,value2)
+
+DESTROY:
+    ensure outstanding waits/signals complete
+    destroy cuda semaphores/memory mappings
+    close OS handles per ownership rules
+    release render resource
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+External synchronization values centrally owned per interop resource. Native queue submission respects Diligent/backend thread rules.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Any import/device mismatch -> disable interop for resource/backend and fallback. Partial imports cleaned transactionally.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Interop only changes transport/scheduling, not kernel semantics.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Accept only when copy/stall reduction improves total frame/workload. Monitor overlap contention with graphics.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Optional NVIDIA fast path; no impact SOURCE parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    device match/mismatch
+    buffer roundtrip
+    semaphore ordering
+    no-copy data correctness
+    resource destroy
+    fallback unsupported
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] device identity check
+    [ ] external memory
+    [ ] external sync
+    [ ] native handle isolation
+    [ ] safe lifetime
+    [ ] benchmark gain or documented disable
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    assuming same GPU by ordinal
+    using shared memory without semaphore order
+    leaking OS handles
+    generic engine includes cuda/D3D12/Vulkan native types
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] device identity check
+    [ ] external memory
+    [ ] external sync
+    [ ] native handle isolation
+    [ ] safe lifetime
+    [ ] benchmark gain or documented disable
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.7 CUDA_FAST_PATH_SELECTION.
+
+END OF CHAPTER 21.6

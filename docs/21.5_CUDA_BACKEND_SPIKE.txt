@@ -1,0 +1,205 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.5 - CUDA_BACKEND_SPIKE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Implement an optional CUDA ComputeBackend spike for selected bulk kernels and benchmark it against CPU and Diligent/HLSL compute before any production dependency is accepted.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/8.1_COMPUTE_SERVICE.txt
+    TARGET::docs/21.2_THREAT_INFLUENCE_FIELDS.txt
+    TARGET::docs/21.3_VISIBILITY_BATCH_COMPUTE.txt
+    TARGET::docs/21.4_FLOW_FIELD_COMPUTE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+ComputeService API and CPU/Diligent correctness. CUDA absence never prevents Genomes build/run.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No direct CUDA-render interop yet (21.6) and no production fast-path selection (21.7).
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/compute/cuda/CMakeLists.txt
+    engine/compute/cuda/CudaComputeBackend.*
+    benchmarks/compute/cuda_backend_benchmark.cpp
+    tests/native/compute/cuda_optional_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CUDA backend is optional build feature GENOMES_ENABLE_CUDA=AUTO/OFF/ON. AUTO missing toolkit -> backend disabled, not configure failure. ON missing -> clear error.
+
+2. Backend implements only ComputeService kernels proven useful; it does not expose cudaStream_t/device pointers through generic engine APIs.
+
+3. Device selection records UUID/PCI identity and supports only NVIDIA compatible device. Generic Diligent compute remains cross-vendor production path.
+
+4. Benchmark includes transfer/synchronization overhead and compares same workload/result semantics.
+
+5. No kernel moves authoritative state solely to CUDA without generic fallback.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+CudaBackend private stream/event/device buffers. Generic ComputeBuffer handles map through backend-local table. Capability struct reports supported kernels/interoperability.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://docs.nvidia.com/cuda/cuda-programming-guide/
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Add optional CMake CUDA detection behind explicit option; no dependency for normal non-CUDA build.
+
+STEP 2
+    Implement backend init/device/capability query and one simple field kernel first.
+
+STEP 3
+    Implement async submit/fence abstraction mapping CUDA streams/events to ComputeService completion token.
+
+STEP 4
+    Port threat/flow or LOS microkernel only where input/output contract already exists.
+
+STEP 5
+    Run correctness/tolerance against CPU and Diligent compute.
+
+STEP 6
+    Benchmark realistic sizes including host-device copy; identify crossover batch sizes.
+
+STEP 7
+    Write spike report deciding whether 21.6 is justified; 21.6 may still be documented but implementation can remain disabled if no gain.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+INIT:
+    if option OFF: unavailable
+    if AUTO and toolkit/device absent: unavailable
+    if ON and absent: error
+    enumerate devices
+    select configured/matching render candidate later
+    create streams/events
+
+SUBMIT:
+    upload if buffer not resident
+    launch kernel on stream
+    record event
+    return ComputeToken(event)
+
+BENCH:
+    for workload size:
+        measure CPU
+        measure Diligent compute end-to-end
+        measure CUDA upload+kernel+download
+        record crossover and GPU contention
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CUDA API backend synchronization private. Multiple streams only with explicit data dependencies/events. CPU jobs never directly own cudaStream.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+CUDA runtime/device loss -> backend unavailable and generic fallback where possible. Never crash because optional device absent.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Kernel result tolerance/authority follows owning algorithm. CPU reference remains canonical.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No acceptance from TFLOPS/kernel-only. Measure total latency, throughput, VRAM, overlap and render contention.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native optional enhancement only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    build CUDA off
+    AUTO without CUDA
+    backend capability
+    kernel CPU parity
+    async token
+    fallback
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] optional build
+    [ ] no generic CUDA type leak
+    [ ] correctness
+    [ ] end-to-end benchmarks
+    [ ] crossover report
+    [ ] fallback
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    CUDA mandatory
+    NVIDIA-specific code in generic modules
+    kernel-only benchmark
+    device pointer escape
+    select CUDA just because available
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] optional build
+    [ ] no generic CUDA type leak
+    [ ] correctness
+    [ ] end-to-end benchmarks
+    [ ] crossover report
+    [ ] fallback
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.6 CUDA_DILIGENT_INTEROP.
+
+END OF CHAPTER 21.5

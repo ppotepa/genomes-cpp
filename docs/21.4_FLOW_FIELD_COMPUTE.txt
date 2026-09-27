@@ -1,0 +1,208 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.4 - FLOW_FIELD_COMPUTE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Add CPU-reference and GPU-compute flow-field generation for many agents sharing goals/corridors, integrated as a local navigation accelerator beneath hierarchical routing.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/14.5_SHARED_PATHS_AND_FLOW_FIELDS.txt
+    TARGET::docs/21.1_GPU_FIELD_ATLAS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Detour/local path correctness and shared high-level route semantics; flow fields are optional derived navigation data.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No replacement of strategic graph or arbitrary exact individual path queries.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/navigation/include/genomes/navigation/FlowField.hpp
+    engine/navigation/src/FlowFieldCPU.cpp
+    engine/navigation/src/FlowFieldGPU.cpp
+    shaders/compute/flow_field.hlsl
+    tests/native/navigation/flow_field_tests.cpp
+    benchmarks/compute/flow_field_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. FlowField scoped to nav tile/region/corridor and goal set; stores integration cost + direction. It never ignores impassable nav semantics.
+
+2. CPU reference uses deterministic integer/fixed or ordered priority propagation where exactness required. GPU implementation may use iterative wavefront/Jacobi-style relaxation with convergence criterion and is derived.
+
+3. Field key includes nav revision, cost profile, goal set hash and bounds. Dirty nav invalidates affected fields.
+
+4. Agents sample flow direction locally but may fall back to Detour/local path if field unavailable/invalid or dynamic constraints require.
+
+5. Do not generate one field per single agent when goal sharing is absent.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+FlowFieldDescriptor, IntegrationCost grid, Direction encoded normalized/vector index, goal cell set, revision/key. GPU ping-pong atlas layers.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SPATIAL-GRID-001
+    MATH-VEC-NORM2-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRAPH-DIJKSTRA-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://docs.vulkan.org/tutorial/latest/Advanced_Vulkan_Compute/08_Asynchronous_Compute/02_concurrent_execution.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement CPU integration field from nav cost grid/goals using Dijkstra/wavefront reference.
+
+STEP 2
+    Derive direction by descending neighboring integration cost with stable tie-break.
+
+STEP 3
+    Implement GPU iterative relaxation/ping-pong with obstacle mask and bounded iterations/convergence flag.
+
+STEP 4
+    Compare CPU/GPU reachability/directions/cost tolerance on small grids.
+
+STEP 5
+    Cache/share by field key among squads/agents and invalidate on nav revision.
+
+STEP 6
+    Benchmark 256²..2048² grids and many-agent sampling versus repeated path requests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CPU INTEGRATION:
+    costs := INF
+    priorityQueue goals cost=0
+    while queue:
+        c := pop min (cost, cellId)
+        for neighbor traversable:
+            ncost := costs[c] + moveCost(c,neighbor)
+            if ncost < costs[neighbor]:
+                costs[neighbor] := ncost
+                push
+
+DIRECTION:
+    best := current
+    for neighbor in fixed order:
+        if cost[neighbor] < cost[best]:
+            best := neighbor
+    dir := normalize(center(best)-center(current))
+
+GPU RELAX:
+    ping := initial goals/INF
+    repeat until maxIterations or convergence:
+        pong[cell] := min(ping[cell], neighbor costs + edge)
+        set changed flag
+        swap
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU fields job-parallel across fields/tiles; GPU async through compute service. Agents read completed immutable field revision.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unreachable cell explicit Invalid/zero direction; GPU no convergence -> discard/fallback CPU/path.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+CPU reference tie-break fixed. GPU approximate field advisory; discrete decisions can fall back if mismatch matters.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Field creation amortized across many agents. Benchmark creation+sampling total vs shared route/local A*.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native optimization; SOURCE has no flow-field implementation requirement.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    simple grid
+    obstacles
+    multi-goal
+    unreachable
+    stable ties CPU
+    GPU reachability parity
+    nav revision invalidation
+    cache sharing
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CPU reference
+    [ ] GPU optional
+    [ ] revision key
+    [ ] fallback
+    [ ] shared use
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one field per agent by default
+    flow direction through blocked cell
+    using stale nav revision
+    unbounded GPU iteration
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CPU reference
+    [ ] GPU optional
+    [ ] revision key
+    [ ] fallback
+    [ ] shared use
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.5 CUDA_BACKEND_SPIKE.
+
+END OF CHAPTER 21.4

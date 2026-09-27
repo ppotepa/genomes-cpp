@@ -1,0 +1,204 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.1 - GPU_FIELD_ATLAS
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Create a generic GPU-resident field-atlas subsystem for large 2D/2.5D world grids such as threat, influence, visibility hints, flow cost, terrain derivatives and rubble overlays. The atlas is derived/advisory by default and must not become hidden authoritative gameplay state.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/8.2_DILIGENT_COMPUTE_BACKEND.txt
+    TARGET::docs/8.4_READBACK_UPLOAD_AND_STAGING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+CPU authoritative simulation and Stage 8 ComputeService fallback contracts.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No specific threat/visibility algorithm yet; this chapter builds resource/layout/update abstraction.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/compute/include/genomes/compute/FieldAtlas.hpp
+    engine/render/compute/src/FieldAtlas.cpp
+    shaders/compute/field_atlas_clear.hlsl
+    tests/native/compute/field_atlas_tests.cpp
+    benchmarks/compute/field_atlas_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. FieldAtlas is tiled/layered logical data with FieldId, resolution, world transform, format, revision and authority class {DerivedAdvisory, DerivedAuthoritativeWithCPUFallback}.
+
+2. World-to-cell mapping is explicit and stable; atlas texture/buffer representation is backend detail behind ComputeService.
+
+3. Updates are dirty-rect/tile based. CPU semantic deltas upload compactly; full clear/rebuild only when required.
+
+4. Readback is explicit asynchronous request with revision/fence; no CPU code may read GPU field synchronously through hidden stall.
+
+5. Field algorithms must declare whether one-frame/one-tick stale data is acceptable.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+FieldAtlasDescriptor + FieldLayerDescriptor, TileDirtyBitset, GPU handles behind render/compute module. CPU metadata compact and serializable only as configuration, not GPU contents by default.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-COORD-002
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://github.com/DiligentGraphics/DiligentEngine
+    https://docs.vulkan.org/guide/latest/queues.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define world XZ -> atlas coordinates and tile layout independent of texture API.
+
+STEP 2
+    Implement layer allocation through DiligentComputeBackend with capability/format checks.
+
+STEP 3
+    Implement dirty tile/rect upload queue and clear/fill dispatch.
+
+STEP 4
+    Implement ping-pong/double-buffer layer option for iterative kernels.
+
+STEP 5
+    Implement revisioned async readback request/future/fence path.
+
+STEP 6
+    Provide CpuFieldAtlas reference backend for tests/headless and semantic fallback.
+
+STEP 7
+    Benchmark 1024²/2048²/4096² layers, partial updates and readback latency.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WORLD_TO_CELL:
+    u := (x-originX)/cellSize
+    v := (z-originZ)/cellSize
+    ix := floor(u); iz := floor(v)
+
+UPDATE:
+    for semantic dirty event:
+        tile := atlas.tile(event.bounds)
+        dirty.set(tile)
+    upload dirty source buffers
+    dispatch kernels only dirty/expanded tiles
+    atlas.revision++
+
+READBACK:
+    request(revision, region):
+        copy GPU region -> staging
+        signal fence
+        return token
+    poll token without blocking simulation
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU metadata ownership compute service; GPU queue sync via RenderGraph/ComputeService fences. Do not submit same queue concurrently outside Diligent synchronization contract.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported format/size -> capability error and CPU fallback if contract allows. Stale readback tagged revision, never mistaken current.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Derived advisory fields may differ slightly by GPU; authoritative decisions must either use CPU canonical result or explicit tolerance/versioned GPU contract.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Avoid full-map uploads, synchronous readback and unnecessary barriers. Multiple queues only if profiler proves overlap; Vulkan queues require explicit synchronization.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native-only infrastructure; SOURCE has no equivalent GPU field system.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    coordinate mapping
+    dirty tiles
+    CPU/GPU small-field parity
+    revisioned readback
+    stale token
+    resize/recreate
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] generic atlas
+    [ ] CPU fallback
+    [ ] dirty updates
+    [ ] async readback
+    [ ] revision semantics
+    [ ] benchmarks
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    blocking readback in AI loop
+    GPU texture as sole hidden authoritative state
+    full atlas rewrite for one local change
+    assuming separate queue always runs concurrently
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] generic atlas
+    [ ] CPU fallback
+    [ ] dirty updates
+    [ ] async readback
+    [ ] revision semantics
+    [ ] benchmarks
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.2 THREAT_INFLUENCE_FIELDS.
+
+END OF CHAPTER 21.1

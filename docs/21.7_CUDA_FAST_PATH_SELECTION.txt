@@ -1,0 +1,198 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.7 - CUDA_FAST_PATH_SELECTION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Define production runtime selection and gating for CPU, Diligent compute and optional CUDA implementations per workload based on capability, correctness and measured crossover thresholds.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/21.5_CUDA_BACKEND_SPIKE.txt
+    TARGET::docs/21.6_CUDA_DILIGENT_INTEROP.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Cross-vendor correctness and user ability to run without CUDA/NVIDIA.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No dynamic online ML-style autotuner that makes nondeterministic gameplay decisions; selection is deterministic configuration/capability/performance-profile based.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/compute/include/genomes/compute/BackendSelector.hpp
+    engine/compute/src/BackendSelector.cpp
+    config/compute_profiles/*
+    tests/native/compute/backend_selector_tests.cpp
+    docs/parity/21.7_COMPUTE_BACKEND_REPORT.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Each KernelId has ordered eligible backends with correctness class, minimum workload size/crossover, required capabilities and fallback.
+
+2. Default is portable Diligent compute for GPU-friendly workloads or CPU when transfer/latency dominates. CUDA is selected only if enabled, compatible and benchmark profile supports it.
+
+3. Backend selection cannot change authoritative algorithm version unnoticed; output semantics/tolerances identical to kernel contract.
+
+4. User/debug override CPU/Diligent/CUDA allowed; unsupported forced backend returns clear error/fallback according setting.
+
+5. Telemetry records selected backend, dispatch size, latency and fallback reason.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+KernelBackendPolicy table keyed KernelId; HardwareCapabilities snapshot; ComputePerformanceProfile versioned by broad GPU/backend class, not machine-secret state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://github.com/DiligentGraphics/DiligentEngine
+    https://docs.nvidia.com/cuda/cuda-programming-guide/
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Collect benchmark reports from 21.2-21.6 and define initial conservative crossover thresholds.
+
+STEP 2
+    Implement selector capability filters then policy/crossover choice.
+
+STEP 3
+    Implement forced debug backend and validation mode that can execute reference backend periodically in development.
+
+STEP 4
+    Record fallback reasons and performance counters.
+
+STEP 5
+    Run AMD/Intel/NVIDIA/non-GPU/headless test matrix where infrastructure available.
+
+STEP 6
+    Commit compute backend report including kernels for which CUDA was rejected/no gain; do not force use.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SELECT(kernel, workSize, caps, config):
+    eligible := policy[kernel].backends filtered by caps and enabled
+    if forced:
+        require forced in eligible or return Unsupported
+        return forced
+    for backend in policy order:
+        if workSize >= backend.minWork and backend.correctnessApproved:
+            return backend
+    return CPU/reference fallback
+
+EXECUTE:
+    backend := select(...)
+    token := backend.submit(kernel,args)
+    telemetry.record(...)
+    if backend runtime failure and fallbackSafe:
+        submit fallback with same snapshot/revision
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Selector pure/read-only. Backend failures handled at dispatch boundary, not random worker code.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Forced unsupported backend explicit. Runtime CUDA loss -> portable fallback if result not partially committed; otherwise discard/retry revision.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Selection may vary by hardware but authoritative semantic contract remains. Save/network state never records backend-specific derived floats as identity.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Selection driven by end-to-end benchmarks and workload size; re-evaluate thresholds on major dependency/version changes.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native-only optimization; no SOURCE effect.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CPU-only
+    AMD Diligent
+    NVIDIA CUDA eligible
+    below crossover
+    forced backend
+    runtime fallback
+    telemetry reason
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] policy table
+    [ ] capability gating
+    [ ] portable fallback
+    [ ] debug force
+    [ ] telemetry
+    [ ] cross-vendor matrix/report
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    CUDA preferred unconditionally
+    hardware backend changes save identity
+    silent forced-backend fallback
+    no telemetry on fallback
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] policy table
+    [ ] capability gating
+    [ ] portable fallback
+    [ ] debug force
+    [ ] telemetry
+    [ ] cross-vendor matrix/report
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Stage 21 complete. Continue with Stage 22 Production Hardening.
+
+END OF CHAPTER 21.7

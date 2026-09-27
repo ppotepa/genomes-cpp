@@ -1,0 +1,196 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.2 - THREAT_INFLUENCE_FIELDS
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Implement batched derived battlefield influence/threat fields on CPU reference and GPU compute backends as tactical advisory inputs, not omniscient truth.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/21.1_GPU_FIELD_ATLAS.txt
+    TARGET::docs/19.7_SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+AI local observations and squad/shared-state uncertainty; field acceleration must not grant knowledge the faction has not acquired.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No LOS truth replacement and no final tactical AI redesign.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/InfluenceField.hpp
+    modules/combat/src/InfluenceFieldCPU.cpp
+    modules/combat/src/InfluenceFieldGPU.cpp
+    shaders/compute/influence_field.hlsl
+    tests/native/combat/influence_field_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Field source points are derived from faction-known observations/signals/orders with confidence/timestamps; unknown enemy entities are never injected directly into player/faction threat atlas.
+
+2. Kernel definitions are explicit/versioned: radial/anisotropic influence, decay, terrain/cover modifiers where used. CPU reference defines semantic expected result.
+
+3. Multiple source accumulation uses deterministic or tolerance-bounded reduction; if GPU float atomic order differs, field remains advisory.
+
+4. Field revision records source observation snapshot tick and world field revisions.
+
+5. AI consuming field treats it as heuristic/cost input, never direct target visibility.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+InfluenceSource compact arrays pos/radius/strength/confidence/type/facing. Atlas layers per faction/type; CPU reference float grids for test sizes.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-VEC-DIST2-001
+    MATH-SCALAR-SMOOTHSTEP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/battlefieldAIManager.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define source extraction from known contacts and friendly forces.
+
+STEP 2
+    Implement CPU raster kernel reference with bounded support radius.
+
+STEP 3
+    Implement GPU tiled dispatch accumulating sources via binning per tile or source lists, avoiding every-cell×every-source brute force.
+
+STEP 4
+    Add temporal decay/update strategy based on source tick/confidence.
+
+STEP 5
+    Integrate field handle/revision into tactical AI observation as optional heuristic.
+
+STEP 6
+    Compare CPU/GPU on small deterministic maps with tolerance and benchmark large fields.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SOURCE VALUE:
+    d := distance(cellCenter, source.pos)
+    if d >= source.radius: 0
+    t := 1 - d/source.radius
+    value := source.strength * source.confidence * smoothstep01(t)
+    optional anisotropy := f(dot(direction,source.forward))
+
+TILED:
+    bin sources to overlapping atlas tiles
+    for dirty tile dispatch workgroup:
+        for cell:
+            sum := 0
+            for source in tileSourceList:
+                sum += contribution
+            output[cell] := decay(previous)+sum
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU source extraction from committed shared-state snapshot. GPU work asynchronous; AI uses last completed compatible revision.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+No field available -> AI fallback to direct/local logic. Stale beyond policy age -> ignore/downweight.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+CPU reference deterministic. GPU tolerance only; never use floating GPU sum as decisive authoritative event.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Spatial source binning mandatory for many sources. Measure dispatch, source binning, dirty tiles and overlap with graphics.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+New optimization/heuristic; SOURCE behavior remains available with field disabled.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    known-only sources
+    radial kernel
+    confidence decay
+    CPU/GPU tolerance
+    stale policy
+    field disabled baseline
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CPU reference
+    [ ] GPU kernel
+    [ ] knowledge boundary
+    [ ] revision/tick
+    [ ] AI optional consume
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    inject omniscient enemies
+    GPU field direct visible target flag
+    O(cells*sources) unbounded production path
+    simulation wait every frame for field
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CPU reference
+    [ ] GPU kernel
+    [ ] knowledge boundary
+    [ ] revision/tick
+    [ ] AI optional consume
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.3 VISIBILITY_BATCH_COMPUTE.
+
+END OF CHAPTER 21.2

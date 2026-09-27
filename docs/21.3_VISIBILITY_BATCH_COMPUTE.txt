@@ -1,0 +1,201 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 21.3 - VISIBILITY_BATCH_COMPUTE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Prototype and gate a GPU compute fast path for large LOS/visibility batches while preserving the CPU WorldQuery LOS path as authoritative fallback and handling GPU latency explicitly.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/21.1_GPU_FIELD_ATLAS.txt
+    TARGET::docs/19.5_LOS_BATCHING.txt
+    TARGET::docs/8.3_ASYNC_COMPUTE_SCHEDULING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+19.5 semantic LOS endpoints/filtering/blocker sources and CPU correctness.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No mandatory GPU LOS and no ray-tracing-hardware requirement.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/src/LineOfSightGPU.cpp
+    shaders/compute/visibility_batch.hlsl
+    tests/native/combat/visibility_gpu_tests.cpp
+    benchmarks/compute/visibility_batch_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CPU LOS remains canonical fallback. GPU path only enabled after parity/tolerance and latency policy tests.
+
+2. GPU query input snapshot must match explicit WorldQueryRevision/static/dynamic proxy revision; stale result carries revision and cannot be silently applied to newer world state.
+
+3. Latency policy is one of: same-tick awaited at defined barrier (may stall), previous-compatible-revision advisory, or selective CPU confirmation. Policy chosen by AI chapter/config and measured.
+
+4. GPU acceleration structure can be heightfield/grid/BVH proxy but must include destruction/rubble updates at declared revision.
+
+5. Any ambiguous/near-boundary result may request CPU confirmation rather than force GPU decision.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+LOSRequest buffer, result bit/blocker approximation/revision, compact GPU static proxy/BVH/heightfield. Do not expose Diligent buffers to combat headers.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GEO-RAY-001
+    MATH-AABB-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RAY-AABB-SLAB-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://github.com/DiligentGraphics/DiligentEngine
+    https://docs.vulkan.org/spec/latest/chapters/synchronization.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement GPU-readable coarse/exact-enough world visibility proxy with revisioned updates.
+
+STEP 2
+    Upload request batches and dispatch visibility kernel.
+
+STEP 3
+    Implement async completion token and result revision verification.
+
+STEP 4
+    Compare GPU result to CPU exact LOS across randomized terrain/building/rubble cases; classify boundary mismatches for CPU confirmation.
+
+STEP 5
+    Benchmark end-to-end including upload/sync/readback, not kernel alone.
+
+STEP 6
+    Enable runtime backend selection CPU/GPUHybrid; never require NVIDIA/CUDA.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DISPATCH:
+    token := compute.submit(
+        requests,
+        worldProxyRevision
+    )
+
+CONSUME:
+    if !token.ready:
+        use policy fallback (previous advisory or CPU)
+    result := token.map()
+    if result.worldRevision != currentCompatibleRevision:
+        discard
+    for query:
+        if result.ambiguous:
+            cpuResult := cpuLOS(query)
+        else:
+            use result according to authority policy
+
+BENCH:
+    measure buildProxy + upload + dispatch + synchronization + readback
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+GPU queue sync explicit. CPU workers continue unrelated work. Do not spin-wait on token.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend unavailable/proxy build failure -> CPU path. Revision mismatch -> discard/fallback.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Authoritative outcomes remain CPU-confirmed where GPU nondeterminism/precision can alter discrete boundary. GPU-only advisory may vary.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Fast path accepted only if end-to-end workload wins at realistic batch sizes. Async compute may contend with renderer; benchmark overlap and total frame.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Optimization only; does not alter AI contract.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CPU/GPU randomized parity
+    revision stale
+    ambiguous CPU confirm
+    backend unavailable fallback
+    destruction proxy update
+    large batch benchmark
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] GPU fast path optional
+    [ ] CPU fallback
+    [ ] revisioned results
+    [ ] boundary confirmation
+    [ ] end-to-end win documented
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    kernel-only benchmark claim
+    mandatory GPU path
+    using stale LOS
+    busy-wait readback
+    assuming separate Vulkan queue equals hardware concurrency
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] GPU fast path optional
+    [ ] CPU fallback
+    [ ] revisioned results
+    [ ] boundary confirmation
+    [ ] end-to-end win documented
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 21.4 FLOW_FIELD_COMPUTE.
+
+END OF CHAPTER 21.3
