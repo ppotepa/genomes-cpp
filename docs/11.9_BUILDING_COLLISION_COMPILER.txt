@@ -1,0 +1,181 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.9 - BUILDING_COLLISION_COMPILER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile BuildingPlan/StructuralModel into backend-neutral static/dynamic collision recipes with broadphase proxies, openings and lazy detail suitable for Jolt integration later.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.7_STRUCTURAL_AND_MATERIAL_MODEL.txt
+    TARGET::docs/4.6_STATIC_BVH_AND_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/AI/Infantry integration except defined compiler contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/physics/BuildingCollisionCompiler.hpp
+    modules/buildings/physics/BuildingCollisionRecipe.hpp
+    modules/buildings/physics/BuildingCollisionCompiler.cpp
+    tests/native/buildings/building_collision_compiler_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Collision recipe separates coarse query proxy, static walk/block shapes and optional per-structural-element damage shapes. Jolt objects are not created here.
+
+2. Openings remain passable: wall collision generated as segments/panels around door/window voids where relevant to agent/projectile scale.
+
+3. Logical projectile/destruction query can use structural planes/polygons directly, not necessarily physics triangle mesh.
+
+4. FAR/undamaged static building uses low shape count; damage activation may replace local pieces lazily.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Semantic plan arrays remain renderer/physics/nav independent. Compiler products are versioned artifacts keyed by BuildingPlan fingerprint.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Compile exterior/interior wall panel boxes/convexes split around openings using semantic wall intervals.
+
+STEP 2
+    Compile slab/roof/foundation static shapes with simplification threshold.
+
+STEP 3
+    Build coarse AABB/OBB proxies for world broadphase and BuildingSpatialIndex replacement.
+
+STEP 4
+    Store StructuralElementId on every damage-relevant collision recipe part.
+
+STEP 5
+    Define localized invalidation mapping element/bounds -> collision chunk.
+
+STEP 6
+    Compare logical segment hits against SOURCE building collision proxy fixtures.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WALL COLLISION:
+    intervals := wall span minus door/window horizontal intervals per vertical bands
+    for solid rectangle band:
+        emit Box/Convex(shape, elementId)
+
+DAMAGE:
+    on element changed:
+        dirtyChunks := collisionMap[elementId]
+        rebuild only dirty chunks
+        swap recipes/backend bodies at safe commit
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Building plan is immutable. Compilers can run independently/parallel from the same plan revision and publish separate representation artifacts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Compiler failure never mutates BuildingPlan. Return typed errors/ValidationReport and keep prior valid representation if rebuilding.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Compiler output identity derives from plan fingerprint + compiler version/options. Job completion order never changes content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch/merge geometry and queries; cache compiler products by plan hash; avoid one object per architectural micro-feature.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    door passable
+    window void
+    wall hit
+    coarse proxy
+    localized dirty chunks
+    segment query parity
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] backend-neutral recipe
+    [ ] openings reflected
+    [ ] low undamaged shape count
+    [ ] element mapping
+    [ ] localized rebuild
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    full render triangle mesh collision by default
+    Jolt type in compiler output
+    rebuilding whole town after one wall damage
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] backend-neutral recipe
+    [ ] openings reflected
+    [ ] low undamaged shape count
+    [ ] element mapping
+    [ ] localized rebuild
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.9
