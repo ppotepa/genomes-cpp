@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 14.4 - STRATEGIC_REGION_AND_ROAD_ROUTING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement hierarchical strategic routing over region connectivity and RoadGraph so long-distance agents/groups constrain local Detour searches to sensible corridors.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/14.3_NAV_TILES_AND_REGION_INTEGRATION.txt
+    TARGET::docs/10.4_ROAD_GRAPH_VALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Navigation remains a service over semantic world data; it does not own gameplay
+orders or Infantry logic.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Infantry tactical behaviors and formation policy implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/navigation/core/include/genomes/navigation/StrategicGraph.hpp
+    engine/navigation/core/src/StrategicRouter.cpp
+    tests/native/navigation/strategic_routing_tests.cpp
+    benchmarks/navigation/strategic_routing_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. StrategicGraph nodes represent region gateways/major road junction clusters/important indoor-world portals; edges carry distance/time/terrain/road-class/capability cost.
+
+2. Long path result = ordered RegionIds + strategic corridor/gateway sequence, not low-level points.
+
+3. Agent/group capability determines edge filter: road-required vehicle, foot off-road capability, bridge restrictions etc.
+
+4. Strategic A* heuristic admissible from world distance * minimum travel cost.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public nav handles/paths are Genomes types. Recast/Detour pointers and poly refs remain backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GRAPH-HEURISTIC-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRAPH-ASTAR-001
+    ALG-NAV-HIERARCHICAL-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Build/update StrategicGraph from loaded/generated region metadata/road gateway artifacts, including unloaded region metadata where route planning allowed.
+
+STEP 2
+    Implement stable A* tie by node ID and area/capability filter.
+
+STEP 3
+    Convert strategic result into NavCorridorHint containing region/tile/road bands for local planner.
+
+STEP 4
+    Cache route skeleton by start strategic node/end/capability/world road revision.
+
+STEP 5
+    Invalidate cache only when relevant road/region connectivity revisions change.
+
+STEP 6
+    Benchmark continent/large map synthetic graphs.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+STRATEGIC PATH:
+    startNode := nearest strategic gateway(start)
+    goalNode := nearest strategic gateway(goal)
+    route := A*(graph, costByCapability)
+    return Corridor{
+        regions = edges->regions,
+        gateways = route nodes,
+        roadEdges = preferred major edges
+    }
+
+LOCAL:
+    for corridor segment:
+        request Detour path constrained/biased to corridor tiles
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Strategic graph snapshot immutable for batch queries; rebuild/publish on world connectivity revision.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Path requests return typed status Success/Partial/NoPath/Unloaded/Cancelled/Invalid and never fabricate a route through unknown regions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable node IDs/ties. Cache key includes graph revision/capability.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Reduces global low-level search; cache shared group routes.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native navigation is largely new capability; SOURCE movement/reference behavior is
+preserved where tests exist but inefficient absence of global nav is not parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    multi-region route
+    bridge capability
+    vehicle road restriction
+    cache invalidation
+    A* vs Dijkstra
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] hierarchical graph
+    [ ] capability costs
+    [ ] stable A*
+    [ ] corridor hints
+    [ ] cache
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    full Detour search across entire world for every request
+    agent type hardcoded Infantry
+    cache ignoring road revision
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] hierarchical graph
+    [ ] capability costs
+    [ ] stable A*
+    [ ] corridor hints
+    [ ] cache
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next navigation chapter.
+
+END OF CHAPTER 14.4
