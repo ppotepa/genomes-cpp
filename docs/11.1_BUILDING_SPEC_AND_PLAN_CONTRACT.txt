@@ -1,0 +1,192 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.1 - BUILDING_SPEC_AND_PLAN_CONTRACT
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define the canonical semantic BuildingSpec, BuildingPlan, IDs and stage outputs so all building generators/compilers share one renderer-independent schema.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/infantry gameplay integration unless explicitly named.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/CMakeLists.txt
+    modules/buildings/include/genomes/buildings/BuildingSpec.hpp
+    modules/buildings/include/genomes/buildings/BuildingPlan.hpp
+    modules/buildings/include/genomes/buildings/BuildingIds.hpp
+    reference/schemas/building_plan_v1.txt
+    tests/native/buildings/building_plan_schema_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. BuildingSpec contains seed path, parcel/buildable polygon, target/use program, floor count/range, target gross area, regularity/complexity/symmetry/circulation parameters, material/roof constraints and optional overrides. It never names a render mesh.
+
+2. BuildingPlan contains stable IDs for footprint, floors, spaces/rooms, circulation, cores, openings, structural panels/elements, roof elements and semantic materials.
+
+3. Every child ID derives from BuildingId + semantic stage/local stable key. IDs cannot depend on vector insertion/completion order.
+
+4. Plan stage metadata records generator version and validation stage; compilers consume only frozen valid plan.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Building semantic data uses stable IDs, compact arrays and polygons/cells. Render/physics/nav representations are separate compiler outputs.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Map existing js/buildings BuildingSpec/Plan semantics and advanced prototype parameters into a unified v1 schema.
+
+STEP 2
+    Define enum/data tables for use/program without hardwiring every architectural style into code paths.
+
+STEP 3
+    Define local building coordinate system: X/Z footprint plane, Y up, transform to world external.
+
+STEP 4
+    Define storey model with floorElevation, clearHeight, slab thickness and vertical connections.
+
+STEP 5
+    Define Space/Opening/Core/Structural records with stable IDs and references, not owning pointers.
+
+STEP 6
+    Document schema in reference/schemas and add serialization roundtrip.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE SPEC FROM PARCEL:
+    spec.buildingId := derive(parcelId,"building",ordinal)
+    spec.seed := citySeed.child("building",buildingId)
+    spec.buildable := parcel.buildablePolygon
+    spec.program := chooseProgram(zone,profile,seed)
+    spec.targetArea := parcel.area * seededCoverage
+
+PLAN:
+    plan.header := version/provenance
+    plan.spec := normalized spec
+    stages fill:
+        footprint
+        floors
+        cores
+        circulation/spaces
+        openings
+        roof
+        structure
+    freeze only after validation
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+One BuildingPlan candidate is owned by one job until frozen. Batch jobs are independent by BuildingId/SeedPath and merge in stable ID order.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Bounded solvers return typed failure/fallback reasons and ValidationReport. Invalid building candidates are never partially committed.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate order, tie-breaking and RNG streams are stable by semantic IDs. Worker count and hash-map iteration do not affect the plan.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unbounded backtracking. Batch independent buildings over JobSystem.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    schema roundtrip
+    stable child IDs
+    no render/physics types
+    coordinate convention
+    program normalization
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] v1 schema
+    [ ] stable IDs
+    [ ] world/local separation
+    [ ] compiler-independent
+    [ ] serialization tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mesh as BuildingPlan
+    raw pointers between plan records
+    house-type switch as core abstraction
+    IDs by array index
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] v1 schema
+    [ ] stable IDs
+    [ ] world/local separation
+    [ ] compiler-independent
+    [ ] serialization tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.1
