@@ -1,0 +1,183 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.4 - ROAD_GRAPH_VALIDATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement authoritative RoadGraphValidator covering connectivity, geometry, crossing registration, hierarchy, bridge/water rules and diagnostics before city stages consume graph.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.3_ROAD_GROWTH_AND_TOPOLOGY.txt
+    TARGET::docs/5.6_VALIDATION_REPORTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/roads/include/genomes/roads/RoadGraphValidator.hpp
+    modules/roads/src/RoadGraphValidator.cpp
+    tests/native/roads/road_validation_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Validation checks graph components among required network, duplicate/zero edges, node degree, unregistered level-0 crossings, invalid edge self/intersections, water crossings, bridge annotations and out-of-bound nodes.
+
+2. Crossing validation uses RoadSpatialIndex broadphase, robust segment predicate narrow phase; shared endpoints are not errors.
+
+3. Connectivity policy differentiates required major skeleton from optional dead-end local roads.
+
+4. Validator reports metrics: nodes/edges, components, road length by class, degree distribution, dead-end %, bridge count, invalid crossings.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement component BFS/DSU on active graph.
+
+STEP 2
+    Implement spatial pair crossing scan without O(E²) full comparison.
+
+STEP 3
+    Validate every hydrology crossing against bridge/tunnel/class policy.
+
+STEP 4
+    Validate edge polyline samples if curved representation introduced; segmentize adaptively per curve tolerance.
+
+STEP 5
+    Emit stable issue codes and metrics JSON for parity fixtures.
+
+STEP 6
+    Fuzz random growth seeds and assert validator never crashes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CROSSINGS:
+    for edge in stable ID order:
+        candidates := index.query(edge.bounds)
+        for otherId > edgeId:
+            if share endpoint: continue
+            hit := robustIntersect(edge,other)
+            if proper hit and same level:
+                issue UnregisteredCrossing
+
+CONNECTIVITY:
+    visit from required gateway/center root
+    for required node:
+        if !visited: issue DisconnectedRequiredNetwork
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    valid cross junction
+    unregistered crossing
+    bridge crossing
+    two components
+    duplicate edge
+    random fuzz
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] connectivity policy
+    [ ] spatial crossing validation
+    [ ] hydrology validation
+    [ ] metrics
+    [ ] fuzz stable
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    O(E²) all pairs on production graph
+    treating every local dead end invalid
+    validation mutating graph
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] connectivity policy
+    [ ] spatial crossing validation
+    [ ] hydrology validation
+    [ ] metrics
+    [ ] fuzz stable
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.4
