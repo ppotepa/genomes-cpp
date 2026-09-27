@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.10 - BUILDING_NAV_COMPILER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile building floor/circulation/opening/stair semantics into navigation input/modifiers and explicit portals connecting indoor nav tiles to outdoor world navigation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.5_CIRCULATION_AND_ROOM_SOLVER.txt
+    TARGET::docs/11.6_OPENINGS_STAIRS_ROOFS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/AI/Infantry integration except defined compiler contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/navigation/BuildingNavCompiler.hpp
+    modules/buildings/navigation/BuildingNavRecipe.hpp
+    modules/buildings/navigation/BuildingNavCompiler.cpp
+    tests/native/buildings/building_nav_compiler_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. BuildingNavRecipe contains walkable floor polygons, obstacle wall polygons, door portals, stair/off-mesh vertical connections, floor levels and exterior entrances.
+
+2. Semantic room/circulation graph is preserved separately for tactical high-level movement even when local Detour navmesh changes.
+
+3. Door state can toggle portal/obstacle dynamically without regenerating BuildingPlan.
+
+4. Nav dirty mapping ties structural elements/openings to affected local tiles/bounds.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Semantic plan arrays remain renderer/physics/nav independent. Compiler products are versioned artifacts keyed by BuildingPlan fingerprint.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Extract walkable polygons from spaces/corridors minus wall thickness/obstacles.
+
+STEP 2
+    Emit doorway portals with width/height/connected SpaceIds and exterior world endpoint.
+
+STEP 3
+    Emit stair flight/landing connection recipe; choose navmesh ramp/poly/off-mesh representation later in Recast backend based slope/profile.
+
+STEP 4
+    Generate high-level SpaceGraph nodes/edges for room/corridor/vertical/exterior topology.
+
+STEP 5
+    Validate every nonsealed space reachable from at least one permitted entrance according program.
+
+STEP 6
+    Map destruction of wall/door/slab to NavDirtyBounds.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SPACE GRAPH:
+    node per SpaceId
+    for door opening:
+        add edge(spaceA,spaceB,portalId)
+    for stair:
+        add vertical edge(landingFloorA,landingFloorB)
+    for exterior entrance:
+        add world portal edge
+
+NAV RECIPE:
+    for floor:
+        emit walkable polygons
+        emit wall obstacles
+        emit portals/connections
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Building plan is immutable. Compilers can run independently/parallel from the same plan revision and publish separate representation artifacts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Compiler failure never mutates BuildingPlan. Return typed errors/ValidationReport and keep prior valid representation if rebuilding.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Compiler output identity derives from plan fingerprint + compiler version/options. Job completion order never changes content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch/merge geometry and queries; cache compiler products by plan hash; avoid one object per architectural micro-feature.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    room reachability
+    door portal
+    stair connection
+    exterior entrance
+    sealed/service policy
+    dirty bounds mapping
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] SpaceGraph
+    [ ] walkable recipe
+    [ ] door/stair/exterior portals
+    [ ] reachability validation
+    [ ] dirty mapping
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    using render mesh as only nav source
+    losing room semantic graph
+    stairs represented as disconnected floors
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] SpaceGraph
+    [ ] walkable recipe
+    [ ] door/stair/exterior portals
+    [ ] reachability validation
+    [ ] dirty mapping
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.10
