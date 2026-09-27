@@ -1,0 +1,191 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 6.4 - STREAMING_STATE_MACHINE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement asynchronous region streaming orchestration with independent semantic/render/physics/nav pipelines, cancellation, priorities and memory budgets.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.2_REGION_DATABASE_AND_LIFECYCLE.txt
+    TARGET::docs/3.4_CANCELLATION_AND_JOB_GROUPS.txt
+    TARGET::docs/5.7_TRANSACTIONAL_GENERATION_COMMIT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/StreamingRequest.hpp
+    engine/world/include/genomes/world/StreamingController.hpp
+    engine/world/src/StreamingController.cpp
+    tests/native/world/streaming_state_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Streaming target is a desired residency vector, not loaded bool: Semantic, Render, Physics, Navigation, SimulationActive.
+
+2. Request priority derives from gameplay need/camera/distance but stable correctness does not depend on completion order.
+
+3. Each region load has generation token; stale completion from cancelled/replaced request is discarded.
+
+4. Budgets are explicit bytes/counts and eviction chooses eligible Dormant/nonpinned regions; active combat/objective pins may block eviction.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define DesiredResidency and StreamingPriority.
+
+STEP 2
+    Implement per-region request generation counter and JobGroup cancellation.
+
+STEP 3
+    Plan dependency: semantic package before compilers; render/physics/nav can compile in parallel from semantic artifact.
+
+STEP 4
+    Commit each representation only if request generation still current.
+
+STEP 5
+    Implement downgrade/unload sequence with dependent dynamic users checked.
+
+STEP 6
+    Implement budget tracker and deterministic eligibility scoring; actual timing-based priority may be nonsemantic.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+REQUEST(id, desired):
+    gen := ++record.streamingGeneration
+    cancel old group
+    group := new JobGroup
+    if need semantic:
+        spawn load/generate semantic
+    after semantic:
+        spawn renderCompiler if desired.render
+        spawn physicsCompiler if desired.physics
+        spawn navCompiler if desired.nav
+
+COMPLETE(result, gen):
+    if gen != record.streamingGeneration:
+        discard result
+    else commit representation
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    upgrade sequence
+    downgrade
+    cancel stale completion
+    parallel representation compile
+    budget eviction
+    pinned active region not evicted
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] independent residency
+    [ ] stale token protection
+    [ ] cancellation
+    [ ] budget policy
+    [ ] parallel compilers
+    [ ] tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    single loaded flag
+    commit stale async result
+    unload active referenced data
+    camera thread directly mutating region storage
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] independent residency
+    [ ] stale token protection
+    [ ] cancellation
+    [ ] budget policy
+    [ ] parallel compilers
+    [ ] tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 6.4
