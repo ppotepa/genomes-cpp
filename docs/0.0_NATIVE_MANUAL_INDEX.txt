@@ -261,13 +261,13 @@ STAGE 2 - FOUNDATION
 2.2 TIME_CLOCKS_AND_FIXED_TICKS
 2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
 2.4 MEMORY_ARENAS_AND_SCRATCH
-2.5 SERIALIZATION_SCHEMA_FOUNDATION
+2.5 SERIALIZATION_AND_SCHEMA_FOUNDATION
 
 STAGE 3 - MULTICORE EXECUTION
 
 3.1 JOB_SYSTEM_CORE
 3.2 WORK_STEALING_AND_DEPENDENCIES
-3.3 PARALLEL_FOR_BATCHING
+3.3 PARALLEL_FOR_AND_BATCHING
 3.4 CANCELLATION_AND_JOB_GROUPS
 3.5 JOB_PROFILING_AND_SCALING_BENCHMARKS
 
@@ -387,7 +387,7 @@ STAGE 14 - NAVIGATION
 STAGE 15 - SIMULATION / ECS
 
 15.1 ENTITY_IDS_AND_COMPONENT_STORAGE
-15.2 ARCHETYPE_OR_SELECTED_ECS_BACKEND
+15.2 CUSTOM_ARCHETYPE_ECS
 15.3 SYSTEM_SCHEDULING
 15.4 COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT
 15.5 SIMULATION_SNAPSHOTS
@@ -537,3 +537,24 @@ IMPORTANT:
 
 When a new chapter becomes READY, update this section in the same documentation
 commit or immediately following documentation commit.
+
+
+======================================================================
+10. MANUAL ROADMAP COMPLETION
+======================================================================
+
+The executable roadmap contains 160 chapters (0.1 through 22.6).
+
+Current documentation state:
+    160 / 160 chapters authored
+    every executable chapter STATUS: READY
+
+This means the IMPLEMENTATION MANUAL is complete as a planned execution graph.
+It does NOT mean native C++ implementation is complete.
+
+Implementation status is tracked separately in:
+    docs/MANUAL_STATUS.txt
+
+Any future chapter must represent genuinely new product scope, a discovered
+architectural gap, or a versioned correction. Do not inflate the roadmap merely
+to create progress.
