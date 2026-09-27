@@ -65,19 +65,17 @@ REQUIRES
     docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
     docs/1.3_EXECUTABLE_TARGETS_AND_TEST_RUNNER.txt
 
-Existing workflow to preserve:
+Legacy SOURCE workflow to preserve independently:
 
-    .github/workflows/destruction-building-ci.yml
+    SOURCE::.github/workflows/destruction-building-ci.yml
 
 ======================================================================
 PRESERVES
 ======================================================================
 
-Do not replace or weaken:
+Do not modify or weaken SOURCE::.github/workflows/destruction-building-ci.yml.
 
-    .github/workflows/destruction-building-ci.yml
-
-The native workflow is additive.
+TARGET native CI is independent. It does not copy the legacy workflow into TARGET.
 
 Do not combine unrelated legacy/browser setup into one giant workflow merely to
 reduce file count.
@@ -191,9 +189,9 @@ IMPLEMENTATION STEPS
 
 STEP 1 - INSPECT EXISTING WORKFLOW
 
-Read destruction-building-ci.yml completely.
+Read SOURCE::.github/workflows/destruction-building-ci.yml as reference.
 
-Do not copy its Node/browser setup into native CI unless required.
+Do not copy its Node/browser setup into TARGET native CI.
 
 
 STEP 2 - CREATE native-ci.yml
@@ -300,8 +298,8 @@ STEP 10 - LEGACY WORKFLOW PRESERVATION
 Do not modify legacy workflow unless the native bootstrap genuinely requires a
 shared repository setup fix.
 
-After native workflow creation, ensure:
-    existing destruction/building workflow remains in tree.
+After native workflow creation, ensure the SOURCE workflow still exists in SOURCE.
+TARGET does not need a duplicate legacy workflow.
 
 
 STEP 11 - DEPENDENCY FAILURE BEHAVIOR
@@ -448,7 +446,7 @@ Compilation/cache performance does not define runtime performance.
 MIGRATION / COMPATIBILITY
 ======================================================================
 
-Legacy and native CI coexist.
+Legacy SOURCE CI and native TARGET CI coexist in separate repositories.
 
 Native failure:
     does not justify disabling legacy CI.
