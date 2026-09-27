@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.4 - VEGETATION_SCATTER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement deterministic environment placement over terrain/city constraints using patch/Poisson-style distributions, biome/zoning masks and spatial broadphase rather than brute-force overlap.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.6_HYDROLOGY_FIELDS.txt
+    TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
+    TARGET::docs/12.3_ROCK_GENERATOR.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE clustered vegetation, orchard rows, shrub/tree distinction, terrain slope exclusion, roads/parcels reservation and rock formation clustering.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/vegetation/include/genomes/vegetation/ScatterSpec.hpp
+    modules/vegetation/include/genomes/vegetation/EnvironmentLayout.hpp
+    modules/vegetation/src/VegetationScatter.cpp
+    modules/vegetation/src/RockScatter.cpp
+    tests/native/vegetation/scatter_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Scatter input fields: TerrainArtifact, zone/biome/reserved masks, hydrology, seed, density, prototype catalog. Output EnvironmentLayout immutable instance records.
+
+2. Instance record: stable InstanceId, prototype ID, world/local transform, scale/width scale, footprint, optional burial/formation metadata. Passive instance is not ECS.
+
+3. Candidate spacing uses spatial grid or Bridson-like Poisson strategy; no O(N²) scan of all prior instances at target scale.
+
+4. Orchards/crops/fields may use structured row/grid patterns with deterministic jitter distinct from natural scatter.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SAMPLE-DISK-001
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-POISSON-BRIDSON-001
+    ALG-SPATIAL-HASH-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/world/battlefield.js
+    SOURCE::tests/vegetation_variation.cjs
+    SOURCE::tests/rocks_checks.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define separate scatter layers Tree/Shrub/Orchard/Crop/Rock with priority/reservation interactions.
+
+STEP 2
+    Generate cluster centers/patches using seeded semantic IDs and validate against terrain/zone masks.
+
+STEP 3
+    Within patches sample candidates using Poisson/grid hybrid and DynamicGrid2D footprints.
+
+STEP 4
+    Sample terrain height/normal once accepted; reject slope thresholds by layer.
+
+STEP 5
+    Assign prototype/scale/rotation from independent child streams.
+
+STEP 6
+    Produce stable instance pages sorted/grouped later by prototype, not generation completion.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR layer:
+    centers := generateClusterCenters(seed.child(layer))
+    spatial := grid(cellSize)
+    for center stable:
+        attempts := bounded
+        candidates := poisson/row pattern
+        for c:
+            if reserved/water/slope/zone invalid: continue
+            if spatial.neighborConflict(c, footprint): continue
+            id := derive(layer,centerId,acceptedOrdinal)
+            add instance
+            spatial.insert(id,bounds)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Different spatially independent tiles/layers may generate in jobs; conflicts across tile borders require halo/canonical ownership and deterministic merge/revalidation.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable tile/cluster IDs and seed paths. Border conflict winner = lower stable InstanceId/priority, not job completion.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Spatial neighbor checks bounded by local cells; target supports millions of passive instances via pages.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE clustered/structured character, not exact attempt loop implementation.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    minimum spacing
+    reserved roads/parcels
+    orchard alignment
+    slope
+    border deterministic merge
+    large layout
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] natural+structured scatter
+    [ ] spatial broadphase
+    [ ] stable IDs
+    [ ] terrain constraints
+    [ ] large-scale benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    all-pairs distance scan
+    one ECS entity per passive plant
+    random seed based on attempt completion
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] natural+structured scatter
+    [ ] spatial broadphase
+    [ ] stable IDs
+    [ ] terrain constraints
+    [ ] large-scale benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.4
