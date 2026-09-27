@@ -185,14 +185,16 @@ Future native tree:
         /schemas
         /golden
 
-Existing:
-    /js
-    /prototypes
-    /building-lab
-    /docs
-    /tests
+Legacy/reference material remains in SOURCE, not TARGET:
 
-remain during migration.
+    SOURCE::js/
+    SOURCE::prototypes/
+    SOURCE::building-lab/
+    SOURCE::docs/
+    SOURCE::tests/
+
+TARGET contains only native implementation, executable migration docs and the
+minimal exported reference artifacts under TARGET::reference/.
 
 ======================================================================
 PUBLIC CONTRACTS
