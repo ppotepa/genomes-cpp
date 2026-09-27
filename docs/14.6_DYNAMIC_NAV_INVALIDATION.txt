@@ -1,0 +1,193 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 14.6 - DYNAMIC_NAV_INVALIDATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement localized nav invalidation/rebuild from terrain/building/destruction changes with tile dirty queues, debounce/coalescing, atomic tile swap and path revision notification.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/14.5_SHARED_PATHS_AND_FLOW_FIELDS.txt
+    TARGET::docs/11.10_BUILDING_NAV_COMPILER.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Navigation remains a service over semantic world data; it does not own gameplay
+orders or Infantry logic.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Infantry tactical behaviors and formation policy implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/navigation/core/include/genomes/navigation/NavInvalidation.hpp
+    engine/navigation/core/src/NavInvalidation.cpp
+    tests/native/navigation/nav_invalidation_tests.cpp
+    benchmarks/navigation/nav_rebuild_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. NavDirtyBounds event includes world bounds, reason/source semantic ID, world revision and affected AgentProfile mask.
+
+2. Dirty bounds maps to overlapping nav tiles plus configured border. Multiple events coalesce per tile before rebuild; high-frequency damage debounce has maximum latency bound.
+
+3. Rebuild job reads latest immutable world/structure revision; commit checks generation token. Old tile stays queryable until replacement ready, then atomic owner swap increments nav revision.
+
+4. Path/shared-path results carrying old nav revision are marked potentially stale; policy can continue until obstacle check or request replan.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public nav handles/paths are Genomes types. Recast/Detour pointers and poly refs remain backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement DirtyTileQueue keyed tile/profile with union bounds/reason list and generation.
+
+STEP 2
+    Map TerrainChanged/BuildingChanged/Destruction events into queue.
+
+STEP 3
+    Schedule rebuild under per-frame/job budget, priority near active units/objectives.
+
+STEP 4
+    Build replacement Recast tile from latest region semantic data.
+
+STEP 5
+    Commit remove/add swap safely through nav owner and increment tile/global revision.
+
+STEP 6
+    Notify SharedPathCache and active route manager of affected corridor/tile IDs.
+
+STEP 7
+    Benchmark repeated single-wall changes vs full region rebuild.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DIRTY(event):
+    for tile overlap(event.bounds expanded):
+        entry := dirty[tile,profile]
+        entry.bounds.union(event.bounds)
+        entry.generation += 1
+
+REBUILD(entry,gen):
+    source := acquire latest region snapshot
+    artifact := buildTile(source)
+    commit:
+        if gen != dirty.entry.generation: discard/rebuild latest
+        swap Detour tile old->new
+        navRevision++
+        clear entry
+        invalidate paths intersecting tile
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Build jobs parallel, backend tile swap serialized. Old tile remains live until safe swap.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Path requests return typed status Success/Partial/NoPath/Unloaded/Cancelled/Invalid and never fabricate a route through unknown regions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Event coalescing timing may affect when tile updates but resulting tile for same source revision/config deterministic.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Localized tiles, debounce, priority/budget. Never rebuild entire map from one wall.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native navigation is largely new capability; SOURCE movement/reference behavior is
+preserved where tests exist but inefficient absence of global nav is not parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    one wall one/few tiles
+    multiple dirty coalesce
+    stale build discarded
+    path revision invalidation
+    atomic swap
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] localized invalidation
+    [ ] coalescing
+    [ ] generation token
+    [ ] old tile available until swap
+    [ ] path notification
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    full navmesh rebake per destruction event
+    removing old tile before replacement ready without reason
+    committing stale rebuild
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] localized invalidation
+    [ ] coalescing
+    [ ] generation token
+    [ ] old tile available until swap
+    [ ] path notification
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next navigation chapter.
+
+END OF CHAPTER 14.6
