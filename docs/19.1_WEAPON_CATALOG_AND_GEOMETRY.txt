@@ -1,0 +1,204 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.1 - WEAPON_CATALOG_AND_GEOMETRY
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port weapon catalog, handling metadata and procedural weapon geometry as a domain module separate from ballistics and Infantry rendering.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.5_EQUIPMENT.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE weapon IDs/categories, procedural geometry, compatible equipment slots, grip/profile metadata and current bounded arsenal concepts.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No draw/holster/aim/fire state yet and no ballistic shot creation.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/weapons/CMakeLists.txt
+    modules/weapons/include/genomes/weapons/WeaponCatalog.hpp
+    modules/weapons/include/genomes/weapons/WeaponArtifact.hpp
+    modules/weapons/src/WeaponCatalog.cpp
+    modules/weapons/src/WeaponGeometryGenerator.cpp
+    tests/native/weapons/weapon_catalog_geometry_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. WeaponDefinition is immutable catalog data with stable WeaponId, category, firearm flag, compatible ammunition IDs, grip/profile capabilities, dimensions and procedural visual parameters.
+
+2. Weapon geometry generation consumes WeaponDefinition + ItemInstance seed/variant and produces backend-neutral MeshData/attachment landmarks (muzzle, grips, sights, stow anchors).
+
+3. Weapon geometry is representation, not ballistics authority. Ballistics uses WeaponId/Ammunition IDs and shot parameters from gameplay contracts.
+
+4. Catalog does not require Infantry; another unit type may carry/use a WeaponDefinition if it implements required handling capability.
+
+5. All dimensions are metres and explicit; geometry may be stylized and is not a manufacturing/mechanical model.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Catalog arrays keyed by stable ID; WeaponArtifact contains MeshData, material regions, local attachment transforms and bounds. No scene graph nodes.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    DATA-MATRIX-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RNG-SEED-TREE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/weapons/weaponCatalog.js
+    SOURCE::js/weapons/weaponGeometry.js
+    SOURCE::docs/20_BRON_IMPLEMENTACJA_V13.txt
+    SOURCE::docs/23_MODELE_BRONI_V16.md
+    SOURCE::tests/weapons_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Inventory SOURCE weapon definitions/profiles and assign stable IDs/schema version.
+
+STEP 2
+    Port geometry primitives/generators into pure native MeshData recipes.
+
+STEP 3
+    Generate stable muzzle/grip/sight/stow attachment transforms and validate inside/bounds where relevant.
+
+STEP 4
+    Map Equipment weapon item definitions to WeaponId without introducing circular modules: use IDs/data registration boundary.
+
+STEP 5
+    Cache WeaponArtifact by definition/version/variant seed; identical items share immutable artifact.
+
+STEP 6
+    Export selected SOURCE geometry metrics/attachment fixtures and all catalog compatibility tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BUILD:
+    def := catalog.require(id)
+    key := H(def.version, id, itemVariant)
+    if cache hit: return artifact
+    recipe := generatorFor(def.category).build(def.visual, itemVariant)
+    attach := deriveAttachments(def, recipe)
+    validate(recipe, attach)
+    return cache.commit(key, artifact)
+
+CATALOG VALIDATE:
+    unique WeaponId
+    firearm -> compatibleAmmo nonempty
+    each grip/profile supported
+    dimensions finite positive
+    required muzzle/grip landmarks present
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Catalog immutable. Geometry builds parallel/cache-safe. No mutable weapon runtime here.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unknown definition/profile/invalid dimensions return typed catalog validation failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Procedural geometry uses item seed/variant stable stream, no global RNG.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Build once/cache. Merge compatible submeshes/material groups. No per-frame geometry.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve IDs/handling metadata; visual mesh parity by metrics/golden, not Three.js binary.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    catalog completeness
+    ammo references valid
+    attachment landmarks
+    geometry finite/bounds
+    seed determinism
+    cache sharing
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] catalog ported
+    [ ] backend-neutral artifact
+    [ ] attachments stable
+    [ ] no Infantry dependency
+    [ ] cache
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    ballistics logic inside geometry generator
+    Diligent types in catalog
+    hardwired Infantry owner
+    manufacturing realism claims
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] catalog ported
+    [ ] backend-neutral artifact
+    [ ] attachments stable
+    [ ] no Infantry dependency
+    [ ] cache
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.2 WEAPON_HANDLING_AND_ANIMATION.
+
+END OF CHAPTER 19.1

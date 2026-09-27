@@ -1,0 +1,214 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.6 - TACTICAL_AI_CADENCE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port simple tactical combat observation/memory/intent model onto ECS/job/cadence infrastructure, preserving current behavior as a baseline while making AI model plugins data-oriented and scalable.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.5_LOS_BATCHING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE ~0.2s perception cadence baseline, 2.5s target memory, nearest-target switching hysteresis, passive fallback, look/aim/draw/trigger intents and model registry concept.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No advanced squad coordination beyond next chapter and no strategic commander AI.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/TacticalAI.hpp
+    modules/combat/include/genomes/combat/AIModelRegistry.hpp
+    modules/combat/src/TacticalAISystem.cpp
+    modules/combat/src/SimpleCombatModel.cpp
+    tests/native/combat/tactical_ai_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. AI model operates on immutable Observation and returns Intent; it never mutates unit/world/weapon directly.
+
+2. Perception Observation contains self state, sorted visible enemies, remembered target/last known position, task context and tick/time derived from SimulationTick.
+
+3. Cadence uses integer tick periods/stable phase staggering, not per-agent floating accumulator. SOURCE 0.2s at 60Hz => compatibility period 12 ticks.
+
+4. Target memory compatibility duration 2.5s => tick count profile. Memory updates when visible; expires deterministically by SimulationTick.
+
+5. Model exceptions/failures become diagnostic and switch entity to passive safe model/intent without corrupting system. Native C++ uses Result/error boundary, not exception as normal path.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Observation temporary batch/arena data; AIState component contains modelId, target memory, last observation tick, cadence tier. Intent compact command data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    NUM-ANGLE-001
+    DATA-UNIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/aiModelRegistry.js
+    SOURCE::js/ai/simpleCombatModel.js
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::tests/combat_ai.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define AIModel interface/function contract with immutable Observation -> Intent and model-local compact state storage.
+
+STEP 2
+    Port passive/simple-combat baseline logic from SOURCE into data-oriented model.
+
+STEP 3
+    Use CadenceScheduler 12-tick compatibility period with stable entity phase; active combat may raise cadence by policy.
+
+STEP 4
+    Build observations from PerceptionBroadphase+LOS results and memory state.
+
+STEP 5
+    Implement target hysteresis: retain remembered/current target unless nearer visible target beats documented ratio.
+
+STEP 6
+    Convert Intent to combat/weapon/movement command buffers through CombatSystem; never direct calls.
+
+STEP 7
+    Implement failure diagnostic/passive fallback.
+
+STEP 8
+    Benchmark 1k/10k agents with realistic local candidates and cadence distribution.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DUE AI:
+    if cadence.due(entity,tick):
+        observation := buildObservation(...)
+        intent := model.update(observation, elapsedTicks)
+        aiState.lastObservationTick := tick
+        intents.push(entity,intent)
+
+MEMORY:
+    if visible current target:
+        memory := {id,pos,seenTick=tick}
+    else if tick-memory.seenTick <= memoryTicks:
+        target := lastKnown(memory)
+    else:
+        clear memory
+
+TARGET SWITCH:
+    nearest := visible[0]
+    if no chosen: choose nearest
+    else if nearest.distance < chosen.distance * 0.85:
+        choose nearest
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Observation/model updates parallel entity batches; model state owned by entity chunk. Intents stable-merged. Registry immutable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unknown model -> passive + diagnostic. Model error -> passive fallback and trigger-off intent. No dangling callback/exception crossing jobs.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Cadence phase/id/tick stable. Visible list sorted. Memory and target switching deterministic.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+AI updates only due entities. Perception broadphase/LOS shared results. No N². Track updates/tick, candidates, LOS, model time.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve simple-combat behavior as baseline, not limitation. More capable models can be added without changing engine.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    12-tick cadence
+    stagger phases
+    memory expiry
+    target hysteresis
+    passive fallback
+    intent application via commands
+    1/N deterministic
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] observation->intent model
+    [ ] integer cadence
+    [ ] memory
+    [ ] target hysteresis
+    [ ] passive safe failure
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    AI calls WeaponController directly
+    float per-agent accumulator required when tick schedule suffices
+    camera controls AI
+    all agents update same tick by default
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] observation->intent model
+    [ ] integer cadence
+    [ ] memory
+    [ ] target hysteresis
+    [ ] passive safe failure
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.7 SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION.
+
+END OF CHAPTER 19.6

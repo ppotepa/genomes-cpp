@@ -1,0 +1,203 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.7 - SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Implement optional squad/group shared tactical state and bounded information propagation so units do not each recompute identical knowledge while preserving imperfect/delayed awareness.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.6_TACTICAL_AI_CADENCE.txt
+    TARGET::docs/14.4_STRATEGIC_REGION_AND_ROAD_ROUTING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Project direction that units may share/propagate signals rather than every agent maintaining perfectly synchronized independent awareness; avoids omniscient global state.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No full radio simulation, command hierarchy doctrine or networking.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/SquadState.hpp
+    modules/combat/include/genomes/combat/TacticalSignal.hpp
+    modules/combat/src/SquadSystem.cpp
+    tests/native/combat/squad_signal_tests.cpp
+    benchmarks/combat/squad_signal_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SquadId/group membership is data. SquadSharedState contains shared orders, coarse contacts, route/corridor refs and tactical summaries; individual AI retains local memory/uncertainty.
+
+2. TacticalSignal has source, creationTick, type, subject/location/confidence, hop/TTL and optional channel/range policy. Propagation is explicit delayed event, not instant shared map.
+
+3. Signals merge/deduplicate by semantic key and confidence/timestamp policy. A received contact does not become direct visual LOS; provenance/lastObservedBy retained.
+
+4. Squad calculations operate once per squad/batch where appropriate (shared route, threat summary) and members consume results at their cadence.
+
+5. No signal from enemy/friendly entity leaks through renderer/camera or global singleton.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+SquadState storage keyed SquadId, member EntityId ranges/lists. TacticalSignal compact POD event. Contact summary stores target/position/tick/confidence/source type.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define squad membership/component and shared-state lifecycle.
+
+STEP 2
+    Implement signal event schema and delivery scheduling by ticks/range/channel policy.
+
+STEP 3
+    Implement deterministic dedupe/merge of contact signals and confidence decay.
+
+STEP 4
+    Compute shared route/corridor/threat summaries once per squad from member/command inputs.
+
+STEP 5
+    Expose shared observation slice to individual TacticalAI with provenance flag.
+
+STEP 6
+    Implement delayed/imperfect communication test scenarios and disconnected/no-radio policy.
+
+STEP 7
+    Benchmark 10k units grouped vs independent duplicate work.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+EMIT CONTACT:
+    signal := {source, squad, subject, pos, createdTick, confidence, ttl}
+    deliveryTick := tick + communicationDelay(profile,distance)
+    signalQueue.schedule(deliveryTick, stableSequence, signal)
+
+DELIVER:
+    due := queue.pop(tick)
+    stable_sort due by squad, subject, createdTick, sourceId
+    for signal:
+        existing := squad.contacts[subject]
+        if newer/better by explicit policy:
+            merge preserving provenance
+
+AI OBSERVATION:
+    localVisible := local perception
+    sharedContacts := squad contacts with confidence > threshold
+    mark shared contacts as reported, not visible
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Squads partitionable; signal scheduling/commit stable. Member AI reads immutable shared snapshot for tick.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Stale member/squad removed cleanly. Invalid signal subject/range discarded with diagnostic counter according to policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Tick-based delivery and stable merge order. No wall-clock/network nondeterminism in single-player authoritative simulation.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Shared expensive computations amortized per squad. Bound contacts/signals/TTL. Benchmark memory and updates.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This is architectural improvement over SOURCE baseline; current behavior remains supported with squad sharing disabled.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    delayed signal
+    no instant LOS promotion
+    dedupe
+    confidence decay
+    member removal
+    stable delivery order
+    sharing disabled baseline
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] squad state
+    [ ] explicit signal events
+    [ ] delayed imperfect awareness
+    [ ] dedupe/provenance
+    [ ] shared computation benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    global omniscient contact map as squad state
+    reported contact marked direct visible
+    instant infinite-range sharing by default
+    per-member duplicate shared route
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] squad state
+    [ ] explicit signal events
+    [ ] delayed imperfect awareness
+    [ ] dedupe/provenance
+    [ ] shared computation benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.8 AI_MULTICORE_BATCHING.
+
+END OF CHAPTER 19.7

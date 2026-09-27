@@ -1,0 +1,220 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.8 - AI_MULTICORE_BATCHING
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Finalize combat AI scaling by scheduling perception, LOS, squad and tactical model work as dependency-aware batches across the common JobSystem with deterministic intent commit and measurable multicore scaling.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.4_PERCEPTION_SPATIAL_BROADPHASE.txt
+    TARGET::docs/19.5_LOS_BATCHING.txt
+    TARGET::docs/19.6_TACTICAL_AI_CADENCE.txt
+    TARGET::docs/19.7_SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All behavior from 19.4-19.7 while changing execution organization only.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No GPU LOS path, no distributed/network AI and no new tactical doctrine.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/AIJobPipeline.hpp
+    modules/combat/src/AIJobPipeline.cpp
+    benchmarks/combat/ai_pipeline_benchmark.cpp
+    tests/native/combat/ai_parallel_tests.cpp
+    docs/parity/19.8_COMBAT_AI_BASELINE_REPORT.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. AI tick graph: relevance/cadence due selection -> spatial broadphase -> LOS batches -> observation/memory -> squad shared updates/signals as dependencies -> model update -> deterministic intent commit.
+
+2. Jobs are batches by spatial region/chunk/squad, never permanent subsystem threads and never one tiny job per agent.
+
+3. Task dependencies use JobSystem handles/counters; no worker blocks on OS condition while runnable work exists.
+
+4. All intermediate arrays allocated from frame/job scratch and published only after barriers.
+
+5. 1-worker semantic output is reference; N-worker output identical for deterministic AI state/intents.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Per-tick AIPipelineScratch owns due entity arrays, candidate ranges, LOS request/result arrays, observations, local intent buffers. Long-lived AIState/SquadState stay ECS/domain storage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    PERF-PAR-WORK-001
+    DATA-COMPLEXITY-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::tests/combat_ai.cjs
+    SOURCE::tests/battlefield_combat_browser.cjs
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Profile serial/native baseline to choose grain sizes for broadphase, LOS and model jobs.
+
+STEP 2
+    Build job graph with broadphase batches and flattened LOS request prefix offsets.
+
+STEP 3
+    Schedule LOS after candidate production; allow region batches parallel.
+
+STEP 4
+    Build observations after LOS and shared-state snapshot dependencies.
+
+STEP 5
+    Run model updates in batches grouped by model type/cadence where useful.
+
+STEP 6
+    Stable merge intents by tick/entity/sequence and feed CombatSystem.
+
+STEP 7
+    Benchmark 1/2/4/8/16 workers on 1k/10k/50k units with open/city cluster workloads.
+
+STEP 8
+    Add counters for worker utilization, jobs, candidates, LOS, AI updates and critical path.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+PIPELINE:
+    due := cadence.collectDue(tick)
+
+    broadphaseJobs := parallel_for(batch(due)):
+        candidates[batch] := spatialCandidates(...)
+
+    losBuild := after(broadphaseJobs):
+        flatten candidate pairs -> LOSRequests + offsets
+
+    losJobs := parallel_for(batch(LOSRequests)):
+        LOSResults := world.batchLOS(...)
+
+    obsJobs := after(losJobs, squadSnapshotReady):
+        parallel_for(batch(due)):
+            observations := build(...)
+
+    modelJobs := after(obsJobs):
+        parallel_for(batch(observations)):
+            localIntents.push(model.update(...))
+
+    wait modelJobs
+    intents := stableMerge(localIntents, entityId,sequence)
+    combat.commit(intents)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Exactly the JobSystem pattern above; no AI-owned worker pool. Scratch job-local/phase-owned. ECS writes confined to owned chunks or commit.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Job cancellation/world unload propagates group CancelToken; partial AI output not committed. Model failure isolated per entity.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable due/candidates/hit sorting and final intent merge; run repeated shuffled scheduling tests.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Scaling benchmark mandatory. Diagnose saturation from LOS, memory bandwidth or too-small jobs; do not add threads blindly.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This supersedes SOURCE BattlefieldAIManager loop while preserving simple model behavior and adding scalable architecture.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    serial vs parallel intents
+    shuffled schedule
+    cancel mid-pipeline no commit
+    model failure isolation
+    squad dependency
+    large benchmark smoke
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] job DAG
+    [ ] no subsystem thread pool
+    [ ] stable parallel parity
+    [ ] cancellation
+    [ ] scaling report
+    [ ] no N² candidate scan
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one job per entity
+    AI private thread pool
+    commit partial cancelled tick
+    using unordered worker completion order
+    claiming scalability without thread curve
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] job DAG
+    [ ] no subsystem thread pool
+    [ ] stable parallel parity
+    [ ] cancellation
+    [ ] scaling report
+    [ ] no N² candidate scan
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Stage 19 complete. Continue with Stage 20 Full World Integration.
+
+END OF CHAPTER 19.8

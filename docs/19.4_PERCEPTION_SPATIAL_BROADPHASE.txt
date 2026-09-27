@@ -1,0 +1,207 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.4 - PERCEPTION_SPATIAL_BROADPHASE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Replace SOURCE O(N²) all-unit visibility candidate scans with a data-oriented dynamic spatial broadphase producing bounded candidate sets for perception.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/15.6_SPATIAL_DYNAMIC_ENTITY_INTEGRATION.txt
+    TARGET::docs/4.5_SPATIAL_HASH_AND_DYNAMIC_GRID.txt
+    TARGET::docs/19.3_COMBAT_COMMAND_FLOW.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Enemy/team filtering, range/FOV semantics, staggered observation cadence and target-memory behavior as later AI inputs; only candidate-generation complexity changes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No exact LOS ray/batch query (19.5) and no tactical decision model.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/PerceptionBroadphase.hpp
+    modules/combat/src/PerceptionBroadphase.cpp
+    tests/native/combat/perception_broadphase_tests.cpp
+    benchmarks/combat/perception_broadphase_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Perception broadphase queries only neighboring dynamic spatial cells intersecting perception radius; never loops all combatants for each observer.
+
+2. Candidate filter stages cheapest-to-expensive: alive/team/category -> squared range -> horizontal/3D FOV -> coarse occlusion hints optional -> exact LOS in next chapter.
+
+3. Perception source/target positions and headings are authoritative simulation snapshots, not render transforms.
+
+4. Candidate output stable sorted by observer-defined key (distance then EntityId) when downstream behavior needs deterministic nearest order.
+
+5. Spatial cell size/profile benchmarked; dense worst-case remains bounded by local density and optional candidate budget with explicit truncation policy.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Observer batch arrays + scratch Candidate{targetId,distanceSq,relative vector}. DynamicGrid from engine spatial stores EntityId and coarse bounds/category/team masks.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-VEC-DIST2-001
+    MATH-VEC-DOT-001
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-SPATIAL-HASH-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::tests/combat_ai.cjs
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define PerceptionProfile range/FOV/category/team masks.
+
+STEP 2
+    Query DynamicGrid AABB/circle cells per observer batch using squared distance.
+
+STEP 3
+    Implement forward vector/FOV dot threshold using heading with no acos in hot loop.
+
+STEP 4
+    Deduplicate candidates from multi-cell objects by query epoch/scratch set/ID strategy.
+
+STEP 5
+    Stable partial sort/select if target policy only needs nearest K; retain diagnostics count before/after filters.
+
+STEP 6
+    Benchmark 1k/10k/50k units under uniform and city-cluster density versus naive reference for small N.
+
+STEP 7
+    Verify exact same candidate membership as naive SOURCE-compatible filter in randomized test scenes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+for observer in batch:
+    cells := grid.cellsOverlappingCircle(observer.pos, range)
+    candidates.clear
+    for cell in cells:
+        for targetId in cell:
+            if targetId == observer: continue
+            if team[target] == team[observer]: continue
+            if !alive[target]: continue
+            d2 := distanceSq(pos[target], pos[observer])
+            if d2 > rangeSq: continue
+            dir2 := normalizeXZ(pos[target]-pos[observer])
+            if dot(dir2, forward(observer.heading)) < cosHalfFov: continue
+            addUnique(targetId,d2)
+    stable_sort by d2,targetId
+    output range
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Observers partitioned into batches; grid snapshot read-only for perception phase. Scratch candidate buffers job-local.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid profile/range rejected at config load. Stale spatial handle skipped with diagnostic counter, not crash.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Grid insertion/query semantic candidates stable after stable sort. Candidate budgets truncate by explicit distance/ID order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Target removes N² scaling. Report candidates visited/accepted per observer, cache misses where profiler available, ms across densities.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Behavioral candidate parity with current range/FOV filters; exact LOS handled next.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    small scene vs naive
+    team/alive filters
+    FOV boundary
+    multi-cell dedupe
+    stable order
+    dense candidate budget
+    negative world coords
+    large benchmark
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] no all-unit scan
+    [ ] spatial candidates
+    [ ] cheap filter order
+    [ ] stable output
+    [ ] benchmark scaling
+    [ ] naive parity small scenes
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    for each observer loop all entities
+    sqrt/acos unnecessarily in first filter
+    render visibility filter as tactical perception
+    unordered truncation
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] no all-unit scan
+    [ ] spatial candidates
+    [ ] cheap filter order
+    [ ] stable output
+    [ ] benchmark scaling
+    [ ] naive parity small scenes
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.5 LOS_BATCHING.
+
+END OF CHAPTER 19.4

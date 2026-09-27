@@ -1,0 +1,220 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.2 - WEAPON_HANDLING_AND_ANIMATION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port weapon selection, draw/holster, 1H/2H grip, readiness, aiming, recoil and hand-task output as domain state that overlays Infantry animation through explicit interfaces.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.1_WEAPON_CATALOG_AND_GEOMETRY.txt
+    TARGET::docs/18.7_IK_AND_GROUND_CONTACT.txt
+    TARGET::docs/18.9_ANIMATION_LOD_AND_PARALLEL_EVALUATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE state machine STOWED/DRAWING/HELD/HOLSTERING, hand ownership, grip profiles, readiness/sprint restrictions, phase continuity, world aim target and deterministic shot/recoil timing.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No AI decision logic and no projectile spawning implementation beyond emitting FireRequest contract to 19.3.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/weapons/include/genomes/weapons/WeaponState.hpp
+    modules/weapons/include/genomes/weapons/WeaponHandlingSystem.hpp
+    modules/weapons/include/genomes/weapons/WeaponPoseTasks.hpp
+    modules/weapons/src/WeaponHandlingSystem.cpp
+    tests/native/weapons/weapon_handling_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. WeaponState stores selected/active slot, handling state, action phase/time, requested readiness/grip, aim, recoil springs, trigger/pending shot and shot sequence. It does not own renderer weapon instances.
+
+2. WeaponHandlingSystem consumes entity locomotion/pose capability, Equipment resolved weapon slots and WeaponArtifact attachments; outputs WeaponPoseTasks and FireIntent/FireRequest candidate.
+
+3. Hand ownership is explicit per hand/tick. 2H support transitions are weighted and bounded; 1H leaves free hand available.
+
+4. Draw/holster transition guards PRONE_MOVE/REST and sprint/readiness/grip error rules as versioned gameplay policy.
+
+5. Aim target world->local conversion uses snapshot transforms; animation overlay composes before final pose publish, not by mutating render bone tree.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Hot WeaponState compact ECS component. WeaponPoseTask fixed two-hand array: target transform, weight, curl/profile, attached flag. Cold handling profiles catalog-side.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SCALAR-CLAMP-001
+    MATH-QUAT-SLERP-001
+    NUM-ANGLE-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-IK-TWO-BONE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/weapons/weaponController.js
+    SOURCE::js/weapons/handRig.js
+    SOURCE::js/weapons/weaponHandlingProfiles.js
+    SOURCE::docs/20_BRON_IMPLEMENTACJA_V13.txt
+    SOURCE::docs/22_PROFILE_1H_V15.txt
+    SOURCE::tests/weapon_profiles_smoke.cjs
+    SOURCE::tests/weapons_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define handling state enum/transitions and stable profile IDs.
+
+STEP 2
+    Port selection/reconcile semantics using Equipment state IDs rather than renderer instances.
+
+STEP 3
+    Implement draw/holster timing curves and queued selection transition.
+
+STEP 4
+    Implement readiness/support/recoil springs with fixed tick and explicit numeric parameters.
+
+STEP 5
+    Implement world/local aim and bounded body/weapon pose task generation.
+
+STEP 6
+    Integrate hand IK tasks into Infantry animation stage as overlay interface without module dependency inversion (adapter/combat app composition).
+
+STEP 7
+    Implement canFire policy and emit typed FireIntent with shot sequence when trigger/cadence allows.
+
+STEP 8
+    Port 1H/2H/profile tests and state transitions.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+STEP:
+    update draw/holster state machine(dt)
+    supportSpring -> target(grip == 2H and held)
+    readinessSpring -> requestedReadiness * sprintSuppression
+    recoilSpring -> 0
+    tasks := buildGripTasks(activeWeapon, aim, supportWeight)
+
+CAN FIRE:
+    active firearm
+    state == HELD
+    readiness >= threshold
+    !forbiddenBodyTransition
+    sprintWeight < threshold
+    gripError < threshold
+    fireCadence permits current tick
+
+ON SHOT INTENT:
+    shotSequence++
+    recoil impulse state update
+    emit FireIntent(entity, WeaponId, AmmoId, shotSequence, muzzle semantic transform)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Weapon handling entity-local parallel. It reads published Infantry pose/locomotion inputs and writes weapon state/task buffers. Fire intents stable-merged.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Selected slot missing after equipment change -> controlled reset to STOWED and cancel pending shot. Unsupported grip/profile -> validation error.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed tick springs/state; shot sequence and seed derivation stable. Aim inputs authoritative/game state, not render interpolation.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No matrix-world traversal through scene graph. Attachment transforms compiled/cached. Batch by handling profile where useful.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE behavior and grip tests; geometry/render instance reconciliation replaced by IDs/artifacts.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    draw/holster
+    queued weapon switch
+    1H/2H hand ownership
+    sprint fire guard
+    prone/rest guard
+    aim bounds
+    equipment weapon removed
+    shot cadence/recoil
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] state machine
+    [ ] pose-task overlay
+    [ ] hand ownership
+    [ ] canFire policy
+    [ ] no renderer dependency
+    [ ] SOURCE tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    direct bone SceneNode mutation
+    renderer weapon instance as active state
+    firing from visual frame time
+    weapon controller owning Infantry module internals
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] state machine
+    [ ] pose-task overlay
+    [ ] hand ownership
+    [ ] canFire policy
+    [ ] no renderer dependency
+    [ ] SOURCE tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.3 COMBAT_COMMAND_FLOW.
+
+END OF CHAPTER 19.2

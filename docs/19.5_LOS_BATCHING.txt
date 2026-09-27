@@ -1,0 +1,214 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.5 - LOS_BATCHING
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Implement exact line-of-sight batch queries for perception using terrain/static/dynamic/destruction/rubble world query data, after broadphase candidate reduction.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.4_PERCEPTION_SPATIAL_BROADPHASE.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+    TARGET::docs/16.7_NAV_AND_WORLD_INVALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE terrain blocking and destruction-solid blocking semantics, target/self hit acceptance and memory distinction between visible vs last-known target.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No GPU LOS fast path yet; Chapter 21.3 owns compute experiment.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/include/genomes/combat/LineOfSight.hpp
+    modules/combat/src/LineOfSight.cpp
+    tests/native/combat/los_batch_tests.cpp
+    benchmarks/combat/los_batch_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. LOS request = observer eye point, target aim point, observer/target semantic IDs and query mask. Eye/aim landmarks supplied by domain capability/phenotype, not hardcoded renderer skeleton reads.
+
+2. WorldQuery batch returns first blocking semantic hit; terrain and static/dynamic solids use same revision snapshot. Target/self volumes are accepted/ignored according to query filter.
+
+3. Broadphase false positives do not imply visibility. Exact narrow phase must test real collision/semantic surfaces.
+
+4. Results are batched and indexed back to observer-target pair; ordering does not affect semantics.
+
+5. CPU implementation is authoritative fallback; future GPU result can be advisory/async only after explicit latency/consistency contract.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+LOSRequest/LOSResult contiguous arrays for batch. Result: visible bool, blockerId optional, hitDistance, worldRevision. No per-request heap.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GEO-RAY-001
+    MATH-GEO-CLOSEST-SEGMENT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RAY-AABB-SLAB-001
+    ALG-GEO-RAY-TRIANGLE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::js/world/worldDestructionHost.js
+    SOURCE::tests/combat_ai.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define semantic eye/aim capability values from Infantry or generic target bounds; combat module depends on interface/data, not rig renderer.
+
+STEP 2
+    Collect LOS requests only for broadphase candidates selected by perception policy.
+
+STEP 3
+    Batch terrain segment-heightfield and WorldQuery segment queries; use early nearest blocker.
+
+STEP 4
+    Filter self at origin and target hit at end by semantic IDs/tolerances; never blindly ignore same-team world blockers.
+
+STEP 5
+    Return visible + blocker diagnostics and revision.
+
+STEP 6
+    Integrate into observation building and memory timestamp update.
+
+STEP 7
+    Benchmark 10k/100k LOS requests in open terrain/city/rubble and compare scalar/batch.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+REQUEST BUILD:
+    for observer:
+        for candidate in candidateList:
+            requests.push(eye(observer), aim(candidate), ids)
+
+BATCH:
+    parallel_for query batches:
+        hit := world.firstSegmentHit(a,b,mask,revision)
+        if no hit:
+            visible := true
+        else if hit.semanticOwner == targetId:
+            visible := true
+        else if hit.semanticOwner == observerId and hit.distance < selfEpsilon:
+            continue query after self
+        else:
+            visible := false
+            blocker := hit.id
+
+OBSERVATION:
+    visibleTargets := candidate where los.visible
+    stable_sort distance,id
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Queries read immutable world/query snapshot and parallelize batches. Results write indexed array. No world mutation.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+World revision unavailable -> explicit QueryStale/Retry policy; do not assume visible. Nonfinite endpoints rejected.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Same snapshot/input yields stable visibility. Tie hit ordering resolved by distance then semantic ID/source priority.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Only run after candidate reduction. Batch memory contiguous. Track requests/accepted/blockers and query source costs.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Replace SOURCE 9 terrain sample heuristic with native exact/heightfield query while preserving intended blocking behavior; version differences recorded in parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    open LOS
+    terrain ridge
+    building block
+    rubble block
+    target first hit visible
+    self hit skip
+    dynamic blocker
+    revision stale
+    batch vs scalar
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] batched LOS
+    [ ] all world blockers
+    [ ] semantic self/target filter
+    [ ] snapshot revision
+    [ ] CPU fallback
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    LOS against renderer scene
+    9 fixed samples as final terrain test if better authoritative query exists
+    treat query failure as visible
+    all-pairs LOS
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] batched LOS
+    [ ] all world blockers
+    [ ] semantic self/target filter
+    [ ] snapshot revision
+    [ ] CPU fallback
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.6 TACTICAL_AI_CADENCE.
+
+END OF CHAPTER 19.5

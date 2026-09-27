@@ -1,0 +1,209 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 19.3 - COMBAT_COMMAND_FLOW
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Define the authoritative combat command/event pipeline connecting AI/player orders, weapon handling, ballistics, damage and world state without direct subsystem call chains.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/19.2_WEAPON_HANDLING_AND_ANIMATION.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.10_INFANTRY_DAMAGE_AND_RAGDOLL.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE ability for units to draw/aim/fire and route projectile impacts into Infantry/building destruction, while replacing callback-heavy coupling with deterministic command flow.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No perception/AI candidate generation yet.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/combat/CMakeLists.txt
+    modules/combat/include/genomes/combat/CombatCommands.hpp
+    modules/combat/include/genomes/combat/CombatEvents.hpp
+    modules/combat/src/CombatSystem.cpp
+    tests/native/combat/combat_command_flow_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Combat inputs are commands/intents with tick/source EntityId/sequence. Systems communicate through typed buffers: AimIntent, WeaponIntent, FireIntent, FireRequest, ImpactEvent, DamageCommand, Death/StateEvent.
+
+2. WeaponHandling validates readiness then emits FireIntent. CombatSystem resolves authoritative muzzle/aim/ammo and produces Ballistics FireRequest once.
+
+3. Ballistics ImpactEvent is routed by semantic target type/ID to InfantryDamage, StructuralDamage, generic material consumer; no callbacks into render objects.
+
+4. Event order at commit uses deterministic key (SimulationTick, phase, source stable ID, sequence).
+
+5. Presentation subscribes to committed combat events for muzzle/VFX/audio but cannot alter hit outcome.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Commands POD-like, short-lived frame/tick arenas. Event payloads IDs + vectors/energies/semantic refs, no owning pointers.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/world/battlefield.js
+    SOURCE::js/world/worldBallisticsBridge.js
+    SOURCE::js/combat/infantryDamageRuntime.js
+    SOURCE::js/weapons/weaponController.js
+    SOURCE::tests/battlefield_combat_browser.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define combat phases/order relative to locomotion, pose/hit-volume update, weapon handling, ballistics and damage.
+
+STEP 2
+    Define command/event structs and stable sequence allocation per producer/entity.
+
+STEP 3
+    Implement FireIntent -> FireRequest using authoritative attachment transform from current pose, not interpolated render pose.
+
+STEP 4
+    Wire BallisticsWorld output ImpactEvent into target registry/semantic world routing.
+
+STEP 5
+    Wire Infantry damage and building/destruction commands, avoiding double damage/impulse.
+
+STEP 6
+    Publish presentation-only CombatPresentationEvent after commit.
+
+STEP 7
+    Add end-to-end headless test: two entities, weapon fire, projectile hit, damage state change independent of renderer.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TICK PHASES:
+    orders/AI -> WeaponIntent
+    locomotion/pose -> authoritative attachments/hit volumes
+    weaponHandling -> FireIntent
+    stable commit FireIntents
+    combat -> Ballistics FireRequest
+    ballistics.step -> ImpactEvents
+    stable commit ImpactEvents
+    route -> DamageCommands
+    destruction/infantry damage commit
+    publish CombatPresentationEvents
+
+FIRE:
+    pose := authoritativePose(entity)
+    muzzleWorld := entityTransform * poseBone * weaponArtifact.muzzleLocal
+    request.seed := H(matchSeed, entityId, shotSequence, tick)
+    ballistics.enqueue(request)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each phase creates parallel local buffers then deterministic barriers. Avoid synchronous recursive subsystem calls across workers.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Stale entity/weapon/ammo/target returns typed rejection event/diagnostic. Duplicate FireIntent sequence idempotently rejected.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Phase/order explicit; seed derived from semantic IDs. Renderer absent yields same outcomes.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch commands; no heap per event; use frame arenas/ring buffers. Benchmark 10k fire intents and impacts.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Replace SOURCE onShot callback bridge with typed event flow while preserving behavior.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    fire request once
+    renderer independence
+    stale weapon rejection
+    impact routing infantry/building
+    no double damage
+    stable event order
+    duplicate fire idempotency
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] typed pipeline
+    [ ] explicit phases
+    [ ] authoritative muzzle
+    [ ] impact routing
+    [ ] presentation decoupled
+    [ ] headless end-to-end
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    callbacks mutating arbitrary systems during ballistics iteration
+    render pose as authoritative muzzle
+    double impact impulse/damage
+    global mutable event bus with unspecified order
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] typed pipeline
+    [ ] explicit phases
+    [ ] authoritative muzzle
+    [ ] impact routing
+    [ ] presentation decoupled
+    [ ] headless end-to-end
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 19.4 PERCEPTION_SPATIAL_BROADPHASE.
+
+END OF CHAPTER 19.3
