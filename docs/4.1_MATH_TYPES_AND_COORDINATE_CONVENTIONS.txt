@@ -1,0 +1,195 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 4.1 - MATH_TYPES_AND_COORDINATE_CONVENTIONS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement canonical engine math value types and conversion boundaries so all domains share the X/Y/Z, XZ-planar, SI-unit and transform semantics frozen in 0.5.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/math/CMakeLists.txt
+    engine/math/include/genomes/math/Vec2.hpp
+    engine/math/include/genomes/math/Vec3.hpp
+    engine/math/include/genomes/math/Quat.hpp
+    engine/math/include/genomes/math/Mat4.hpp
+    engine/math/include/genomes/math/Transform.hpp
+    tests/native/math/math_types_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Vec2 represents abstract 2D; planar world helpers use XZ-named accessors/types where ambiguity matters. Vec3 is float for local runtime/render/physics data; double variants are explicit Vec3d for global calculations.
+
+2. Transform = translation + normalized quaternion rotation + nonuniform scale; semantic composition follows DATA-MATRIX-001. No renderer-specific matrix convention leaks into engine math.
+
+3. Angle APIs use radians only; Degree wrapper is allowed only for UI/import conversion.
+
+4. Floating comparisons are explicit helpers nearEqual(a,b,absTol,relTol); operator== remains exact component equality.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-COORD-001
+    DATA-COORD-002
+    DATA-UNIT-001
+    DATA-MATRIX-001
+    NUM-SCALE-001
+    MATH-VEC-DOT-001
+    MATH-VEC-CROSS3-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    MATH-QUAT-SLERP-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement POD-like vector types or a thin wrapper over an approved math library; public contract must remain Genomes-owned.
+
+STEP 2
+    Implement dot/cross/lengthSq/normalizeSafe with Result/optional failure for zero vectors.
+
+STEP 3
+    Implement quaternion identity, normalize, multiply, rotate-vector and slerp per reference.
+
+STEP 4
+    Implement Transform compose/inverse for non-singular scale and explicit toMat4 conversion.
+
+STEP 5
+    Add backend conversion helpers later; do not include Diligent/Jolt headers here.
+
+STEP 6
+    Test basis orientation, transforms, inverse round-trip, safe normalization and radians.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TRANSFORM POINT:
+    pScaled := p * scale
+    pRotated := rotate(rotation, pScaled)
+    return translation + pRotated
+
+COMPOSE parent, local:
+    out.scale := parent.scale * local.scale
+    out.rotation := normalize(parent.rotation * local.rotation)
+    out.translation := parent.translation + rotate(parent.rotation, local.translation * parent.scale)
+
+SAFE NORMALIZE:
+    l2 := dot(v,v)
+    if l2 <= threshold*threshold: return Error(Degenerate)
+    return v / sqrt(l2)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    basis/right-handed cross
+    transform composition
+    inverse roundtrip
+    safe zero normalize
+    radian helpers
+    exact vs nearEqual behavior
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] public math has no Diligent/Jolt dependency
+    [ ] coordinate basis matches 0.5
+    [ ] transform composition tests pass
+    [ ] safe normalization explicit
+    [ ] float/double roles documented
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    GLM/Diligent/Jolt types in public domain APIs
+    degrees in core APIs
+    global EPS
+    silent normalize zero vector
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] public math has no Diligent/Jolt dependency
+    [ ] coordinate basis matches 0.5
+    [ ] transform composition tests pass
+    [ ] safe normalization explicit
+    [ ] float/double roles documented
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 4.1
