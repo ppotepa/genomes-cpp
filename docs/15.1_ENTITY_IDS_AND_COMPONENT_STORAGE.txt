@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.1 - ENTITY_IDS_AND_COMPONENT_STORAGE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement EntityId/generation lifecycle, component type IDs and low-level chunk storage primitives for authoritative dynamic entities.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+    TARGET::docs/2.4_MEMORY_ARENAS_AND_SCRATCH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/CMakeLists.txt
+    engine/simulation/include/genomes/simulation/Entity.hpp
+    engine/simulation/include/genomes/simulation/ComponentType.hpp
+    engine/simulation/include/genomes/simulation/ChunkStorage.hpp
+    tests/native/simulation/entity_storage_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. EntityId is generational runtime identity: index + generation; optional PersistentEntityId is separate semantic StrongId when save/network persistence needs it.
+
+2. ComponentTypeId is compile-time/stable registration ID with size/alignment/move/destroy function table. Registration freezes before simulation begins.
+
+3. ChunkStorage owns fixed-capacity SoA columns for one archetype signature. Entities in a chunk share component set; component columns are contiguous/aligned.
+
+4. Structural changes are not performed while systems iterate chunks; command buffer stage owns moves/create/destroy.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Entity table: generation + archetype/chunk/row location. Chunk header cold metadata + entity IDs + separate aligned columns. Target chunk payload 16-64 KiB benchmarked; initial default 32 KiB.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement EntityId {index,generation} and free-index reuse with generation increment.
+
+STEP 2
+    Implement ComponentRegistry builder/freeze with explicit stable IDs and function metadata.
+
+STEP 3
+    Implement ArchetypeSignature bitset/sorted component IDs supporting >64 types via compact dynamic/fixed blocks as needed.
+
+STEP 4
+    Implement ChunkLayout computing aligned offsets/capacity for component columns within target bytes.
+
+STEP 5
+    Implement row allocate/remove swap-back updating moved entity location.
+
+STEP 6
+    Test stale IDs, alignment, nontrivial move/destroy component and 100k entities.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE SLOT:
+    idx := freeList.pop or entityTable.size
+    generation := max(1,table[idx].generation)
+    return EntityId(idx,generation)
+
+CHUNK REMOVE row:
+    last := count-1
+    destroy removed row components
+    if row != last:
+        for column: move last -> row
+        movedEntity := entities[last]
+        entities[row] := movedEntity
+        table[movedEntity].row := row
+    count--
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Entity table structural writes happen in commit phase. Systems own disjoint component write sets/chunks according scheduler; readers see stable structure during phase.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Entity creation semantic order resolved in command commit; internal chunk row can change via swap-back and is never semantic ordering.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+SoA columns, chunk iteration contiguous, no per-component heap object.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    stale entity
+    row swap location
+    alignment
+    nontrivial destructor
+    100k create/destroy
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] generational IDs
+    [ ] frozen component registry
+    [ ] SoA chunks
+    [ ] structural mutation isolated
+    [ ] stress
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raw pointers as entity IDs
+    one heap allocation per component
+    vector of polymorphic Components
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] generational IDs
+    [ ] frozen component registry
+    [ ] SoA chunks
+    [ ] structural mutation isolated
+    [ ] stress
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.1
