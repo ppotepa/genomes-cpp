@@ -5,7 +5,7 @@ SOURCE_REPOSITORY:
     ppotepa/genomes
 
 BASELINE_COMMIT:
-    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
 
 BASELINE_BRANCH:
     main
@@ -16,7 +16,18 @@ TARGET_REPOSITORY:
 POLICY
 ------
 
-The commit above is the initial documentation/reference baseline.
+The commit above is the current audited SOURCE baseline.
+
+Previous initial baseline:
+    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+
+GitHub compare from the previous baseline to the current baseline shows only
+removal of temporarily copied native-manual docs and addition of:
+    SOURCE::docs/NATIVE_CPP_MANUAL_MOVED.txt
+
+No js/, tests/, prototypes/, building-lab/ or runtime implementation files
+changed between those two commits. The semantic prototype baseline is therefore
+unchanged while the repository topology is cleaner.
 
 Later parity chapters MAY pin a newer SOURCE commit if legacy Genomes evolves
 during the C++ migration.
@@ -26,3 +37,16 @@ A fixture must record the exact SOURCE commit it came from; do not rely only on
 
 The SOURCE repository is private. Do not mirror its full source tree into the
 public TARGET repository.
+
+
+SOURCE_VERSION_BASELINE:
+    version: 0.22.0
+    environmentGeneratorVersion: plants-1.0.0
+    buildingGeneratorVersion: building-6.0.0
+    animationVersion:
+        continuous-biped-1.0.0
+        +weapon-handling-1.1.0
+        +face-expression-1.1.0
+    weaponGeometryVersion: procedural-arms-2.0.0
+    equipmentSchemaVersion: 1
+    rubbleVersion: rubble-1.1.0

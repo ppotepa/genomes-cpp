@@ -5,7 +5,7 @@ SOURCE REPOSITORY:
     ppotepa/genomes
 
 INITIAL BASELINE:
-    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
 
 This is a compact routing manifest. The detailed preservation/parity matrix is:
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
@@ -72,3 +72,20 @@ SOURCE::tests/*
 SOURCE::docs/*
     -> research/history/calibration evidence
     -> NOT copied wholesale; referenced by SOURCE::<path>
+
+
+AUDITED SOURCE COUNTS
+---------------------
+
+At SOURCE baseline 16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d:
+
+    js/* files:          114
+    tests/* files:        65
+    prototypes/* files:    3
+    building-lab/* files:  8
+    tools/* files:        17
+
+Current SOURCE test inventory is fully mapped by:
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+
+All 65 SOURCE test filenames are present in the inventory baseline.

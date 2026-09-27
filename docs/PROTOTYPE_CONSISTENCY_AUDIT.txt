@@ -466,3 +466,50 @@ than SOURCE actually guarantees for arbitrarily long streams.
 Correction:
     0.5/5.1 now distinguish Core/Building/City legacy adapters.
     Golden vectors must be generated from the actual SOURCE caller.
+
+
+======================================================================
+10. SOURCE BASELINE / CROSS-REPO REFERENCE AUDIT
+======================================================================
+
+M. SOURCE BASELINE PIN
+
+Previous TARGET reference baseline:
+    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+
+Current audited SOURCE main:
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
+Git compare confirms the 13 commits between them only removed temporary native
+manual chapters from SOURCE and added docs/NATIVE_CPP_MANUAL_MOVED.txt.
+No implementation/test/prototype files changed.
+
+Correction:
+    reference/source/BASELINE.txt and SOURCE_SUBSYSTEMS manifest now pin the
+    current clean SOURCE HEAD.
+
+
+N. 20.7 CROSS-REPO REFERENCES
+
+Previous 20.7 incorrectly referenced:
+    SOURCE::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    SOURCE::NATIVE_CPP_MANUAL_MOVED.txt
+
+Correction:
+    0.2 is TARGET documentation.
+    redirect file is SOURCE::docs/NATIVE_CPP_MANUAL_MOVED.txt.
+
+
+O. SOURCE COVERAGE COUNTS
+
+Current SOURCE tree:
+    js files:          114
+    tests:              65
+    prototypes:          3
+    building-lab files:  8
+    tools files:        17
+
+All current js/* top-level families are covered by the 0.2 inventory or
+SOURCE_SUBSYSTEMS manifest.
+
+All 65 SOURCE test filenames are present in 0.2.

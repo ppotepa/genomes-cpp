@@ -82,8 +82,8 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    SOURCE::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
-    SOURCE::NATIVE_CPP_MANUAL_MOVED.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    SOURCE::docs/NATIVE_CPP_MANUAL_MOVED.txt
     SOURCE::tests/*
     SOURCE::prototypes/*
     SOURCE::building-lab/*
