@@ -1,0 +1,176 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.7 - OPTIONAL_GPU_TERRAIN_FIELDS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Add optional Diligent compute acceleration for large uniform terrain/hydrology field stages while preserving CPU canonical implementation and explicit transfer economics.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+    TARGET::docs/9.6_HYDROLOGY_FIELDS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+CPU generator remains correctness fallback and parity oracle.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/terrain/compute/TerrainFieldKernels.hpp
+    shaders/terrain_noise.hlsl
+    shaders/terrain_derived_fields.hlsl
+    tests/native/terrain/terrain_gpu_parity_tests.cpp
+    benchmarks/terrain/terrain_gpu_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GPU kernels may accelerate noise grid, slope/normal, simple raster masks/distance transforms where algorithm is data-parallel; topology/graph stages stay CPU.
+
+2. Generator execution policy selects CPU/GPU based on size/capabilities/benchmark threshold. RequireGpu only tooling/experiment option.
+
+3. GPU float result parity uses explicit tolerances and generator backend metadata; if semantic exact cross-platform artifact identity is required, CPU path is used or quantization canonicalization defined.
+
+4. Best path keeps intermediate fields GPU-resident when downstream GPU compiler consumes them; avoid roundtrip solely to immediately upload again.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement one terrain derived-field GPU kernel first, compare CPU/GPU.
+
+STEP 2
+    Implement noise kernel only after matching chosen numeric contract; do not claim exact legacy JS parity if transcendental/float differences exist.
+
+STEP 3
+    Use ComputeBenchmarkHarness to find crossover sizes including transfers.
+
+STEP 4
+    Record backend in artifact derivation metadata if output may differ numerically beyond exact fingerprint.
+
+STEP 5
+    Add policy Auto threshold table default conservative; runtime profiling may override locally without changing semantic version policy.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+GENERATE FIELD:
+    if policy == CPU: return cpu()
+    if gpuAvailable and size >= crossover and parityModeAllowsGpu:
+        gpuResult := dispatch kernels
+        if downstream needs CPU semantic artifact:
+            async readback then canonicalize/validate
+        else retain GPU derived representation + CPU required semantic subset
+    else:
+        cpu()
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+GPU dispatch asynchronous; CPU graph may build unrelated stages while waiting. Commit waits for required semantic outputs only.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+CPU is canonical for exact fixtures. GPU numeric class documented; backend differences cannot silently change persisted semantic IDs.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Benchmark kernel, upload, readback and chained-resident cases separately.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Pure optional acceleration; SOURCE behavior unchanged.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CPU/GPU derived fields tolerance
+    small workload chooses CPU
+    missing GPU fallback
+    artifact backend metadata
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CPU fallback
+    [ ] GPU parity tests
+    [ ] crossover benchmark
+    [ ] no mandatory readback
+    [ ] semantic backend policy explicit
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    CUDA/Diligent GPU required for terrain correctness
+    claiming GPU faster without transfer measurements
+    mixing GPU nondeterministic output into exact legacy fixture silently
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CPU fallback
+    [ ] GPU parity tests
+    [ ] crossover benchmark
+    [ ] no mandatory readback
+    [ ] semantic backend policy explicit
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.7
