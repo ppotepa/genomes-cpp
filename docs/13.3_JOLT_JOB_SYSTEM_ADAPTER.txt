@@ -1,0 +1,184 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.3 - JOLT_JOB_SYSTEM_ADAPTER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement Jolt JobSystem adapter over Genomes JobSystem so Jolt simulation jobs use the shared worker pool while respecting Jolt barrier/wait semantics and avoiding deadlocks.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.2_JOLT_BACKEND_BOOTSTRAP.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/jolt/JoltJobSystemAdapter.hpp
+    engine/physics/jolt/JoltJobSystemAdapter.cpp
+    tests/native/physics/jolt_job_adapter_tests.cpp
+    benchmarks/physics/jolt_scaling_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Adapter implements JPH::JobSystem CreateJob/QueueJob(s)/FreeJob/GetMaxConcurrency and barrier behavior required by pinned Jolt version.
+
+2. Jolt dependency tracking remains Jolt-owned. QueueJob maps ready Jolt job into Genomes JobSystem runnable without duplicating dependency logic.
+
+3. WaitForJobs/barrier must follow Jolt semantics; while PhysicsSystem::Update owns update, no unrelated gameplay job may call into/mutate PhysicsSystem and deadlock on body locks.
+
+4. Jolt job wrapper lifetime extends until Jolt releases job; allocation uses dedicated bounded pool/arena suitable for max job count.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Jolt JobSystem class official docs
+    Jolt Architecture.md
+    Jolt discussion guidance on custom JobSystem
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Read exact pinned Jolt JobSystem API and copy only interface-required barrier logic where license allows, documenting provenance.
+
+STEP 2
+    Map CreateJob function/name/color/dependency count into Jolt Job object + Genomes scheduling wrapper.
+
+STEP 3
+    QueueJob(s) submit immediately runnable job to shared JobSystem with physics profiling tag/priority.
+
+STEP 4
+    Implement WaitForJobs using Jolt barrier rule; do not let waiting thread execute arbitrary jobs that may interact with PhysicsSystem if unsafe. Provide physics-scoped assist queue/filter if necessary.
+
+STEP 5
+    Stress nested Jolt jobs through PhysicsSystem::Update at 1..N workers.
+
+STEP 6
+    Benchmark Jolt stock thread pool vs adapter for representative body/contact counts; production chooses adapter if correctness passes, not solely speed.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+QUEUE JOLT JOB:
+    genomesJobs.submit(tag=Physics, fn:
+        joltJob.Execute()
+        // Jolt Job handles its dependency completion/reference lifecycle
+    )
+
+WAIT BARRIER:
+    while barrier not complete:
+        execute ONLY jobs admitted by physics barrier/adapter safe set
+        or block on barrier condition
+    return
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Physics Update caller owns step. Jolt callbacks occur on worker threads; callbacks copy events only. No body add/remove from contact callback.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Adapter scheduling order is nonsemantic. Contact/event publication sorted/stabilized later only when domain semantics require.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use pooled job wrappers, batch QueueJobs, measure oversubscription = none because shared worker pool.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Temporary Jolt JobSystemThreadPool from 13.2 removed from production path after adapter passes.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    Create/Queue/Free lifecycle
+    barrier completion
+    PhysicsSystem stress
+    no oversubscription threads
+    contact callback safety
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] shared JobSystem
+    [ ] Jolt barriers correct
+    [ ] no deadlock stress
+    [ ] pooled wrappers
+    [ ] scaling benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    second permanent Jolt worker pool
+    executing arbitrary AI jobs while Jolt barrier locks physics world
+    mutating bodies in contact callback
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] shared JobSystem
+    [ ] Jolt barriers correct
+    [ ] no deadlock stress
+    [ ] pooled wrappers
+    [ ] scaling benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.3
