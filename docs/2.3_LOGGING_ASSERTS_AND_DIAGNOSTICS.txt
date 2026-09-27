@@ -1,0 +1,207 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 2.3 - LOGGING, ASSERTS, AND DIAGNOSTICS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement the minimal diagnostic foundation used by every later subsystem:
+structured log records, compile/runtime assertions, diagnostic scopes, and
+thread-safe sinks without forcing formatting or I/O into hot paths.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+    TARGET::docs/2.2_TIME_CLOCKS_AND_FIXED_TICKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/foundation/include/genomes/foundation/Log.hpp
+    engine/foundation/include/genomes/foundation/Assert.hpp
+    engine/foundation/include/genomes/foundation/Diagnostics.hpp
+    engine/foundation/src/Log.cpp
+    engine/foundation/src/Diagnostics.cpp
+    tests/native/foundation/log_tests.cpp
+    tests/native/foundation/assert_policy_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. LogLevel = Trace, Debug, Info, Warn, Error, Fatal. A LogRecord carries monotonic timestamp, thread id/hash, category, level, message and optional fixed-size fields. Logging API must allow disabled levels to return before formatting.
+
+2. ILoggerSink is an interface owned by the diagnostics service. Default sinks: stderr console and bounded in-memory ring for tests. The service is injected; no mandatory global singleton.
+
+3. GENOMES_ASSERT(expr) is compiled for programmer invariants in debug/development; GENOMES_VERIFY(expr) evaluates in all builds; GENOMES_UNREACHABLE() has a diagnostic path before optimizer hint.
+
+4. DiagnosticScope attaches subsystem/job/region identifiers to records through explicit scope objects; thread-local scope stack is allowed only as diagnostics metadata, never gameplay state.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement LogRecord/LogField with non-owning string_view keys and bounded/owned message storage policy documented; no dangling views from temporaries.
+
+STEP 2
+    Implement LogRouter with sink registration during bootstrap only; logging after bootstrap reads an immutable sink list or synchronized snapshot.
+
+STEP 3
+    Implement category constants as stable string literals, not dynamic registry IDs.
+
+STEP 4
+    Implement assert failure function that prints expression/file/line/function and terminates or breaks according to build policy; never continue after failed ASSERT.
+
+STEP 5
+    Implement DiagnosticScope push/pop with RAII and tests for nested scopes and thread separation.
+
+STEP 6
+    Add compile definitions GENOMES_ENABLE_ASSERTS and log-level compile floor controlled from CMake.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+LOG FAST PATH:
+    function log(level, category, builder):
+        if level < compileFloor: return
+        router := diagnostics.router
+        if !router.accepts(level, category): return
+        record := builder.buildInto(threadLocalScratch)
+        router.emit(record)
+
+ASSERT:
+    macro GENOMES_ASSERT(expr):
+        if !(expr):
+            reportAssertFailure(#expr, source_location)
+            terminateOrDebugBreak()
+
+DIAGNOSTIC SCOPE:
+    constructor(scope):
+        previous := tlsScopeTop
+        tlsScopeTop := this
+    destructor:
+        tlsScopeTop := previous
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    log level filtering
+    sink fan-out
+    nested diagnostic scope
+    thread-local scope isolation
+    assert metadata helper tests without intentionally crashing normal CTest
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] no mandatory global logging singleton
+    [ ] disabled logs avoid formatting work
+    [ ] assert metadata includes source location
+    [ ] nested scopes restore correctly
+    [ ] thread-safe sink routing
+    [ ] all tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    printf scattered through engine code
+    logging as synchronization
+    allocating std::ostringstream in disabled hot-path logs
+    continuing execution after GENOMES_ASSERT failure
+    using diagnostics TLS as gameplay state
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] no mandatory global logging singleton
+    [ ] disabled logs avoid formatting work
+    [ ] assert metadata includes source location
+    [ ] nested scopes restore correctly
+    [ ] thread-safe sink routing
+    [ ] all tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 2.3
