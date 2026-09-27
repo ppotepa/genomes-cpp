@@ -1,0 +1,201 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 17.5 - BALLISTICS_BATCHING_AND_SIMD
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Scale projectile flight/contact workloads across CPU cores and SIMD-friendly SoA
+batches while retaining branch-heavy material solver correctness and stable
+damage commit semantics.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/17.4_FRAGMENTATION_AND_HE.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Exact semantic projectile state/energy/contact behavior; optimization may alter
+storage/execution order but never projectile identity or outcome contracts.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/ballistics/include/genomes/ballistics/ProjectilePool.hpp
+    modules/ballistics/src/BallisticsBatchSystem.cpp
+    benchmarks/ballistics/ballistics_scaling_benchmark.cpp
+    tests/native/ballistics/ballistics_parallel_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ProjectilePool uses generational ProjectileHandle and hot SoA columns position/velocity/mass/diameter/state/strategy, with optional cold/contact data handles. Active list compacted without changing stable ProjectileId.
+
+2. Flight/aerodynamic free-space integration is batch-friendly and may SIMD/autovectorize grouped by strategy. Contact-heavy projectiles move to separate slow/contact queues without forcing divergent branches on free-flight batch.
+
+3. Parallel batches read immutable WorldQuery/Physics snapshots for the tick and write disjoint projectile ranges plus thread-local Impact/Blast/Spawn command buffers.
+
+4. After flight batches, commands are merged/stable-sorted by tick/shot/projectile/contact sequence and target semantic ID before damage commit. Fragment spawn resolves stable IDs independently from pool slot allocation.
+
+5. SIMD optimization is optional per compiler/ISA; scalar reference stays in tests. No architecture-specific path becomes sole implementation.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Hot SoA arrays aligned to cache/SIMD boundaries. FreeFlight index list, Contact index list and terminal/free slot lists. Strategy-group index lists may be rebuilt incrementally. Cold trace history not stored in hot pool.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement ProjectilePool create/destroy/stale-handle reuse and hot/cold columns.
+
+STEP 2
+    Partition active free-flight indices into jobs/grains; group by strategy where profitable.
+
+STEP 3
+    Implement scalar batch kernel first; enable compiler vectorization and add optional explicit SIMD abstraction only after benchmark.
+
+STEP 4
+    Separate contact candidates to ImpactSolver slow path while maintaining remaining substep state.
+
+STEP 5
+    Merge impact/blast/fragment commands deterministically and commit grouped per target.
+
+STEP 6
+    Benchmark 1k/10k/100k free flight, dense-contact workload, HE fragment burst, worker counts and SIMD on/off.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TICK:
+    active := pool.activeIndices
+    parallelFor(active batches):
+        for idx:
+            if projectile.contactActive:
+                local.contactQueue.push(idx)
+            else:
+                integrate aerodynamic/free flight
+                if broadphase predicts candidate:
+                    local.contactQueue.push(idx)
+                else write state
+
+    contactJobs := partition gathered contact indices
+    solve contacts -> local commands
+
+    commands := stableMerge(all job buffers)
+    commit target damage/blast
+    commit fragment spawns
+    retire terminal projectiles
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each projectile index written by one job per phase. Shared target state immutable until command commit. Pool structural create/destroy happens after batches.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Pool exhaustion follows profile policy: reject new noncritical projectile or account HE omitted pairs explicitly; never overwrite active state. Invalid SIMD path detected by scalar parity tests.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Projectile results match scalar reference within exact/numeric policy at 1/N workers. Command order stable independent of pool index/job completion.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Measure scheduler overhead, spatial query %, contact solver %, memory bandwidth, vectorization. Avoid SIMD effort on highly divergent contact solver until profiling proves benefit.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Replaces JS single-loop projectile stepping with native data-oriented batches while preserving parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    pool stale handle
+    scalar vs vector/free flight
+    1 vs N worker state hashes
+    contact command ordering
+    fragment burst capacity
+    100k stress
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] SoA pool
+    [ ] parallel free flight
+    [ ] contact slow path
+    [ ] deterministic command merge
+    [ ] scalar parity
+    [ ] scaling benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one task per projectile
+    SIMD approximation changing semantic thresholds silently
+    pool slot index as ProjectileId
+    concurrent damage mutation during trace
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] SoA pool
+    [ ] parallel free flight
+    [ ] contact slow path
+    [ ] deterministic command merge
+    [ ] scalar parity
+    [ ] scaling benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next ballistics chapter.
+
+END OF CHAPTER 17.5
