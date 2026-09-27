@@ -1,0 +1,184 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.6 - PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define immutable simulation/world presentation snapshots and diff/extraction pipeline separating authoritative state from renderer state with double/triple-buffered ownership.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+    TARGET::docs/7.5_GPU_SCENE_DATABASE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/core/include/genomes/render/PresentationSnapshot.hpp
+    engine/render/core/include/genomes/render/RenderExtraction.hpp
+    engine/render/core/src/RenderExtraction.cpp
+    tests/native/render/render_extraction_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. PresentationSnapshot contains only render-relevant immutable records keyed by stable semantic IDs plus interpolation samples/timestamps; no mutable ECS pointers.
+
+2. Publisher uses 2 or 3 slots with ownership state Free/Writing/Published/Reading. Simulation never waits on renderer except bounded backpressure policy chosen explicitly.
+
+3. Extraction computes Added/Updated/Removed using revision counters/dirty sets supplied by simulation/world, not O(N) deep comparison where avoidable.
+
+4. Renderer may consume latest complete snapshot and skip intermediate visual snapshots; authoritative simulation continues independently.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define snapshot header simulationTick, previousTick, interpolationAlpha basis, world origin/rebase ID.
+
+STEP 2
+    Define static/dynamic presentation record spans and revision numbers.
+
+STEP 3
+    Implement SnapshotExchange lock-free/small-lock state machine with acquireWrite/publish/acquireLatestRead/release.
+
+STEP 4
+    Implement RenderExtraction delta building keyed by stable semantic ID and revisions.
+
+STEP 5
+    Connect deltas to GPUScene sync.
+
+STEP 6
+    Test renderer stalled while simulation publishes several snapshots under chosen drop/overwrite-safe policy.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+PUBLISH:
+    slot := exchange.acquireWritable()
+    fill immutable arrays
+    slot.tick := tick
+    memoryFenceRelease()
+    exchange.publish(slot)
+
+RENDER:
+    slot := exchange.acquireLatest()
+    extraction := diff(previousRenderedRevisionMap, slot)
+    gpuScene.apply(extraction)
+    render(slot.interpolation)
+    exchange.release(slot)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    snapshot immutability
+    publish/read ordering
+    renderer skip intermediate
+    add/update/remove extraction
+    no dangling source pointers
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] immutable snapshots
+    [ ] buffer ownership safe
+    [ ] renderer can lag/skip
+    [ ] revision-based diff
+    [ ] GPUScene integration
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    renderer reading live mutable ECS arrays
+    simulation waiting every frame for render
+    snapshot contains Diligent handles as authoritative IDs
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] immutable snapshots
+    [ ] buffer ownership safe
+    [ ] renderer can lag/skip
+    [ ] revision-based diff
+    [ ] GPUScene integration
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.6
