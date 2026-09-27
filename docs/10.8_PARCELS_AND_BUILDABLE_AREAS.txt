@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.8 - PARCELS_AND_BUILDABLE_AREAS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Subdivide blocks and rural road frontage into deterministic parcels with explicit frontage, access, setbacks and buildable polygons while preventing overlaps/road/water conflict.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.7_ZONING_BLOCKS_AND_HALF_EDGE_FACES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/city/include/genomes/city/Parcel.hpp
+    modules/city/include/genomes/city/ParcelSet.hpp
+    modules/city/src/ParcelGenerator.cpp
+    tests/native/city/parcel_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Parcel has stable ParcelId, source BlockId or rural road ref, polygon, area, zone, frontage segment/road, access flag and buildable polygon(s).
+
+2. Urban parcel subdivision prioritizes road frontage and target width/depth ranges by zone; residual polygons are either valid residual parcels or explicitly reported.
+
+3. Buildable area = parcel minus setback/ROW/water/protected constraints; operation may return multiple polygons, choose/retain according explicit policy.
+
+4. Rural frontage parcels generated along eligible roads with spacing/depth and spatial hash overlap checks.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-POLY-SIGNED-AREA-001
+    MATH-POLY-RECTANGULARITY-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-BUILD-CANDIDATE-SOLVER-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-city/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define zone-based ParcelProfile target frontage/depth/setbacks.
+
+STEP 2
+    Determine block road-facing edges by nearest/corresponding road corridor metadata, not O(all roads) brute force.
+
+STEP 3
+    Recursively/sweep split block polygon into frontage parcels with hard min area/width.
+
+STEP 4
+    Generate buildable offsets and subtract constraints.
+
+STEP 5
+    Generate rural road-oriented OBB/polygon parcels using spatial index.
+
+STEP 6
+    Validate containment, overlap, road/water exclusion and access.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+URBAN BLOCK:
+    frontageEdges := map block edges to road corridors
+    candidateCuts := derive widths from profile + seed
+    parcels := split polygon along frontage progression
+    for p:
+        if hard constraints fail: merge/residual policy
+        buildable := inset/subtract(p,setbacks,constraints)
+        assign stable ParcelId(blockId, frontageOrdinal)
+
+RURAL:
+    for road in stable order:
+        for station in seeded spacing:
+            candidate := oriented parcel
+            if index overlap/road/water/outside: reject
+            insert
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    block containment
+    no parcel overlap
+    frontage/access
+    setback buildable
+    rural overlap
+    residual accounting
+    stable IDs
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] urban+rural parcels
+    [ ] frontage metadata
+    [ ] buildable polygons
+    [ ] no overlap
+    [ ] access validation
+    [ ] residual reporting
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    building generator deciding parcel geometry
+    global road scan per parcel
+    silently dropping residual land without metric
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] urban+rural parcels
+    [ ] frontage metadata
+    [ ] buildable polygons
+    [ ] no overlap
+    [ ] access validation
+    [ ] residual reporting
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.8
