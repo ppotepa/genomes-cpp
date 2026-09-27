@@ -1,0 +1,181 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.1 - PLANT_GENOME_AND_PROTOTYPE_MODEL
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define renderer-independent PlantGenome, species catalog, phenotype parameters and immutable PlantPrototype artifacts that preserve procedural identity across LODs.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE plant species/genome variation, deterministic identity, age/season/damage parameters and the rule that LOD never rerolls the plant.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/vegetation/CMakeLists.txt
+    modules/vegetation/include/genomes/vegetation/PlantGenome.hpp
+    modules/vegetation/include/genomes/vegetation/PlantPrototype.hpp
+    modules/vegetation/include/genomes/vegetation/PlantCatalog.hpp
+    tests/native/vegetation/plant_genome_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. PlantGenome is compact semantic DNA: species ID, root seed, stable traits (height/girth/branching/crown/asymmetry/leaf density/color/etc.) and optional runtime damage/season state separated where identity vs transient differs.
+
+2. PlantPrototypeArtifact describes branch skeleton/primitive recipes, foliage clusters, collision/interaction bounds and semantic LOD recipe set. LODs derive from same genome/skeleton identity.
+
+3. Species catalog is data/versioned and no renderer material objects live in it.
+
+4. PrototypeKey includes species/genome generator version + stable genome + age/season parameters that actually affect geometry.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/environment/plantCatalog.js
+    SOURCE::js/environment/plantGenerator.js
+    SOURCE::tests/vegetation_variation.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Map SOURCE plant catalog/genome fields into v1 schema and classify identity/static/runtime traits.
+
+STEP 2
+    Define branch skeleton node/segment data independently of final mesh tessellation.
+
+STEP 3
+    Define foliage cluster semantic representation suitable for instancing/billboard/mesh compilers.
+
+STEP 4
+    Define LOD recipe policy as simplification of same skeleton/crown, not independent generation.
+
+STEP 5
+    Add selected SOURCE genome fixtures and distribution/property tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE GENOME:
+    rng := seed.child("plant-genome", plantId)
+    for trait in species.traits stable order:
+        genome[trait] := sample species distribution using trait child stream
+    return genome
+
+PROTOTYPE:
+    skeleton := growBranchSkeleton(genome, age)
+    crown := deriveFoliageClusters(skeleton, genome)
+    for lod:
+        recipe[lod] := simplifySameIdentity(skeleton,crown,lodPolicy)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Genomes/prototypes immutable. Each prototype build owns scratch. Species catalog immutable after bootstrap.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Trait child streams isolate changes; adding a new trait does not shift unrelated trait RNG if semantic child labels used.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Prototype sharing/caching by exact semantic key. Many world instances reference prototypes rather than unique mesh geometry.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE::js/environment/plantCatalog.js and plantGenerator.js remain reference until 12.6.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    same seed same genome
+    LOD identity
+    trait stream independence
+    catalog schema
+    prototype bounds
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] genome schema
+    [ ] prototype artifact
+    [ ] LOD same identity
+    [ ] catalog versioned
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    new RNG sequence per LOD
+    GPU mesh in genome
+    species switch logic duplicated through renderer
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] genome schema
+    [ ] prototype artifact
+    [ ] LOD same identity
+    [ ] catalog versioned
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.1
