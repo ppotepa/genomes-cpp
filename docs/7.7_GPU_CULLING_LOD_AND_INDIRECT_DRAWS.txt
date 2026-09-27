@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.7 - GPU_CULLING_LOD_AND_INDIRECT_DRAWS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Move large-scene visibility, LOD selection and draw compaction to GPU compute/indirect execution while preserving CPU fallback/debug path and semantic LOD identity.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.5_GPU_SCENE_DATABASE.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/passes/GpuCullPass.*
+    engine/render/passes/IndirectDrawPass.*
+    engine/render/gpu_scene/include/genomes/render/gpu_scene/LodPolicy.hpp
+    shaders/gpu_cull.hlsl
+    tests/native/render/culling_cpu_reference_tests.cpp
+    benchmarks/render/gpu_culling_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GPU culling input: instance bounds, transform, mesh/LOD table, camera/frustum, optional previous visibility. Output compact visible instance/draw command buffers plus counters.
+
+2. LOD uses projected error/screen size + hysteresis, not only arbitrary distance; domain identity/random seed never changes on LOD transition.
+
+3. Frustum cull first; optional Hi-Z occlusion added only after depth pyramid path exists. CPU reference computes same frustum/LOD policy for tests.
+
+4. Indirect draw support is capability-gated; fallback groups visible instances on CPU without changing visual correctness.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-AABB-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Diligent bindless resources tutorial
+    Diligent compute/query tutorials
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define LodPolicy thresholds/error metrics and hysteresis state record separate from semantic object.
+
+STEP 2
+    Implement CPU reference frustum test and projected size math with golden fixtures.
+
+STEP 3
+    Implement compute pass reading GPUScene buffers and writing visible list/count.
+
+STEP 4
+    Implement prefix/atomic compaction strategy; start with atomic append then benchmark scan-based compaction for millions.
+
+STEP 5
+    Build indirect command grouping by mesh/material/LOD; validate buffer layout per backend.
+
+STEP 6
+    Add debug mode comparing sampled GPU output to CPU reference.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+KERNEL each instance:
+    if !frustumIntersects(boundsWorld): return
+    lod := chooseLod(projectedError, previousLod, hysteresis)
+    if occlusionEnabled and occludedByHiZ: return
+    idx := atomicAdd(visibleCount[lodGroup],1)
+    visibleIndices[groupBase+idx] := instanceId
+
+DRAW:
+    build commands from group counts
+    execute indirect where capability
+
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CPU frustum planes
+    LOD hysteresis
+    identity unchanged across LOD
+    GPU sampled parity
+    zero visible
+    million instances synthetic
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] GPU culling works
+    [ ] CPU fallback/reference
+    [ ] LOD hysteresis
+    [ ] indirect capability path
+    [ ] identity stable
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    CPU per-instance draw submit as final path
+    LOD re-randomizes procedural entity
+    mandatory occlusion before correctness baseline
+    unbounded atomic contention without benchmark
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] GPU culling works
+    [ ] CPU fallback/reference
+    [ ] LOD hysteresis
+    [ ] indirect capability path
+    [ ] identity stable
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.7
