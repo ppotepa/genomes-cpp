@@ -1,0 +1,231 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.2 - IMPACT_SOLVER_PORT
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port the bounded contact/material impact solver so projectile/impact energy,
+target motion, impulses, material work and contact continuation are computed in
+one explicit state machine without duplicating force/work or heuristic impulses.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.1_DESTRUCTION_MATERIALS_AND_SOLIDS.txt
+    TARGET::docs/13.6_PHYSICS_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE contact semantics: relative contact velocity includes target linear
+and angular velocity, material force is pressure*projectile cross-section once,
+work is force*actual distance, interval progress persists across ticks, target
+impulse is separate from structural damage, and the energy ledger exposes a
+balance residual rather than forcing it to zero.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/include/genomes/destruction/ImpactInput.hpp
+    modules/destruction/include/genomes/destruction/ImpactState.hpp
+    modules/destruction/include/genomes/destruction/ImpactResult.hpp
+    modules/destruction/include/genomes/destruction/ImpactSolver.hpp
+    modules/destruction/src/ImpactSolver.cpp
+    tests/native/destruction/impact_solver_tests.cpp
+    benchmarks/destruction/impact_solver_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ImpactInput contains projectile/impactor mass, effective diameter/area, full world velocity/angular state, contact point/normal, target linear/angular velocity, target COM lever, MaterialTraversal intervals and strategy/profile refs. Unit direction is never substituted for velocity.
+
+2. Relative velocity at contact = projectileVelocity - (targetLinearVelocity + targetAngularVelocity × lever). Normal/tangential components are explicit. Solver may update world velocity/orientation/deformation through the ammunition/projectile strategy layer later.
+
+3. Material work for each solid interval is W = F_resist * actualTravel, with F_resist = pressure/resistance-law output * projectile cross-sectional area exactly once. Void/air work = 0 while time/travel still advances.
+
+4. ImpactState stores active physicalSolidId, assembly/layer interval, progress distance, entry energy/velocity, cumulative materialWork/contactLoss/targetWork and contact continuity across fixed ticks.
+
+5. ImpactResult returns residual velocity/angular state, projectile impulse, target impulse/torque, structural damage deposition, traversal outcome Continue/Penetrated/Stopped/RicochetCandidate/DetonationCandidate and ledger deltas.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+ImpactState is compact POD-like per active projectile contact. Traversal arrays are small views into immutable MaterialAssembly. Results are value objects appended to projectile/destruction event buffers.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-PHYS-KINETIC-001
+    MATH-PHYS-MOMENTUM-001
+    MATH-PHYS-IMPULSE-001
+    MATH-PHYS-TORQUE-IMPULSE-001
+    MATH-VEC-DOT-001
+    MATH-VEC-CROSS3-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::js/destruction/impactSolver.js
+    SOURCE::js/destruction/materialImpact.js
+    SOURCE::tests/destruction_core.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Port relative-contact kinematics and verify moving/rotating target fixtures.
+
+STEP 2
+    Port traversal state machine over ordered MaterialLayer intervals and explicit gaps; preserve one physical contact across contiguous sections sharing physicalSolidId.
+
+STEP 3
+    Implement material resistance/work through strategy callback/table so ImpactSolver does not hardcode ammunition-specific AP logic.
+
+STEP 4
+    Compute impulse/target torque separately from damage deposition; prohibit old duplicate heuristic impulse path.
+
+STEP 5
+    Implement bounded substep/contact progress and terminate safely at max iterations/travel with explicit Tracking/Limit result rather than infinite loop.
+
+STEP 6
+    Implement energy ledger delta accounting and independently recompute balance residual in tests.
+
+STEP 7
+    Benchmark representative 1/2/10-layer contacts and 100k synthetic impact solves.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CONTACT STEP:
+    targetPointVelocity := targetLinear + cross(targetAngular, lever)
+    relative := projectileVelocity - targetPointVelocity
+    normalSpeed := -dot(relative, contactNormal)
+
+    while remainingTravel > 0 and iterations < max:
+        interval := current material/air interval
+        ds := min(remainingTravel, interval.remaining)
+
+        if interval.kind == Air:
+            work := 0
+        else:
+            pressure := strategy.resistance(materialSample, projectileState, contactState)
+            force := pressure * projectileCrossSectionArea
+            work := force * ds
+            deposit material damage from work/contact geometry
+
+        update projectile energy/velocity according strategy
+        state.progress += ds
+        ledger.materialWork += work
+
+        if interval complete:
+            advance layer preserving contact if same physicalSolidId/contiguous
+            end contact on actual gap/interface policy as specified
+
+    residual := independentlyComputeLedgerResidual()
+    return result
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Impact solves can run in parallel for independent projectiles against immutable target snapshot. Structural/damage mutations are emitted as commands and committed later. Do not mutate Jolt bodies inside solver.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Nonfinite inputs, invalid material interval, negative mass/diameter or impossible state return typed ImpactError. Iteration cap reports explicit LimitReached with conserved/unrepresented ledger terms.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed-step input snapshot + projectile/target IDs + strategy version define result. Equal-time conflicting damage commits are stable-sorted later; solver itself has no shared RNG unless strategy receives explicit SeedPath.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No allocation per layer/contact. Reuse scratch traversal buffer. Keep branch-heavy solver CPU-side initially; SIMD/batching assessed in 17.5.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Match current SOURCE acceptance first. Any physical-model redesign creates a new ImpactSolver/material/strategy version and new parity fixtures.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    stationary target
+    moving target relative velocity
+    rotating target lever
+    void travel zero material work
+    contiguous same physicalSolidId one contact
+    separate gap two contacts
+    energy residual bounded
+    iteration limit
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] relative contact velocity correct
+    [ ] layer progress persists
+    [ ] work formula applied once
+    [ ] impulse separated from damage
+    [ ] ledger residual reported
+    [ ] bounded solver
+    [ ] SOURCE core parity
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    using normalized direction as velocity
+    force multiplied by area twice
+    applying target impulse again in destruction adapter
+    forcing balance error to zero
+    solver directly spawning debris
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] relative contact velocity correct
+    [ ] layer progress persists
+    [ ] work formula applied once
+    [ ] impulse separated from damage
+    [ ] ledger residual reported
+    [ ] bounded solver
+    [ ] SOURCE core parity
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.2
