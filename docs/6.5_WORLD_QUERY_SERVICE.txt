@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 6.5 - WORLD_QUERY_SERVICE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Provide one high-level immutable query facade that routes terrain/static/dynamic/spatial requests without forcing AI, ballistics or tools to know individual indexes.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.6_STATIC_BVH_AND_QUERY_SERVICE.txt
+    TARGET::docs/6.3_STATIC_WORLD_DATABASES.txt
+    TARGET::docs/6.4_STREAMING_STATE_MACHINE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/WorldQuery.hpp
+    engine/world/include/genomes/world/WorldQuerySnapshot.hpp
+    engine/world/src/WorldQuery.cpp
+    tests/native/world/world_query_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. WorldQuerySnapshot pins/read-locks relevant region/index revisions for query batch lifetime; query result includes region/source IDs and revision where needed.
+
+2. APIs: terrainHeight/sample, queryAabb/radius candidates, segment/ray candidates, building lookup, regionAt, loaded/residency metadata.
+
+3. Facade returns broadphase candidates unless method explicitly says narrowPhase. Domain-specific material/LOS decisions remain consumers.
+
+4. Missing/unloaded region returns typed status: Complete, PartialUnloaded, Missing rather than silently treating unknown as empty.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define QueryCompleteness and result wrappers.
+
+STEP 2
+    Build snapshot from RegionDatabase + StaticWorldDatabase + dynamic grid references.
+
+STEP 3
+    Implement region coverage for query bounds including negatives.
+
+STEP 4
+    Merge candidates from multiple region indexes with stable optional sorting by ID/t for deterministic consumers.
+
+STEP 5
+    Implement terrain query routing with boundary neighbor consistency.
+
+STEP 6
+    Test query crossing 4 regions, one unloaded region and dynamic/static dedup.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+QUERY AABB:
+    regions := regionsOverlapping(bounds)
+    result.completeness := Complete
+    for region in stable coord order:
+        if !semanticResident(region):
+            result.completeness := PartialUnloaded
+            continue
+        region.staticBvh.query(bounds,out)
+        region.dynamicGrid.query(bounds,out)
+    dedup
+    if stableOrderRequested: sort by stable ID
+    return result
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single region
+    cross-region
+    negative coords
+    partial unloaded
+    dedup static/dynamic
+    stable sorted query
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] snapshot API
+    [ ] partial completeness explicit
+    [ ] multi-region routing
+    [ ] dedup
+    [ ] no domain policy leakage
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    unknown region treated empty without flag
+    AI reaching directly into building hash maps
+    returning raw mutable region pointers
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] snapshot API
+    [ ] partial completeness explicit
+    [ ] multi-region routing
+    [ ] dedup
+    [ ] no domain policy leakage
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 6.5
