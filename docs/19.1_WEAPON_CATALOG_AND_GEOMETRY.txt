@@ -11,7 +11,22 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port weapon catalog, handling metadata and procedural weapon geometry as a domain module separate from ballistics and Infantry rendering.
+Port the current SOURCE weapon/hand-prop catalog, handling metadata and
+procedural weapon geometry as a domain module separate from ballistics and
+Infantry rendering.
+
+Pinned SOURCE baseline currently exposes 8 entries:
+    knife
+    grenade
+    sidearm
+    carbine
+    rifle
+    marksman_rifle
+    support_gun
+    heavy_support_gun
+
+Knife and grenade are deliberate non-firearm one-handed items and must not be
+lost merely because ballistics chapters focus on firearms.
 
 ======================================================================
 REQUIRES
@@ -51,13 +66,26 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. WeaponDefinition is immutable catalog data with stable WeaponId, category, firearm flag, compatible ammunition IDs, grip/profile capabilities, dimensions and procedural visual parameters.
+1. WeaponDefinition is immutable catalog data with stable WeaponId, category,
+firearm flag, compatible ammunition IDs where applicable, grip/profile
+capabilities, dimensions and procedural visual parameters.
+
+Non-firearms are first-class:
+    knife   -> ONE_HANDED / 1H / firearm=false
+    grenade -> ONE_HANDED / 1H / firearm=false
+
+Their presence in WeaponCatalog does NOT imply firearm ammunition or projectile
+spawn contract.
 
 2. Weapon geometry generation consumes WeaponDefinition + ItemInstance seed/variant and produces backend-neutral MeshData/attachment landmarks (muzzle, grips, sights, stow anchors).
 
 3. Weapon geometry is representation, not ballistics authority. Ballistics uses WeaponId/Ammunition IDs and shot parameters from gameplay contracts.
 
-4. Catalog does not require Infantry; another unit type may carry/use a WeaponDefinition if it implements required handling capability.
+4. Catalog does not require Infantry; another unit type may carry/use a
+WeaponDefinition if it implements required handling capability.
+
+Pinned SOURCE catalog count is 8 entries and is verified as migration data, not
+baked into generic engine limits.
 
 5. All dimensions are metres and explicit; geometry may be stylized and is not a manufacturing/mechanical model.
 
@@ -154,8 +182,10 @@ Preserve IDs/handling metadata; visual mesh parity by metrics/golden, not Three.
 ======================================================================
 TESTS TO ADD
 ======================================================================
+    pinned SOURCE catalog count = 8
+    knife/grenade non-firearm preservation
     catalog completeness
-    ammo references valid
+    firearm ammo references valid
     attachment landmarks
     geometry finite/bounds
     seed determinism

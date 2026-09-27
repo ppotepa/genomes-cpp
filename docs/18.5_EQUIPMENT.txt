@@ -30,7 +30,13 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-20-slot/59-definition/10-profile SOURCE concepts at baseline, deterministic EquipmentSeed domain, overrides/null semantics, palette/wear/weight metadata, anatomy-based fit, single shared skeleton and gear batching.
+SOURCE baseline currently contains 22 equipment slots, 61 item definitions and
+10 Infantry loadout profiles. These counts are inventory facts for the pinned
+SOURCE baseline, not architectural constants.
+
+Preserve deterministic EquipmentSeed domain, overrides/null semantics,
+palette/wear/weight metadata, anatomy-based fit, single shared skeleton and
+gear batching.
 
 ======================================================================
 OUT OF SCOPE
@@ -103,7 +109,14 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Freeze slot schema/catalog/loadout data from SOURCE into native versioned catalog with stable IDs.
+    Freeze the pinned SOURCE equipment inventory into native versioned data:
+        22 EquipmentSlots
+        61 EquipmentCatalog definitions
+        10 InfantryLoadout profiles
+
+    Verify counts mechanically in the importer/test, but do not hard-code these
+    counts into engine architecture. A future SOURCE/catalog version may add
+    items/slots while preserving schema compatibility.
 
 STEP 2
     Implement EquipmentSeed derivation and per-slot/per-definition variant streams.
@@ -201,6 +214,7 @@ Preserve catalog IDs/loadouts from SOURCE and fixture exactness where gameplay d
 ======================================================================
 TESTS TO ADD
 ======================================================================
+    pinned baseline count = 22 slots / 61 items / 10 loadouts
     all loadouts resolve
     slot overrides/null
     exact EquipmentSeed.fromUnit vectors
@@ -222,6 +236,7 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
+    [ ] pinned baseline inventory counts verified
     [ ] catalog/loadouts ported
     [ ] separate RNG domain
     [ ] fit semantic

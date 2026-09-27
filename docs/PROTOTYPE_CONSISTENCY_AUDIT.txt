@@ -400,3 +400,43 @@ Correction:
 
 This prevents fencing from becoming a visual afterthought or being dropped
 because the newer procedural city prototype focuses on road/block/parcel logic.
+
+
+======================================================================
+8. PINNED INVENTORY COUNT CORRECTION
+======================================================================
+
+J. EQUIPMENT COUNTS
+
+Mechanical count from current SOURCE:
+    EquipmentSlots:             22
+    EquipmentCatalog add(...):  61
+    InfantryLoadouts put(...):  10
+
+Previous TARGET 18.5 text said:
+    20 / 59 / 10
+
+That was stale/incorrect.
+
+Correction:
+    18.5 now records 22 / 61 / 10 for the pinned SOURCE baseline and explicitly
+    treats these as versioned inventory facts, not engine limits.
+
+
+K. WEAPON CATALOG BASELINE
+
+Current SOURCE WeaponCatalog entries:
+    8 total
+
+    knife
+    grenade
+    sidearm
+    carbine
+    rifle
+    marksman_rifle
+    support_gun
+    heavy_support_gun
+
+Correction:
+    19.1 explicitly preserves knife and grenade as non-firearm one-handed
+    catalog entries instead of implicitly focusing only on firearm ballistics.
