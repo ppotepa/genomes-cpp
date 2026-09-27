@@ -1,0 +1,197 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 22.3 - THREAD_SCALING_REGRESSION_GATES
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Convert JobSystem/subsystem scaling benchmarks into regression gates that catch serialization, contention, false sharing and task-granularity regressions without assuming more threads always help.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/20.7_LEGACY_RUNTIME_RETIREMENT_RULES.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+    TARGET::docs/22.1_FULL_STRESS_BENCHMARK_MATRIX.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Stage 3 work-stealing/common pool architecture and deterministic semantics at all worker counts.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No hard expectation of linear scaling for memory-bound/serial workloads.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    tools/benchmark/thread_scaling_gate.*
+    config/performance/thread_scaling_baselines/*
+    tests/native/stress/thread_scaling_smoke.cpp
+    docs/performance/22.3_THREAD_SCALING_REPORT.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Each gate defines workload, hardware class, worker counts, baseline T1/Tp, acceptable regression band and expected qualitative trend. Do not apply one speedup number globally.
+
+2. Correctness/determinism verified before timing. Worker-count semantic hash mismatch is correctness failure independent of performance.
+
+3. Measure total workload including scheduler/merge/barriers. Report work-steal counts, runnable queue latency, idle time, critical-path/serialization spans where telemetry supports.
+
+4. Gate may assert "8 workers no worse than X% of 4" rather than impossible linear speedup for bandwidth-bound work.
+
+5. Dedicated controlled runner required for hard timing gate; generic CI runs smoke/scaling shape only.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Baseline records by scenario+machine+compiler+dependency profile; performance gate configs versioned with rationale and update history.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    PERF-PAR-WORK-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    http://supertech.csail.mit.edu/papers/steal.pdf
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Select representative parallel workloads: procedural buildings, city regions, animation, AI, spatial queries, destruction batch, full headless tick.
+
+STEP 2
+    Run 1/2/4/8/16/physical-core/SMT counts and record T, speedup, efficiency, utilization.
+
+STEP 3
+    Identify expected saturation reason per workload; document serial fraction/memory limit rather than "optimize later".
+
+STEP 4
+    Implement regression checker using robust median/variance and machine-specific baseline.
+
+STEP 5
+    Add deterministic hash comparison across worker counts before timings accepted.
+
+STEP 6
+    Add scheduler counters for steals, failed steals, queue depth, task duration distribution and barrier waits.
+
+STEP 7
+    Establish hard gates only on dedicated runner; PR hosted runner checks functional multi-thread path/no catastrophic slowdown.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SCALING:
+    T1 := measure(workload,workers=1)
+    for P in [2,4,8,16,...]:
+        TP := measure(workload,P)
+        speedup := T1/TP
+        efficiency := speedup/P
+        assert semanticHash(P)==semanticHash(1)
+        compare TP to baseline[P] with noise policy
+
+REGRESSION:
+    if dedicatedMachine:
+        if median > baseline * (1+allowedPct) and statistically/repeated valid:
+            FAIL
+    else:
+        assert completes and no pathological e.g. TP > 2*T1 for workload marked parallel
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Benchmark controls worker count via JobSystem config and waits all work. Avoid OS background variability where possible.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Machine fingerprint mismatch => no hard gate, report only. Thermal/noise invalidates run.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Worker-count hash mandatory. Race sanitizer tests separate where toolchain available.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Primary purpose. Include scheduler overhead/critical path; don't hide merge phase.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native-only quality gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    baseline parser
+    machine fingerprint
+    semantic hash across workers
+    regression checker
+    noise invalid case
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] workload matrix
+    [ ] worker curves
+    [ ] semantic parity
+    [ ] dedicated hard gates
+    [ ] hosted smoke policy
+    [ ] scheduler telemetry
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    linear scaling requirement everywhere
+    gate unknown machine against wrong baseline
+    exclude barriers/merge from timing
+    increase task count to fake utilization
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] workload matrix
+    [ ] worker curves
+    [ ] semantic parity
+    [ ] dedicated hard gates
+    [ ] hosted smoke policy
+    [ ] scheduler telemetry
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 22.4 GPU_PERFORMANCE_REGRESSION_GATES.
+
+END OF CHAPTER 22.3

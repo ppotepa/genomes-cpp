@@ -1,0 +1,219 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 22.6 - PACKAGING_AND_RELEASE_BUILD
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Define the final reproducible release build/package process, dependency/license bundling, shader/assets/artifact preparation, configuration stripping and release acceptance checklist for Genomes C++.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/20.7_LEGACY_RUNTIME_RETIREMENT_RULES.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+    TARGET::docs/22.1_FULL_STRESS_BENCHMARK_MATRIX.txt
+    TARGET::docs/22.2_MEMORY_BUDGETS_AND_HIGH_WATER_LIMITS.txt
+    TARGET::docs/22.3_THREAD_SCALING_REGRESSION_GATES.txt
+    TARGET::docs/22.4_GPU_PERFORMANCE_REGRESSION_GATES.txt
+    TARGET::docs/22.5_CRASH_RECOVERY_AND_CORRUPT_ARTIFACTS.txt
+    TARGET::docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Headless and graphical targets, pinned dependencies, reference provenance and debug capability separation.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No storefront-specific installer/signing account workflow unless later deployment chapter is added.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    cmake/GenomesInstall.cmake
+    packaging/*
+    config/release/*
+    docs/production/RELEASE_CHECKLIST.txt
+    docs/production/THIRD_PARTY_NOTICES.txt
+    .github/workflows/native-release.yml
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Release package is produced from exact Git commit + recursive dependency SHAs using documented toolchain/preset. Package manifest records build version, commit, dependency pins, shader/artifact versions.
+
+2. Ship only required runtime binaries/resources/licenses; no private SOURCE repository, test fixtures requiring privacy, compiler caches or developer absolute paths.
+
+3. Precompile/package shaders/pipelines/assets where tooling supports, with runtime cache version invalidation. Keep source shader inclusion policy explicit.
+
+4. Release configuration disables expensive debug visualization/validation by default but retains diagnostics/error handling needed for recovery; assertions policy follows 0.3.
+
+5. Headless package build remains available independently where useful for tests/server/simulation tooling.
+
+6. Release acceptance requires correctness/parity, memory, thread/GPU regression gates and clean-package launch from fresh directory.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Package manifest JSON/text: app version, target commit, dependency SHAs/licenses, platform/arch, build config, schema/generator versions, file hashes.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://github.com/DiligentGraphics/DiligentEngine
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define CMake install components: runtime, tools optional, headless optional, licenses, shaders/assets/config.
+
+STEP 2
+    Generate THIRD_PARTY_NOTICES from recorded dependency metadata and include license files.
+
+STEP 3
+    Implement build/package manifest generation without __DATE__/__TIME__ semantic nondeterminism; release build timestamp may be metadata only if desired.
+
+STEP 4
+    Compile/package shader artifacts and validate RenderState/Pipeline cache compatibility/version; first-run cache writable location separate from install.
+
+STEP 5
+    Strip tests/benchmarks/reference goldens from shipping package unless explicitly tool build.
+
+STEP 6
+    Create native-release CI workflow: clean recursive checkout, release configure/build/test, package, unpack to new directory, run headless/game smoke, verify manifests/licenses.
+
+STEP 7
+    Run production acceptance: determinism/parity suite, controlled perf gates, memory/leak loops, corrupted-cache recovery and no SOURCE access.
+
+STEP 8
+    Document release checklist and rollback/version upgrade procedure.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+RELEASE PIPELINE:
+    checkout exact commit recursive submodules
+    verify clean tree + dependency pins
+    configure release preset
+    build
+    run required correctness/parity tests
+    run/verify dedicated regression gates
+    cmake --install to staging
+    generate package manifest + file hashes + notices
+    archive staging
+    unpack archive to clean temp
+    run headless --self-test
+    run game smoke with packaged assets/shaders
+    verify no SOURCE/private path dependency
+    publish artifact only if all pass
+
+MANIFEST:
+    targetCommit
+    dependencyShas
+    platform/arch
+    schema/generator versions
+    package file hashes
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Packaging tools deterministic/reentrant; runtime thread behavior already gated. Release workflow parallel compile is irrelevant to runtime semantics.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Any missing license/resource/shader/version mismatch/package smoke failure blocks release. No "warn and ship" for required content.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Build artifacts may differ due compiler/link metadata unless reproducible-build policy later tightens; gameplay semantic versions/seeds unaffected. Package manifest explicit.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Release uses same optimization/LTO policy as benchmark baseline or documents difference and reruns gates. Do not benchmark Debug then ship different untested flags.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE is not a package dependency. Reference fixtures remain development repository artifacts.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    install tree expected files
+    licenses/notices complete
+    clean unpack launch
+    headless self-test
+    shader/artifact cache invalidation
+    no absolute SOURCE path
+    package manifest hashes
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] install/package rules
+    [ ] dependency notices
+    [ ] manifest
+    [ ] clean unpack smoke
+    [ ] release gates
+    [ ] no SOURCE dependency
+    [ ] checklist committed
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    shipping private SOURCE mirror
+    missing third-party licenses
+    package only works from developer checkout
+    unversioned shader/cache artifacts
+    skip tests for release build
+    performance flags not benchmarked
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] install/package rules
+    [ ] dependency notices
+    [ ] manifest
+    [ ] clean unpack smoke
+    [ ] release gates
+    [ ] no SOURCE dependency
+    [ ] checklist committed
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Stage 22 and the implementation manual roadmap are complete. Future chapters must be added only for genuinely new product scope or discovered architectural gaps, following 0.0 completeness rules.
+
+END OF CHAPTER 22.6

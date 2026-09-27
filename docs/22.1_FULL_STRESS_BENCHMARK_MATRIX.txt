@@ -1,0 +1,207 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 22.1 - FULL_STRESS_BENCHMARK_MATRIX
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Define and execute the final controlled benchmark matrix that measures the complete native engine under representative procedural generation, large-world, simulation, combat, destruction and rendering workloads. This chapter establishes baselines, not marketing FPS.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/20.7_LEGACY_RUNTIME_RETIREMENT_RULES.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+    TARGET::docs/8.5_COMPUTE_BENCHMARK_HARNESS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All subsystem benchmark policy from 0.4 and individual stages while combining them into reproducible scenario suites.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No speculative optimization changes inside this chapter; regressions found here create targeted fixes with their own evidence.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    benchmarks/scenarios/*
+    config/benchmark_profiles/*
+    tools/benchmark/run_matrix.*
+    docs/performance/22.1_BASELINE_REPORT.txt
+    tests/native/stress/full_stress_smoke_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Benchmark scenario is versioned input: engine commit, dependency revisions, compiler/build flags, hardware/OS/driver metadata, seed/world profile, entity/building/vegetation/projectile counts and duration.
+
+2. Separate CPU subsystem benchmarks, headless full simulation and graphical end-to-end. Do not infer subsystem bottleneck from FPS alone.
+
+3. Report median/p95/p99/max where applicable, frame/tick missed deadlines, worker utilization, memory/VRAM high-water, GPU pass timing and IO/streaming stalls.
+
+4. Required workload families: generation, idle large army, movement/navigation, dense perception/AI, sustained firefight, city destruction, streaming traversal, full render city/vegetation/units, combined worst-reasonable scenario.
+
+5. Hosted CI timing is informational; canonical regression baseline uses documented controlled machines or dedicated runners.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Machine-readable benchmark JSON/CSV schema with run metadata + metrics, immutable baseline IDs. Human report links raw files rather than copying selected favorable numbers.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-COMPLEXITY-001
+    PERF-PAR-WORK-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    SOURCE::docs/destruction/benchmark.json
+    SOURCE::docs/destruction/effects-benchmark.json
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define baseline hardware tiers (minimum/reference/high-end) as concrete documented machines when available; until then mark provisional.
+
+STEP 2
+    Create deterministic scenario specs/seeds and warmup/measurement durations per 0.4.
+
+STEP 3
+    Instrument engine counters and Tracy/PIX/GPU timestamp capture hooks so benchmark names correlate with subsystem spans.
+
+STEP 4
+    Run headless generation/simulation matrices and graphical scene matrices in Release with debug validation off except separate diagnostic run.
+
+STEP 5
+    Collect thread scaling, memory, frame/tick percentiles, draw/dispatch, upload/readback, physics bodies, nav rebuilds, AI candidates/LOS, projectile/debris counts.
+
+STEP 6
+    Repeat enough times to characterize variance; flag noisy results rather than averaging them away.
+
+STEP 7
+    Commit raw results and baseline report with bottleneck ranking but no unmeasured claims.
+
+STEP 8
+    Establish which scenarios become regression gates in 22.2-22.4.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR machine IN controlledMachines:
+    FOR scenario IN benchmarkScenarios:
+        warmup(scenario)
+        runs := []
+        repeat R:
+            reset deterministic world
+            run scenario exact ticks/frames
+            collect metrics
+            runs.push(metrics)
+        report median,p95,p99,max,variance
+        persist raw metadata + commit/dependency SHAs
+
+VALIDATE RUN:
+    require Release/RelWithDebInfo policy
+    require same scenario hash
+    require no test failures
+    require no thermal/power anomaly if monitoring available
+    mark invalid run rather than cherry-pick
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Benchmark records worker count/affinity/CPU topology; do not pin unless scenario says. GPU/CPU timestamp domains handled separately.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Incomplete metadata/run interruption invalidates result. Benchmark failure must not silently emit partial baseline.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Scenario commands/ticks/seeds fixed; presentation frames may vary but authoritative checkpoint hash checked before accepting run.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+This chapter is entirely performance evidence: no claim without measurement, include cold/warm distinctions and confidence/variance.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE benchmark files are historical context only; native baseline becomes performance authority after this chapter.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    benchmark scenario parser
+    scenario semantic hash
+    raw result schema
+    authoritative checkpoint during benchmark
+    stress smoke
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] versioned scenario suite
+    [ ] controlled metadata
+    [ ] all workload families
+    [ ] percentiles/memory/GPU/CPU metrics
+    [ ] raw data
+    [ ] baseline report
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one average FPS as complete benchmark
+    Debug vs Release comparison
+    changing scenario between commits
+    discarding slow valid runs without reason
+    hosted runner hard budget as canonical
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] versioned scenario suite
+    [ ] controlled metadata
+    [ ] all workload families
+    [ ] percentiles/memory/GPU/CPU metrics
+    [ ] raw data
+    [ ] baseline report
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 22.2 MEMORY_BUDGETS_AND_HIGH_WATER_LIMITS.
+
+END OF CHAPTER 22.1

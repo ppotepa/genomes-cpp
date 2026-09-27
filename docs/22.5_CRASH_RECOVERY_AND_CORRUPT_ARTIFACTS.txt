@@ -1,0 +1,208 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 22.5 - CRASH_RECOVERY_AND_CORRUPT_ARTIFACTS
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Harden startup, artifact cache, world generation, save/load and device/backend boundaries against corrupt/truncated data, interrupted writes, failed candidate worlds and recoverable runtime subsystem failures.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/20.7_LEGACY_RUNTIME_RETIREMENT_RULES.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+    TARGET::docs/20.4_SAVE_LOAD_AND_ARTIFACT_PACKAGES.txt
+    TARGET::docs/5.5_ARTIFACT_CACHE.txt
+    TARGET::docs/5.7_TRANSACTIONAL_GENERATION_COMMIT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Transactional generation/load, cache versioning, typed errors and old-world rollback guarantees.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No OS-wide crash reporter service/vendor telemetry decision beyond local diagnostic dump contract.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/io/include/genomes/io/AtomicFile.hpp
+    engine/assets/src/ArtifactRecovery.cpp
+    apps/game/RecoveryPolicy.*
+    tests/native/stress/corrupt_artifact_tests.cpp
+    docs/production/22.5_RECOVERY_POLICY.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Disk artifacts/saves use atomic replace and checksum/version validation. Partial temp files never masquerade as valid committed artifact.
+
+2. Artifact cache corruption is recoverable when artifact is reproducible: quarantine/delete invalid entry and regenerate from canonical inputs. Do not regenerate save-only mutable state.
+
+3. Failed START NEW/load keeps prior active world if available and disposes partial candidate resources.
+
+4. Optional render/compute backend failure may fall back/reinitialize where architecture supports; authoritative simulation is checkpointed/paused safely during device recovery, never continues writing presentation handles.
+
+5. Fatal invariant failure produces diagnostic context: build/dependency versions, subsystem, tick, world seed/region, last errors/log ring where privacy-safe.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Artifact header checksum/content hash, atomic temp path, quarantine metadata. RecoveryResult typed category/action. DiagnosticContext compact IDs not raw sensitive data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement AtomicFile write temp->flush->atomic rename/replace and cleanup stale temps.
+
+STEP 2
+    Add artifact read validation for magic/schema/version/length/checksum/hash before allocation/trust.
+
+STEP 3
+    Implement cache recovery policy: invalid reproducible artifact removed/quarantined then regenerated once; repeated failure stops loop.
+
+STEP 4
+    Add save corruption policy: never silently discard authoritative unknown/corrupt state; offer typed failure/backup fallback only if valid backup exists.
+
+STEP 5
+    Exercise generation candidate failures at every stage and verify old world/state/resources remain.
+
+STEP 6
+    Add simulated GPU/physics optional initialization failure paths and clean fallback where specified.
+
+STEP 7
+    Add fuzz/truncation tests for artifact/save parsers with allocation size limits.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+READ ARTIFACT:
+    header := read fixed bounded header
+    validate magic/version/declaredSize <= limit
+    bytes := readExact(declaredSize)
+    verify checksum/hash
+    if invalid and reconstructible:
+        quarantine(path)
+        result := regenerate(canonicalKey)
+        if second failure: return error
+    else if save mutable:
+        return CorruptSave error
+
+START_NEW:
+    old := activeWorld
+    candidate := build transaction
+    if any stage fail:
+        candidate.dispose()
+        activeWorld := old
+        return error
+    commit candidate
+    retire old after readers drain
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Recovery state serialized per artifact key/world transaction; avoid two workers repeatedly regenerating same corrupt cache key. Diagnostics thread-safe/ring buffered.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Explicit typed categories: CorruptData, UnsupportedVersion, ChecksumMismatch, IO, ResourceInit, RecoveryLoopPrevented. No catch-all ignore.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Regenerated procedural artifact uses same canonical inputs/version; quarantine timestamp not part of semantic content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Validation linear in artifact bytes; use streaming hash/checksum. Recovery is exceptional path, not hot-loop optimization.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Strengthens native reliability; SOURCE rollback ideas preserved.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    truncated header/body
+    oversize declared length
+    checksum mismatch regenerate
+    corrupt save no silent reset
+    stale temp cleanup
+    START NEW injected failures
+    recovery loop stop
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] atomic file
+    [ ] bounded parser
+    [ ] cache regeneration
+    [ ] save safety
+    [ ] world rollback
+    [ ] failure injection
+    [ ] diagnostic context
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    trust serialized size before bounds check
+    silent reset corrupt save to new game
+    retry corrupt artifact forever
+    delete active world before candidate ready
+    catch(...) ignore
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] atomic file
+    [ ] bounded parser
+    [ ] cache regeneration
+    [ ] save safety
+    [ ] world rollback
+    [ ] failure injection
+    [ ] diagnostic context
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 22.6 PACKAGING_AND_RELEASE_BUILD.
+
+END OF CHAPTER 22.5

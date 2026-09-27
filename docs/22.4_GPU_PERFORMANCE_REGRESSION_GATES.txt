@@ -1,0 +1,198 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 22.4 - GPU_PERFORMANCE_REGRESSION_GATES
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Establish controlled GPU regression gates for renderer and compute passes including frame percentiles, pass timings, VRAM, uploads, culling efficiency and async-compute contention.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/20.7_LEGACY_RUNTIME_RETIREMENT_RULES.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+    TARGET::docs/22.1_FULL_STRESS_BENCHMARK_MATRIX.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+    TARGET::docs/21.7_CUDA_FAST_PATH_SELECTION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Diligent capability-driven rendering and cross-vendor fallback; visual/semantic correctness tests remain separate from timing.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No hard GPU timing gate on arbitrary cloud runner without stable hardware.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    tools/benchmark/gpu_regression_gate.*
+    config/performance/gpu_baselines/*
+    docs/performance/22.4_GPU_REGRESSION_REPORT.txt
+    tests/native/render/gpu_regression_smoke.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GPU baseline keyed by exact GPU/driver/API/backend/render profile/resolution/scene scenario and dependency/shader version.
+
+2. Metrics: GPU frame median/p95/p99, key pass timestamps, visible/culled instances, draw/dispatch count, triangles/meshlets where available, uploads/readbacks, VRAM estimate, async compute overlap/queue waits.
+
+3. Render correctness/image/golden checks run independently; a faster broken renderer cannot pass performance gate.
+
+4. Async compute accepted only if total frame/workload improves; separate queue may contend or map same hardware.
+
+5. CUDA baseline only on matching NVIDIA profile and never substitutes Diligent cross-vendor baseline.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+GPU benchmark result schema with backend device identifiers/driver and per-pass metrics. Baseline update requires rationale/change reference.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    https://github.com/DiligentGraphics/DiligentEngine
+    https://docs.vulkan.org/spec/latest/chapters/synchronization.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define controlled representative render scenes from 22.1 and fixed output resolution/profile.
+
+STEP 2
+    Insert GPU timestamp queries/pass markers around render graph and compute passes without excessive synchronization.
+
+STEP 3
+    Collect culling/indirect statistics and upload/readback bytes.
+
+STEP 4
+    Run D3D12/Vulkan paths where supported on reference machines; compare capability-equivalent features.
+
+STEP 5
+    Measure async compute ON/OFF for field/skinning/culling workloads and reject if total regresses beyond policy.
+
+STEP 6
+    Implement baseline checker with variance/warmup and driver/profile fingerprint.
+
+STEP 7
+    Record visual correctness hash/image reference before accepting timing baseline.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+RUN GPU SCENARIO:
+    warm shader/pipeline caches per declared warm profile
+    for frame in measurement window:
+        begin GPU timestamps
+        renderGraph.execute
+        collect pass queries deferred
+    compute frame/pass percentiles
+    verify scenario semantic + visual acceptance
+    compare only to matching device/backend baseline
+
+ASYNC A/B:
+    A := measure(same scene, asyncCompute OFF)
+    B := measure(same scene, asyncCompute ON)
+    choose default only if B total frame/workload wins with stable margin
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Timestamp readback deferred; no per-pass CPU wait. Queue ownership/sync accounted in total.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Driver/device mismatch report no-baseline instead of false fail. GPU query overflow/incomplete run invalid.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Visual exactness may vary backend; baseline uses appropriate image metric/reference and authoritative simulation hash fixed.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+This chapter defines GPU gate; all numbers end-to-end and scenario-specific.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native renderer becomes performance authority.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    baseline matching
+    unknown GPU report-only
+    pass timestamp collection
+    visual gate before perf
+    async A/B
+    VRAM/upload stats
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] device-keyed baselines
+    [ ] frame/pass percentiles
+    [ ] culling/upload/VRAM metrics
+    [ ] async comparison
+    [ ] correctness prerequisite
+    [ ] controlled gate
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    GPU gate by FPS only
+    compare different resolution/profile
+    force async compute because feature exists
+    CUDA-only baseline
+    CPU wait around each pass
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] device-keyed baselines
+    [ ] frame/pass percentiles
+    [ ] culling/upload/VRAM metrics
+    [ ] async comparison
+    [ ] correctness prerequisite
+    [ ] controlled gate
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 22.5 CRASH_RECOVERY_AND_CORRUPT_ARTIFACTS.
+
+END OF CHAPTER 22.4
