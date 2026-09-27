@@ -25,7 +25,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
-    TARGET::docs/3.3_PARALLEL_FOR_BATCHING.txt
+    TARGET::docs/3.3_PARALLEL_FOR_AND_BATCHING.txt
 
 ======================================================================
 PRESERVES

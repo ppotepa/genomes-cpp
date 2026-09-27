@@ -279,7 +279,10 @@ SOURCE REFERENCES
 ======================================================================
 
 C++ std::chrono.
-REF-REPO current fixed-clock implementation.
+SOURCE::js/core/fixedClock.js
+SOURCE::js/config.js
+SOURCE::tests/check_core.js
+SOURCE::tests/snapshot_interpolation.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
