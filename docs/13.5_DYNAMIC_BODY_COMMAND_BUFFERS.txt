@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.5 - DYNAMIC_BODY_COMMAND_BUFFERS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement deterministic/batched dynamic body mutation and transform snapshot extraction for units, vehicles, hero debris and ragdolls without illegal concurrent Jolt access.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.4_STATIC_REGION_COLLISION.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/core/include/genomes/physics/DynamicBodyCommands.hpp
+    engine/physics/jolt/JoltDynamicBodies.cpp
+    tests/native/physics/dynamic_body_command_tests.cpp
+    benchmarks/physics/dynamic_body_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Command phases: PreStep structural (create/destroy/shape/layer), PreStep motion (kinematic target/velocity/impulse), PostStep safe extraction/events. Conflicting commands on same handle use stable sequence/priority policy.
+
+2. Dynamic body table maps PhysicsBodyHandle <-> Jolt BodyID + semantic Entity/Structural ID; table changes only on physics owner.
+
+3. Kinematic position target is explicit; teleport vs kinematic move are distinct commands.
+
+4. Snapshot extracts only active/changed bodies into SoA transform/velocity records for simulation/presentation.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement thread-local PhysicsCommandBuffer and merge by phase + body stable handle + sequence.
+
+STEP 2
+    Validate command target generation before applying; stale commands report/drop by policy.
+
+STEP 3
+    Batch Jolt BodyInterface operations where API supports batch add/activate.
+
+STEP 4
+    Implement contact/activation callback event queues using lock-free/MPSC or per-thread buffers; copy data, no mutation.
+
+STEP 5
+    Extract changed active body transforms after Update into PhysicsSnapshot.
+
+STEP 6
+    Benchmark 1k/10k/100k sleeping vs active bodies and command volumes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+MERGE COMMANDS:
+    gather local buffers
+    stable sort conflicting key=(phase,body,sourceSequence)
+    coalesce:
+        last SetVelocity wins by defined priority
+        impulses accumulate in defined order or vector sum policy
+        Destroy suppresses later commands
+
+STEP:
+    apply structural
+    apply motion
+    Jolt Update
+    drain callback buffers
+    extract active transforms
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Producers never touch Jolt. Physics owner applies. Callbacks only append thread-local events; no world mutation.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Conflicting command resolution specified; Jolt internal contact ordering not exposed as semantic order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch BodyInterface calls, active-body-only snapshot, no per-body heap allocation.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Provides dynamic substrate for destruction/infantry later.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    stale handle command
+    create/destroy
+    kinematic target
+    impulse
+    contact event copy
+    100k sleeping
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] command phases
+    [ ] safe Jolt access
+    [ ] coalescing
+    [ ] active snapshot
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Jolt Body* stored in ECS
+    body mutations from AI worker
+    per-frame recreation for moved bodies
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] command phases
+    [ ] safe Jolt access
+    [ ] coalescing
+    [ ] active snapshot
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.5
