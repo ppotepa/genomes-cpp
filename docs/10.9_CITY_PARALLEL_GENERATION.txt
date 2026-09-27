@@ -1,0 +1,180 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.9 - CITY_PARALLEL_GENERATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Parallelize city field/region/block/parcel stages where dependencies allow while preserving exactly the same semantic graph/artifacts as serial deterministic execution.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/city/src/CityGenerationGraph.cpp
+    benchmarks/city/city_generation_benchmark.cpp
+    tests/native/city/city_parallel_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. City generation is a GenerationGraph: terrain/hydrology inputs -> core -> transport/regions -> local road proposals -> zoning -> blocks -> parcels -> building requests.
+
+2. Independent leaf regions may evaluate local road candidates in parallel against stable snapshots; commits that can conflict are stable-ordered/revalidated.
+
+3. Zoning cells, block post-processing and parcel generation per independent block parallelize naturally with output arrays keyed by stable IDs.
+
+4. Serial reference mode uses same code paths with workerCount=1.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Express stage dependencies in GenerationGraph rather than nested async calls.
+
+STEP 2
+    Batch RegionNode leaf jobs; local results return proposals/artifacts, not direct global mutation.
+
+STEP 3
+    Stable merge road proposals; after final graph freeze parallelize zoning and block parcel work.
+
+STEP 4
+    Use job-local ScratchContext for polygon/route work.
+
+STEP 5
+    Benchmark city sizes .25/4/25/100 km² where practical and worker counts 1..N.
+
+STEP 6
+    Record stage critical path, job utilization, memory high-water.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+GRAPH:
+    core := cityCore()
+    skeleton := majorRoads(core)
+    regions := subdivide(core,skeleton)
+    localProposals := parallelMap(regions.leaves, growLocalSnapshot)
+    roads := stableCommit(localProposals)
+    zoneField := parallelRaster(roads)
+    blocks := extractFaces(roads)
+    parcelChunks := parallelMap(blocks, generateParcels)
+    parcels := stableMerge(parcelChunks)
+    buildingRequests := parallelMap(parcels, makeRequest)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+No shared RoadGraph mutation from workers. Block/parcel jobs own disjoint semantic IDs/output slots.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Worker count/scheduling produces identical canonical artifact hashes in exact-deterministic stages.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Benchmark stage-by-stage; avoid overparallelizing tiny hamlets. Auto policy can execute small city serially.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Improves SOURCE single-thread prototype execution without changing semantic requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    1 vs N artifact hashes
+    shuffle scheduler
+    cancel generation
+    small city no task explosion
+    large city scaling
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] GenerationGraph used
+    [ ] parallel leaf/block work
+    [ ] stable conflict commit
+    [ ] 1..N parity
+    [ ] scaling report
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mutex around one mutable city graph as parallel strategy
+    completion-order IDs
+    job per parcel vertex
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] GenerationGraph used
+    [ ] parallel leaf/block work
+    [ ] stable conflict commit
+    [ ] 1..N parity
+    [ ] scaling report
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.9
