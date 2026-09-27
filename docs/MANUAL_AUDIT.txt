@@ -1,0 +1,190 @@
+GENOMES NATIVE MANUAL - COMPLETENESS AUDIT
+===========================================
+
+AUDIT DATE:
+    2026-09-27
+
+TARGET:
+    ppotepa/genomes-cpp
+
+SOURCE:
+    ppotepa/genomes
+
+RESULT:
+    PASS - roadmap structurally complete
+
+======================================================================
+1. ROADMAP CONSISTENCY
+======================================================================
+
+Parsed executable chapter identifiers/names from:
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+
+Compared against:
+    docs/<X.Y_NAME>.txt
+
+Expected:
+    160
+
+Present:
+    160
+
+Missing:
+    none
+
+Extra:
+    none
+
+Three historical naming mismatches in the index were reconciled to the actual
+final chapter names:
+
+    2.5 SERIALIZATION_AND_SCHEMA_FOUNDATION
+    3.3 PARALLEL_FOR_AND_BATCHING
+    15.2 CUSTOM_ARCHETYPE_ECS
+
+
+======================================================================
+2. PLACEHOLDER / STATUS AUDIT
+======================================================================
+
+Repository search found no executable chapter occurrences of:
+
+    STATUS: DRAFT
+    STATUS: PLANNED
+    undefined
+    TODO
+    TBD
+    FIXME
+
+All planned executable chapters are intended to be STATUS: READY.
+
+
+======================================================================
+3. SIZE SANITY
+======================================================================
+
+Recursive Git tree inspection found 161 X.Y documents including the 0.0 master
+index.
+
+Executable chapters excluding 0.0:
+    160
+
+The smallest executable chapter is approximately 6.9 KiB.
+
+This size check is NOT proof of semantic quality, but it catches accidental
+empty files/stubs. None were detected.
+
+
+======================================================================
+4. REQUIRED CENTRAL REFERENCES
+======================================================================
+
+Present:
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+0.5 includes primary references for:
+    robust predicates
+    A*
+    Poisson sampling
+    Perlin noise
+    ray/triangle
+    collision geometry
+    work stealing
+    Recast/Detour
+    Diligent Engine
+    Vulkan queues/synchronization
+    CUDA external-memory/semaphore interoperability
+    D3D12 ExecuteIndirect
+
+
+======================================================================
+5. REFERENCE PROJECT AUDIT
+======================================================================
+
+Present:
+
+    reference/README.txt
+    reference/FIXTURE_EXPORT_POLICY.txt
+    reference/source/BASELINE.txt
+    reference/manifests/SOURCE_SUBSYSTEMS.txt
+    reference/fixtures/README.txt
+    reference/golden/README.txt
+    reference/schemas/README.txt
+
+The TARGET does not contain a wholesale copy of the private SOURCE repository.
+
+Reference policy requires exact SOURCE commit provenance for exported fixtures.
+
+
+======================================================================
+6. COVERAGE AUDIT
+======================================================================
+
+The manual contains dedicated stages for:
+
+    native build/CMake/CI/dependencies
+    foundation IDs/result/hash/time/logging/memory/serialization
+    multicore JobSystem/work stealing/batching/cancellation/profiling
+    math/geometry/spatial
+    procedural generation DAG/artifacts/cache/validation/transactions/traces
+    world/regions/streaming/query/packages
+    Diligent renderer/RenderGraph/GPUScene/culling/profiling
+    compute service/async compute/readback/benchmarking
+    terrain/hydrology
+    roads/city/regions/zoning/blocks/parcels/parity
+    procedural buildings/interiors/structure/render/collision/nav/parity
+    vegetation/rocks/instance pages/cache
+    physics/Jolt
+    navigation/Recast/Detour/hierarchical routing/flow/nav invalidation
+    simulation/custom archetype ECS/scheduling/commands/snapshots/cadence
+    destruction/materials/impact/damage/debris/rubble/physics/invalidation/parity
+    ballistics/projectiles/trace/penetration/ricochet/HE/SIMD/parity
+    Infantry genome/phenotype/rig/surface/equipment/locomotion/IK/face/LOD/damage/parity
+    weapons/combat/perception/LOS/AI/squad sharing/multicore
+    full native world assembly/parity/streaming/save/proc viewer/presentation/legacy retirement
+    GPU field atlas/threat/LOS/flow/CUDA/interop/backend selection
+    production stress/memory/thread/GPU/recovery/packaging
+
+
+======================================================================
+7. KNOWN LIMIT OF THIS AUDIT
+======================================================================
+
+This is a documentation-structure/completeness audit, not code implementation
+verification.
+
+A chapter marked READY can still reveal a defect or insufficient local detail
+when an implementation agent executes it against real dependency APIs or
+current SOURCE behavior.
+
+The required response to such a discovery is:
+    update the responsible manual chapter,
+    preserve architecture/reference contracts,
+    then continue implementation.
+
+Do not weaken acceptance criteria merely because implementation is difficult.
+
+
+======================================================================
+8. FINAL STATUS
+======================================================================
+
+MANUAL AUTHORING:
+    COMPLETE - 160 / 160 READY
+
+NATIVE C++ IMPLEMENTATION:
+    NOT COMPLETE - implementation chapters still need execution.
+
+The next action is no longer "write the roadmap".
+The next action is:
+
+    implement docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+
+and proceed chapter-by-chapter with verification.
