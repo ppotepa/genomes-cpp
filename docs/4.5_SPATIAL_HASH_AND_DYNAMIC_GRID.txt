@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 4.5 - SPATIAL_HASH_AND_DYNAMIC_GRID
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement dynamic broadphase grids used by units and procedural placement, with correct negative coordinates, generation-safe entries and allocation-bounded queries.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.2_GEOMETRY_2D_PRIMITIVES.txt
+    TARGET::docs/3.3_PARALLEL_FOR_BATCHING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/spatial/CMakeLists.txt
+    engine/spatial/include/genomes/spatial/GridCoord.hpp
+    engine/spatial/include/genomes/spatial/SpatialHash2D.hpp
+    engine/spatial/include/genomes/spatial/DynamicGrid3D.hpp
+    tests/native/spatial/spatial_hash_tests.cpp
+    benchmarks/spatial/spatial_hash_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. cell coordinate uses floor((p-origin)/cellSize), never truncation.
+
+2. Entries are handles/IDs, not pointers. Update removes old covered cells and inserts new cells using cached cell range.
+
+3. Query writes into caller-provided scratch/output buffer and deduplicates IDs without global allocations.
+
+4. DynamicGrid update may be parallelized by staging per-job cell commands and deterministic/partitioned merge; no concurrent mutation of unordered buckets in first implementation.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-SPATIAL-HASH-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement GridCoord hash using StableHash-compatible integer combine for deterministic diagnostics but unordered runtime table order is never semantic.
+
+STEP 2
+    Implement 2D AABB insert/remove/update/query.
+
+STEP 3
+    Implement 3D dynamic point/AABB grid interface for simulation future use.
+
+STEP 4
+    Store reverse membership/range per entry to avoid scanning every cell on removal.
+
+STEP 5
+    Implement query stamp or scratch hash/set deduplication; benchmark alternatives.
+
+STEP 6
+    Add negative-coordinate and large-coordinate tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+INSERT(id,bounds):
+    range := cellsOverlapped(bounds)
+    for cell in range:
+        buckets[cell].push(id)
+    entryRange[id] := range
+
+QUERY(bounds,out,scratch):
+    stamp := scratch.nextStamp()
+    for cell in cellsOverlapped(bounds):
+        for id in buckets[cell]:
+            if scratch.markFirst(id,stamp):
+                out.push(id)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    negative coordinates
+    boundary exactly on cell edge
+    multi-cell dedup
+    update movement
+    remove
+    10k randomized brute-force parity
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] floor semantics
+    [ ] no pointer identity
+    [ ] deduplicated query
+    [ ] reverse removal
+    [ ] random brute force parity
+    [ ] benchmark added
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    integer truncation negative coords
+    scanning all buckets to remove
+    returning duplicate candidates
+    one global mutex per query
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] floor semantics
+    [ ] no pointer identity
+    [ ] deduplicated query
+    [ ] reverse removal
+    [ ] random brute force parity
+    [ ] benchmark added
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 4.5
