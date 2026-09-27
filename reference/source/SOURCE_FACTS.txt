@@ -396,3 +396,35 @@ SOURCE procedural-city UI/reference widths:
 These are TWO compatibility profiles, not one table to average together.
 The native RoadClass abstraction may unify semantic class IDs while keeping
 versioned RoadProfile data for each SOURCE generator family.
+
+
+======================================================================
+14. DESTRUCTION PHYSICS / RUBBLE BUDGETS
+======================================================================
+
+SOURCE::js/destruction/physics.js
+
+Compatibility values:
+    maxDebris:        512
+    maxActiveDebris:  128
+    maxCheapDebris:   1024
+    settleGraceTicks: 60
+
+At 60 Hz the settle grace equals 1 second.
+
+SOURCE::js/destruction/rubbleField.js
+
+Compatibility values:
+    cellSize:          0.5 m
+    tileSize:          4.0 m
+    maxTiles:          256
+    maxChunkInstances: 1024
+    maxSlope:          0.78
+
+Tile overflow policy:
+    - microscopic lowest tile (< .003 total volume) may be removed;
+    - otherwise low-volume material is merged into a nearest remaining tile;
+    - incoming material is not modulo-wrapped into an unrelated world tile;
+    - per-material/total volume accounting remains observable.
+
+These are parity-profile facts, not engine-wide hard limits.

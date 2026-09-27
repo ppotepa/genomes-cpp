@@ -50,7 +50,16 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Every detached material volume is in exactly one representation bucket: SOURCE_ATTACHED, HERO, CHEAP, BAKED, or explicitly REMOVED_BY_DAMAGE with ledger entry.
 
-2. Budgets are policy, never deletion rules. HERO overflow -> CHEAP; CHEAP overflow -> BAKED/direct deposit.
+2. Budgets are policy, never deletion rules. HERO overflow -> CHEAP; CHEAP overflow
+-> BAKED/direct deposit.
+
+Pinned SOURCE compatibility profile:
+    maxDebris        = 512 total hero records/bodies
+    maxActiveDebris  = 128 active hero bodies
+    maxCheapDebris   = 1024 cheap records
+    settleGraceTicks = 60 at 60 Hz (= 1 second compatibility grace)
+
+These are profile values for parity, not generic engine compile-time limits.
 
 3. Demotion decision uses stable priority tuple (importance, awake/sleep state, age, stable ID) and never container iteration accident.
 
@@ -90,7 +99,14 @@ STEP 1
     Define DebrisRepresentation enum and immutable source material-volume packet schema.
 
 STEP 2
-    Implement lifecycle budgets configurable per world/profile, not hardcoded globally.
+    Implement lifecycle budgets configurable per world/profile, not hardcoded
+globally.
+
+Add SOURCE_RUBBLE_1_1 compatibility defaults:
+    maxDebris=512
+    maxActiveDebris=128
+    maxCheapDebris=1024
+    settleGraceTicks=60
 
 STEP 3
     Implement deterministic admission: HERO if qualified/budget; else CHEAP; direct BAKED if cheap budget exhausted or shape unrepresentable.
@@ -161,6 +177,8 @@ Preserve current default conceptual budgets as compatibility profile; exact coun
 ======================================================================
 TESTS TO ADD
 ======================================================================
+    SOURCE budget profile exact values
+    60-tick settle grace
     hero admission
     hero overflow to cheap
     cheap overflow to baked

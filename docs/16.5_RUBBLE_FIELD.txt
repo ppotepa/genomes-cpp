@@ -50,13 +50,33 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Compatibility profile: cellSize=0.5m, tileSize=4m, 8x8 cells; values are configurable/versioned rather than magic assumptions.
+1. Compatibility profile SOURCE rubble-1.1.0:
+    cellSize          = 0.5 m
+    tileSize          = 4.0 m
+    cellsPerTile      = 8 x 8
+    maxTiles          = 256
+    maxChunkInstances = 1024
+    maxSlope          = 0.78
+
+These values are configurable/versioned rather than hidden magic assumptions.
 
 2. Each cell stores total solid volume and per-material volume. Derived height = volume/(cellArea*packing model) over base terrain height. Mixed materials remain accounted individually.
 
 3. Deposit/remove/relax operations conserve total and per-material volume except explicitly ejected/removed packets recorded in the ledger.
 
-4. Tile capacity overflow never modulo-wraps or discards volume; deterministic low-priority/low-volume tile merge preserves world-space meaning as closely as policy allows.
+4. Tile capacity overflow never modulo-wraps or discards volume.
+
+SOURCE compatibility behavior:
+    if tile count reaches 256:
+        prefer removal of a microscopic tile only when total < .003;
+        otherwise merge the lowest-volume source tile into its nearest remaining
+        tile;
+        one-tile edge case reuses the nearest/only tile rather than dropping the
+        incoming deposit.
+
+TARGET may improve the merge metric under a new rubble algorithm version, but
+the compatibility profile must preserve material/volume conservation and avoid
+world-coordinate modulo wrapping.
 
 5. Logical field updates happen immediately; dirty tile render/physics compilation is deferred/batched. Query APIs read logical state.
 
@@ -185,7 +205,9 @@ TESTS TO ADD
     single/mixed material deposit
     remove volume
     relax conservation
+    exact SOURCE 0.5m/4m/256/1024 profile values
     capacity merge conservation
+    microscopic <.003 tile policy compatibility
     one-tile budget
     terrain base height
     navigation/cover query

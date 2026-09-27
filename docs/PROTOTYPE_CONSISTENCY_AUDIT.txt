@@ -513,3 +513,26 @@ All current js/* top-level families are covered by the 0.2 inventory or
 SOURCE_SUBSYSTEMS manifest.
 
 All 65 SOURCE test filenames are present in 0.2.
+
+
+======================================================================
+11. DESTRUCTION BUDGET PROFILE FINDING
+======================================================================
+
+P. SOURCE RUBBLE/DEBRIS BUDGETS VERIFIED
+
+Current SOURCE values:
+    hero record capacity: 512
+    active hero budget:   128
+    cheap record budget:  1024
+    settle grace:         60 ticks / 1 second at 60 Hz
+
+    rubble cell:          0.5 m
+    rubble tile:          4 m
+    rubble tile cap:      256
+    near chunk instances: 1024
+    maxSlope:             0.78
+
+Correction:
+    16.4 and 16.5 now freeze these as compatibility-profile data while keeping
+    native budgets configurable/versioned.
