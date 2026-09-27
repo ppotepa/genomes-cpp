@@ -1,0 +1,204 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.2 - OLD_AND_NEW_RUNTIME_PARITY_WORLD
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Run whole-scenario parity between SOURCE browser world and TARGET native world for selected deterministic scenarios, combining domain parity gates into user-visible/system-level acceptance.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.1_NATIVE_WORLD_ASSEMBLY.txt
+    TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE START NEW behaviors and integrated interactions: terrain, buildings/environment, Infantry, AI/combat, ballistics/destruction, lifecycle and telemetry concepts.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No SOURCE deletion and no large-world stress target yet.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    reference/fixtures/world/*.json
+    tools/reference/export_world_reference.*
+    tests/native/parity/world_parity_tests.cpp
+    docs/parity/20.2_WORLD_PARITY_REPORT.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. World parity uses selected scenarios/seeds with explicit feature matrix, not pixel-perfect browser frame comparison.
+
+2. Compare semantic world hashes/invariants, entity initial states, deterministic tick outcomes for controlled scenarios, impact/destruction accounting and lifecycle/dispose.
+
+3. Where native city supersedes simple SOURCE settlement, preserve source scenario as compatibility fixture or mark intentional versioned world-generator change with all feature requirements still represented.
+
+4. Graphical/headless native modes must produce identical authoritative outcomes for same commands/ticks.
+
+5. Report maps every SOURCE world/browser acceptance test to native equivalent or explicit remaining manual owner.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+World fixture: scenario spec, SOURCE commit/version, seed, expected terrain samples, road/building summaries, entity states, timed commands and expected semantic checkpoints.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/game.js
+    SOURCE::js/world/battlefield.js
+    SOURCE::tests/battlefield_checks.js
+    SOURCE::tests/battlefield_arrival_idle.cjs
+    SOURCE::tests/battlefield_combat_browser.cjs
+    SOURCE::tests/world_performance_telemetry.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Pin SOURCE commit and export small compatibility scenarios including skipEnvironment and full environment.
+
+STEP 2
+    Record selected terrain samples, settlement/building counts/invariants, unit genome/equipment identities and initial transforms.
+
+STEP 3
+    Record scripted tick commands for march/arrival, combat fire/impact and destruction case where stable.
+
+STEP 4
+    Run native headless scenario and compare checkpoints by parity class/tolerance.
+
+STEP 5
+    Run native graphical with rendering disabled/limited and confirm same authoritative hashes.
+
+STEP 6
+    Map legacy tests to native report and list intentional city-generator semantic upgrade separately.
+
+STEP 7
+    Do not mark whole runtime parity complete if a legacy feature has no native owner.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+for scenario in fixtures:
+    native := startWorld(scenario.spec)
+    for checkpoint in scenario.timeline:
+        apply commands at exact tick
+        run to checkpoint.tick
+        actual := semanticSnapshot(native)
+        compare(actual, checkpoint.expected, policy)
+    dispose
+    assert lifetime/resource counters baseline
+
+graphicalHash := runSameCommands(graphical)
+headlessHash := runSameCommands(headless)
+require authoritativeHash(graphicalHash)==authoritativeHash(headlessHash)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Repeat selected scenarios with 1/N workers; parity snapshots taken only at simulation barriers.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing SOURCE field mapping -> report FAIL/UNMAPPED, not omit. Visual-only item may be MANUAL_PENDING with owner.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed command timeline, seeds and tick counts. Authoritative hash excludes presentation-only order/data.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Record native CPU/peak memory separately; parity pass does not require same browser timing.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+After pass native runtime may become preferred development path; SOURCE remains reference until 20.7.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    selected full scenarios
+    headless/render independence
+    1/N workers
+    dispose/lifetime
+    legacy test map completeness
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] world fixtures pinned
+    [ ] semantic checkpoints pass
+    [ ] render independence
+    [ ] legacy requirements mapped
+    [ ] report committed
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    pixel-perfect only parity
+    ignoring simple settlement features because new city is richer
+    changing SOURCE expected fixtures silently
+    deleting SOURCE
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] world fixtures pinned
+    [ ] semantic checkpoints pass
+    [ ] render independence
+    [ ] legacy requirements mapped
+    [ ] report committed
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.3 STREAMING_LARGE_WORLD.
+
+END OF CHAPTER 20.2

@@ -1,0 +1,216 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.5 - NATIVE_PROC_VIEWER
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Build the native procedural/debug viewer that replaces the need to inspect every system through standalone HTML while retaining SOURCE labs as reference. It must visualize GenerationGraph stages/artifacts, validators, traces and domain diagnostics.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.1_NATIVE_WORLD_ASSEMBLY.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/5.8_GENERATION_TRACE_AND_DEBUG_CHANNELS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Diagnostic value of procedural-city, road lab, building lab, environment lab, unit preview, destruction demo and debug panels.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Not a full content editor; mutations beyond declared generator parameters remain future tooling.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    apps/proc_viewer/CMakeLists.txt
+    apps/proc_viewer/main.cpp
+    apps/proc_viewer/ProcViewerApp.*
+    apps/proc_viewer/views/*
+    tests/native/tools/proc_viewer_smoke_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Viewer consumes public artifacts/debug traces/diagnostic services; it cannot require generators to contain UI/render code.
+
+2. Modes: terrain/hydrology, roads/city, building, vegetation, destruction/ballistics, Infantry/appearance/animation, world/spatial/nav/render diagnostics.
+
+3. Every mode can select seed/version/parameters, regenerate cancellably, inspect stage timings/validation and overlay semantic data.
+
+4. Headless exporters and viewer use same generator/service APIs. UI changes do not alter seed identity except declared input parameters.
+
+5. Viewer must expose parity fixture loading/comparison and artifact/source provenance where available.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Viewer state contains selected generator descriptor/request/artifact handles and presentation-only camera/UI. Generated semantic artifact owned by ArtifactStore/reference counts.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::building-lab/*
+    SOURCE::js/environment/environmentLab.js
+    SOURCE::js/ui/unitPreview.js
+    SOURCE::js/destruction/demo.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Choose lightweight native UI integration compatible with renderer/tooling policy (implementation chapter may select after dependency review; do not push UI dependency into engine).
+
+STEP 2
+    Implement generic GeneratorDescriptor parameter panel from schema metadata where possible.
+
+STEP 3
+    Implement asynchronous regenerate with progress/cancel and keep old valid result until candidate succeeds.
+
+STEP 4
+    Implement stage/artifact tree and ValidationReport/GenerationTrace panels.
+
+STEP 5
+    Add domain render adapters/overlays for terrain, hydrology, roads/regions/parcels, buildings/interiors, vegetation, destruction, nav/spatial.
+
+STEP 6
+    Add Infantry/weapon/animation diagnostic preview using native domain artifacts/snapshots.
+
+STEP 7
+    Add reference fixture selection and parity difference visualization.
+
+STEP 8
+    Add smoke tests for headless-compatible generation behind viewer and resource disposal.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+REGENERATE:
+    cancel(currentGenerationGroup)
+    request := UI -> GenerationRequest
+    candidate := proc.submit(request)
+    while pending:
+        UI shows progress from telemetry
+    if candidate.valid:
+        viewerArtifact := candidate.commitToViewerScope()
+        release old artifact
+    else:
+        show ValidationReport, keep old
+
+DRAW:
+    snapshot := viewerPresentation.extract(selectedArtifact, debugFlags)
+    renderGraph.execute(snapshot)
+    panels.read immutable diagnostic snapshots
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+UI/render thread never runs heavy generators directly. Jobs common pool. Diagnostics copied/snapshotted safely.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Failed generation displays report and retains previous valid artifact. Missing optional domain module hides mode with reason.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Seed/params explicitly shown and exportable; camera/debug toggles do not change artifact hash.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Viewer diagnostics can be expensive but must be opt-in/lazy. No hidden full CPU skin/bounds scan when panel closed.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE labs remain reference; native viewer becomes primary parity/manual acceptance environment after feature coverage.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    mode registration
+    async cancel
+    failed regen keeps old
+    artifact disposal
+    seed hash unchanged by UI visibility
+    fixture load
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] major domain modes
+    [ ] generic generation diagnostics
+    [ ] cancel/rollback
+    [ ] fixture parity view
+    [ ] no generator UI coupling
+    [ ] resource cleanup
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    generator writes directly to UI widgets
+    main-thread heavy generation
+    camera/overlay toggles change RNG
+    deleting SOURCE labs immediately
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] major domain modes
+    [ ] generic generation diagnostics
+    [ ] cancel/rollback
+    [ ] fixture parity view
+    [ ] no generator UI coupling
+    [ ] resource cleanup
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.6 FULL_GAME_PRESENTATION.
+
+END OF CHAPTER 20.5

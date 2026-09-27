@@ -1,0 +1,230 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.1 - NATIVE_WORLD_ASSEMBLY
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Assemble the first complete native Genomes world from procedural generation through simulation, physics, navigation, rendering and domain modules using explicit app composition. This is the first chapter where all major native subsystems are expected to run together.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/9.7_OPTIONAL_GPU_TERRAIN_FIELDS.txt
+    TARGET::docs/10.10_CITY_REFERENCE_PARITY.txt
+    TARGET::docs/11.12_BUILDING_REFERENCE_PARITY.txt
+    TARGET::docs/12.6_VEGETATION_CACHE_AND_PARITY.txt
+    TARGET::docs/13.6_PHYSICS_QUERY_SERVICE.txt
+    TARGET::docs/14.6_DYNAMIC_NAV_INVALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All validated subsystem semantics from Stages 9-19 and the SOURCE concept of START NEW/world creation, but without the browser global object architecture.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No legacy retirement, save packages or large-world streaming tuning beyond existing region lifecycle.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    apps/game/CMakeLists.txt
+    apps/game/main.cpp
+    apps/game/GameApplication.hpp
+    apps/game/GameApplication.cpp
+    modules/gameplay/WorldScenario.hpp
+    modules/gameplay/WorldScenario.cpp
+    tests/native/integration/native_world_assembly_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GameApplication is composition root only: creates EngineServices, registers domain modules and owns lifecycle. Domain systems do not reach back into application singleton.
+
+2. WorldScenario/WorldSpec selects seed/size/profile/module options then invokes GenerationGraph -> RegionPackages -> World commit. No renderer-owned world objects.
+
+3. Initialization order: foundation/jobs/assets -> world/proc -> physics/nav -> render (if graphical) -> domain modules -> scenario. Shutdown reverses ownership safely after jobs drain.
+
+4. Headless and graphical applications share semantic world/simulation assembly; graphical mode adds presentation/render extraction only.
+
+5. World creation is transactional: old active world remains until new candidate generation/compile succeeds; cancellation cleans candidate resources.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Application owns service instances by explicit unique ownership. ActiveWorldHandle points to committed World database. Scenario config is serializable semantic data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/game.js
+    SOURCE::js/world/battlefield.js
+    SOURCE::js/loader.js
+    SOURCE::tests/battlefield_checks.js
+    SOURCE::tests/lazy_startup_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Create game application target/composition root linking all implemented modules behind build options.
+
+STEP 2
+    Implement EngineServices construction with explicit references, no ServiceLocator hot-path usage.
+
+STEP 3
+    Implement WorldScenario -> GenerationRequest for terrain/hydrology/city/buildings/vegetation and compile physics/nav/render packages.
+
+STEP 4
+    Implement START NEW transaction: generate candidate asynchronously/jobs, validate, compile, commit active world only after success.
+
+STEP 5
+    Spawn example factions/Infantry/entities through simulation APIs, register combat/AI, not direct scene insertion.
+
+STEP 6
+    Run fixed simulation clock and publish presentation snapshots; renderer consumes snapshot independently.
+
+STEP 7
+    Implement shutdown/cancel sequence draining jobs, physics/render resources and artifact refs.
+
+STEP 8
+    Add integration smoke that creates headless world, ticks combat-free simulation, queries terrain/buildings/nav then disposes leak-free.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BOOT:
+    jobs := JobSystem(config.workers)
+    assets/artifacts := ArtifactStore(...)
+    proc := ProceduralService(jobs, artifacts)
+    world := WorldService(proc,jobs)
+    physics := PhysicsService(jobs)
+    nav := NavigationService(jobs,world)
+    simulation := SimulationService(jobs,world,physics,nav)
+    if graphical: render := RenderService(...)
+    modules.register(Terrain,City,Buildings,Vegetation,Destruction,Ballistics,Infantry,Weapons,Combat)
+
+START_NEW(spec):
+    cancel previous candidate
+    tx := GenerationTransaction()
+    artifacts := proc.generateWorld(spec,tx)
+    validate all
+    compile region packages in parallel
+    candidate := world.createCandidate(packages)
+    candidate.initPhysicsNav()
+    if graphical: candidate.preparePresentation()
+    world.commit(candidate)
+    retire old world after readers release snapshot
+
+FRAME:
+    alpha := fixedClock.advance(now, simulation.fixedTick)
+    snapshot := simulation.presentation(alpha)
+    render?.frame(snapshot)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Composition root controls service lifetime; generation uses JobSystem groups/cancellation. Simulation/render synchronize via immutable snapshots. No app mutex around whole frame.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Any generation/compile/init failure aborts candidate and keeps previous world. Fatal initialization errors reported before main loop with subsystem context.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+World semantic generation/ticks independent of render/headless mode and worker schedule per prior gates.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Lazy startup creates no world until requested. Track phase timings/generation peak memory. No duplicate semantic world for renderer.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE browser remains parity reference. Native becomes integration candidate only after 20.2.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    headless assemble/dispose
+    transaction rollback
+    generation cancellation
+    graphical/headless semantic hash equality
+    module disable Infantry world still builds
+    fixed ticks
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] composition root
+    [ ] transactional START NEW
+    [ ] headless/graphical shared semantics
+    [ ] all modules integrate
+    [ ] rollback/cancel
+    [ ] integration tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    global application singleton used by systems
+    scene graph as active world
+    destroy old world before candidate succeeds
+    blocking main thread on every generation job without progress/cancel
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] composition root
+    [ ] transactional START NEW
+    [ ] headless/graphical shared semantics
+    [ ] all modules integrate
+    [ ] rollback/cancel
+    [ ] integration tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.2 OLD_AND_NEW_RUNTIME_PARITY_WORLD.
+
+END OF CHAPTER 20.1

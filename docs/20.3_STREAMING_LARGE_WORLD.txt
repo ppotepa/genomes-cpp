@@ -1,0 +1,216 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.3 - STREAMING_LARGE_WORLD
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Turn region lifecycle into production large-world streaming with independent semantic/render/physics/nav residency, asynchronous load/generation and deterministic simulation relevance.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.1_NATIVE_WORLD_ASSEMBLY.txt
+    TARGET::docs/6.4_STREAMING_STATE_MACHINE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Region identity, artifact cache/versioning and simulation correctness when presentation resources are absent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No network streaming/distributed server.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/WorldStreamer.hpp
+    engine/world/include/genomes/world/ResidencyPolicy.hpp
+    engine/world/src/WorldStreamer.cpp
+    tests/native/world/streaming_integration_tests.cpp
+    benchmarks/world/streaming_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Residency dimensions are independent: Semantic, Simulation, Render, Physics, Navigation. Region is not one boolean loaded flag.
+
+2. Streaming request reason/priority is explicit: camera presentation, simulation relevance, path corridor, combat, preload, persistence. Camera must not unload authoritative active combat state.
+
+3. Load/generate/compile jobs are cancellable and commit region representations by artifact/revision only when complete.
+
+4. Dormant distant simulation may aggregate/reduce cadence but semantic state persists. Re-entry reconstructs representation without rerolling RNG/identity.
+
+5. Memory budgets drive eviction by representation class with stable policy and pin counts/readers.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+RegionResidencyState bit/state per representation, desired/current, priority, generation, pending JobGroup, memory bytes. LRU/priority queues keyed stable region coords + last semantic access tick.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-AABB-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    SOURCE::js/world/battlefield.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define independent residency requests and policy inputs.
+
+STEP 2
+    Implement streamer state transitions using 6.4 lifecycle and cancellation tokens.
+
+STEP 3
+    Load RegionPackage/artifacts asynchronously; generate missing artifact only through procedural service.
+
+STEP 4
+    Compile render/physics/nav representations in parallel dependencies; publish each when ready/version matches.
+
+STEP 5
+    Implement eviction: unpin/readers first, representation-specific budgets, semantic persistence/checkpoint rules.
+
+STEP 6
+    Implement distant simulation dormancy/aggregation transition hooks independent of camera render residency.
+
+STEP 7
+    Stress camera/path movement across many regions and memory budgets; verify no identity/regeneration drift.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+EVALUATE DESIRED:
+    for region:
+        desired.semantic := persistence or any consumer
+        desired.simulation := active entities/combat/orders
+        desired.render := camera visibility/preload
+        desired.physics := simulation interactions/near
+        desired.nav := path corridors/active AI
+
+TRANSITION:
+    if desired && !current:
+        schedule load/compile with generation token
+    if !desired && current && pinCount==0:
+        schedule retire representation
+    on job complete:
+        if token still current and artifact revision matches:
+            publish
+        else:
+            discard result
+
+EVICT:
+    candidates := unpinned representations sorted by policy score
+    until bytes <= budget:
+        retire candidate representation, preserve semantic state as required
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Streamer orchestration owns state; jobs run common pool. Publish/retire through safe barriers/handles. Renderer/physics/nav hold pins/snapshots.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+IO/artifact failure leaves previous representation or marks region unavailable with retry/backoff; never commits partial package.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Semantic generation identity unaffected by load order. Eviction/render state does not change authoritative RNG/state.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Benchmark IO/generation/compile overlap, peak memory, churn, cancellation waste, hitch percentile. Prefetch without uncontrolled working-set growth.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE small world lacks equivalent; this is native scalability feature built on preserved semantics.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    independent residency
+    cancel stale load
+    version mismatch discard
+    eviction pin
+    dormant wake identity
+    path corridor nav pin
+    camera does not kill combat
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] multi-axis residency
+    [ ] async/cancel
+    [ ] memory eviction
+    [ ] semantic identity preserve
+    [ ] stress benchmark
+    [ ] no camera authority
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    single loaded bool
+    synchronous full-region compile on render frame
+    evict pinned/active simulation state
+    reroll region on reload
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] multi-axis residency
+    [ ] async/cancel
+    [ ] memory eviction
+    [ ] semantic identity preserve
+    [ ] stress benchmark
+    [ ] no camera authority
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.4 SAVE_LOAD_AND_ARTIFACT_PACKAGES.
+
+END OF CHAPTER 20.3

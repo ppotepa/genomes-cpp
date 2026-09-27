@@ -1,0 +1,204 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.7 - LEGACY_RUNTIME_RETIREMENT_RULES
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Perform the formal retirement review for the SOURCE browser runtime after native parity/integration. Decide what becomes historical/reference-only, what remains useful as labs/exporters and what may be removed from active product expectations.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.2_OLD_AND_NEW_RUNTIME_PARITY_WORLD.txt
+    TARGET::docs/20.3_STREAMING_LARGE_WORLD.txt
+    TARGET::docs/20.4_SAVE_LOAD_AND_ARTIFACT_PACKAGES.txt
+    TARGET::docs/20.5_NATIVE_PROC_VIEWER.txt
+    TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Historical SOURCE evidence, golden fixtures, research, algorithm labs that retain unique diagnostic value, and all parity provenance.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+This chapter does not automatically delete SOURCE repository or rewrite its history.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    docs/parity/20.7_LEGACY_RETIREMENT_REPORT.txt
+    reference/manifests/LEGACY_RETIREMENT_LEDGER.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Retirement is per subsystem/path category, never blanket "native exists so legacy deleted".
+
+2. Statuses: ACTIVE_SOURCE_REQUIRED, FIXTURE_EXPORTER, REFERENCE_LAB, HISTORICAL_DOC, RETIREABLE_SHIPPING_PATH, DO_NOT_DELETE_EVIDENCE.
+
+3. A subsystem can be RETIREABLE only if owning native parity chapter PASS, native dependents no longer require SOURCE runtime, native debug/acceptance route exists and fixture provenance is preserved.
+
+4. SOURCE prototypes may remain permanently as lightweight algorithm labs even after shipping path retired.
+
+5. No deletion of legacy tests/research fixtures that are sole evidence for behavior; convert/export before any cleanup.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+RetirementLedger rows: source path group, 0.2 entry, native owner/chapter, parity report, current status, rationale, required retained fixtures/exporter.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    SOURCE::NATIVE_CPP_MANUAL_MOVED.txt
+    SOURCE::tests/*
+    SOURCE::prototypes/*
+    SOURCE::building-lab/*
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Read entire 0.2 matrix and all parity reports 10.10/11.12/12.6/16.8/17.6/18.11/20.2.
+
+STEP 2
+    For each SOURCE subsystem group, verify native owner and test/fixture coverage.
+
+STEP 3
+    Classify browser shipping entrypoint separately from reference labs/prototypes/docs.
+
+STEP 4
+    Verify native proc viewer replaces manual acceptance workflows before downgrading labs.
+
+STEP 5
+    Create retirement ledger with explicit decisions; ambiguous rows remain ACTIVE_SOURCE_REQUIRED.
+
+STEP 6
+    If SOURCE cleanup is desired later, execute in SOURCE as separate reviewed change, never implicitly from TARGET implementation agent.
+
+STEP 7
+    Update TARGET README/manual status to state native authority only after all mandatory gates.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+for row in MigrationInventory:
+    if !row.parityPass:
+        status := ACTIVE_SOURCE_REQUIRED
+    else if row.onlyHistoricalEvidence:
+        status := DO_NOT_DELETE_EVIDENCE
+    else if row.uniqueLabValue and nativeViewerNotEquivalent:
+        status := REFERENCE_LAB
+    else if row.usedToRegenerateFixtures:
+        status := FIXTURE_EXPORTER
+    else:
+        status := RETIREABLE_SHIPPING_PATH
+    ledger.add(row,status,rationale)
+
+require no row missing
+require every RETIREABLE row has native tests + parity report + provenance
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+N/A documentation/review chapter.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing parity evidence prevents retirement. Do not resolve by assuming equivalent behavior.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Retained fixtures keep exact SOURCE commit provenance permanently.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Legacy retirement is not a performance optimization and must not be justified by repository size alone.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This is the only stage authorized to declare broad legacy shipping paths retireable. Actual SOURCE changes remain separate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    ledger completeness checker
+    all 0.2 rows accounted
+    retireable rows parity references exist
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] complete ledger
+    [ ] no unmapped source group
+    [ ] parity evidence linked
+    [ ] labs/evidence policy
+    [ ] no automatic SOURCE deletion
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    blanket delete SOURCE
+    remove sole fixture exporter before replacement
+    treat richer native feature as proof old feature covered
+    rewrite history/goldens
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] complete ledger
+    [ ] no unmapped source group
+    [ ] parity evidence linked
+    [ ] labs/evidence policy
+    [ ] no automatic SOURCE deletion
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Stage 20 complete. Native Genomes is now eligible to become authoritative product path subject to Stages 21-22 optimization/hardening.
+
+END OF CHAPTER 20.7

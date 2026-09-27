@@ -1,0 +1,221 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.4 - SAVE_LOAD_AND_ARTIFACT_PACKAGES
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Implement persistent save/checkpoint and world artifact package contracts using versioned schemas, stable IDs and separation between reconstructible procedural artifacts and mutable runtime state.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.3_STREAMING_LARGE_WORLD.txt
+    TARGET::docs/2.5_SERIALIZATION_AND_SCHEMA_FOUNDATION.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Seed/version reproducibility, Equipment toJSON-style save intent, procedural artifacts as compilable outputs and world transactional safety.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No cloud save/network protocol and no user-facing save UI.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/WorldSave.hpp
+    engine/world/src/WorldSave.cpp
+    engine/schema/include/genomes/schema/Migrations.hpp
+    tools/world_compiler/*
+    tests/native/world/save_load_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Save separates immutable/reconstructible world recipe metadata from mutable authoritative state. Do not dump renderer/physics backend memory.
+
+2. Save header includes game/schema version, world generator versions, root seed, required catalog versions and content hashes.
+
+3. Procedural artifact may be referenced by content key and regenerated only if exact compatible generator/catalog versions exist; otherwise packaged artifact or migration required.
+
+4. Mutable state includes entity IDs/components needed for gameplay, destroyed/modified structures/rubble, orders, inventories/equipment, world tick and region persistence state.
+
+5. Load is transactional: parse/validate/migrate into candidate WorldSaveModel, resolve artifacts, then create/commit world. Corrupt save never partially overwrites active world.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Chunked/versioned package with header/table + typed sections/regions, checksums/content hashes. Exact binary format chosen by Stage 2 schema policy; unknown optional chunks skippable only by declared compatibility.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/equipment/equipment.js
+    SOURCE::docs/26_CACHE_I_WYDAJNOSC.md
+    SOURCE::docs/world-settlement-runtime.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define WorldSaveHeader/schema IDs and compatibility matrix.
+
+STEP 2
+    Classify every World/Simulation domain state as reconstructible artifact, persistent mutable, transient derived or presentation-only.
+
+STEP 3
+    Implement serializer/deserializer with bounds/size validation and deterministic canonical ordering.
+
+STEP 4
+    Implement per-schema migration registry for supported older native versions; never silently reinterpret unknown version.
+
+STEP 5
+    Implement region chunk save/load and lazy streaming integration.
+
+STEP 6
+    Persist destruction/rubble deltas/state and stable entity/equipment/genome identities.
+
+STEP 7
+    Implement atomic file write via temp + fsync/rename policy where platform abstraction supports it.
+
+STEP 8
+    Add corrupt/truncated/version mismatch/roundtrip tests and deterministic save bytes where canonical format promises it.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SAVE:
+    snapshot := simulation.freezePersistentSnapshot()
+    package.header := versions + seed + tick + hashes
+    for region in stable RegionId order:
+        write recipe/artifact refs
+        write mutable deltas/entities/destruction
+    finalize table/checksums
+    write temp
+    validate/readback optional
+    atomicReplace(destination,temp)
+
+LOAD:
+    bytes := read bounded
+    header := validateHeader
+    model := parse all sections to candidate
+    migrate model if supported
+    validate catalogs/artifacts
+    candidateWorld := instantiate(model)
+    if success: commit candidate
+    else: keep active world
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Save snapshot created at simulation barrier; serialization/compression/IO may run worker threads on immutable snapshot. Load parse parallel chunks then deterministic commit.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Corruption/checksum/version/catalog mismatch typed errors. Unsupported migration explicit. Never best-effort skip authoritative unknown data.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical ordering for hashes/save if required. Runtime transient handles remapped from stable semantic IDs during load.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Chunk regions, stream IO, avoid pausing long serialization; snapshot copy-on-write/delta optimization later only after correctness.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Legacy browser has no full save format; current Equipment JSON informs semantic fields but native schema is new/versioned.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    save/load roundtrip
+    deterministic canonical save
+    corrupt/truncated
+    unknown required section
+    schema migration
+    destruction/rubble persistence
+    streamed region load
+    atomic failure keeps old save
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] state classification
+    [ ] versioned header
+    [ ] transactional load
+    [ ] stable IDs
+    [ ] destruction persisted
+    [ ] corruption safe
+    [ ] roundtrip
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    serializing raw pointers/Jolt/Diligent objects
+    unversioned binary dump
+    partial active world mutation during parse
+    silent unknown authoritative fields
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] state classification
+    [ ] versioned header
+    [ ] transactional load
+    [ ] stable IDs
+    [ ] destruction persisted
+    [ ] corruption safe
+    [ ] roundtrip
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.5 NATIVE_PROC_VIEWER.
+
+END OF CHAPTER 20.4

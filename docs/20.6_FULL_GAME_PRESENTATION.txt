@@ -1,0 +1,223 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 20.6 - FULL_GAME_PRESENTATION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Complete the shipping-style native presentation layer over authoritative simulation: world camera, unit/building/vegetation GPU scene extraction, animation skinning, combat/destruction VFX hooks, UI/debug separation and render-quality budgets.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
+    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
+    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/20.5_NATIVE_PROC_VIEWER.txt
+    TARGET::docs/7.7_GPU_CULLING_LOD_AND_INDIRECT_DRAWS.txt
+    TARGET::docs/12.5_INSTANCE_PAGES_AND_GPU_RENDERING.txt
+    TARGET::docs/18.9_ANIMATION_LOD_AND_PARALLEL_EVALUATION.txt
+    TARGET::docs/19.3_COMBAT_COMMAND_FLOW.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE render quality profiles/LOD/cadence intent, shadows, procedural appearance, weapon presentation, destruction traces/effects and independent authoritative simulation.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No art-direction overhaul and no network UI.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    apps/game/presentation/*
+    engine/render/passes/*
+    engine/render/gpu_scene/*
+    tests/native/render/full_presentation_smoke_tests.cpp
+    benchmarks/render/full_scene_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Presentation consumes immutable PresentationSnapshot and GPUScene databases; it never mutates authoritative world/entities.
+
+2. Render quality controls framebuffer/shadow/LOD/presentation budgets only, not procedural semantic identity or combat outcomes.
+
+3. GPU Scene handles terrain chunks, building representations, vegetation instance pages, dynamic entity instances/skeletons and debris/rubble with independent LOD/visibility.
+
+4. Combat/destruction presentation is event-driven and may drop/coalesce purely visual effects under budget without dropping semantic events.
+
+5. Debug overlays/traces are separate passes/resources and can be disabled with zero semantic cost.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+PresentationSnapshot references stable RenderEntityId/GPU asset handles/transforms/skeleton channels/events. GPU Scene persistent arrays; per-frame upload delta buffers/frame arenas.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-MATRIX-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/game.js
+    SOURCE::js/rendering/*
+    SOURCE::js/world/worldShadowPolicy.js
+    SOURCE::js/destruction/effects.js
+    SOURCE::js/destruction/projectileTrace.js
+    SOURCE::tests/world_render_budget.cjs
+    SOURCE::tests/render_quality_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Assemble standard render passes using RenderGraph: depth/shadows/opaque/vegetation/dynamic/skinned/transparent/effects/debug/post.
+
+STEP 2
+    Implement render extraction deltas from world/static databases and simulation snapshots.
+
+STEP 3
+    Integrate GPU skinning/morph channels and weapon/equipment shared skeleton presentation.
+
+STEP 4
+    Integrate building near/far/damaged representation and vegetation instance LOD/culling.
+
+STEP 5
+    Integrate rubble/debris and projectile trace/effects as presentation-only consumers.
+
+STEP 6
+    Implement quality profiles for pixel budget/shadows/presentation LOD and dynamic resource budgets.
+
+STEP 7
+    Benchmark representative city/battle scenes with CPU submission, GPU frame, draw/dispatch, VRAM/upload metrics.
+
+STEP 8
+    Verify headless and render OFF produce identical authoritative test hashes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FRAME:
+    snapshot := acquirePublishedPresentation()
+    extraction.updateGPUScene(snapshot.delta)
+    graph.reset()
+    graph.add(depth)
+    graph.add(shadows)
+    graph.add(gpuCull)
+    graph.add(opaqueStatic)
+    graph.add(skinnedUnits)
+    graph.add(vegetation)
+    graph.add(debrisEffects)
+    graph.add(transparent)
+    if debug: graph.add(debug)
+    graph.add(post)
+    graph.compile(capabilities)
+    graph.execute()
+
+QUALITY:
+    renderScale := clampByPixelBudget(window,deviceScale,profile)
+    presentationLOD budgets := profile
+    never modify SimulationTick/AI/ballistics based on quality
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render graph/resource preparation follows Diligent/render threading policy. Simulation snapshot immutable; async compute only via Stage 8 contracts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing render artifact uses explicit placeholder/hidden presentation with diagnostic; semantic entity remains. GPU device loss handling deferred production chapter but no world corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be non-bitwise and nondeterministic visually; semantic simulation hash independent of render settings.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+GPU-driven culling/indirect where supported. Limit CPU per-object submission. Profile CPU/GPU independently and frame percentiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE visual feature classes; exact visual style may improve. SOURCE screenshots remain comparison aids, not semantic truth.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    render OFF semantic parity
+    quality profile semantic independence
+    GPU scene lifetime
+    skinned/equipment attachment
+    damaged building/rubble visibility
+    debug toggle no semantic effect
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] full snapshot-driven render
+    [ ] quality budgets
+    [ ] GPU culling/LOD
+    [ ] skinning
+    [ ] world representations
+    [ ] render independence benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    renderer updates game state
+    one draw submission per vegetation/unit without evidence
+    quality setting changes simulation
+    debug trace affects ballistics
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] full snapshot-driven render
+    [ ] quality budgets
+    [ ] GPU culling/LOD
+    [ ] skinning
+    [ ] world representations
+    [ ] render independence benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 20.7 LEGACY_RUNTIME_RETIREMENT_RULES.
+
+END OF CHAPTER 20.6
