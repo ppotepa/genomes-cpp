@@ -1,0 +1,221 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.6 - LOCOMOTION_AND_POSTURE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port continuous biped posture/locomotion control as simulation/animation-domain state driven by phenotype, preserving phase continuity and explicit requested/actual values.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.3_RIG_AND_SKELETON.txt
+    TARGET::docs/2.2_TIME_CLOCKS_AND_FIXED_TICKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+requestedCrouch/requestedSpeed, biped presets, continuous Hermite-style posture interpolation, phenotype-specific speed/crouch limits, phase preservation across biped state changes, distinct prone/sitting/rest families and zero-valid inputs.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No foot IK/terrain contact (18.7) and no face animation.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/LocomotionState.hpp
+    modules/infantry/include/genomes/infantry/PostureProfile.hpp
+    modules/infantry/src/LocomotionController.cpp
+    modules/infantry/src/PostureProfile.cpp
+    tests/native/infantry/locomotion_posture_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. LocomotionState separates requestedCrouch/requestedSpeedMps from actual constrained values, target speed/runWeight/sprintWeight, phase and limitReason.
+
+2. BIPED family presets map to requested values but changing among IDLE/WALK/RUN/CROUCH/CROUCH_WALK does not reset gait phase. PRONE/SEATED/REST remain explicit families.
+
+3. All finite zero values are valid. NaN/Infinity rejected. Clamp to phenotype-specific limits after validation.
+
+4. PostureProfile is continuous/monotonic between authored key profiles with explicit interpolation formula; it outputs normalized/metric pose parameters, not renderer bone objects.
+
+5. Simulation locomotion/world movement and visual pose phase are separable; treadmill preview is presentation only.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compact component state in ECS; phenotype gait constants are cold immutable artifact/cache. Pose parameters written to animation evaluation buffer.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SCALAR-CLAMP-001
+    MATH-SCALAR-LERP-001
+    MATH-SCALAR-SMOOTHSTEP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/animation/locomotionController.js
+    SOURCE::js/animation/postureProfile.js
+    SOURCE::js/animation/gaitProfile.js
+    SOURCE::docs/16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt
+    SOURCE::tests/locomotion_smoke.cjs
+    SOURCE::tests/posture_smoke.cjs
+    SOURCE::tests/sprint_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Port phenotype-derived walk/run/crawl baseline speeds/cycle lengths and gait profiles.
+
+STEP 2
+    Implement requested value setter preserving unspecified field and rejecting nonfinite.
+
+STEP 3
+    Implement posture limit solver (max crouch, reasons) from phenotype/current mode constraints.
+
+STEP 4
+    Implement critically damped/bounded approach or SOURCE-compatible controller for actual crouch/speed using fixed dt.
+
+STEP 5
+    Implement gait phase advancement from actual speed/cycle length; preserve phase through biped preset changes.
+
+STEP 6
+    Implement PostureProfile sampling with monotonic cubic/Hermite coefficients from SOURCE.
+
+STEP 7
+    Implement transition handling to/from PRONE/SEATED/REST with explicit guard state and snapshot interpolation contract.
+
+STEP 8
+    Port sprint/posture/locomotion fixtures.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SET:
+    if crouch provided:
+        require finite
+        requestedCrouch := clamp(crouch,0,1)
+    if speed provided:
+        require finite
+        requestedSpeed := clamp(speed,0, phenotype.runSpeed)
+
+STEP:
+    maxCrouch, reason := solveLimit(phenotype, mode, requestedSpeed)
+    targetCrouch := min(requestedCrouch,maxCrouch)
+    actualCrouch := approach(actualCrouch,targetCrouch,dt)
+    targetSpeed := solveSpeed(requestedSpeed, actualCrouch, phenotype)
+    actualSpeed := approach(actualSpeed,targetSpeed,dt)
+    if mode is BIPED:
+        phase += actualSpeed / cycleLength(actualCrouch,runWeight) * dt
+        phase := fract(phase)
+
+POSE PARAMETERS:
+    profile := postureCurve.sample(actualCrouch)
+    blend walk/run gait by runWeight without resetting phase
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each entity locomotion component owned by movement/animation system chunk. Phenotype profiles immutable. Parallel across entities.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Setter outside allowed family returns InvalidState rather than silently standing unit up. Nonfinite input InvalidArgument.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed tick input and state produce deterministic controller state within numeric policy; no wall time/camera.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No allocations/string lookups in per-unit step. Precompute phenotype constants. Variable cadence only for nonauthoritative presentation portions, not movement state.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE biped behavior/phase invariants and exact selected snapshots within tolerances. Do not port Three.js pose objects.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    zero valid
+    NaN rejected
+    partial setter preserves other field
+    phase continuity
+    crouch limit
+    speed clamp
+    prone/seated separation
+    sprint blend
+    phenotype extremes
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] requested/actual separation
+    [ ] phase continuity
+    [ ] continuous profile
+    [ ] family guards
+    [ ] fixed-tick deterministic
+    [ ] SOURCE tests translated
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    truthiness default turning 0 into default
+    reset phase on every state change
+    camera controls locomotion
+    absolute old-body pose positions
+    per-frame allocations
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] requested/actual separation
+    [ ] phase continuity
+    [ ] continuous profile
+    [ ] family guards
+    [ ] fixed-tick deterministic
+    [ ] SOURCE tests translated
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.7 IK_AND_GROUND_CONTACT.
+
+END OF CHAPTER 18.6

@@ -1,0 +1,217 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.9 - ANIMATION_LOD_AND_PARALLEL_EVALUATION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Assemble native Infantry pose evaluation into batched JobSystem stages with explicit animation LOD/cadence, immutable snapshots and GPU presentation handoff.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.6_LOCOMOTION_AND_POSTURE.txt
+    TARGET::docs/18.7_IK_AND_GROUND_CONTACT.txt
+    TARGET::docs/18.8_FACE_AND_EXPRESSION.txt
+    TARGET::docs/3.3_PARALLEL_FOR_AND_BATCHING.txt
+    TARGET::docs/15.5_SIMULATION_SNAPSHOTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE pose interpolation/snapshots, visual cadence concept, no full root updateMatrixWorld per unit, no resetting identity/state on LOD change and exact logical simulation time independent of rendering.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No ragdoll transition/damage and no weapon-handling integration yet.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/AnimationSystem.hpp
+    modules/infantry/include/genomes/infantry/AnimationLOD.hpp
+    modules/infantry/src/AnimationSystem.cpp
+    modules/infantry/src/AnimationLOD.cpp
+    tests/native/infantry/animation_parallel_tests.cpp
+    benchmarks/infantry/animation_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. AnimationSystem operates on batches/chunks, not one virtual Update per unit. Stages: sample locomotion/posture -> contacts/IK -> face -> weapon overlay later -> finalize pose channels -> publish presentation pose snapshot.
+
+2. AnimationLOD changes evaluation frequency/detail but not genome, skeleton identity, gait logical phase or authoritative world transform.
+
+3. Near/combat visible tiers may evaluate 60Hz; mid 30/15; distant/offscreen lower/zero presentation where safe. Exact policy configurable and camera can affect presentation only.
+
+4. Previous/current pose snapshots enable render interpolation; simulation pose writes are not read while workers mutate them.
+
+5. GPU skinning consumes skeleton/morph channel snapshot; CPU does not skin every vertex each tick for ordinary rendering.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+PoseBuffer uses contiguous bone quaternion/translation arrays per batch/artifact archetype; previous/current double buffers. Per-entity small channel state references shared SkeletonData.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-QUAT-SLERP-001
+    MATH-SCALAR-LERP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    PERF-PAR-WORK-001
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/animation/infantryAnimator.js
+    SOURCE::js/world/unitPresentationScheduler.js
+    SOURCE::js/rendering/infantryFactory.js
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    SOURCE::tests/snapshot_interpolation.cjs
+    SOURCE::tests/visual_cadence_scheduler.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define AnimationLOD tiers and semantic/presentation separation.
+
+STEP 2
+    Create batch grouping by SkeletonData/appearance layout and due cadence bucket.
+
+STEP 3
+    Implement job graph stages with dependencies and scratch buffers; avoid per-unit tasks.
+
+STEP 4
+    Maintain previous/current pose snapshots and fixed tick interpolation metadata.
+
+STEP 5
+    Implement LOD enter/exit resynchronization that samples current logical phase/state instead of restarting.
+
+STEP 6
+    Publish compact bone/morph transforms to PresentationSnapshot/GPUScene extraction.
+
+STEP 7
+    Add parallel 1/N worker determinism for pose channels and benchmark 100/1k/10k units across LOD mix.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TICK:
+    dueBatches := cadence.collectDue(animationEntities)
+    jobs.sample := parallel_for batches -> sampleLocomotionPose
+    jobs.contact := after sample -> groundContactIK
+    jobs.face := parallel/after required roots -> faceChannels
+    jobs.finalize := after contact+face -> combinePose
+    wait finalize
+    swap previous/current pose buffers
+    publish poseRevision
+
+RENDER:
+    alpha := simulationSnapshot.interpolationAlpha
+    poseRender := interpolate(previous,current,alpha)
+    upload bone/morph buffers for visible GPU instances
+
+LOD CHANGE:
+    set tier
+    do not reset phase/timers
+    on next due evaluation sample state at current SimulationTick
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Pose buffers double-buffered; each job owns entity range. Shared skeleton immutable. Renderer sees published snapshot only.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing skeleton/channel layout fails entity presentation artifact registration; do not partially index wrong bones.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Within same LOD/cadence/ticks outputs deterministic; camera affects presentation scheduling only, not gameplay movement/AI. Worker merge not needed for disjoint pose arrays.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Grain-size benchmark, no full matrix-tree updates unless needed, skip unchanged channels, GPU skinning. Report CPU ms and pose evaluations count by tier.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE cadence/pose invariants and optimized no-op behavior concept; exact Three.js matrix update behavior is not parity target.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    snapshot interpolation
+    LOD phase preservation
+    camera nonauthoritative
+    1/N worker pose parity
+    offscreen wake
+    morph channels
+    batch grouping
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] batch animation jobs
+    [ ] LOD/cadence
+    [ ] double pose snapshot
+    [ ] GPU handoff contract
+    [ ] phase/timer preserve
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one task per bone/unit
+    CPU skin full mesh every tick
+    LOD rerolls appearance
+    camera pauses authoritative movement
+    renderer reads mutable pose
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] batch animation jobs
+    [ ] LOD/cadence
+    [ ] double pose snapshot
+    [ ] GPU handoff contract
+    [ ] phase/timer preserve
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.10 INFANTRY_DAMAGE_AND_RAGDOLL.
+
+END OF CHAPTER 18.9

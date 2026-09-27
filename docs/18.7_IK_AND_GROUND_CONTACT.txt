@@ -1,0 +1,213 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.7 - IK_AND_GROUND_CONTACT
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port two-bone IK, foot/hand support targets and ground/equipment contact corrections as generic pose-evaluation data inside Infantry, preserving stable bind lengths and authoritative terrain query separation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.6_LOCOMOTION_AND_POSTURE.txt
+    TARGET::docs/9.5_TERRAIN_PHYSICS_AND_QUERY_REPRESENTATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+TwoBoneIK behavior, ground-contact samples, feet support/plant metrics, pelvis/body lift correction, phenotype-specific limb lengths, gear support samples and SOURCE distinction between contact correction and full physical balance.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No ragdoll, no full self-collision, no physics-based locomotion.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/TwoBoneIK.hpp
+    modules/infantry/include/genomes/infantry/GroundContact.hpp
+    modules/infantry/src/TwoBoneIK.cpp
+    modules/infantry/src/GroundContact.cpp
+    tests/native/infantry/ik_ground_contact_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. TwoBoneIK consumes root/target/pole/bind lengths and returns joint rotations/solution metrics; no renderer objects. Lengths come from phenotype bind skeleton and are constant unless anatomy artifact changes.
+
+2. GroundContact samples authoritative World/Terrain query surface in world coordinates and outputs support target positions/normals/bodyLift/maxIKError.
+
+3. Contact queries may be batched/cached by terrain revision. Cache key includes surface revision and morphology/gear support geometry dependencies.
+
+4. Equipment support samples may expand body clearance but do not claim complete collision/self-collision.
+
+5. IK corrections are presentation/pose results unless owning movement chapter explicitly uses a semantic support state; they must not teleport authoritative world entity unpredictably.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+IKSolution small value struct with angles/quaternions/error/reachable. GroundContactInput/output arrays for two feet plus optional hands/gear support points. Per-entity cached terrain cell sample metadata compact.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-BUILD-STAIR-COSINE-001
+    MATH-VEC-DOT-001
+    MATH-VEC-CROSS3-001
+    NUM-NORMALIZE-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-IK-TWO-BONE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/animation/twoBoneIK.js
+    SOURCE::js/animation/groundContact.js
+    SOURCE::js/animation/bipedFeet.js
+    SOURCE::docs/03_ANIMACJE_I_TEREN.txt
+    SOURCE::docs/16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt
+    SOURCE::tests/locomotion_smoke.cjs
+    SOURCE::tests/equipment_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement backend-independent TwoBoneIK with law-of-cosines clamp and explicit bend plane.
+
+STEP 2
+    Validate bind lengths and unreachable targets; clamp target distance inside [|a-b|+eps,a+b-eps].
+
+STEP 3
+    Port foot phase/support target generation from gait state.
+
+STEP 4
+    Implement batched terrain height/normal query for candidate supports and solve pelvis/body lift.
+
+STEP 5
+    Apply foot IK then hand/weapon/gear support corrections in documented order; expose residual errors.
+
+STEP 6
+    Implement contact cache invalidation on terrain/world surface revision and anatomy/gear revision.
+
+STEP 7
+    Translate stance/crouch/prone and uneven-ground fixtures.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+IK:
+    toTarget := target-root
+    cRaw := length(toTarget)
+    c := clamp(cRaw, abs(a-b)+eps, a+b-eps)
+    cosRoot := clamp((a*a + c*c - b*b)/(2*a*c), -1, 1)
+    cosJoint := clamp((a*a + b*b - c*c)/(2*a*b), -1, 1)
+    plane := constructBendPlane(toTarget,pole)
+    return rotationsFromGeometry(...), error=abs(cRaw-c)
+
+GROUND:
+    for supportPoint in predicted supports:
+        surface := world.sampleSurface(x,z,revision)
+        target.y := surface.height + soleOffset
+        target.normal := surface.normal
+    bodyLift := solveMinimalLiftToAvoidPenetration(...)
+    solve legs from lifted hips
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Evaluate disjoint entities in parallel. World surface snapshot immutable. Cache writes entity-local; terrain shared read-only.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Degenerate pole/zero limb -> typed IK failure/fallback bind orientation. Missing surface query returns explicit NoSurface policy, not NaN.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed pose inputs + world revision produce stable result. No render interpolation state used as solver authority.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch terrain samples; cache unchanged cells/revisions; no full mesh CPU skinning for contact. Benchmark 10k low-detail contact evaluations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE support/clearance invariants; exact quaternion values selected fixtures where coordinate conventions align.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    reachable/unreachable IK
+    degenerate pole
+    limb length phenotype
+    flat ground
+    slope
+    body lift
+    cache invalidation
+    gear support
+    prone support
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] generic TwoBoneIK
+    [ ] batched ground query
+    [ ] revision cache
+    [ ] gear support limited scope
+    [ ] no mesh scan
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raycast renderer scene for ground
+    recomputing limb length from current pose
+    full CPU skin every contact tick
+    pretending samples are full collision solver
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] generic TwoBoneIK
+    [ ] batched ground query
+    [ ] revision cache
+    [ ] gear support limited scope
+    [ ] no mesh scan
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.8 FACE_AND_EXPRESSION.
+
+END OF CHAPTER 18.7

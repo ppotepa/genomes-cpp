@@ -1,0 +1,196 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.1 - INFANTRY_MODULE_BOUNDARY
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Create the native Infantry domain module boundary so all infantry-specific anatomy, genome, equipment, animation, damage and presentation depend on generic engine services while the engine remains compilable without Infantry.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/15.1_ENTITY_IDS_AND_COMPONENT_STORAGE.txt
+    TARGET::docs/6.3_STATIC_WORLD_DATABASES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE distinction between generic Unit/Equipment mechanics and infantry-specific genome/rig/appearance; current project scope remains available but no Infantry type becomes an engine dependency.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No anatomy generation yet; this chapter creates interfaces, dependency direction and compile-time removal tests only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/CMakeLists.txt
+    modules/infantry/include/genomes/infantry/InfantryModule.hpp
+    modules/infantry/src/InfantryModule.cpp
+    tests/native/architecture/infantry_boundary_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. modules/infantry may depend on engine/foundation, simulation, world, render contracts, physics abstraction, navigation and other domain modules explicitly named by chapter. No engine target may link modules/infantry.
+
+2. Generic entity state is composed from engine ECS components; Infantry adds domain components/tables keyed by EntityId.
+
+3. InfantryModule registers systems/components/services during app composition, not through hidden static globals.
+
+4. Build option GENOMES_ENABLE_INFANTRY may disable the entire module; genomes_headless/proc_viewer core procedural world must still compile and run without it.
+
+5. Cross-domain interaction uses IDs/events/contracts: Combat/Weapons may reference Infantry capabilities through narrow interfaces, not include renderer/anatomy internals.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+InfantryModule contains registration descriptors and domain component IDs only. No singleton Unit object graph. EntityId is engine-owned; Infantry-specific cold state lives in module storage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/units/unit.js
+    SOURCE::js/units/infantryUnit.js
+    SOURCE::js/units/infantryGenome.js
+    SOURCE::docs/01_ARCHITEKTURA.txt
+    SOURCE::docs/02_MODEL_GENOM_SZKIELET.txt
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Add modules/infantry target with only boundary/registration code and no SOURCE port yet.
+
+STEP 2
+    Define InfantryTag/InfantryIdentity component with phenotype/genome artifact handles deferred to later chapters.
+
+STEP 3
+    Define module dependency list and CMake option; verify target graph does not invert dependency.
+
+STEP 4
+    Add architecture test/build configuration with Infantry disabled.
+
+STEP 5
+    Document mapping from SOURCE Unit/InfantryUnit responsibilities to engine generic vs Infantry domain ownership.
+
+STEP 6
+    Add compile-only test that generic proc/world targets include no infantry headers.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMPOSE APP:
+    engine := createEngineServices()
+    modules := ModuleRegistry(engine)
+    if config.enableInfantry:
+        modules.register(InfantryModule)
+
+INFANTRY REGISTRATION:
+    register component InfantryIdentity
+    register placeholder domain systems only when implemented
+    no static global initialization
+
+BUILD WITHOUT INFANTRY:
+    configure -DGENOMES_ENABLE_INFANTRY=OFF
+    build genomes_headless genomes_proc_viewer
+    run procedural/world smoke tests
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Module registration occurs before simulation starts. Runtime Infantry systems follow ECS/job ownership from Stage 15.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing optional Infantry module is valid configuration. Attempting Infantry-specific spawn when module disabled returns Unsupported/NotFound.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Module presence changes available domain features but generic world generation seeds/artifacts remain unaffected.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No per-entity heap object introduced by boundary. Compile/link dependency remains granular.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE Unit/InfantryUnit remain references; do not port generic engine responsibilities back into Infantry.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    build without Infantry
+    module registration
+    spawn unsupported when disabled
+    no engine->infantry link dependency
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] module target isolated
+    [ ] disable build works
+    [ ] engine independent
+    [ ] registration explicit
+    [ ] SOURCE responsibility mapping
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    engine include infantry header
+    global RTS-style namespace singleton
+    AActor-like per-unit ownership architecture
+    moving generic ECS/world into Infantry
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] module target isolated
+    [ ] disable build works
+    [ ] engine independent
+    [ ] registration explicit
+    [ ] SOURCE responsibility mapping
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.2 INFANTRY_GENOME_AND_PHENOTYPE.
+
+END OF CHAPTER 18.1

@@ -1,0 +1,215 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.10 - INFANTRY_DAMAGE_AND_RAGDOLL
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port Infantry-specific damage hit volumes and ragdoll transition on top of generic destruction/physics, preserving lazy physics creation and semantic body-part mapping.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.9_ANIMATION_LOD_AND_PARALLEL_EVALUATION.txt
+    TARGET::docs/13.5_DYNAMIC_BODY_COMMAND_BUFFERS.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+    TARGET::docs/17.2_PROJECTILE_SPATIAL_TRACE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE InfantryDamageRuntime concepts, ragdoll schema as data, lazy physics, semantic hitbox/body regions derived from current pose and separation of diagnostic schema from active solver.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No medical simulation or new gore system.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/InfantryDamage.hpp
+    modules/infantry/include/genomes/infantry/RagdollSchema.hpp
+    modules/infantry/src/InfantryDamage.cpp
+    modules/infantry/src/RagdollController.cpp
+    tests/native/infantry/infantry_damage_ragdoll_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. InfantryDamageModel maps semantic anatomical regions/armor/equipment protection into generic destruction/ballistics hit target interfaces. It does not expose skin triangles as authoritative anatomy.
+
+2. Hit volumes are updated from authoritative/current animation pose snapshot in bounded batches and registered in dynamic spatial query index once per simulation phase.
+
+3. RagdollSchema is immutable phenotype/skeleton-derived body/constraint data. Active physics bodies are created lazily only on ragdoll/interaction need.
+
+4. Transition to ragdoll transfers root/limb world transforms and estimated linear/angular velocities from pose snapshots into PhysicsCommandBuffer at one deterministic tick.
+
+5. Ragdoll physics output affects entity/presentation through controlled state synchronization; renderer does not own bodies.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+HitVolume array per anatomy region with SemanticPartId, shape recipe, transform, material/protection refs. RagdollSchema compact body/constraint arrays. Runtime has handles only when active.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    MATH-PHYS-MOMENTUM-001
+    MATH-QUAT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/combat/infantryDamageRuntime.js
+    SOURCE::js/physics/ragdollSchema.js
+    SOURCE::js/units/infantryUnit.js
+    SOURCE::tests/infantry_damage_runtime.cjs
+    SOURCE::tests/infantry_lazy_physics.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define anatomical damage region IDs and hit-volume recipes from SkeletonData/phenotype.
+
+STEP 2
+    Update hit transforms after animation authoritative pose stage in batches, then one dynamic spatial-index reindex/commit.
+
+STEP 3
+    Port current damage response/health integration as Infantry domain consumer of generic impact events.
+
+STEP 4
+    Build RagdollSchema lazily/cached per phenotype/rig artifact; validate constraints.
+
+STEP 5
+    Implement animation->ragdoll handoff with previous/current pose velocity estimate.
+
+STEP 6
+    Create Jolt bodies/constraints through command buffer and stable handles.
+
+STEP 7
+    Implement sleep/death presentation sync and disposal without orphan handles.
+
+STEP 8
+    Port lazy-physics and damage tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+UPDATE HIT VOLUMES:
+    parallel_for infantry chunks:
+        pose := currentAuthoritativePose
+        for region in fixed regions:
+            volume.transform := pose * region.bindOffset
+    barrier
+    dynamicSpatialIndex.batchUpdate(all changed volumes)
+
+ENTER RAGDOLL:
+    schema := ragdollCache.getOrBuild(phenotype,rig)
+    for body in schema:
+        world := poseWorld(body.bone)
+        linear := (world.pos - previousWorld.pos)/fixedDt
+        angular := quaternionDeltaToOmega(previous,current,fixedDt)
+        commands.createDynamic(body.shape, world, linear, angular)
+    commands.createConstraints(schema)
+    physics.flush
+    entity.state := RagdollActive
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Hit transform computation parallel disjoint; spatial index updates batched. Ragdoll creation committed through physics sync phase.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing pose/schema/protection mapping is validation error. Failed ragdoll body creation leaves non-ragdoll dead/disabled presentation fallback and diagnostics; no half-owned handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Transition tick and body creation command order stable by entity/bone ID. Physics trajectory parity is behavioral/invariant, not necessarily bitwise.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No active ragdoll solver for ordinary living army. Hit volumes compact/batched. Limit active ragdolls by world policy with safe sleep/baked corpse representation later if needed.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE lazy schema behavior and hitbox semantics; Jolt replaces Rapier-specific path.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    hit volume pose update
+    single spatial reindex phase
+    damage region mapping
+    lazy schema
+    ragdoll handoff transforms/velocities
+    partial creation failure cleanup
+    dispose
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] semantic hit regions
+    [ ] batched updates
+    [ ] lazy ragdoll
+    [ ] Jolt isolated
+    [ ] handoff deterministic
+    [ ] SOURCE damage tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    rigid bodies for every living unit by default
+    render mesh triangles as health regions
+    physics schema built eagerly for all units
+    orphan bodies on dispose
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] semantic hit regions
+    [ ] batched updates
+    [ ] lazy ragdoll
+    [ ] Jolt isolated
+    [ ] handoff deterministic
+    [ ] SOURCE damage tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.11 INFANTRY_REFERENCE_PARITY.
+
+END OF CHAPTER 18.10

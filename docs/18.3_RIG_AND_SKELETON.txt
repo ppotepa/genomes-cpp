@@ -1,0 +1,200 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.3 - RIG_AND_SKELETON
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port Infantry rig/skeleton generation from resolved phenotype into backend-independent skeleton data, preserving bind pose, hierarchy, semantic bone names and skinning contracts.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.2_INFANTRY_GENOME_AND_PHENOTYPE.txt
+    TARGET::docs/4.1_MATH_TYPES_AND_COORDINATE_CONVENTIONS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE 39 bones/controllers baseline (22 body + 17 face where still current), one coherent body/face skeleton, per-phenotype bind dimensions, eye/eyelid/jaw/cheek relationships and no old-model absolute pose offsets.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No body mesh generation and no runtime animation evaluation.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/RigSchema.hpp
+    modules/infantry/include/genomes/infantry/SkeletonData.hpp
+    modules/infantry/src/RigBuilder.cpp
+    tests/native/infantry/rig_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RigSchema gives stable BoneId/name/parent and semantic category. SkeletonData gives local bind transform, inverse bind and resolved length/reference points for one phenotype.
+
+2. Bone hierarchy is deterministic and independent of loadout/LOD. Equipment later shares same skeleton; it does not create a second skeleton.
+
+3. Face controllers: eyes rotate with eye bones; eyelid deformation is morph-driven, eyelid controllers remain head-relative per SOURCE semantics; lower lip/jaw and cheeks preserve documented influence relationships.
+
+4. Bind pose built from phenotype measurements in metres exactly once; no runtime scale trick that changes skeleton hierarchy.
+
+5. Renderer-specific skinning buffers are compiled later from SkeletonData; Diligent types forbidden here.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Contiguous BoneRecord array indexed by stable BoneIndex; parent index < child where practical. Map semantic BoneId->index built once/cached. Bind Transform arrays contiguous/aligned.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-MATRIX-001
+    MATH-QUAT-001
+    MATH-VEC-NORM2-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/rendering/infantryRig.js
+    SOURCE::js/rendering/faceAnatomy.js
+    SOURCE::docs/02_MODEL_GENOM_SZKIELET.txt
+    SOURCE::docs/11_NAPRAWY_ANATOMII_V08.txt
+    SOURCE::tests/weapons_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Freeze stable rig schema names/parents from SOURCE and document any deliberate native changes.
+
+STEP 2
+    Implement RigBuilder(BodyPhenotype,FacePhenotype)->SkeletonData.
+
+STEP 3
+    Compute local/world bind transforms then inverse binds using engine math convention.
+
+STEP 4
+    Validate hierarchy acyclic, exactly one root or explicit root policy, finite transforms, positive expected lengths.
+
+STEP 5
+    Expose semantic attachment points derived from phenotype/skeleton for later equipment/weapons.
+
+STEP 6
+    Export selected SOURCE bind landmark/bone fixtures for short/average/tall/extreme phenotypes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BUILD:
+    skeleton.resize(schema.bones)
+    for bone in schema topological order:
+        local := deriveLocalBind(bone.semanticRole, phenotype)
+        world := parent == none ? local : world[parent] * local
+        inverseBind := inverse(world)
+        store(local, world, inverseBind)
+
+VALIDATE:
+    DFS hierarchy no cycle
+    all finite
+    parent indexes valid
+    required names exactly once
+    attachment landmarks finite
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+RigBuilder pure per phenotype. SkeletonData immutable after creation; runtime pose buffers are separate per unit/presentation.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing required phenotype landmark/bone schema inconsistency -> build failure. Never silently put missing bone at origin.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Schema array fixed. Bind derivation pure. Bone names/IDs stable across runs/version unless rig version changes.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Build once/cache by phenotype artifact. Bone lookup uses indexed map, not repeated string search in animation hot loop.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve selected bind/reference metrics and hierarchy behavior, not Three.js Bone objects.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    bone count/schema
+    parent hierarchy
+    bind/inverse identity
+    height scaling
+    face controller parents
+    attachment points
+    parallel rig build
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] backend-independent skeleton
+    [ ] stable IDs/hierarchy
+    [ ] bind transforms phenotype-derived
+    [ ] no equipment dependency
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    THREE/Diligent bone types in semantic rig
+    second skeleton for gear
+    absolute offsets copied from old reference body
+    string lookups per animation channel
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] backend-independent skeleton
+    [ ] stable IDs/hierarchy
+    [ ] bind transforms phenotype-derived
+    [ ] no equipment dependency
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.4 PROCEDURAL_SURFACE_AND_APPEARANCE.
+
+END OF CHAPTER 18.3

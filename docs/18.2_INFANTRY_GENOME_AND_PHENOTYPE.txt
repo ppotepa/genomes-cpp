@@ -1,0 +1,219 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.2 - INFANTRY_GENOME_AND_PHENOTYPE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port the deterministic InfantryGenome -> resolved Body/Face phenotype pipeline, preserving biological identity as data independent of equipment, animation and rendering.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.1_INFANTRY_MODULE_BOUNDARY.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
+    TARGET::docs/4.1_MATH_TYPES_AND_COORDINATE_CONVENTIONS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Height 1.60-1.95 m compatibility range, body/face genes, diversity scaling, manual override semantics, requested-vs-resolved anatomical constraints, independent genome/equipment random streams and deterministic seed identity.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No mesh/rig generation; phenotype is semantic measurements/layout only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/InfantryGenome.hpp
+    modules/infantry/include/genomes/infantry/BodyPhenotype.hpp
+    modules/infantry/include/genomes/infantry/FacePhenotype.hpp
+    modules/infantry/src/InfantryGenome.cpp
+    modules/infantry/src/PhenotypeResolver.cpp
+    tests/native/infantry/genome_phenotype_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Genome stores requested normalized genes and seed/version; phenotype stores resolved metric anatomy. Resolution may constrain spatial relationships without mutating requested genome values.
+
+2. Pipeline: seed -> base genome -> diversity scaling -> explicit overrides -> phenotype -> resolved anatomical relationships. Variation scale 0 is valid and maps genes toward midpoint behavior per SOURCE; NaN is invalid/default policy, never converted through truthiness.
+
+3. Equipment/loadout/role cannot mutate biological genes. Side/faction cannot alter body/face identity unless explicit separate cosmetic policy.
+
+4. BodyPhenotype contains metric skeletal landmarks/dimensions needed by rig, locomotion and fitting. FacePhenotype/FaceAnatomy exposes section(y), point(y,theta), frontZ and semantic landmarks for eyes/brows/mouth/jaw/nose/hairline.
+
+5. Phenotype artifact is immutable and cacheable by genome/version/override hash.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Store genes in explicit versioned struct or indexed schema with named accessors; do not use unordered string map in hot path. Phenotype uses doubles/floats in metres and normalized layout fields; cold requested/resolved diagnostics separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    MATH-SCALAR-CLAMP-001
+    MATH-SCALAR-LERP-001
+    MATH-POLY-PCA-AXIS-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RNG-SEED-TREE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/units/infantryGenome.js
+    SOURCE::js/rendering/faceAnatomy.js
+    SOURCE::docs/02_MODEL_GENOM_SZKIELET.txt
+    SOURCE::docs/09_FACE_GENOME_MIMIKA.txt
+    SOURCE::docs/10_BODY_GENOME_DIVERSITY.txt
+    SOURCE::tests/infantry_surface_interleave.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Inventory all SOURCE genome fields/categories and assign stable schema IDs/defaults/ranges.
+
+STEP 2
+    Port seeded genome generation with compatibility stream or versioned native stream per fixture decision.
+
+STEP 3
+    Implement applyVariation including exact zero behavior and explicit finite validation.
+
+STEP 4
+    Implement override layer without changing seed/base genome.
+
+STEP 5
+    Resolve BodyPhenotype dimensions/landmarks with anatomical constraints.
+
+STEP 6
+    Resolve FacePhenotype profile/landmarks and requested->resolved diagnostics.
+
+STEP 7
+    Hash/cache phenotype by generator version + genome + overrides, never Equipment.
+
+STEP 8
+    Export a broad seed fixture set including extremes/diversity 0/1/1.75 and override cases.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+RESOLVE:
+    base := generateGenome(seed, genomeVersion)
+    varied := applyVariation(base, scale)
+    requested := applyOverrides(varied, overrides)
+    phenotype := solveBody(requested)
+    face := solveFace(requested, phenotype)
+    diagnostics := compareRequestedResolved(requested, phenotype, face)
+    return immutable PhenotypeArtifact
+
+VARIATION:
+    require finite(scale)
+    for gene:
+        value := 0.5 + (base[gene]-0.5) * scale
+        clamp to gene domain
+
+CACHE KEY:
+    H(generatorVersion, seed, scale, canonicalOverrides)
+    // no equipment/loadout/camera fields
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Genome/phenotype resolution pure and parallel per unit/artifact. No shared mutable surface-builder state.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Nonfinite overrides/ranges return validation error with gene name. Resolver infeasible constraint returns typed error/diagnostic, not NaN geometry.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Named SeedPath streams and stable gene schema order. Same artifact key identical regardless of worker scheduling.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Phenotype generated on spawn/change only, not frame. Cache exact artifact keys. Batch independent units/jobs.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Selected SOURCE genome values may require exact parity; phenotype constraints use numeric/invariant parity. Version intentional visual changes.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    seed repeatability
+    diversity zero
+    diversity extremes
+    override persistence
+    equipment independence
+    face spacing constraints
+    mouth/nose/brow ordering
+    interleaved parallel generation
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] versioned genome schema
+    [ ] immutable phenotype
+    [ ] requested/resolved separation
+    [ ] equipment-independent cache key
+    [ ] fixture coverage
+    [ ] parallel safe
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Math.random/global RNG
+    role changes body genes
+    mutating genome to fix anatomy
+    renderer objects in phenotype
+    shared mutable resolver globals
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] versioned genome schema
+    [ ] immutable phenotype
+    [ ] requested/resolved separation
+    [ ] equipment-independent cache key
+    [ ] fixture coverage
+    [ ] parallel safe
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.3 RIG_AND_SKELETON.
+
+END OF CHAPTER 18.2

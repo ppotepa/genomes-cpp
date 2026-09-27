@@ -1,0 +1,218 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.8 - FACE_AND_EXPRESSION
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port deterministic face state, expression blending, look targets, saccades/blinks and facial morph/bone outputs while keeping identity genome immutable and runtime emotion as state.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.4_PROCEDURAL_SURFACE_AND_APPEARANCE.txt
+    TARGET::docs/18.3_RIG_AND_SKELETON.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+NEUTRAL/ALERT/FEAR/ANGER/PAIN/FATIGUE/EYES_CLOSED, weighted mixing, spring smoothing, deterministic blinking/saccades, world look target, eyelid morph path, jaw/cheek/brow controls and sleep optimization without RNG drift.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No AI emotion model; consumers supply expression/look intents.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/FaceAnimation.hpp
+    modules/infantry/include/genomes/infantry/ExpressionProfile.hpp
+    modules/infantry/src/FaceAnimator.cpp
+    tests/native/infantry/face_animation_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Face identity/neutral baseline belongs to phenotype/genome. Runtime FaceState contains expression weights, gaze target, blink/saccade timers and smoothing state; it never mutates genome.
+
+2. Blink/saccade random events use dedicated stable substreams/event counters so sleeping/skipping an already-settled spring does not change future event sequence.
+
+3. Output is PoseDelta/FacialChannels: bone/controller rotations plus morph weights eyelidsClose/eyelidsArc and other explicitly supported channels; no direct mesh mutation.
+
+4. World look target converts through entity/root transform snapshot with bounded yaw/pitch/eye limits; missing target resumes deterministic idle gaze.
+
+5. Animation cadence may skip expensive settled spring integration only when mathematically equivalent timers/event boundaries are preserved.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+ExpressionProfile immutable small arrays indexed by channel enum. FaceState hot timers/weights compact; look world point optional. Output channel arrays fixed-size.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SCALAR-CLAMP-001
+    MATH-SCALAR-LERP-001
+    MATH-QUAT-SLERP-001
+    NUM-ANGLE-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RNG-SEED-TREE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/animation/faceAnimator.js
+    SOURCE::js/rendering/infantryFace.js
+    SOURCE::docs/09_FACE_GENOME_MIMIKA.txt
+    SOURCE::tests/infantry_face_cadence.cjs
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Freeze channel enum/profiles from SOURCE expression states.
+
+STEP 2
+    Implement normalized weighted blend of requested expression profiles plus neutral baseline.
+
+STEP 3
+    Implement critically damped/spring smoothing with exact fixed tick and no repeated head-follow accumulation.
+
+STEP 4
+    Implement deterministic blink scheduler/event counter and eyelid morph curve.
+
+STEP 5
+    Implement deterministic micro-saccade/gaze scheduler and world target bounds.
+
+STEP 6
+    Output face pose/morph channels independent of Diligent.
+
+STEP 7
+    Implement settled-state fast path and differential test against always-integrate reference including timers/RNG state.
+
+STEP 8
+    Port face cadence fixtures.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+EVENT STREAM:
+    blinkStream := SeedTree(unitSeed).child("face/blink")
+    blinkIndex := state.blinkEventIndex
+    nextBlinkDelay := sample(blinkStream.event(blinkIndex))
+    when timer crosses event:
+        start blink
+        blinkEventIndex++
+
+EXPRESSION:
+    target[channel] := neutral[channel]
+    for expression in requestedWeights stable enum order:
+        target += profile[expression][channel] * weight
+    clamp semantic channels
+    spring(state.channel, target, omega, dt)
+
+LOOK:
+    localTarget := inverse(rootTransform) * worldTarget
+    yaw,pitch := directionAngles(localTarget)
+    clamp to phenotype/profile bounds
+    distribute head/eyes/brows per profile
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Face evaluation pure/entity-local given immutable profiles/pose root. Parallel chunks. No shared RNG object.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Nonfinite target/weights rejected or sanitized at intent boundary with diagnostics. Missing channel/morph in appearance artifact is compile/validation mismatch.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Event-indexed RNG prevents cadence/sleep from consuming different random sequence. Same ticks/intents => same semantic channels.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Variable cadence for distant presentation. Settled channel early-out. No geometry rebuild. Benchmark 10k face states at 5/15/60Hz tiers.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE expression labels/behavior and selected fixture outputs; renderer morph application belongs presentation.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    expression blend
+    blink sequence
+    saccade sequence
+    world look clamp
+    genome immutable
+    settled fast-path differential
+    cadence timer equivalence
+    eyes closed
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] identity/state split
+    [ ] event-index RNG
+    [ ] morph/bone channels
+    [ ] world look
+    [ ] sleep differential parity
+    [ ] parallel safe
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mutating genome for expression
+    Math.random/global RNG
+    camera object dependency
+    rebuilding face mesh per blink
+    skipping timers when sleeping
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] identity/state split
+    [ ] event-index RNG
+    [ ] morph/bone channels
+    [ ] world look
+    [ ] sleep differential parity
+    [ ] parallel safe
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.9 ANIMATION_LOD_AND_PARALLEL_EVALUATION.
+
+END OF CHAPTER 18.8

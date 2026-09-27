@@ -1,0 +1,220 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.5 - EQUIPMENT
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port equipment catalog/loadouts/seeded variants, anatomy fitting and procedural gear geometry while keeping equipment identity separate from biological genome and sharing the Infantry skeleton.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.4_PROCEDURAL_SURFACE_AND_APPEARANCE.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+20-slot/59-definition/10-profile SOURCE concepts at baseline, deterministic EquipmentSeed domain, overrides/null semantics, palette/wear/weight metadata, anatomy-based fit, single shared skeleton and gear batching.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No active weapon handling/firing state beyond recognizing weapon items; Stage 19 owns weapons.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/Equipment.hpp
+    modules/infantry/include/genomes/infantry/EquipmentCatalog.hpp
+    modules/infantry/include/genomes/infantry/EquipmentFit.hpp
+    modules/infantry/src/Equipment.cpp
+    modules/infantry/src/GearGenerator.cpp
+    tests/native/infantry/equipment_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Equipment data is not genome. Equipment seed derives from unit seed via separate domain stream EQUIPMENT/version; slot variant derives from stable slot+definition identity, not iteration order.
+
+2. Equipment catalog/loadouts are immutable data. Overrides explicitly replace profile slots, including null for optional empty. Required clothing null resolves documented base layer policy.
+
+3. EquipmentFit derives attachment/fitting from final phenotype/surface/skeleton landmarks in bind space. Dimensions are metres or normalized once; no double scaling.
+
+4. Gear geometry is backend-neutral skinned MeshData using the same SkeletonData as body. No gear-specific skeleton.
+
+5. Changing equipment must preserve locomotion/face/blink phase and biological identity; rebuilding appearance only where clothing/occlusion dependency requires it.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+EquipmentState: seed, loadoutId optional, canonical slot array, override mask, palette, wear, totalWeight, revision. ItemInstance: definitionId, slotId, stable seed, compact variant{size,shade,detail}.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    MATH-SCALAR-CLAMP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RNG-SEED-TREE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/equipment/equipment.js
+    SOURCE::js/equipment/equipmentCatalog.js
+    SOURCE::js/equipment/equipmentFit.js
+    SOURCE::js/equipment/gearGeometry.js
+    SOURCE::js/equipment/infantryGear.js
+    SOURCE::js/equipment/infantryLoadouts.js
+    SOURCE::docs/13_EKWIPUNEK_V10.txt
+    SOURCE::docs/14_KATALOG_EKWIPUNKU_V10.txt
+    SOURCE::tests/equipment_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Freeze slot schema/catalog/loadout data from SOURCE into native versioned catalog with stable IDs.
+
+STEP 2
+    Implement EquipmentSeed derivation and per-slot/per-definition variant streams.
+
+STEP 3
+    Implement resolve(loadout, overrides) with deterministic slot order and validation.
+
+STEP 4
+    Implement EquipmentFit semantic attachment points from phenotype/skeleton/surface clothing profile.
+
+STEP 5
+    Port procedural gear generators by category; use metres/final anatomy rather than current pose.
+
+STEP 6
+    Implement hair/headgear visibility/clipping recipe without mutating HairGenome.
+
+STEP 7
+    Batch gear into bounded mesh/material groups and shared skeleton skin weights.
+
+STEP 8
+    Implement exact no-op key so setting equivalent equipment skips expensive geometry/support-contact rebuild.
+
+STEP 9
+    Translate all SOURCE loadout smoke tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+RESOLVE EQUIPMENT:
+    equipmentSeed := seedTree(unitSeed).child("EQUIPMENT", version)
+    slots := profile.defaults
+    for slot in canonicalSlotOrder:
+        if override exists:
+            slots[slot] := override.value  // may be null
+        if item:
+            itemSeed := child(equipmentSeed, slot, item.definitionId)
+            variant := generateVariant(itemSeed)
+            validate item allowed in slot
+
+FIT ITEM:
+    bindPoint := fit.semanticPoint(item.kind, slot, phenotype, skeleton)
+    recipe := generator(item.definition.visual, variant, fit)
+    skin recipe to existing BoneIndices
+    return recipe
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Resolve/geometry generation pure per equipment state. Catalog immutable. Gear artifact cache keyed by phenotype+equipment+generator versions. Runtime changes commit at safe entity/presentation phase.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unknown ID/incompatible slot/nonfinite seed/options -> explicit error before commit. Candidate equipment/artifact built+validated before replacing active state.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical slots and separate domain streams mean adding unrelated slot does not reroll existing item/body. Side palette color does not alter item identity seed.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Build only spawn/change/detail transition. Shared materials; merge gear where compatible. No per-buckle scene object. Cache identical resolved state.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve catalog IDs/loadouts from SOURCE and fixture exactness where gameplay data. Visual shape invariant/visual parity, not Three.js buffers.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    all loadouts resolve
+    slot overrides/null
+    seed isolation
+    genome independence
+    fit finite for phenotype extremes
+    one skeleton
+    hair restore after headgear
+    equivalent equipment no-op
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] catalog/loadouts ported
+    [ ] separate RNG domain
+    [ ] fit semantic
+    [ ] single skeleton gear
+    [ ] candidate-before-commit
+    [ ] no-op cache
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    role mutates genome
+    Math.random/global RNG
+    second skeleton
+    current animated pose used as bind fit
+    one draw/scene object per accessory by default
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] catalog/loadouts ported
+    [ ] separate RNG domain
+    [ ] fit semantic
+    [ ] single skeleton gear
+    [ ] candidate-before-commit
+    [ ] no-op cache
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.6 LOCOMOTION_AND_POSTURE.
+
+END OF CHAPTER 18.5

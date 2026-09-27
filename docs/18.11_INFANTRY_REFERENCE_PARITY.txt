@@ -1,0 +1,232 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.11 - INFANTRY_REFERENCE_PARITY
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Execute the Infantry parity gate across genome, phenotype, rig, appearance, equipment, locomotion, IK, face, animation cadence and damage/ragdoll integration.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.1_INFANTRY_MODULE_BOUNDARY.txt
+    TARGET::docs/18.2_INFANTRY_GENOME_AND_PHENOTYPE.txt
+    TARGET::docs/18.3_RIG_AND_SKELETON.txt
+    TARGET::docs/18.4_PROCEDURAL_SURFACE_AND_APPEARANCE.txt
+    TARGET::docs/18.5_EQUIPMENT.txt
+    TARGET::docs/18.6_LOCOMOTION_AND_POSTURE.txt
+    TARGET::docs/18.7_IK_AND_GROUND_CONTACT.txt
+    TARGET::docs/18.8_FACE_AND_EXPRESSION.txt
+    TARGET::docs/18.9_ANIMATION_LOD_AND_PARALLEL_EVALUATION.txt
+    TARGET::docs/18.10_INFANTRY_DAMAGE_AND_RAGDOLL.txt
+    TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The complete SOURCE Infantry acceptance/test surface listed by 0.2, including cache policies, interleaved generation, pose/contact behavior and visual research evidence.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No SOURCE deletion and no final weapons/combat AI integration.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    reference/fixtures/infantry/README.txt
+    reference/fixtures/infantry/*.json
+    reference/golden/infantry/*
+    tools/reference/export_infantry_reference.*
+    tests/native/parity/infantry_parity_tests.cpp
+    docs/parity/18.11_INFANTRY_PARITY_REPORT.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Fixture provenance exact SOURCE commit/generator infantry version. Separate exact/numeric/structural/behavioral/visual parity; do not demand identical native mesh binary layout.
+
+2. Seeded genome/selected phenotype fields require strongest feasible parity; topology/appearance validated by invariants plus selected golden metrics/images.
+
+3. All current Infantry tests in 0.2 map to native tests or stronger superseding case; no unowned test.
+
+4. Parallel generation/evaluation must match 1-worker semantic outputs for deterministic artifacts/channels.
+
+5. Successful parity makes native Infantry eligible for integrated game, but SOURCE remains reference until 20.7.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Fixture families genome/, phenotype/, rig/, appearance/, equipment/, locomotion/, face/, damage/. Visual goldens kept minimal and accompanied by semantic metrics.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    MATH-QUAT-SLERP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::tests/appearance_cache_policy.cjs
+    SOURCE::tests/equipment_smoke.cjs
+    SOURCE::tests/infantry_surface_interleave.cjs
+    SOURCE::tests/locomotion_smoke.cjs
+    SOURCE::tests/posture_smoke.cjs
+    SOURCE::tests/sprint_smoke.cjs
+    SOURCE::tests/infantry_face_cadence.cjs
+    SOURCE::tests/infantry_lazy_physics.cjs
+    SOURCE::tests/infantry_damage_runtime.cjs
+    SOURCE::docs/research/anatomy_rig_audit.md
+    SOURCE::docs/research/face_expression_audit.md
+    SOURCE::docs/research/genome_distribution_audit.md
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Pin SOURCE commit and export representative seed matrix: low/mid/high body genes, face/hair styles, all loadouts, locomotion states, expressions.
+
+STEP 2
+    Export semantic arrays/metrics instead of Three.js object graphs: dimensions, bone bind transforms, counts/bounds, morph hashes, equipment resolved slots, pose channels.
+
+STEP 3
+    Implement native comparators with explicit per-field tolerances/invariants.
+
+STEP 4
+    Run generation interleave and 1/N worker artifact tests.
+
+STEP 5
+    Run locomotion/sprint/posture/IK/face cadence deterministic fixtures over long tick sequences.
+
+STEP 6
+    Run cache/lifetime tests and ragdoll lazy creation/integration.
+
+STEP 7
+    Produce mapping table for every SOURCE Infantry/equipment test and research golden.
+
+STEP 8
+    Commit parity report; unresolved visual/manual issues remain explicit blockers/owner.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SEED MATRIX:
+    seeds := fixed representative + edge seeds
+    for seed in seeds:
+        expected := fixture(seed)
+        native := generateNative(seed, same options)
+        compare genome exact/version policy
+        compare phenotype numeric
+        validate rig hierarchy
+        validate appearance topology/metrics
+        compare pose sequences by tick
+
+PARALLEL:
+    serial := generate all in stable order workers=1
+    parallel := generate same workers=N/interleaved
+    require semantic artifact hashes == serial
+
+TEST MAP:
+    for each SOURCE test in Infantry group:
+        require nativeTestId or explicit SupersededBy stronger test
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Parity exercises interleaved generation and batch animation worker counts. Visual golden capture is presentation-only.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Missing fixture/test mapping fails parity report. SOURCE inaccessible blocks regeneration only.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Artifact hashes and seeded channels stable. Physics ragdoll trajectory compared by invariant/tolerance, not arbitrary bitwise.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Record appearance generation/cache, animation tiers, hit-volume update, active ragdolls. No legacy browser FPS equivalence claim.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Update 0.2 status after pass. SOURCE docs/research remain reference.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    complete exported matrix
+    all SOURCE test mapping
+    1/N artifact parity
+    long pose sequences
+    cache lifetime
+    visual golden review hooks
+    ragdoll invariant
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] SOURCE pinned
+    [ ] all test requirements mapped
+    [ ] artifact parity
+    [ ] animation parity
+    [ ] cache parity
+    [ ] parallel parity
+    [ ] report committed
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    dropping hard visual/anatomy regressions as 'different engine' without versioned decision
+    replacing historical golden in place
+    deleting SOURCE
+    camera-dependent semantic parity
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] SOURCE pinned
+    [ ] all test requirements mapped
+    [ ] artifact parity
+    [ ] animation parity
+    [ ] cache parity
+    [ ] parallel parity
+    [ ] report committed
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Stage 18 complete. Continue with Stage 19 Weapons / Combat / AI.
+
+END OF CHAPTER 18.11

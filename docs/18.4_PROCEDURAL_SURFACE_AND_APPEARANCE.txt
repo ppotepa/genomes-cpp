@@ -1,0 +1,231 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 18.4 - PROCEDURAL_SURFACE_AND_APPEARANCE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+Port procedural body/face/hair surface generation into deterministic GeometryRecipe/MeshData artifacts compiled from phenotype and rig, including holes, morph targets, skin weights and appearance caching.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+    TARGET::docs/18.3_RIG_AND_SKELETON.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+    TARGET::docs/5.5_ARTIFACT_CACHE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Continuous neck/head profile, actual eye/mouth openings, separate nose/ears/hair geometry, up to four normalized influences, eyelidsClose/eyelidsArc/neckFlex morphs, hair styles/identity, shared skeleton and cache/no-shared-mutable-builder fixes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+No equipment gear geometry (18.5) and no runtime animation weights.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/infantry/include/genomes/infantry/AppearanceArtifact.hpp
+    modules/infantry/src/SurfaceBuilder.cpp
+    modules/infantry/src/FaceSurfaceBuilder.cpp
+    modules/infantry/src/HairBuilder.cpp
+    modules/infantry/src/AppearanceCompiler.cpp
+    tests/native/infantry/appearance_tests.cpp
+    benchmarks/infantry/appearance_generation_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Appearance generation consumes immutable phenotype+skeleton+appearance genes/options and produces backend-neutral MeshData/skin/morph artifacts. No live renderer objects.
+
+2. Skin has real topological eye/mouth openings and connected neck/head transition; hidden caps/shader masking may not replace topology where SOURCE contract requires opening.
+
+3. Each skinned vertex has <=4 normalized influences with stable BoneIndex values. Morph targets store relative deltas/normals and are generated once.
+
+4. Hair genome identity is immutable; headgear clipping later produces presentation/gear visibility mask without mutating hair style.
+
+5. Appearance cache key includes all geometry-affecting phenotype/generator/detail inputs and excludes runtime pose/emotion/equipment unless geometry actually depends on equipment layer compile.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+AppearanceArtifact contains body MeshData, optional hair/detail submeshes, skinIndices/weights, morph target arrays, material region IDs, bounds and version/hash. Keep source builder scratch in GenerationArena.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    MATH-VEC-NORMALIZE-001
+    MATH-POLY-SIGNED-AREA-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/rendering/surfaceBuilder.js
+    SOURCE::js/rendering/infantrySurface.js
+    SOURCE::js/rendering/infantryFace.js
+    SOURCE::js/rendering/infantryHair.js
+    SOURCE::js/rendering/infantryMaterials.js
+    SOURCE::js/rendering/appearanceCache.js
+    SOURCE::docs/02_MODEL_GENOM_SZKIELET.txt
+    SOURCE::docs/09_FACE_GENOME_MIMIKA.txt
+    SOURCE::tests/appearance_cache_policy.cjs
+    SOURCE::tests/infantry_surface_interleave.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Port generic surface ring/profile builder using local GenerationContext scratch; remove shared module mutable state.
+
+STEP 2
+    Generate torso/limbs/neck/head from phenotype profiles; preserve seam/index continuity where required.
+
+STEP 3
+    Generate eye/mouth openings and surrounding rings/interior surfaces.
+
+STEP 4
+    Generate face details/eyes/nose/ears/brows from final FacePhenotype landmarks.
+
+STEP 5
+    Generate hair by seven style families; bald emits no mesh; seeded variation comes from appearance stream.
+
+STEP 6
+    Assign <=4 normalized skin influences and validate sum/indices.
+
+STEP 7
+    Generate three baseline morph targets with relative deltas/normals.
+
+STEP 8
+    Implement exact-key AppearanceArtifact cache with ref/lifetime policy from Stage 5/assets.
+
+STEP 9
+    Benchmark generation and cache hit for many unique/duplicate phenotypes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BUILD APPEARANCE:
+    key := hash(generatorVersion, phenotypeHash, appearanceGenes, detailLevel)
+    if cache.contains(key):
+        return cache.acquire(key)
+
+    ctx := GenerationArena scoped
+    body := buildBodySurface(ctx, phenotype)
+    face := buildFaceOpeningsAndDetails(ctx, phenotype.face)
+    skin := assignSkinWeights(body+face, skeleton)
+    morphs := buildMorphTargets(...)
+    hair := buildHair(...)
+    validateMeshSkinMorphs(...)
+    artifact := finalize immutable arrays
+    cache.commit(key, artifact)
+    return artifact
+
+WEIGHTS:
+    select semantic candidate bones
+    retain top <=4 positive weights
+    normalize sum to 1
+    require finite
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each build owns GenerationContext/scratch. Cache commit synchronized by artifact key with duplicate-build race policy (first wins/discard duplicate or shared future). No shared mutable builder globals.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid topology/nonfinite vertex/weight/morph mismatch fails artifact generation with trace. Cache failure does not return partial geometry.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Vertex/index emission order stable for same generator version. Hair/appearance random streams independent of job order and equipment.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No per-frame generation. Cache exact hits. Final arrays tightly packed. Avoid one object per vertex. Benchmark memory retained and build peak.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Use selected SOURCE geometry/bounds/morph invariants rather than requiring Three.js binary layout. Preserve research images as visual reference.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    surface finite/simple checks
+    neck continuity
+    eye/mouth openings
+    weight <=4 and sum
+    morph lengths/normals
+    hair style deterministic/bald empty
+    parallel interleave
+    cache exact/no-op
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] backend-neutral appearance artifact
+    [ ] topological openings
+    [ ] skin validation
+    [ ] three morphs
+    [ ] hair deterministic
+    [ ] parallel-safe builder
+    [ ] cache benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    THREE/Diligent objects in generator
+    shader-only fake openings
+    mutating genome for headgear
+    per-frame mesh rebuild
+    global builder scratch
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] backend-neutral appearance artifact
+    [ ] topological openings
+    [ ] skin validation
+    [ ] three morphs
+    [ ] hair deterministic
+    [ ] parallel-safe builder
+    [ ] cache benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with 18.5 EQUIPMENT.
+
+END OF CHAPTER 18.4
