@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.4 - TERRAIN_RENDER_COMPILER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile TerrainArtifact into render recipes/GPU resources with region chunks, skirts/seam handling, LOD and material field sampling without making render geometry authoritative.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.3_TERRAIN_MULTICORE_GENERATION.txt
+    TARGET::docs/7.5_GPU_SCENE_DATABASE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE chunk culling and shared semantic heights while replacing Three.js BufferGeometry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/terrain/render/TerrainRenderCompiler.hpp
+    modules/terrain/render/TerrainRenderCompiler.cpp
+    engine/render/passes/TerrainPass.*
+    shaders/terrain.hlsl
+    tests/native/terrain/terrain_render_compile_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Compiler input immutable TerrainArtifact + render profile; output RenderArtifact/mesh pages referencing GPU handles only in render layer.
+
+2. Terrain LOD uses same authoritative height samples/downsample policy; borders match adjacent LOD via skirts/stitch indices or clipmap strategy chosen here and tested.
+
+3. Chunk bounds are exact/conservative from height range and world bounds, enabling GPU/CPU culling.
+
+4. Material coloring moves to shader field/texture or compiled vertex data but does not alter semantic height.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Choose initial chunked grid LOD implementation rather than full clipmap complexity; document chunk size/index reuse.
+
+STEP 2
+    Build shared index buffers per resolution/LOD where topology same.
+
+STEP 3
+    Upload per-region height/material texture or vertex heights according benchmark; prefer height texture for reusable grid topology.
+
+STEP 4
+    Create chunk instance records/bounds in GPUScene.
+
+STEP 5
+    Implement seam test across adjacent same/different LOD chunks.
+
+STEP 6
+    Add render debug wireframe/chunk bounds channel.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMPILE REGION:
+    upload height field texture/buffer
+    for chunk in region grid:
+        record.origin := chunkOrigin
+        record.heightRange := minmax
+        record.lodSet := sharedGridMeshes
+        gpuScene.addTerrainChunk(record)
+
+VERTEX SHADER:
+    localGridXZ -> sample height -> world/local position
+    normal from field or finite difference texture
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Compiler runs off render thread for CPU recipe prep; GPU resource creation/upload is staged through render service, never direct from generator jobs.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Visual LOD may depend on camera; mesh semantic height samples remain fixed.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Reuse index/topology buffers, chunk cull, avoid unique full vertex buffers when height textures are more efficient; benchmark both if needed.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Do not preserve Three.js object structure. Preserve terrain appearance/function and chunk culling capability.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    compile bounds
+    shared topology
+    seam continuity
+    height sample vs render source
+    region unload releases deferred
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] renderer-independent input
+    [ ] chunk LOD
+    [ ] seams valid
+    [ ] GPUScene integration
+    [ ] no semantic mutation
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    render mesh as terrain query source
+    unique index buffer per chunk
+    generator creating Diligent resources
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] renderer-independent input
+    [ ] chunk LOD
+    [ ] seams valid
+    [ ] GPUScene integration
+    [ ] no semantic mutation
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.4
