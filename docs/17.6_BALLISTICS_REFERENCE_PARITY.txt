@@ -1,0 +1,207 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 17.6 - BALLISTICS_REFERENCE_PARITY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create complete SOURCE-to-TARGET ballistic fixtures and acceptance mapping covering
+flight energy, layered contacts, sequential obstacles, penetration/ricochet,
+trace state, HE/fragmentation, ground/timeout and render independence.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/17.5_BALLISTICS_BATCHING_AND_SIMD.txt
+    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
+    TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE projectile-state-3/projectile-trace-3, ammunition strategy profiles,
+energy acceptance scenarios and current calibration checkpoints as game-model
+behavior, with explicit known simplifications.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    reference/fixtures/ballistics/
+    reference/schemas/ballistics_fixture_v1.txt
+    tools/reference_export/ballistics_export.*
+    tests/native/parity/ballistics_parity_tests.cpp
+    docs/reports/BALLISTICS_PARITY_V1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Fixture groups include free flight no drag/gravity, gravity energy, drag, thin/thick material, sequential walls, reversed layered wall, glass-air-glass, technical physicalSolidId split, ricochet/glance angle sweeps, penetration/dent, HE detonation, fragment profiles, ground-contact and tracking-limit.
+
+2. Projectile fixture stores state/ledger/contact records with tolerances and terminal reason. Trace presentation geometry/color is not authoritative, but semantic trace segments/contact boundaries/parent-child IDs/history grouping are parity data where current contract requires.
+
+3. Render OFF/ON or presentation filtering must never affect tick/contact/energy results. Native parity runs headless and optionally with renderer to prove independence.
+
+4. Calibration report labels narrow sourced checkpoints vs gameplay-only material outcomes; native coefficients are not upgraded to real-world claims.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::docs/destruction/energy-acceptance.md
+    SOURCE::docs/destruction/ballistics-calibration.md
+    SOURCE::js/destruction/projectileState.js
+    SOURCE::js/destruction/projectileTrace.js
+    SOURCE::tests/destruction_projectile.cjs
+    SOURCE::tests/destruction_trace.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Create SOURCE exporter that builds isolated BallisticsWorld fixtures and records canonical projectile/contact/ledger state without presentation objects.
+
+STEP 2
+    Export scenario matrix from energy-acceptance plus automated current tests; pin exact SOURCE commit/profile versions.
+
+STEP 3
+    Implement native fixture runner at fixed tick and compare numerical state with explicit absolute/relative tolerances and categorical outcomes exactly.
+
+STEP 4
+    Add native trace recorder parity for ShotId/TraceId/ParentTraceId, contact/material boundaries, idempotent finish and ten-group history policy if retained.
+
+STEP 5
+    Run 1/N worker and render enabled/disabled native variants on identical fixtures.
+
+STEP 6
+    Generate BALLISTICS_PARITY_V1 report and document intentional numerical/model changes by profile version.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR scenario:
+    source := expected fixture
+    native := runHeadlessFixedTicks(input)
+
+    compare terminal state/reason
+    compare contact count/order/material/physicalSolidId
+    compare energies/velocities/travel within tolerance
+    compare ledger categories and residual threshold
+    compare fragment parent IDs/count/mass/energy accounting
+    if trace semantic fixture:
+        compare boundaries/groups/finish idempotence
+
+    rerun native with N workers
+    assert semantic hash/allowed numeric parity
+
+    optional renderer run:
+        assert identical authoritative results
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Parity cases isolated/parallel. Reports stable-sort by fixture ID. Renderer parity run separate from simulation output collection.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Any unexplained energy creation, missing ledger category, wrong layer/contact boundary, render-dependent outcome or lost child-parent relation is hard regression.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixtures pin SOURCE commit/profile/version/seeds. Native worker/render modes must not change categorical outcomes or deterministic state beyond documented floating tolerance.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Correctness suite not timing gate. 17.5 owns throughput; parity report may record relative performance only as context.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Passing 17.6 plus 16.8 makes destruction/ballistics SOURCE implementation reference-only, subject to full world/combat parity Stage20.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    all acceptance groups
+    trace semantics
+    1/N worker
+    render independence
+    catalog profile mapping
+    provenance
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] fixture matrix complete
+    [ ] energy/contact parity
+    [ ] HE/fragment parity
+    [ ] ground/timeout parity
+    [ ] trace semantic parity
+    [ ] render independence
+    [ ] zero unapproved regressions
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    changing calibration fixture values to fit native output
+    treating trace render strip as simulation truth
+    omitting unrepresented energy
+    claiming scientific ballistic validity from gameplay parity
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] fixture matrix complete
+    [ ] energy/contact parity
+    [ ] HE/fragment parity
+    [ ] ground/timeout parity
+    [ ] trace semantic parity
+    [ ] render independence
+    [ ] zero unapproved regressions
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next ballistics chapter.
+
+END OF CHAPTER 17.6
