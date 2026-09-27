@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.8 - DEBUG_RENDERING_AND_PROFILING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement renderer diagnostics, GPU timing and debug primitive rendering without contaminating semantic systems or forcing debug overhead in production.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.4_RENDER_GRAPH.txt
+    TARGET::docs/7.7_GPU_CULLING_LOD_AND_INDIRECT_DRAWS.txt
+    TARGET::docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/debug/DebugDraw.hpp
+    engine/render/debug/DebugRenderer.cpp
+    engine/render/profiling/GpuProfiler.hpp
+    engine/render/profiling/GpuProfiler.cpp
+    shaders/debug_draw.hlsl
+    tests/native/render/debug_draw_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. DebugDraw receives semantic primitives Point/Line/Polyline/AABB/OBB/Polygon/Text marker with world coordinates and lifetime frames/seconds; producers never create GPU buffers.
+
+2. Debug channels are bitset/stable IDs and can be disabled before payload allocation where possible.
+
+3. GPU profiler wraps RenderGraph passes with timestamp queries when capability supports it; reports pass GPU duration, CPU record duration and queue.
+
+4. Profiler readback is delayed/nonblocking; never stall current frame waiting for timestamp results.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Diligent Tutorial 18 queries
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement thread/job-local DebugDraw command buffers merged per frame.
+
+STEP 2
+    Implement bounded memory and channel filtering.
+
+STEP 3
+    Build one/few dynamic GPU buffers per frame for lines/triangles instead of object-per-primitive.
+
+STEP 4
+    Implement timestamp query pool tied to frames-in-flight and delayed resolve.
+
+STEP 5
+    Export frame profile JSON with pass names/queue/durations/counters.
+
+STEP 6
+    Add no-op compile/runtime path for shipping configuration.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DEBUG EMIT:
+    if !channelEnabled: return
+    local.commands.push(primitive)
+
+FRAME:
+    merged := gather local commands
+    encode vertices into frame upload buffer
+    RenderGraph.addPass(DebugDraw)
+
+PROFILE PASS:
+    writeTimestamp(begin)
+    execute pass
+    writeTimestamp(end)
+    resolve on frame N+k when ready
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    channel filtering
+    lifetime expiration
+    bounded overflow
+    parallel merge
+    profiler unavailable capability fallback
+    no blocking current frame
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] batched debug draw
+    [ ] bounded channels
+    [ ] GPU pass timings
+    [ ] delayed readback
+    [ ] shipping disable path
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one mesh/object per debug line
+    GPU query blocking same frame
+    domain module including profiler backend headers
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] batched debug draw
+    [ ] bounded channels
+    [ ] GPU pass timings
+    [ ] delayed readback
+    [ ] shipping disable path
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.8
