@@ -1,0 +1,188 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.2 - RENDER_DEVICE_HANDLES_AND_CAPABILITIES
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define Genomes-owned GPU resource handles, capability model and resource lifetime tracking so higher renderer layers are backend-neutral but can still use modern features explicitly.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.1_DILIGENT_BOOTSTRAP.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/core/include/genomes/render/RenderHandles.hpp
+    engine/render/core/include/genomes/render/RenderCapabilities.hpp
+    engine/render/core/include/genomes/render/ResourceDesc.hpp
+    engine/render/diligent/DiligentResources.cpp
+    tests/native/render/render_handle_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. BufferHandle/TextureHandle/SamplerHandle/PipelineHandle use generational handles; stale handle access fails diagnostics in development and typed error in public lookup.
+
+2. RenderCapabilities explicitly reports backend, API version, bindless/resource indexing, compute, async compute queue availability, indirect draw, mesh shaders, ray tracing, timestamp queries, limits/alignment.
+
+3. Resource descriptors are Genomes types with usage/bind flags; Diligent translation is centralized.
+
+4. Resource destruction is deferred until GPU fence/frame retirement guarantees no in-flight use.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement generational resource pools per resource class.
+
+STEP 2
+    Implement descriptor translation tables to Diligent enums with exhaustive switches.
+
+STEP 3
+    Query device features/limits once at backend init and freeze RenderCapabilities.
+
+STEP 4
+    Implement DeferredReleaseQueue keyed by frame/fence serial.
+
+STEP 5
+    Implement debug labels from stable semantic names/IDs.
+
+STEP 6
+    Test create/destroy/reuse generations with fake/null backend where possible.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE BUFFER:
+    slot := pool.acquire()
+    native := diligent.createBuffer(translate(desc))
+    slot.generation += reusePolicy
+    slot.native = native
+    return BufferHandle(slot.index,slot.generation)
+
+DESTROY(handle):
+    slot := validate(handle)
+    enqueueDeferredRelease(slot.native,currentFence)
+    invalidate slot generation
+
+RETIRE:
+    while queue.front.fence <= completedFence:
+        release native
+        recycle slot
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    stale handle
+    descriptor translation
+    deferred release
+    capability serialization/debug print
+    generation wrap policy
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] all public handles Genomes-owned
+    [ ] capabilities frozen
+    [ ] deferred destruction
+    [ ] stale detection
+    [ ] no backend enum leakage
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raw RefCntAutoPtr in world/module headers
+    immediate destroy of in-flight resource
+    lowest-common-denominator capability hiding
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] all public handles Genomes-owned
+    [ ] capabilities frozen
+    [ ] deferred destruction
+    [ ] stale detection
+    [ ] no backend enum leakage
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.2
