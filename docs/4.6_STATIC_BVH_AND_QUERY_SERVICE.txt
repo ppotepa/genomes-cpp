@@ -1,0 +1,195 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 4.6 - STATIC_BVH_AND_QUERY_SERVICE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement immutable static BVH and a common query facade for region geometry/buildings while keeping dynamic broadphase separate.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+    TARGET::docs/4.5_SPATIAL_HASH_AND_DYNAMIC_GRID.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/spatial/include/genomes/spatial/Bvh.hpp
+    engine/spatial/include/genomes/spatial/SpatialQuery.hpp
+    engine/spatial/src/Bvh.cpp
+    engine/spatial/src/SpatialQuery.cpp
+    tests/native/spatial/bvh_tests.cpp
+    benchmarks/spatial/bvh_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. BVH build consumes primitives with AABB + stable primitive ID; stored leaves reference IDs/ranges, not domain pointers.
+
+2. Initial build uses binned SAH or median fallback with deterministic tie-breaking. Node array is flat contiguous.
+
+3. Ray/segment/AABB query returns candidate IDs; domain narrow phase is separate unless triangle primitive backend explicitly used.
+
+4. SpatialQuery service combines static BVH + dynamic grid sources and labels source/type; it does not own domain objects.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-AABB-001
+    MATH-BVH-SAH-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-RAY-AABB-SLAB-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    REF-ERICSON-RTCD
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement Aabb3 and slab ray/AABB robust zero-direction handling if not in math layer.
+
+STEP 2
+    Build flat BVH recursively/iteratively; choose binned SAH with stable ID tie break, median for tiny partitions.
+
+STEP 3
+    Store child indices/leaf range in 32-bit fields where limits allow; assert build limits.
+
+STEP 4
+    Implement stack-based ray query using caller scratch stack; near child first for ray.
+
+STEP 5
+    Implement AABB overlap query.
+
+STEP 6
+    Add SpatialQuery facade that merges static/dynamic candidate sets without semantic sorting unless caller requests stable order.
+
+STEP 7
+    Benchmark build time, memory, 10k rays vs brute force.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BUILD(range):
+    bounds := union all
+    if count <= leafThreshold: emit leaf
+    split := chooseSAH(range)
+    if invalid split: stableMedianSplit
+    node.left := BUILD(left)
+    node.right := BUILD(right)
+
+RAY QUERY:
+    stack.push(root)
+    while stack:
+        node := pop
+        if !rayAabb(node.bounds): continue
+        if leaf: append primitive IDs
+        else push children near-first
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    ray miss/hit
+    zero direction
+    AABB overlap
+    random brute force parity
+    deterministic build node hash for equal inputs
+    empty BVH
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] flat nodes
+    [ ] stable build
+    [ ] ray/AABB query parity
+    [ ] caller scratch
+    [ ] static/dynamic query facade
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    domain pointers in BVH
+    recursive heap allocations per node
+    assuming unordered build partition order stable
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] flat nodes
+    [ ] stable build
+    [ ] ray/AABB query parity
+    [ ] caller scratch
+    [ ] static/dynamic query facade
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 4.6
