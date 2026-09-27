@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.1 - TERRAIN_SEMANTIC_MODEL
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define renderer-independent TerrainSpec, HeightFieldArtifact, terrain sampling, material/slope fields and region-tile ownership as the authoritative terrain model.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+    TARGET::docs/6.1_WORLD_COORDINATES_AND_REGION_IDS.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE terrain principle: one authoritative retained height field drives rendering, unit/world queries and later road/building grading.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/terrain/CMakeLists.txt
+    modules/terrain/include/genomes/terrain/TerrainSpec.hpp
+    modules/terrain/include/genomes/terrain/HeightField.hpp
+    modules/terrain/include/genomes/terrain/TerrainArtifact.hpp
+    modules/terrain/include/genomes/terrain/TerrainSampler.hpp
+    tests/native/terrain/terrain_model_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. TerrainSpec includes world/region extent, sample resolution, generator version/seed path and optional biome/material parameters. Resolution is samples per axis/cell size, never inferred from renderer mesh.
+
+2. HeightField stores row-major float or quantized height samples plus explicit origin/cellSize/dimensions. Sampling APIs: nearest grid, bilinear height, gradient/normal using documented boundary policy.
+
+3. TerrainArtifact may reference adjacent region border samples/ghost ring to guarantee seam-consistent normals and sampling.
+
+4. Road/pad grading produces a new versioned terrain artifact/patch overlay; it does not mutate hidden render geometry.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+HeightField: contiguous row-major heights, optional material/slope fields in separate arrays. Index = z*width+x. Region borders duplicate or reference one canonical edge policy explicitly.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-COORD-002
+    MATH-SCALAR-LERP-001
+    MATH-SCALAR-SMOOTHSTEP-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/terrain.js
+    SOURCE::tests/terrain_build_async.cjs
+    SOURCE::tests/terrain_worker_parity.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define TerrainSpec/HeightField with overflow-safe allocation limits.
+
+STEP 2
+    Implement bilinear sample and finite-difference gradient/normal on authoritative heights.
+
+STEP 3
+    Define TerrainPatch/Modification layer for grading; choose immutable base + compiled patched result for v1.
+
+STEP 4
+    Define artifact bounds/provenance and seam policy.
+
+STEP 5
+    Add synthetic plane/slope/sinusoid tests and negative/world coordinate conversion tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BILINEAR:
+    gx := (x-origin.x)/cellSize
+    gz := (z-origin.z)/cellSize
+    ix := floor(gx); iz := floor(gz)
+    fx := gx-ix; fz := gz-iz
+    h00,h10,h01,h11 := bounded samples
+    return lerp(lerp(h00,h10,fx),lerp(h01,h11,fx),fz)
+
+NORMAL:
+    dx := (height(x+e,z)-height(x-e,z))/(2e)
+    dz := (height(x,z+e)-height(x,z-e))/(2e)
+    return normalize((-dx,1,-dz))
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published height fields are immutable. Parallel generators write disjoint rows/tiles into candidate buffers before publish.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Sample output for a frozen artifact is independent of renderer/GPU. Border policy deterministic across region generation order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Height sample O(1), no raycast/no noise recompute. Contiguous fields and ghost-border layout support SIMD/cache-friendly row processing.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE::js/terrain.js remains baseline. Native model must preserve O(1) authoritative sampling and grading semantics before SOURCE retirement.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    bilinear exact plane
+    normal slope
+    boundary policy
+    artifact immutability
+    seam border equality
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] semantic terrain independent renderer
+    [ ] O(1) sample
+    [ ] authoritative field
+    [ ] grading represented semantically
+    [ ] seam policy tested
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raycast terrain for routine height
+    recompute FBM per movement sample
+    render mesh as source of truth
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] semantic terrain independent renderer
+    [ ] O(1) sample
+    [ ] authoritative field
+    [ ] grading represented semantically
+    [ ] seam policy tested
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.1
