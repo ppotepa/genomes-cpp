@@ -1,0 +1,192 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.3 - SHADER_AND_PIPELINE_ASSETS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create deterministic shader/pipeline asset compilation, reflection and caching policy with Diligent resource signatures/SRB usage hidden behind renderer-owned descriptors.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.2_RENDER_DEVICE_HANDLES_AND_CAPABILITIES.txt
+    TARGET::docs/5.5_ARTIFACT_CACHE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/core/include/genomes/render/ShaderAsset.hpp
+    engine/render/core/include/genomes/render/PipelineAsset.hpp
+    engine/render/core/include/genomes/render/ShaderReflection.hpp
+    engine/render/diligent/DiligentPipeline.cpp
+    tools/shader_compiler/
+    tests/native/render/shader_asset_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Shader source language baseline is HLSL-style source compiled/cross-compiled through approved Diligent toolchain/backend path; exact compiler/version becomes part of shader cache key.
+
+2. ShaderAsset key includes source hash, include dependency hashes, entry point, stage, defines, compiler/backend target/version.
+
+3. PipelineAsset contains immutable render/compute state, vertex layout signature, resource layout signature and shader refs.
+
+4. Diligent static/mutable/dynamic resource binding policy is chosen intentionally: frame-global/static data does not become per-draw dynamic binding; persistent material/instance data aims toward bindless/indexed tables when capability allows.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Diligent official Using the API - shader resource binding
+    Diligent Tutorial 16 bindless resources
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define canonical shader source/include resolver independent from current working directory.
+
+STEP 2
+    Implement preprocessor dependency fingerprint and fail on untracked include.
+
+STEP 3
+    Compile shaders at build/tool time where practical; runtime developer compile allowed behind explicit mode.
+
+STEP 4
+    Reflect resource bindings and validate expected signature.
+
+STEP 5
+    Create Diligent pipeline/resource signature/SRB implementation; cache by immutable PipelineAsset key.
+
+STEP 6
+    Add shader compile error diagnostics preserving source path/line and generated backend logs.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SHADER KEY:
+    key := hash(
+        compilerVersion,
+        backendTarget,
+        sourceContent,
+        sorted(includePath,includeHash),
+        entry,
+        stage,
+        sorted(defines)
+    )
+
+PIPELINE:
+    if cache.contains(key): return handle
+    shaders := loadCompiled()
+    validateReflection()
+    nativePSO := createPipeline(translate(desc))
+    cache.publish(key,nativePSO)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    same inputs same shader key
+    include change invalidates
+    define order normalized
+    reflection mismatch fails
+    pipeline cache hit
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] versioned shader keys
+    [ ] include provenance
+    [ ] reflection validation
+    [ ] binding classes deliberate
+    [ ] compile diagnostics
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    runtime file timestamp as sole cache key
+    string-name resource lookups per draw in hot path
+    dynamic SRB for all resources by default
+    shader compiler version omitted
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] versioned shader keys
+    [ ] include provenance
+    [ ] reflection validation
+    [ ] binding classes deliberate
+    [ ] compile diagnostics
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.3
