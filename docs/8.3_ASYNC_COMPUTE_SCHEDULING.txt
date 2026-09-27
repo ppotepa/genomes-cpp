@@ -1,0 +1,188 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 8.3 - ASYNC_COMPUTE_SCHEDULING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Add queue-aware scheduling so independent compute workloads can overlap graphics where hardware/backend allows without assuming async compute is always faster.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.2_DILIGENT_COMPUTE_BACKEND.txt
+    TARGET::docs/7.4_RENDER_GRAPH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+GPU compute is an acceleration/backend service. Authoritative gameplay remains
+correct with CPU fallback unless a later chapter explicitly changes that rule.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+CUDA fast paths and domain-specific kernels introduced by later stages.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/graph/include/genomes/render/graph/QueueClass.hpp
+    engine/render/graph/src/QueueScheduler.cpp
+    engine/compute/include/genomes/compute/AsyncComputePolicy.hpp
+    tests/native/compute/async_compute_tests.cpp
+    benchmarks/compute/async_overlap_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. QueueClass = Graphics, Compute, Transfer. Pass expresses preference/requirement; graph compiler may collapse to Graphics if separate queue unavailable.
+
+2. Cross-queue dependency emits explicit fence/semaphore ownership synchronization; logical resource hazards remain graph-derived.
+
+3. AsyncComputePolicy can disable globally, whitelist kernels/passes, or enable Auto benchmark-informed mode.
+
+4. No correctness depends on overlap. Same graph executes serially on one queue.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compute inputs/outputs are explicit buffer/view descriptors with versioned kernel parameter blocks; no backend-native pointer leakage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Extend RenderCapabilities with actual queue topology/capabilities.
+
+STEP 2
+    Extend graph compiler to assign queue and insert cross-queue sync edges.
+
+STEP 3
+    Implement conservative policy: compute pass moves to async queue only if no immediate graphics dependency and resource ownership supported.
+
+STEP 4
+    Add timeline visualization/trace showing graphics/compute overlap.
+
+STEP 5
+    Benchmark representative compute+graphics synthetic workload and store diagnostics, not universal enable decision.
+
+STEP 6
+    Add fallback path to one immediate context/queue.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+ASSIGN QUEUE:
+    for pass in topo:
+        if pass.prefersCompute
+           and caps.separateCompute
+           and policy.allows(pass)
+           and estimatedSyncCost acceptable:
+            queue := Compute
+        else:
+            queue := Graphics
+
+CROSS QUEUE EDGE:
+    producer.signal(fenceValue)
+    consumer.wait(fenceValue)
+    transition ownership/state as backend requires
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU prepares immutable dispatch inputs; backend owns GPU resources and synchronization. Readbacks become visible only after completion tokens/fences.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported GPU feature selects explicit CPU/fallback path where allowed; shader/dispatch failures return typed errors and diagnostics.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+GPU-derived advisory fields may be numerically non-bitwise-identical across hardware; authoritative CPU state cannot depend on undocumented nondeterministic reductions.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch dispatches, avoid CPU/GPU ping-pong, measure transfer cost separately from kernel cost and prefer GPU-resident pipelines.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET compute service is new infrastructure; SOURCE has no equivalent general
+compute layer and remains reference for domain outputs only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single queue fallback
+    graphics->compute dependency
+    compute->graphics dependency
+    independent overlap schedule
+    no missing hazard
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] queue-aware graph
+    [ ] fallback correctness
+    [ ] cross-queue sync
+    [ ] policy toggle
+    [ ] overlap benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    forcing async queue on all compute
+    assuming overlap from separate thread
+    CPU blocking for every cross-queue edge
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] queue-aware graph
+    [ ] fallback correctness
+    [ ] cross-queue sync
+    [ ] policy toggle
+    [ ] overlap benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next compute chapter.
+
+END OF CHAPTER 8.3
