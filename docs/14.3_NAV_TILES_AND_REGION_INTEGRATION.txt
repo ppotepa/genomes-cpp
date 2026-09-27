@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 14.3 - NAV_TILES_AND_REGION_INTEGRATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Integrate nav tile artifact generation/loading with Region lifecycle/streaming, building/terrain compilers and per-profile tile residency.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/14.2_RECAST_DETOUR_BACKEND.txt
+    TARGET::docs/6.4_STREAMING_STATE_MACHINE.txt
+    TARGET::docs/9.5_TERRAIN_PHYSICS_AND_QUERY_REPRESENTATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Navigation remains a service over semantic world data; it does not own gameplay
+orders or Infantry logic.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Infantry tactical behaviors and formation policy implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/navigation/core/include/genomes/navigation/NavTileArtifact.hpp
+    engine/navigation/core/src/RegionNavigation.cpp
+    tests/native/navigation/region_nav_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. NavTileArtifact is semantic build output/cacheable bytes + config/source fingerprints, independent from live dtNavMesh handle.
+
+2. Region navigation residency may differ by AgentProfile; infantry profile loaded while vehicle nav absent is valid.
+
+3. Tile source geometry combines terrain, static building nav recipes, roads/walkable modifiers and explicit off-mesh links for that revision.
+
+4. Streaming commits tile only if region/nav generation token and source revisions still current.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public nav handles/paths are Genomes types. Recast/Detour pointers and poly refs remain backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define tile grid within RegionCoord and overlap border padding sufficient for seam links.
+
+STEP 2
+    Generate dirty/build tiles in jobs from immutable region package.
+
+STEP 3
+    Cache tile artifacts by geometry/config fingerprint.
+
+STEP 4
+    On stream-in stage add tiles to Detour backend and update Region residency/profile revision.
+
+STEP 5
+    On unload remove tiles after path/query tickets no longer reference unsafe backend state or use revision invalidation.
+
+STEP 6
+    Test cross-region path over tile boundary.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+STREAM NAV:
+    desired profiles := region desired residency
+    for profile,tile:
+        key := hash(region source rev, tile coord, build config)
+        artifact := cache.get or build
+    commit phase:
+        if generation still current:
+            backend.addTile(artifact)
+            residency[profile].add(tile)
+
+PATH:
+    snapshot records navRevision
+    if revision changes before async result publish:
+        mark Stale/Retry
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Tile build jobs parallel; dtNavMesh add/remove synchronized through nav owner. Queries use revision snapshots.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Path requests return typed status Success/Partial/NoPath/Unloaded/Cancelled/Invalid and never fabricate a route through unknown regions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Tile key and commit order stable by region/tile/profile IDs.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Artifact cache avoids repeated rasterization; tile size benchmarked for build/query/stream balance.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native navigation is largely new capability; SOURCE movement/reference behavior is
+preserved where tests exist but inefficient absence of global nav is not parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    cross-region seam
+    profile-specific residency
+    stale async result
+    cache hit
+    unload
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] region tile integration
+    [ ] profile residency
+    [ ] revision tokens
+    [ ] cache
+    [ ] cross-region path
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    nav loaded flag shared all profiles
+    committing stale tile build
+    rebuilding neighboring world unnecessarily
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] region tile integration
+    [ ] profile residency
+    [ ] revision tokens
+    [ ] cache
+    [ ] cross-region path
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next navigation chapter.
+
+END OF CHAPTER 14.3
