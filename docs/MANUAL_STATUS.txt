@@ -1,0 +1,205 @@
+GENOMES C++ MANUAL STATUS
+=========================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+SOURCE REFERENCE:
+    ppotepa/genomes
+
+STATUS BASELINE:
+    2026-09-27
+
+======================================================================
+1. HOW PROGRESS IS MEASURED
+======================================================================
+
+This file tracks two different metrics.
+
+A. MANUAL AUTHORING PROGRESS
+
+A chapter counts as authored when:
+    file exists,
+    STATUS is READY,
+    it satisfies the 0.0 completeness contract.
+
+This is NOT implementation progress.
+
+B. NATIVE IMPLEMENTATION PROGRESS
+
+A chapter counts as implemented only after:
+    required source changes exist,
+    required tests pass,
+    acceptance criteria pass,
+    chapter is verified.
+
+At the current baseline no native implementation chapter has been executed in
+ppotepa/genomes-cpp yet.
+
+======================================================================
+2. ROADMAP SIZE
+======================================================================
+
+Executable chapter count in current roadmap:
+
+    Stage 0   6
+    Stage 1   4
+    Stage 2   5
+    Stage 3   5
+    Stage 4   6
+    Stage 5   8
+    Stage 6   6
+    Stage 7   8
+    Stage 8   5
+    Stage 9   7
+    Stage 10 10
+    Stage 11 12
+    Stage 12  6
+    Stage 13  6
+    Stage 14  6
+    Stage 15  7
+    Stage 16  8
+    Stage 17  6
+    Stage 18 11
+    Stage 19  8
+    Stage 20  7
+    Stage 21  7
+    Stage 22  6
+
+TOTAL EXECUTABLE CHAPTERS:
+    160
+
+The master index 0.0 is not counted as an executable implementation chapter.
+
+======================================================================
+3. AUTHORED / READY CHAPTERS
+======================================================================
+
+STAGE 0:
+    [READY] 0.1 TARGET_ARCHITECTURE
+    [READY] 0.2 MIGRATION_INVENTORY_AND_PARITY_MATRIX
+    [READY] 0.3 CODING_AND_DEPENDENCY_RULES
+    [READY] 0.4 BENCHMARK_AND_DETERMINISM_POLICY
+    [READY] 0.5 MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE
+    [READY] 0.6 REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT
+
+    6 / 6
+
+STAGE 1:
+    [READY] 1.1 CPP_CMAKE_BOOTSTRAP
+    [READY] 1.2 THIRD_PARTY_DEPENDENCIES
+    [READY] 1.3 EXECUTABLE_TARGETS_AND_TEST_RUNNER
+    [READY] 1.4 CI_NATIVE_BASELINE
+
+    4 / 4
+
+STAGE 2:
+    [READY] 2.1 STRONG_IDS_RESULT_HASH
+    [READY] 2.2 TIME_CLOCKS_AND_FIXED_TICKS
+
+    [PLANNED] 2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
+    [PLANNED] 2.4 MEMORY_ARENAS_AND_SCRATCH
+    [PLANNED] 2.5 SERIALIZATION_SCHEMA_FOUNDATION
+
+    2 / 5
+
+TOTAL READY:
+    12 / 160
+
+RAW CHAPTER-COUNT AUTHORING COMPLETION:
+    7.5%
+
+RAW CHAPTER-COUNT AUTHORING REMAINING:
+    92.5%
+
+======================================================================
+4. WEIGHTED ESTIMATE
+======================================================================
+
+Later stages are substantially heavier than Stage 0/1 documentation.
+
+The largest documentation work remains in:
+
+    3.x  JobSystem
+    5.x  procedural framework
+    7.x  renderer/GPU scene
+    9.x  terrain/hydrology
+    10.x roads/city
+    11.x buildings
+    13.x physics
+    14.x navigation
+    15.x simulation/ECS
+    16.x destruction
+    17.x ballistics
+    18.x infantry
+    19.x combat/AI
+    20.x full integration
+    21.x compute/CUDA
+
+Therefore a weighted manual-authoring estimate is intentionally more
+conservative than raw chapter count:
+
+    DOCUMENTATION / MANUAL COMPLETE:
+        approximately 6-8%
+
+    DOCUMENTATION / MANUAL REMAINING:
+        approximately 92-94%
+
+======================================================================
+5. IMPLEMENTATION ESTIMATE
+======================================================================
+
+Native implementation in TARGET has not yet started.
+
+Existing work so far is:
+    architecture,
+    migration inventory,
+    mathematical reference,
+    executable implementation chapters,
+    repository/reference topology.
+
+Approximate C++ implementation completion:
+
+    < 1%
+
+Approximate C++ implementation remaining:
+
+    > 99%
+
+This is expected. The purpose of the manual is to make that implementation
+mechanical, incremental and verifiable rather than exploratory.
+
+======================================================================
+6. NEXT AUTHORING BLOCK
+======================================================================
+
+Next documentation target:
+
+    2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
+    2.4 MEMORY_ARENAS_AND_SCRATCH
+    2.5 SERIALIZATION_SCHEMA_FOUNDATION
+
+Then:
+
+    Stage 3 - MULTICORE EXECUTION
+
+This is the first major performance-critical manual block:
+    JobSystem core
+    work stealing
+    dependencies
+    parallel_for batching
+    cancellation
+    profiling/scaling benchmarks
+
+======================================================================
+7. UPDATE RULE
+======================================================================
+
+After every completed documentation block:
+
+    update READY count
+    update stage counts
+    update raw percentage
+
+Do not change TOTAL merely to make percentage look better.
+If roadmap gains a necessary chapter, increase TOTAL explicitly.
