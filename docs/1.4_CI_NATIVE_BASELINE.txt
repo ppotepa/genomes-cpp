@@ -1,0 +1,563 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 1.4 - NATIVE CI BASELINE
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Add a native continuous-integration baseline that proves the Stage 1 native
+skeleton can be built from a clean checkout with pinned submodules and without
+breaking the existing legacy/browser CI.
+
+After this chapter:
+
+    - native CMake configure/build/test runs in CI,
+    - submodules are checked out recursively,
+    - Debug and Release configurations are exercised,
+    - native correctness tests run through CTest,
+    - legacy CI remains separate and intact,
+    - failures clearly identify native-vs-legacy responsibility.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+    docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+    docs/1.3_EXECUTABLE_TARGETS_AND_TEST_RUNNER.txt
+
+Existing workflow to preserve:
+
+    .github/workflows/destruction-building-ci.yml
+
+======================================================================
+PRESERVES
+======================================================================
+
+Do not replace or weaken:
+
+    .github/workflows/destruction-building-ci.yml
+
+The native workflow is additive.
+
+Do not combine unrelated legacy/browser setup into one giant workflow merely to
+reduce file count.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No GPU-render CI.
+No Vulkan/D3D12 runtime test.
+No expensive stress benchmark gate.
+No sanitizer matrix yet.
+No CUDA.
+No artifact deployment.
+No release packaging.
+
+These arrive after owning systems exist.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Create:
+
+    .github/
+        workflows/
+            native-ci.yml
+
+Optionally extend:
+
+    CMakePresets.json
+
+only if CI presets are required and remain portable.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+WORKFLOW NAME:
+
+    Native CI
+
+BASELINE JOBS:
+
+    linux-debug
+    linux-release
+    windows-debug
+    windows-release
+
+If runner cost or dependency compatibility requires an initial reduced matrix,
+minimum acceptable first implementation is:
+
+    linux-debug
+    windows-release
+
+BUT the chapter is not complete until all four baseline configurations are
+green or an explicit documented blocker exists with a follow-up issue/chapter.
+
+CHECKOUT:
+
+    recursive submodules required.
+
+CACHE:
+
+    cache may be added only for build speed.
+    cache hit/miss must not affect correctness.
+
+Native build must succeed from a cold cache.
+
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+CI is declarative workflow data.
+
+No generated source artifacts are committed by this chapter.
+
+Logs must contain:
+
+    OS/runner
+    compiler
+    CMake version
+    configure preset/configuration
+    test results
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+N/A.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+GitHub Actions official documentation.
+CMake/CTest official documentation.
+Existing repository workflow:
+    .github/workflows/destruction-building-ci.yml
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1 - INSPECT EXISTING WORKFLOW
+
+Read destruction-building-ci.yml completely.
+
+Do not copy its Node/browser setup into native CI unless required.
+
+
+STEP 2 - CREATE native-ci.yml
+
+Triggers:
+
+    pull_request
+    push to main
+    workflow_dispatch
+
+Do not run on every irrelevant branch push unless repository policy requires it.
+
+
+STEP 3 - CHECKOUT
+
+Use official checkout action.
+
+Required behavior:
+
+    fetch repository
+    initialize submodules recursively
+
+Concept:
+
+    submodules: recursive
+
+
+STEP 4 - TOOLCHAIN DISCOVERY
+
+For each job, print:
+
+    cmake --version
+    compiler --version
+
+Linux:
+    use runner-provided GCC or Clang chosen explicitly.
+
+Windows:
+    use MSVC developer environment supported by CMake generator/preset.
+
+Do not rely on accidental shell defaults without logging them.
+
+
+STEP 5 - LINUX DEBUG
+
+Configure:
+    native Debug
+
+Build:
+    all Stage 1 native targets
+
+Test:
+    ctest --output-on-failure
+
+Warnings-as-errors:
+    ON for Genomes code.
+
+
+STEP 6 - LINUX RELEASE
+
+Clean configure/build.
+
+Run CTest correctness suite.
+
+Do not treat microbenchmark timings on shared GitHub runners as stable
+performance gates.
+
+
+STEP 7 - WINDOWS DEBUG
+
+Configure/build/test with MSVC.
+
+Warnings-as-errors:
+    ON for Genomes-owned code.
+
+
+STEP 8 - WINDOWS RELEASE
+
+Configure/build/test.
+
+Run genomes_headless as post-build smoke.
+
+Expected output contains exactly:
+
+    Genomes native 0.1
+
+
+STEP 9 - TEST FAILURE VISIBILITY
+
+CTest command must use:
+
+    --output-on-failure
+
+Do not swallow exit codes.
+
+Do not use:
+    continue-on-error: true
+
+for required build/test steps.
+
+
+STEP 10 - LEGACY WORKFLOW PRESERVATION
+
+Do not modify legacy workflow unless the native bootstrap genuinely requires a
+shared repository setup fix.
+
+After native workflow creation, ensure:
+    existing destruction/building workflow remains in tree.
+
+
+STEP 11 - DEPENDENCY FAILURE BEHAVIOR
+
+If recursive submodule checkout fails:
+    job fails.
+
+Do not silently fall back to downloading moving dependency versions.
+
+
+STEP 12 - OPTIONAL BUILD CACHE
+
+Only after cold workflow succeeds.
+
+Cache keys must include enough identity to avoid cross-revision corruption,
+e.g.:
+
+    OS
+    compiler
+    build config
+    dependency/submodule state or lock-relevant hash
+
+Cache is optimization only.
+
+
+STEP 13 - NO PERFORMANCE GATE YET
+
+Google Benchmark executables may be compiled in Release.
+
+Do NOT fail CI based on shared-runner timing.
+
+Performance regression gates belong to controlled benchmark infrastructure in
+Stage 22.
+
+
+STEP 14 - LOCAL REPRODUCTION
+
+Every CI configure/build/test command must be reproducible locally using the
+same CMake presets or clearly documented equivalent command.
+
+CI must not contain hidden build semantics unavailable to developers.
+
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+WORKFLOW:
+
+    on:
+        pull_request
+        push(main)
+        workflow_dispatch
+
+    matrix:
+        linux/debug
+        linux/release
+        windows/debug
+        windows/release
+
+    for each configuration:
+        checkout(recursiveSubmodules = true)
+
+        printToolVersions()
+
+        configure(configuration)
+
+        build(configuration)
+
+        test(
+            configuration,
+            outputOnFailure = true
+        )
+
+        if configuration == windows/release:
+            runHeadlessSmoke()
+
+
+CI FAILURE POLICY:
+
+    if configure fails:
+        FAIL
+
+    if build fails:
+        FAIL
+
+    if required CTest fails:
+        FAIL
+
+    if headless smoke output mismatches:
+        FAIL
+
+    benchmark timing regression:
+        NOT EVALUATED in Stage 1
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+N/A for engine runtime.
+
+CI may use parallel compiler jobs.
+
+Do not infer simulation-thread correctness from parallel build success.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Workflow steps must preserve process failure codes.
+
+Submodule missing:
+    fail with checkout/configure error.
+
+Test failure:
+    show CTest output.
+
+No required step may be masked by:
+    || true
+    continue-on-error
+    shell error suppression.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+CI correctness tests use fixed/reported seeds where randomness exists.
+
+Later determinism jobs will explicitly vary worker counts.
+
+Stage 1 has no simulation determinism matrix yet.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Shared hosted-runner wall-clock timing is diagnostic only.
+
+Do not store hosted-runner microbenchmark values as hard performance budgets.
+
+Compilation/cache performance does not define runtime performance.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy and native CI coexist.
+
+Native failure:
+    does not justify disabling legacy CI.
+
+Legacy failure:
+    does not justify marking native migration complete.
+
+Both suites contribute to repository health during migration.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+No new C++ test required solely by this chapter.
+
+CI must execute all tests created through Stage 1.
+
+Smoke:
+    genomes_headless output.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Local before workflow commit:
+
+    git submodule status --recursive
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+    cmake --preset dev-release
+    cmake --build --preset dev-release
+
+Run headless.
+
+Where possible test second local compiler/platform before relying on CI.
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+    [ ] native-ci.yml exists
+    [ ] pull_request trigger
+    [ ] main push trigger
+    [ ] workflow_dispatch trigger
+    [ ] recursive submodule checkout
+    [ ] compiler/CMake versions logged
+    [ ] Linux Debug configure/build/test
+    [ ] Linux Release configure/build/test
+    [ ] Windows Debug configure/build/test
+    [ ] Windows Release configure/build/test
+    [ ] CTest --output-on-failure
+    [ ] warnings-as-errors active for project code
+    [ ] headless smoke in CI
+    [ ] required failures are not ignored
+    [ ] existing legacy workflow preserved
+    [ ] no shared-runner timing gate
+    [ ] commands reproducible locally
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    delete destruction-building-ci.yml,
+    merge native and browser CI into an unreadable monolith,
+    skip recursive submodules,
+    fetch dependency main/master as fallback,
+    use continue-on-error for required tests,
+    use || true on required commands,
+    benchmark-gate hosted runner timing,
+    make CI-only build flags that local presets cannot reproduce,
+    disable warnings-as-errors merely to make CI green.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] legacy workflow inspected
+[ ] native workflow added
+[ ] recursive checkout
+[ ] Linux Debug
+[ ] Linux Release
+[ ] Windows Debug
+[ ] Windows Release
+[ ] CTest output-on-failure
+[ ] headless smoke
+[ ] tool versions logged
+[ ] no ignored failures
+[ ] legacy workflow untouched/preserved
+[ ] local reproduction documented
+[ ] all Stage 1 tests green
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Stage 1 is complete when Chapters 1.1-1.4 are IMPLEMENTED.
+
+Next implementation stage:
+
+    Stage 2 - Foundation
+
+First chapter:
+
+    docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+END OF CHAPTER 1.4
