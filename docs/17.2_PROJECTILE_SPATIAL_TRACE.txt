@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -132,7 +132,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define Environment and FlightIntegrator API; port aerodynamic game model through AmmoStrategy.
+    Define Environment and FlightIntegrator API; implement aerodynamic game model through AmmoStrategy.
 
 STEP 2
     Implement RK4 integration matching SOURCE formula with tests for zero gravity/density and constant gravity.
@@ -164,7 +164,7 @@ STEP 8
     Implement trace recorder as observer preserving segment energyFrom/energyTo/material/contact boundaries and parent-child IDs.
 
 STEP 9
-    Port SOURCE flight/trace fixtures.
+    Implement SOURCE flight/trace fixtures.
 
 ======================================================================
 PSEUDOCODE
@@ -222,7 +222,8 @@ Broadphase avoids all-solid scans. Adaptive substeps cap travel/chord error. Ben
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE trace semantics/version in exported fixtures; native renderer for traces comes later as debug presentation.
+TARGET trace schema and semantics are authoritative; trace rendering is a later
+debug-presentation concern.
 
 ======================================================================
 TESTS TO ADD

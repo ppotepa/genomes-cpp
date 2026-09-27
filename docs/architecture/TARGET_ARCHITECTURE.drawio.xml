@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2026-09-27T00:00:00.000Z" agent="Codex" version="24.7.17" type="device">
+  <diagram id="genomes-target-architecture" name="Target Architecture">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="GENOMES — TARGET NATIVE ARCHITECTURE" style="text;html=1;align=left;verticalAlign=middle;fontSize=28;fontStyle=1;fontColor=#E6EDF3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="900" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Dependencies point downward · authoritative data flows left to right · backend objects never become semantic truth" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#8B949E;" vertex="1" parent="1">
+          <mxGeometry x="40" y="62" width="1100" height="28" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sourceGroup" value="REFERENCE EVIDENCE BOUNDARY" style="swimlane;html=1;rounded=1;startSize=38;fillColor=#161B22;strokeColor=#8B949E;fontColor=#C9D1D9;fontStyle=1;dashed=1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="115" width="270" height="730" as="geometry"/>
+        </mxCell>
+        <mxCell id="source" value="ppotepa/genomes&#xa;&#xa;JS/browser runtime&#xa;3 standalone prototypes&#xa;building-lab&#xa;tests + research" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#21262D;strokeColor=#6E7681;fontColor=#E6EDF3;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="sourceGroup">
+          <mxGeometry x="20" y="60" width="230" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="reference" value="TARGET::reference&#xa;&#xa;diagnostic scenarios&#xa;calibration samples&#xa;SOURCE provenance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1C2530;strokeColor=#58A6FF;fontColor=#E6EDF3;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="sourceGroup">
+          <mxGeometry x="20" y="245" width="230" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="parity" value="TARGET VALIDATION&#xa;&#xa;IDs / serialization&#xa;numeric / invariant&#xa;behavioral / visual&#xa;performance" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#262115;strokeColor=#D29922;fontColor=#F0E7C2;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="sourceGroup">
+          <mxGeometry x="20" y="420" width="230" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="retirement" value="Reference evidence never selects a production algorithm." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B1E;strokeColor=#F85149;fontColor=#FFDCD7;spacing=10;fontSize=13;fontStyle=1;" vertex="1" parent="sourceGroup">
+          <mxGeometry x="20" y="615" width="230" height="75" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="appsGroup" value="APPLICATIONS" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#161B22;strokeColor=#30363D;fontColor=#C9D1D9;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="345" y="115" width="1195" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="apps" value="game · headless · proc_viewer · benchmark · editor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1F2937;strokeColor=#A371F7;fontColor=#F0E7FF;fontSize=16;fontStyle=1;" vertex="1" parent="appsGroup">
+          <mxGeometry x="25" y="48" width="1145" height="42" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="generation" value="PROCEDURAL SERVICES&#xa;&#xa;SeedTree + RandomStream&#xa;Generation DAG / cache&#xa;validation + trace&#xa;transactional commit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#132D2B;strokeColor=#3FB950;fontColor=#D7F7DD;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="345" y="260" width="255" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="modules" value="DOMAIN MODULES&#xa;&#xa;terrain + hydrology&#xa;roads + city (site requests)&#xa;buildings (plans + resolutions)&#xa;vegetation + destruction&#xa;infantry + weapons + combat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#132D2B;strokeColor=#3FB950;fontColor=#D7F7DD;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="635" y="260" width="280" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="semantic" value="SEMANTIC ARTIFACTS + STATIC WORLD&#xa;&#xa;Road / Parcel / SiteRequest DB&#xa;BuildingPlan + SiteResolution&#xa;final access + reservations&#xa;Vegetation · StaticBVH&#xa;RegionPackage / streaming" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#172A3A;strokeColor=#58A6FF;fontColor=#D9ECFF;spacing=12;align=left;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="260" width="300" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="compilers" value="REPRESENTATION COMPILERS&#xa;&#xa;render representation&#xa;physics shapes/bodies&#xa;navigation tiles&#xa;destruction representation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#261E35;strokeColor=#A371F7;fontColor=#F0E7FF;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1285" y="260" width="255" height="175" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="simulation" value="AUTHORITATIVE SIMULATION&#xa;&#xa;fixed ticks + scheduler&#xa;custom archetype ECS&#xa;commands / deterministic commit&#xa;projectiles + active destruction&#xa;dynamic entities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#382A16;strokeColor=#D29922;fontColor=#FFF0C2;spacing=12;align=left;verticalAlign=top;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="635" y="485" width="310" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="snapshot" value="IMMUTABLE&#xa;PRESENTATION&#xa;SNAPSHOT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#172A3A;strokeColor=#58A6FF;fontColor=#D9ECFF;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="985" y="510" width="185" height="125" as="geometry"/>
+        </mxCell>
+        <mxCell id="gpuScene" value="GPU SCENE + RENDER GRAPH&#xa;&#xa;culling / LOD&#xa;indirect draws&#xa;debug + profiling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#261E35;strokeColor=#A371F7;fontColor=#F0E7FF;spacing=12;align=left;verticalAlign=top;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1205" y="485" width="250" height="180" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="servicesGroup" value="GENERIC ENGINE SERVICES" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#161B22;strokeColor=#30363D;fontColor=#C9D1D9;fontStyle=1;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="345" y="705" width="1195" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="foundation" value="foundation · Result/IDs/hash · memory · schema/serialization · assets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#21262D;strokeColor=#6E7681;fontColor=#E6EDF3;fontSize=13;" vertex="1" parent="servicesGroup">
+          <mxGeometry x="20" y="48" width="350" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="jobs" value="shared JobSystem&#xa;worker scratch + cancellation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#21262D;strokeColor=#6E7681;fontColor=#E6EDF3;fontSize=13;" vertex="1" parent="servicesGroup">
+          <mxGeometry x="395" y="48" width="225" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="geometry" value="math · geometry · spatial&#xa;world/query services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#21262D;strokeColor=#6E7681;fontColor=#E6EDF3;fontSize=13;" vertex="1" parent="servicesGroup">
+          <mxGeometry x="645" y="48" width="235" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="abstractions" value="ComputeService · PhysicsWorld&#xa;NavigationWorld · RenderService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#21262D;strokeColor=#6E7681;fontColor=#E6EDF3;fontSize=13;" vertex="1" parent="servicesGroup">
+          <mxGeometry x="905" y="48" width="265" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="backends" value="BACKENDS: CPU (correctness baseline) · Diligent RHI/compute · Jolt · Recast/Detour · optional benchmark-gated CUDA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#11161D;strokeColor=#6E7681;fontColor=#C9D1D9;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="345" y="880" width="1195" height="62" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_source_reference" value="export" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#58A6FF;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="source" target="reference"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_reference_generation" value="scenarios / calibration" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#58A6FF;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="reference" target="generation"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_generation_modules" value="framework" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3FB950;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="generation" target="modules"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_modules_semantic" value="deterministic artifacts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3FB950;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="modules" target="semantic"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_semantic_compilers" value="compile derived views" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A371F7;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="semantic" target="compilers"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_semantic_simulation" value="instantiate / stream" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D29922;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="semantic" target="simulation"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_sim_snapshot" value="extract" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#58A6FF;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="simulation" target="snapshot"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_snapshot_gpu" value="present" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A371F7;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="snapshot" target="gpuScene"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_compilers_gpu" value="register" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A371F7;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="compilers" target="gpuScene"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_apps_modules" value="uses" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A371F7;fontColor=#8B949E;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="apps" target="modules"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_apps_sim" value="drives" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A371F7;fontColor=#8B949E;dashed=1;endArrow=open;endFill=0;" edge="1" parent="1" source="apps" target="simulation"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_parity_semantic" value="validate TARGET" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#D29922;fontColor=#8B949E;dashed=1;endArrow=block;endFill=1;" edge="1" parent="1" source="parity" target="semantic"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e_services_backends" value="backend interfaces" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6E7681;fontColor=#8B949E;endArrow=block;endFill=1;" edge="1" parent="1" source="servicesGroup" target="backends"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

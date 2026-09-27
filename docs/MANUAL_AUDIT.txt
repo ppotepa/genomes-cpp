@@ -99,13 +99,13 @@ C. BUILDINGS
 D. ROAD / CITY
     - canonical class is a superset of both prototypes;
     - corrected "track" to surface/kind, not RoadClass;
-    - froze road-lab and city compatibility profiles;
+    - extracted road/city scenarios and resolved them into one TARGET contract;
     - added Straight/Polyline/CubicBezier RoadCenterline contract;
     - snapping/splitting must preserve exact canonical node endpoints.
 
 E. PARCEL ACCESS / FENCES
     - assigned GateSpec, DrivewaySpec and FenceLayout ownership;
-    - preserved SOURCE FenceGenerator.plan behavior;
+    - translated fence behavior into one robust TARGET planner contract;
     - presentation separated from semantic fence planning.
 
 F. TERRAIN
@@ -123,10 +123,13 @@ H. SIMULATION / ECS
       archetype/chunk/scheduler/command/snapshot/spatial/cadence layouts.
 
 I. INFANTRY / EQUIPMENT / FACE
-    - verified height 1.60..1.95 m and 39-element rig/control baseline;
+    - verified height 1.60..1.95 m and current 69-bone rig: stable historical
+      39-bone prefix plus 30 appended finger bones;
+    - verified four current morph channels including handsRelax;
     - preserved exact Infantry base/body/face seed streams;
     - corrected Equipment inventory facts to 22 slots / 61 items / 10 loadouts;
-    - preserved SOURCE Equipment hash formula;
+    - replaced SOURCE Equipment draw-order/hash coupling with canonical
+      TARGET slot ordering and SeedPath identity;
     - separated SOURCE sequential face RNG from future event-indexed native
       version.
 
@@ -195,11 +198,11 @@ Includes verified:
     tree/test/prototype counts
     building schemas/conflict
     plant species/genes
-    39-element rig
+    69-bone current rig / 39-bone historical-prefix provenance
     equipment counts
     weapon catalog
     fence/access semantics
-    road compatibility profiles
+    road/city TARGET profiles and reference-scenario provenance
     terrain interpolation
     destruction budgets
     ballistics profile
@@ -228,7 +231,8 @@ The important intentional improvements are compatible with migration:
     GPU/CUDA optional derived accelerators
     region streaming and custom archetype ECS
 
-No audited improvement requires silently removing a current SOURCE feature.
+Every audited capability now requires an explicit TARGET feature, improvement
+or rejection decision; SOURCE implementation details are not silently promoted.
 
 ======================================================================
 7. REMAINING LIMITATION
@@ -265,3 +269,90 @@ NATIVE C++ IMPLEMENTATION:
 
 Next executable action:
     implement docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+
+======================================================================
+9. REPOSITORY / PROTOTYPE REVALIDATION (2026-09-27)
+======================================================================
+
+The TARGET manual was revalidated against SOURCE commit:
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
+Mechanical results:
+    roadmap chapters:                 160 / 160 READY
+    executable chapter format:        154 / 154 complete
+    SOURCE js files:                  114
+    SOURCE tests:                      65
+    SOURCE standalone prototypes:       3
+    SOURCE building-lab files:           8
+    SOURCE tools files:                 17
+    live chapter-path references:        0 missing after correction
+
+Prototype feature descriptions were checked directly against:
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::building-lab/*
+
+The inventory correctly assigns all four prototype/lab surfaces to Stages
+10, 11 and 20.5, preserves them as reference implementations until parity,
+and distinguishes semantic/invariant parity from renderer-level visual parity.
+
+One non-semantic documentation defect was corrected:
+    stale example basename: 1.1_BOOTSTRAP_CPP_CMAKE (file did not exist)
+    actual file:   docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+
+Target architecture diagrams added:
+    docs/architecture/TARGET_ARCHITECTURE.drawio.xml
+    docs/architecture/TARGET_ARCHITECTURE.svg
+
+The diagram is explanatory. docs/0.1_TARGET_ARCHITECTURE.txt remains the
+normative architecture contract.
+
+======================================================================
+10. CODE-FIRST MOCKUP RECONCILIATION (2026-09-27)
+======================================================================
+
+SOURCE prose was treated as non-authoritative where it disagreed with current
+JS/tests and capture metadata. The normative evidence rules are now recorded in:
+    docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
+
+Corrections applied across the owning chapters:
+    current Infantry is 69 bones and four morph channels;
+    historical/experimental/unpinned images cannot masquerade as current goldens;
+    building parity follows the implemented modular runtime and executable labs;
+    the larger building atlas is classified as aspirational research;
+    procedural-city boxes are BuildingSiteRequest envelopes, not BuildingPlans;
+    Stage 11 returns BuildingPlan + BuildingSiteResolution;
+    city then finalizes entrances/driveways/gates/fences;
+    vegetation runs only after those reservations are final;
+    streaming preserves BuildingPlan identity and never rerolls on residency.
+
+The target architecture XML/SVG was updated to expose the site-request,
+plan/resolution and finalized-reservation boundary.
+
+======================================================================
+11. FINAL-TARGET REFRAME (2026-09-27)
+======================================================================
+
+The implementation manual now treats genomes-cpp as the product definition,
+not as a compatibility port selected by parity with older runtimes.
+
+Normative rule:
+    docs/TARGET_IMPLEMENTATION_CONTRACT.txt
+
+SOURCE code, tests and mockups are optional evidence used to discover product
+capabilities, calibration ranges and failure cases. They cannot introduce:
+    runtime legacy modes;
+    historical generator IDs;
+    duplicate schemas;
+    sequential SOURCE RNG coupling;
+    alternate terrain/building/rig implementations.
+
+The final TARGET decisions include:
+    one semantic SeedPath-based generator policy;
+    one canonical 69-bone Infantry rig and four morph channels;
+    one data-driven BuildingSpec/BuildingPlan model;
+    one city -> site request -> building plan/resolution world pipeline;
+    TARGET-owned terrain, vegetation, debris, rubble, ballistics and perception
+        policies with invariant/quality validation;
+    reference evidence isolated from production dependencies.

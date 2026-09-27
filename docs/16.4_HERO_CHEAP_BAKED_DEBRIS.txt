@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -30,7 +30,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE pool-pressure behavior: material never disappears when body budgets fill; active bodies demote, cheap overflow deposits directly, microscopic/unrepresentable hulls become rubble volume.
+Material never disappears when body budgets fill: active bodies demote, cheap
+overflow deposits directly, and microscopic/unrepresentable hulls become rubble.
 
 ======================================================================
 OUT OF SCOPE
@@ -53,13 +54,13 @@ PUBLIC CONTRACTS
 2. Budgets are policy, never deletion rules. HERO overflow -> CHEAP; CHEAP overflow
 -> BAKED/direct deposit.
 
-Pinned SOURCE compatibility profile:
+Default TARGET debris policy:
     maxDebris        = 512 total hero records/bodies
     maxActiveDebris  = 128 active hero bodies
     maxCheapDebris   = 1024 cheap records
-    settleGraceTicks = 60 at 60 Hz (= 1 second compatibility grace)
+    settleGraceTicks = 60 at 60 Hz (= 1 second grace)
 
-These are profile values for parity, not generic engine compile-time limits.
+These are configurable world-profile values, not compile-time limits.
 
 3. Demotion decision uses stable priority tuple (importance, awake/sleep state, age, stable ID) and never container iteration accident.
 
@@ -102,7 +103,7 @@ STEP 2
     Implement lifecycle budgets configurable per world/profile, not hardcoded
 globally.
 
-Add SOURCE_RUBBLE_1_1 compatibility defaults:
+Add TARGET default debris policy:
     maxDebris=512
     maxActiveDebris=128
     maxCheapDebris=1024
@@ -121,7 +122,7 @@ STEP 6
     Implement RepresentationAccounting with epsilon-free exact semantic volume where using double volumes; tolerance only at physics-derived transforms.
 
 STEP 7
-    Port SOURCE synthetic collapse scenarios and overflow cases.
+    Implement synthetic collapse, pool-pressure and overflow scenarios.
 
 ======================================================================
 PSEUDOCODE
@@ -172,12 +173,13 @@ Bound active rigid bodies. Demotion/bake naturally reduces expensive state. Trac
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve current default conceptual budgets as compatibility profile; exact counts may be retuned only by explicit benchmark chapter.
+Ship one documented TARGET default policy. Alternative world profiles may tune
+budgets without changing conservation or deterministic admission rules.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    SOURCE budget profile exact values
+    TARGET default policy values
     60-tick settle grace
     hero admission
     hero overflow to cheap

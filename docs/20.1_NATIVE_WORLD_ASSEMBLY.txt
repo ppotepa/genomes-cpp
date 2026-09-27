@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -22,6 +22,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
     TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
     TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
@@ -39,12 +40,14 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-All validated subsystem semantics from Stages 9-19 and the SOURCE concept of START NEW/world creation, but without the browser global object architecture.
+All validated subsystem semantics from Stages 9-19 in one transactional native
+world lifecycle with explicit ownership and no browser/global architecture.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-No legacy retirement, save packages or large-world streaming tuning beyond existing region lifecycle.
+No save-game product flow or large-world streaming tuning beyond the defined
+region lifecycle.
 
 ======================================================================
 TARGET FILE TREE
@@ -69,6 +72,13 @@ PUBLIC CONTRACTS
 4. Headless and graphical applications share semantic world/simulation assembly; graphical mode adds presentation/render extraction only.
 
 5. World creation is transactional: old active world remains until new candidate generation/compile succeeds; cancellation cleans candidate resources.
+
+6. World GenerationGraph makes the cross-module dependency explicit:
+terrain/hydrology -> roads -> regions/zoning -> blocks -> parcels/buildable ->
+BuildingSiteRequests -> BuildingSpecs -> BuildingPlans +
+BuildingSiteResolutions -> finalized access/fences/reservations -> vegetation ->
+region database/packages -> representation compilers. A city placeholder is
+never committed as a final building.
 
 ======================================================================
 DATA LAYOUT
@@ -105,6 +115,9 @@ STEP 2
 
 STEP 3
     Implement WorldScenario -> GenerationRequest for terrain/hydrology/city/buildings/vegetation and compile physics/nav/render packages.
+
+    Model city draft, building resolution and city-access finalization as
+    separate graph nodes. Vegetation depends on finalized reservations.
 
 STEP 4
     Implement START NEW transaction: generate candidate asynchronously/jobs, validate, compile, commit active world only after success.
@@ -175,7 +188,8 @@ Lazy startup creates no world until requested. Track phase timings/generation pe
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE browser remains parity reference. Native becomes integration candidate only after 20.2.
+This chapter assembles the production architecture. Reference scenarios in 20.2
+validate coverage but do not gate the shape of runtime APIs.
 
 ======================================================================
 TESTS TO ADD
@@ -186,6 +200,9 @@ TESTS TO ADD
     graphical/headless semantic hash equality
     module disable Infantry world still builds
     fixed ticks
+    every city building request resolves to a Stage 11 BuildingPlan or typed failure
+    driveways reach resolved entrances and fences preserve gate openings
+    vegetation avoids resolved footprints, clearances and access corridors
 
 ======================================================================
 COMMANDS TO RUN
@@ -211,6 +228,7 @@ FORBIDDEN SHORTCUTS
     scene graph as active world
     destroy old world before candidate succeeds
     blocking main thread on every generation job without progress/cancel
+    treating procedural-city placeholder boxes as final buildings
 
 ======================================================================
 COMPLETION CHECKLIST

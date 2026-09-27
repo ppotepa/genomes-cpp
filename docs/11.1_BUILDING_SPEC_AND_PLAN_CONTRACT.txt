@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -19,13 +19,15 @@ REQUIRES
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
     TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+One data-driven semantic building model covering urban/rural programs,
+footprints, floors, rooms, circulation, openings, roofs and structure.
 
 ======================================================================
 OUT OF SCOPE
@@ -54,35 +56,25 @@ PUBLIC CONTRACTS
 4. Plan stage metadata records generator version and validation stage; compilers
 consume only frozen valid plan.
 
-SOURCE schema facts for the audited baseline:
-    BuildingSpec:  rts.building-spec/6
-    BuildingPlan:  rts.building-plan/4
-    RoomGraphSet:  rts.room-graph-set/1
-    generator:     building-6.0.0
+5. The final catalog uses unambiguous semantic IDs. SMALL_SHED and
+RURAL_OUTBUILDING are distinct presets with independently declared dimension,
+program and material ranges; no preset changes meaning according to importer or
+source file.
 
-TARGET may define a new native schema version, but fixture importers must record
-which SOURCE schema/version they translate from.
+6. Room programs, footprint/roof/stair families, structural systems, materials
+and seed domains are explicit data tables validated at startup and covered by
+the final catalog test matrix.
 
-5. SOURCE currently contains overlapping building catalogs/spec systems that
-are not fully identical. Native migration MUST NOT silently merge conflicting
-values. A SourceCompatibility record is required for any conflicting preset ID.
+7. The module consumes city-owned BuildingSiteRequest and returns both a frozen
+BuildingPlan and city-facing BuildingSiteResolution. Request fields map to
+BuildingSpec without transferring parcel ownership: stable request/parcel ID,
+seed path, zone/program constraints, buildable polygon, preferred envelope and
+orientation, height/storey limits, and ParcelAccessIntent.
 
-Known audited example:
-    SOURCE::js/buildings/buildingCatalog.js
-        RURAL_SHED width 2..3 m, depth 2..3 m
-
-    SOURCE::js/buildings/buildingSpec.js
-        RURAL_SHED width 2.5..7 m, depth 2.5..6 m
-
-The TARGET schema must preserve provenance and resolve this explicitly. Preferred
-semantic resolution is to separate distinct concepts/versions (for example a
-small shed compatibility profile and a larger rural outbuilding profile) rather
-than make one ambiguous ID depend on which SOURCE file happened to be read.
-
-6. SOURCE room programs, roof families, stair families, structural systems,
-materials and current BuildingSpec seed domains are migration data and must be
-enumerated into the v1 schema/parity matrix before implementation is marked
-complete.
+8. BuildingSiteResolution reports BuildingPlanId, resolved footprint,
+clearance envelope, entrance/approach point and exterior connection
+reservations. The chosen entrance must satisfy ParcelAccessIntent or generation
+returns a typed failure/fallback; the city finalizes driveway, gate and fence.
 
 ======================================================================
 DATA LAYOUT
@@ -114,19 +106,13 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Inventory both SOURCE building definition paths before designing v1:
-        buildingCatalog.js style/catalog values
-        buildingSpec.js PRESETS/seed domains
-        buildingPrograms.js room/capacity rules
-        BuildingPlan/runtime schema
-        advanced mathematical prototype parameters
-
-    Produce a conflict table keyed by semantic preset/program/field. No
-    conflicting SOURCE value may be resolved implicitly.
+    Define the final catalog and schema vocabulary: programs, SMALL_SHED,
+    RURAL_OUTBUILDING and other presets, footprint/roof/stair families,
+    materials, seed domains and validation rules.
 
 STEP 2
-    Map the audited SOURCE semantics into a unified v1 schema with explicit
-    compatibility/version provenance.
+    Implement one unified TARGET schema. Reference import/export adapters remain
+    outside production types and map evidence into this vocabulary.
 
 STEP 3
     Define enum/data tables for use/program without hardwiring every architectural style into code paths.
@@ -146,12 +132,13 @@ STEP 7
 ======================================================================
 PSEUDOCODE
 ======================================================================
-CREATE SPEC FROM PARCEL:
-    spec.buildingId := derive(parcelId,"building",ordinal)
-    spec.seed := citySeed.child("building",buildingId)
-    spec.buildable := parcel.buildablePolygon
-    spec.program := chooseProgram(zone,profile,seed)
-    spec.targetArea := parcel.area * seededCoverage
+CREATE SPEC FROM SITE REQUEST:
+    spec.buildingId := derive(request.id,"building")
+    spec.seed := request.seedPath
+    spec.buildable := request.buildablePolygon
+    spec.program := chooseProgram(request.zone,profile,spec.seed)
+    spec.targetArea := area(request.buildablePolygon) * seededCoverage
+    preserve request access/height/orientation constraints
 
 PLAN:
     plan.header := version/provenance
@@ -165,6 +152,8 @@ PLAN:
         roof
         structure
     freeze only after validation
+    resolution := summarizeForCity(plan, request.accessIntent)
+    return plan,resolution
 
 ======================================================================
 THREADING / OWNERSHIP RULES
@@ -189,7 +178,8 @@ Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unb
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+No runtime compatibility schemas or duplicate building generators. TARGET
+validators and acceptance tests define final behavior.
 
 ======================================================================
 TESTS TO ADD
@@ -226,6 +216,8 @@ FORBIDDEN SHORTCUTS
     raw pointers between plan records
     house-type switch as core abstraction
     IDs by array index
+    creating a second simplified BuildingPlan inside the city module
+    ignoring access intent when selecting the building entrance
 
 ======================================================================
 COMPLETION CHECKLIST

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -96,7 +96,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Port simple seeded river path relation from procedural-city as compatibility baseline fixture.
+    Implement simple seeded river path relation from procedural-city as compatibility baseline fixture.
 
 STEP 2
     Define raster water/flood fields aligned to terrain/city field grid with explicit cell size.

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -19,6 +19,7 @@ REQUIRES
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/9.6_HYDROLOGY_FIELDS.txt
     TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
     TARGET::docs/12.3_ROCK_GENERATOR.txt
@@ -45,7 +46,11 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Scatter input fields: TerrainArtifact, zone/biome/reserved masks, hydrology, seed, density, prototype catalog. Output EnvironmentLayout immutable instance records.
+1. Scatter input fields: TerrainArtifact, zone/biome/finalized reserved masks,
+hydrology, seed, density, prototype catalog. Building/access reservations come
+from resolved BuildingSiteResolutions and finalized driveways/gates/fences, not
+preliminary city placeholder envelopes. Output EnvironmentLayout immutable
+instance records.
 
 2. Instance record: stable InstanceId, prototype ID, world/local transform, scale/width scale, footprint, optional burial/formation metadata. Passive instance is not ECS.
 
@@ -58,7 +63,7 @@ DATA LAYOUT
 ======================================================================
 Scatter input fields:
     terrain/biome suitability grids
-    road/building/water reserved masks
+    road/resolved-building/final-access/water reserved masks
     density/spacing parameters
     stable region seed
 
@@ -98,6 +103,9 @@ IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
     Define separate scatter layers Tree/Shrub/Orchard/Crop/Rock with priority/reservation interactions.
+
+    Require finalized building footprint/clearance and access/fence reservations
+    before vegetation jobs for the affected region become runnable.
 
 STEP 2
     Generate cluster centers/patches using seeded semantic IDs and validate against terrain/zone masks.
@@ -153,13 +161,14 @@ Spatial neighbor checks bounded by local cells; target supports millions of pass
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE clustered/structured character, not exact attempt loop implementation.
+TARGET distribution, reservation and ecological invariants define output;
+reference scenes are qualitative acceptance examples only.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     minimum spacing
-    reserved roads/parcels
+    reserved roads/resolved buildings/final access corridors
     orchard alignment
     slope
     border deterministic merge
@@ -179,6 +188,7 @@ ACCEPTANCE CRITERIA
     [ ] spatial broadphase
     [ ] stable IDs
     [ ] terrain constraints
+    [ ] no overlap with resolved buildings, entrances or driveways
     [ ] large-scale benchmark
 
 ======================================================================
@@ -187,6 +197,7 @@ FORBIDDEN SHORTCUTS
     all-pairs distance scan
     one ECS entity per passive plant
     random seed based on attempt completion
+    scattering against preliminary placeholder boxes before site resolution
 
 ======================================================================
 COMPLETION CHECKLIST

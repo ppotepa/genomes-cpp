@@ -1,17 +1,18 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 17.6 - BALLISTICS_REFERENCE_PARITY
+CHAPTER 17.6 - BALLISTICS_REFERENCE_VALIDATION
 STATUS: READY
 VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Execute the ballistics parity gate against SOURCE fixtures and acceptance contracts, covering projectile state, flight, penetration, ricochet, HE, fragments, trace identity and worker-count invariance.
+Validate final TARGET projectile state, flight, penetration, ricochet, HE,
+fragments, trace identity, accounting and worker-count invariance.
 
 ======================================================================
 REQUIRES
@@ -35,12 +36,13 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-All requirements listed in SOURCE energy-acceptance and destruction contracts that are automatable; manual visual trace cases remain documented for later native debug presentation.
+Complete TARGET energy/mass, contact-order, trace, capacity and visual-debug
+acceptance coverage.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-No SOURCE deletion and no final weapon/Infantry integration.
+No final weapon/Infantry integration.
 
 ======================================================================
 TARGET FILE TREE
@@ -48,21 +50,27 @@ TARGET FILE TREE
     reference/fixtures/ballistics/README.txt
     reference/fixtures/ballistics/*.json
     tools/reference/export_ballistics_reference.*
-    tests/native/parity/ballistics_parity_tests.cpp
-    docs/parity/17.6_BALLISTICS_PARITY_REPORT.txt
+    tests/native/validation/ballistics_validation_tests.cpp
+    docs/reports/17.6_BALLISTICS_VALIDATION_REPORT.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Fixture provenance includes exact SOURCE commit and source contract version (projectile-state-3/projectile-trace-3 where relevant).
+1. TARGET fixtures record TARGET schema/input identity. Imported diagnostic
+fixtures additionally record exact SOURCE provenance.
 
-2. Parity classes per case: numerical for energy/flight, behavioral for outcome/contact ordering, structural for trace tree/ledger fields, invariant for conservation/bounds.
+2. TARGET validation classes per case are numerical, behavioral, structural and
+invariant according to the owning contracts.
 
-3. Trace presentation color/strip visuals are not proof of solver parity; semantic trace records are.
+3. Trace presentation visuals are not proof of solver correctness; semantic
+trace records and TARGET invariants are.
 
-4. Manual SOURCE acceptance scenarios that cannot yet be automated must appear in parity report as MANUAL_PENDING with future native debug-viewer owner, never silently ignored.
+4. Useful manual reference scenarios are translated into TARGET requirements or
+explicitly rejected. Unautomated TARGET requirements appear as
+MANUAL_PENDING(owner), never silently ignored.
 
-5. Stage 17 passes only when all required automated cases pass and every manual case has an explicit migration owner.
+5. Stage 17 passes only when all required automated cases pass and every manual
+TARGET requirement has an owner.
 
 ======================================================================
 DATA LAYOUT
@@ -101,7 +109,7 @@ STEP 2
 directions, glass+air, technical split, ricochet, ground/timeout, HE profiles
 and history/tree semantics.
 
-Include compatibility fixtures for:
+Include TARGET policy fixtures for:
     maxProjectiles=256
     maxFragments=2048
     maxTrackingTime 15/120 s
@@ -115,10 +123,11 @@ STEP 4
     Run scalar, batched 1-worker and N-worker native paths against same fixtures.
 
 STEP 5
-    Map every row of energy-acceptance.md to AUTOMATED_PASS, MANUAL_PENDING(owner) or INTENTIONAL_VERSIONED_CHANGE(reason).
+    Translate useful energy-acceptance cases into TARGET requirements with
+    AUTOMATED_PASS or MANUAL_PENDING(owner); reject implementation-specific cases.
 
 STEP 6
-    Record performance baseline but do not fail parity solely on browser-vs-native timing.
+    Record native controlled-hardware performance baselines.
 
 STEP 7
     Commit report and mark Stage 17 eligible for weapons/combat integration.
@@ -144,12 +153,14 @@ TRACE TREE:
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Parity deliberately exercises multiple worker counts. Manual debug-viewer checks do not affect authoritative test results.
+Validation deliberately exercises multiple worker counts. Manual debug-viewer
+checks do not affect authoritative semantic test results.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Fixture schema mismatch or missing expected field fails. SOURCE unavailable only blocks regeneration, not committed fixture tests.
+Fixture schema mismatch or missing expected field fails. SOURCE unavailability
+skips optional diagnostic regeneration, not TARGET tests.
 
 ======================================================================
 DETERMINISM RULES
@@ -164,7 +175,8 @@ Record throughput workloads and memory. Regression budgets established later fro
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Passing Stage 17 does not retire SOURCE; Stage 20.7 decides. Manual trace rendering acceptance migrates to 20.5/7.8.
+TARGET contracts own completion. Manual trace rendering acceptance belongs to
+20.5/7.8; reference evidence remains optional.
 
 ======================================================================
 TESTS TO ADD
@@ -172,7 +184,7 @@ TESTS TO ADD
     all exported ballistics fixtures
     trace tree/history
     1/N workers
-    scalar/batched parity
+    scalar/batched equivalence
     HE energy/mass
     projectile/fragment capacity profile
     adaptive interval profile
@@ -191,9 +203,9 @@ ACCEPTANCE CRITERIA
 ======================================================================
     [ ] SOURCE pinned
     [ ] fixture exporter
-    [ ] all automated parity green
+    [ ] all automated TARGET validation green
     [ ] manual cases mapped
-    [ ] worker-count parity
+    [ ] worker-count equivalence
     [ ] report committed
 
 ======================================================================
@@ -201,17 +213,17 @@ FORBIDDEN SHORTCUTS
 ======================================================================
     changing fixture expected values to fit native bug
     marking manual cases PASS without running equivalent viewer
-    using visuals as energy parity
-    deleting SOURCE
+    using visuals as energy validation
+    adding reference-only compatibility branches
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
     [ ] SOURCE pinned
     [ ] fixture exporter
-    [ ] all automated parity green
+    [ ] all automated TARGET validation green
     [ ] manual cases mapped
-    [ ] worker-count parity
+    [ ] worker-count equivalence
     [ ] report committed
 
 ======================================================================

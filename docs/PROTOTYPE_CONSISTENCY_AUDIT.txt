@@ -204,14 +204,21 @@ E. INFANTRY
 
 SOURCE confirms:
     genome -> phenotype -> resolved anatomy -> rig/surface
-    one 39-bone/controller skeleton baseline
+    current 69-bone skeleton: stable historical 39-bone body/face prefix plus
+    30 appended finger bones from js/weapons/handRig.js
     body/face identity independent of loadout
-    morph-driven eyelids and neck correction
+    four current morph channels: eyelidsClose, eyelidsArc, neckFlex, handsRelax
     separate equipment seed
     continuous locomotion/posture
     TwoBoneIK / ground contact
     deterministic face state
     lazy ragdoll/physics intent
+
+Evidence correction:
+    39-bone sheets are HISTORICAL_BASELINE, not current runtime evidence.
+    Clean v14 captures are IMPLEMENTED_OLDER_CAPTURE. Experiment sheets are
+    NEGATIVE_EXPERIMENT, while workingTree/local-changes captures remain
+    UNPINNED_DIAGNOSTIC. See SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt.
 
 TARGET Stage 18 follows the same decomposition and keeps Infantry outside engine
 core.
@@ -294,9 +301,10 @@ SOURCE::js/units/infantryGenome.js uses three fixed historical streams:
 
 Gene draw order inside each stream is part of exact seeded identity.
 
-Correction:
-    0.5/5.1 define ALG-RNG-INFANTRY-GENOME32-001.
-    18.2 requires exact compatibility before any versioned child-stream redesign.
+TARGET decision:
+    The sequential streams remain evidence of intended domain isolation, but
+    18.2 directly implements named SeedPath domains. Draw order is not a native
+    production contract.
 
 
 F. EQUIPMENT HASH IS NOT GENERIC SEEDTREE
@@ -304,10 +312,9 @@ F. EQUIPMENT HASH IS NOT GENERIC SEEDTREE
 SOURCE::js/equipment/equipment.js uses a custom FNV-like hash plus two avalanche
 multiplications, then Mulberry32.
 
-Correction:
-    ALG-RNG-EQUIPMENT-HASH32-001 records exact formula.
-    18.5 now uses it for schema-v1 parity and reserves SeedTree redesign for a
-    new equipment version.
+TARGET decision:
+    The formula remains documented evidence. 18.5 uses canonical slot ordering
+    and named SeedPath identity directly; no schema-v1 compatibility path ships.
 
 
 G. FACE ANIMATION RANDOM STREAM
@@ -317,10 +324,10 @@ SOURCE FaceAnimator uses one sequential:
 
 for blink/attention/saccade events.
 
-Correction:
-    18.8 preserves this for SOURCE face-expression-1.1.0 parity.
-    Event-indexed streams remain a native improvement only under a new explicit
-    face-animation version.
+TARGET decision:
+    18.8 directly uses event-kind/event-index SeedPath values so cadence, sleep
+    and unrelated events cannot perturb each other. The sequential stream is
+    diagnostic evidence only.
 
 
 H. SOURCE GLOBAL GENERATOR VERSION LEAKS

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,11 +11,11 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port the current SOURCE weapon/hand-prop catalog, handling metadata and
+Implement the final TARGET weapon/hand-prop catalog, handling metadata and
 procedural weapon geometry as a domain module separate from ballistics and
 Infantry rendering.
 
-Pinned SOURCE baseline currently exposes 8 entries:
+The initial TARGET catalog exposes 8 entries:
     knife
     grenade
     sidearm
@@ -121,7 +121,7 @@ STEP 1
     Inventory SOURCE weapon definitions/profiles and assign stable IDs/schema version.
 
 STEP 2
-    Port geometry primitives/generators into pure native MeshData recipes.
+    Implement geometry primitives/generators into pure native MeshData recipes.
 
 STEP 3
     Generate stable muzzle/grip/sight/stow attachment transforms and validate inside/bounds where relevant.

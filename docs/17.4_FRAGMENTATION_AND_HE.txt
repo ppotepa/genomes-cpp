@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port projectile breakup, HE contact fuze, deterministic fragment generation and blast command generation with explicit energy/mass representation budgets.
+Implement projectile breakup, HE contact fuze, deterministic fragment generation and blast command generation with explicit energy/mass representation budgets.
 
 ======================================================================
 REQUIRES
@@ -32,7 +32,9 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE contact-armed HE behavior, finite nose-crush work before detonation, fragment profile metadata, opposite-pair radial momentum cancellation, inherited body velocity, capacity omission accounting and explicit explosive/blast/unrepresented energy ledger.
+Contact-armed HE behavior, finite nose-crush work before detonation, fragment
+profiles, opposite-pair radial momentum cancellation, inherited velocity,
+capacity omission accounting and explicit energy/mass ledgers.
 
 ======================================================================
 OUT OF SCOPE
@@ -52,7 +54,9 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Detonation strategy explicitly defines fuze mode/armed state. Current compatibility profile supports armed contact fuze only; unsupported delayed/programmed modes fail/are not silently simulated.
+1. Detonation strategy explicitly defines fuze mode/armed state. The initial
+TARGET scope supports armed contact fuze only; delayed/programmed modes are
+rejected rather than silently approximated.
 
 2. Surface candidate must be refined to actual convex/semantic surface point before contact fuze detonates.
 
@@ -62,7 +66,7 @@ PUBLIC CONTRACTS
 energy fraction, mass spread and deterministic pattern. Fragment set conserves
 represented mass/energy according to profile ledger.
 
-Global active-fragment admission for the SOURCE compatibility world is bounded
+Global active-fragment admission for the default TARGET world is bounded
 by BallisticsWorld.maxFragments = 2048. Fragment-profile requested count and
 world capacity are separate concepts.
 
@@ -102,7 +106,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Port fragmentation profile catalog values with source/calibration provenance.
+    Implement fragmentation profile catalog values with source/calibration provenance.
 
 STEP 2
     Implement contact-fuze condition through AmmunitionStrategy and actual surface contact.
@@ -123,7 +127,7 @@ STEP 7
     Emit BlastCommand to destruction and fragment Projectiles to BallisticsWorld pending queue.
 
 STEP 8
-    Test 20/30/40/105 compatibility profiles and energy/momentum ledgers.
+    Test 20/30/40/105 fragment profiles and energy/momentum ledgers.
 
 ======================================================================
 PSEUDOCODE
@@ -174,7 +178,8 @@ Bound fragment count and active fragment pool. Batch fragment spawn. Benchmark h
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Compatibility profiles preserve current gameplay calibration; label clearly as game model. Trace parent/child relations preserved.
+TARGET profiles are explicit gameplay calibration, not a certified explosive
+model. Trace parent/child relations are preserved.
 
 ======================================================================
 TESTS TO ADD
@@ -186,7 +191,7 @@ TESTS TO ADD
     opposite pair radial momentum
     capacity whole-pair omission
     inherited velocity
-    SOURCE 2048 global fragment capacity behavior
+    TARGET 2048 default global fragment capacity
     zero capacity ledger
     profile deterministic
 

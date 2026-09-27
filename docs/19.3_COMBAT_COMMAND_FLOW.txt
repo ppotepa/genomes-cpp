@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -153,7 +153,7 @@ Batch commands; no heap per event; use frame arenas/ring buffers. Benchmark 10k 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Replace SOURCE onShot callback bridge with typed event flow while preserving behavior.
+Use a typed TARGET event flow for shot commands, results and presentation events.
 
 ======================================================================
 TESTS TO ADD

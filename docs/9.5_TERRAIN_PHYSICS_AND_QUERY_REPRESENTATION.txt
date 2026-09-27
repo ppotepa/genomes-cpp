@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -157,7 +157,7 @@ Routine height query O(1); no physics raycast required for every foot/AI terrain
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserves SOURCE direct height sampling advantage and removes coupling to render geometry.
+TARGET provides direct authoritative height sampling independent of render geometry.
 
 ======================================================================
 TESTS TO ADD

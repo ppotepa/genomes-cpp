@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port projectile-state-3 and ammunition strategy boundaries into native C++. Projectile state must be persistent, versioned, deterministic and independent of render/debug traces.
+Implement projectile-state-3 and ammunition strategy boundaries into native C++. Projectile state must be persistent, versioned, deterministic and independent of render/debug traces.
 
 ======================================================================
 REQUIRES
@@ -92,7 +92,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define IDs/catalog schemas and port current ammunition/caliber/strategy records with provenance.
+    Define IDs/catalog schemas and implement current ammunition/caliber/strategy records with provenance.
 
 STEP 2
     Implement ProjectileState::create from FireRequest using normalized direction and initial orientation mapping bodyForward +Z to direction.

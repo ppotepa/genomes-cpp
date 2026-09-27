@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Genomes target native architecture</title>
+  <desc id="desc">Final target C++ architecture showing optional reference evidence, target validation, procedural generation, domain modules, semantic world, authoritative simulation, representation compilers, presentation, generic engine services, and isolated backends.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d1117"/><stop offset="1" stop-color="#111827"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity=".28"/></filter>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#58a6ff"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#3fb950"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#a371f7"/></marker>
+    <marker id="arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#d29922"/></marker>
+    <style>
+      text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#e6edf3}.h1{font-size:28px;font-weight:700}.sub{font-size:13px;fill:#8b949e}.label{font-size:13px;font-weight:700;letter-spacing:1px;fill:#c9d1d9}.box-title{font-size:15px;font-weight:700}.body{font-size:13px;fill:#c9d1d9}.note{font-size:12px;fill:#8b949e}.panel{fill:#161b22;stroke:#30363d;stroke-width:1.5}.box{stroke-width:1.7;filter:url(#shadow)}.edge{fill:none;stroke-width:2}.edge-label{font-size:11px;fill:#8b949e}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <text x="40" y="50" class="h1">GENOMES — TARGET NATIVE ARCHITECTURE</text>
+  <text x="40" y="76" class="sub">Dependencies point downward · authoritative data flows left to right · backend objects never become semantic truth</text>
+
+  <rect x="40" y="112" width="270" height="730" rx="12" fill="#161b22" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="7 6"/>
+  <text x="58" y="140" class="label">REFERENCE EVIDENCE BOUNDARY</text>
+  <rect x="60" y="168" width="230" height="145" rx="9" class="box" fill="#21262d" stroke="#6e7681"/>
+  <text x="78" y="194" class="box-title">ppotepa/genomes</text><text x="78" y="222" class="body"><tspan x="78" dy="0">JS/browser runtime</tspan><tspan x="78" dy="20">3 standalone prototypes</tspan><tspan x="78" dy="20">building-lab</tspan><tspan x="78" dy="20">tests + research</tspan></text>
+  <rect x="60" y="348" width="230" height="137" rx="9" class="box" fill="#1c2530" stroke="#58a6ff"/>
+  <text x="78" y="374" class="box-title">TARGET::reference</text><text x="78" y="402" class="body"><tspan x="78">diagnostic scenarios</tspan><tspan x="78" dy="20">calibration samples</tspan><tspan x="78" dy="20">SOURCE provenance</tspan></text>
+  <rect x="60" y="520" width="230" height="150" rx="9" class="box" fill="#262115" stroke="#d29922"/>
+  <text x="78" y="546" class="box-title">TARGET VALIDATION</text><text x="78" y="574" class="body"><tspan x="78">IDs / serialization</tspan><tspan x="78" dy="20">numeric / invariant</tspan><tspan x="78" dy="20">behavioral / visual</tspan><tspan x="78" dy="20">performance</tspan></text>
+  <rect x="60" y="705" width="230" height="96" rx="9" fill="#2d1b1e" stroke="#f85149" stroke-width="1.7"/>
+  <text x="78" y="733" class="body"><tspan x="78">Reference evidence never</tspan><tspan x="78" dy="20">selects a production</tspan><tspan x="78" dy="20">algorithm.</tspan></text>
+
+  <rect x="345" y="112" width="1195" height="110" rx="12" class="panel"/>
+  <text x="365" y="140" class="label">APPLICATIONS</text>
+  <rect x="370" y="158" width="1145" height="44" rx="8" fill="#1f2937" stroke="#a371f7" stroke-width="1.7"/>
+  <text x="942" y="186" text-anchor="middle" class="box-title">game · headless · proc_viewer · benchmark · editor</text>
+
+  <rect x="345" y="260" width="255" height="175" rx="10" class="box" fill="#132d2b" stroke="#3fb950"/>
+  <text x="365" y="288" class="box-title">PROCEDURAL SERVICES</text><text x="365" y="316" class="body"><tspan x="365">SeedTree + RandomStream</tspan><tspan x="365" dy="21">Generation DAG / cache</tspan><tspan x="365" dy="21">validation + trace</tspan><tspan x="365" dy="21">transactional commit</tspan></text>
+  <rect x="635" y="260" width="280" height="175" rx="10" class="box" fill="#132d2b" stroke="#3fb950"/>
+  <text x="655" y="288" class="box-title">DOMAIN MODULES</text><text x="655" y="316" class="body"><tspan x="655">terrain + hydrology</tspan><tspan x="655" dy="21">roads + city (site requests)</tspan><tspan x="655" dy="21">buildings (plans + resolutions)</tspan><tspan x="655" dy="21">vegetation + destruction</tspan><tspan x="655" dy="21">infantry + weapons + combat</tspan></text>
+  <rect x="950" y="260" width="300" height="175" rx="10" class="box" fill="#172a3a" stroke="#58a6ff"/>
+  <text x="970" y="288" class="box-title">SEMANTIC ARTIFACTS + STATIC WORLD</text><text x="970" y="316" class="body"><tspan x="970">Road / Parcel / SiteRequest DB</tspan><tspan x="970" dy="21">BuildingPlan + SiteResolution</tspan><tspan x="970" dy="21">final access + reservations</tspan><tspan x="970" dy="21">Vegetation · StaticBVH</tspan><tspan x="970" dy="21">RegionPackage / streaming</tspan></text>
+  <rect x="1285" y="260" width="255" height="175" rx="10" class="box" fill="#261e35" stroke="#a371f7"/>
+  <text x="1305" y="288" class="box-title">REPRESENTATION COMPILERS</text><text x="1305" y="316" class="body"><tspan x="1305">render representation</tspan><tspan x="1305" dy="21">physics shapes/bodies</tspan><tspan x="1305" dy="21">navigation tiles</tspan><tspan x="1305" dy="21">destruction representation</tspan></text>
+
+  <rect x="635" y="485" width="310" height="180" rx="10" class="box" fill="#382a16" stroke="#d29922"/>
+  <text x="655" y="514" class="box-title">AUTHORITATIVE SIMULATION</text><text x="655" y="542" class="body"><tspan x="655">fixed ticks + scheduler</tspan><tspan x="655" dy="21">custom archetype ECS</tspan><tspan x="655" dy="21">commands / deterministic commit</tspan><tspan x="655" dy="21">projectiles + active destruction</tspan><tspan x="655" dy="21">dynamic entities</tspan></text>
+  <rect x="985" y="510" width="185" height="125" rx="10" class="box" fill="#172a3a" stroke="#58a6ff"/>
+  <text x="1077" y="548" text-anchor="middle" class="box-title"><tspan x="1077">IMMUTABLE</tspan><tspan x="1077" dy="22">PRESENTATION</tspan><tspan x="1077" dy="22">SNAPSHOT</tspan></text>
+  <rect x="1205" y="485" width="250" height="180" rx="10" class="box" fill="#261e35" stroke="#a371f7"/>
+  <text x="1225" y="514" class="box-title">GPU SCENE + RENDER GRAPH</text><text x="1225" y="544" class="body"><tspan x="1225">culling / LOD</tspan><tspan x="1225" dy="22">indirect draws</tspan><tspan x="1225" dy="22">debug + profiling</tspan></text>
+
+  <rect x="345" y="705" width="1195" height="140" rx="12" class="panel"/>
+  <text x="365" y="733" class="label">GENERIC ENGINE SERVICES</text>
+  <rect x="365" y="753" width="350" height="62" rx="8" fill="#21262d" stroke="#6e7681"/><text x="540" y="780" text-anchor="middle" class="body"><tspan x="540">foundation · Result/IDs/hash · memory</tspan><tspan x="540" dy="19">schema/serialization · assets</tspan></text>
+  <rect x="740" y="753" width="225" height="62" rx="8" fill="#21262d" stroke="#6e7681"/><text x="852" y="780" text-anchor="middle" class="body"><tspan x="852">shared JobSystem</tspan><tspan x="852" dy="19">scratch + cancellation</tspan></text>
+  <rect x="990" y="753" width="235" height="62" rx="8" fill="#21262d" stroke="#6e7681"/><text x="1107" y="780" text-anchor="middle" class="body"><tspan x="1107">math · geometry · spatial</tspan><tspan x="1107" dy="19">world/query services</tspan></text>
+  <rect x="1250" y="753" width="265" height="62" rx="8" fill="#21262d" stroke="#6e7681"/><text x="1382" y="780" text-anchor="middle" class="body"><tspan x="1382">Compute · Physics · Navigation</tspan><tspan x="1382" dy="19">Render abstractions</tspan></text>
+  <rect x="345" y="880" width="1195" height="62" rx="10" fill="#11161d" stroke="#6e7681" stroke-width="1.5"/>
+  <text x="942" y="916" text-anchor="middle" class="box-title">BACKENDS: CPU baseline · Diligent RHI/compute · Jolt · Recast/Detour · optional benchmark-gated CUDA</text>
+
+  <path d="M175 313V348" class="edge" stroke="#58a6ff" marker-end="url(#arrow-blue)"/><text x="184" y="336" class="edge-label">export</text>
+  <path d="M290 416H322V347H345" class="edge" stroke="#58a6ff" marker-end="url(#arrow-blue)"/><text x="316" y="405" text-anchor="end" class="edge-label">fixtures</text>
+  <path d="M600 347H635" class="edge" stroke="#3fb950" marker-end="url(#arrow-green)"/><text x="617" y="338" text-anchor="middle" class="edge-label">framework</text>
+  <path d="M915 347H950" class="edge" stroke="#3fb950" marker-end="url(#arrow-green)"/><text x="932" y="338" text-anchor="middle" class="edge-label">artifacts</text>
+  <path d="M1250 347H1285" class="edge" stroke="#a371f7" marker-end="url(#arrow-purple)"/>
+  <path d="M1100 435V465H790V485" class="edge" stroke="#d29922" marker-end="url(#arrow-gold)"/><text x="954" y="458" class="edge-label">instantiate / stream</text>
+  <path d="M945 575H985" class="edge" stroke="#58a6ff" marker-end="url(#arrow-blue)"/><text x="965" y="566" text-anchor="middle" class="edge-label">extract</text>
+  <path d="M1170 575H1205" class="edge" stroke="#a371f7" marker-end="url(#arrow-purple)"/><text x="1187" y="566" text-anchor="middle" class="edge-label">present</text>
+  <path d="M1412 435V465H1330V485" class="edge" stroke="#a371f7" marker-end="url(#arrow-purple)"/><text x="1388" y="458" text-anchor="end" class="edge-label">register</text>
+  <path d="M942 202V232H775V260" class="edge" stroke="#a371f7" stroke-dasharray="6 5" marker-end="url(#arrow-purple)"/><text x="846" y="226" class="edge-label">uses</text>
+  <path d="M290 595H325V575H635" class="edge" stroke="#d29922" stroke-dasharray="6 5" marker-end="url(#arrow-gold)"/><text x="360" y="566" class="edge-label">TARGET validation</text>
+  <path d="M1382 815V880" class="edge" stroke="#6e7681" marker-end="url(#arrow-purple)"/><text x="1392" y="852" class="edge-label">isolated interfaces</text>
+
+  <text x="40" y="977" class="note">Normative contract: docs/0.1_TARGET_ARCHITECTURE.txt · Editable source: TARGET_ARCHITECTURE.drawio.xml</text>
+</svg>

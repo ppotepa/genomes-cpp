@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -10,7 +10,7 @@ STATUS: READY
 ======================================================================
 GOAL
 ======================================================================
-Port procedural rock genomes/prototype generation into versioned geometry recipes with formation/variant diversity and shared LOD identity.
+Implement procedural rock genomes/prototype generation into versioned geometry recipes with formation/variant diversity and shared LOD identity.
 
 ======================================================================
 REQUIRES
@@ -24,7 +24,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE rock catalog/genome variation and placement-facing footprint/burial/orientation metadata.
+TARGET rock catalog/genome variation and placement-facing footprint, burial and
+orientation metadata.
 
 ======================================================================
 OUT OF SCOPE
@@ -87,7 +88,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Map SOURCE RockCatalog/RockGenome into v1 schema.
+    Define the final TARGET RockCatalog/RockGenome schema.
 
 STEP 2
     Implement base primitive/polyhedron + deterministic deformation recipe.
@@ -99,7 +100,7 @@ STEP 4
     Generate collision proxy bounds/convex recipe.
 
 STEP 5
-    Add SOURCE selected variant fixtures and visual/statistical tests.
+    Add TARGET variant fixtures and visual/statistical tests.
 
 ======================================================================
 PSEUDOCODE
@@ -136,7 +137,8 @@ Small bounded prototype set heavily instanced; avoid unique mesh per rock instan
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE::js/environment/rockGenerator.js remains parity reference until 12.6.
+TARGET genome, geometry and placement invariants are authoritative; imported
+rock samples are optional visual diagnostics.
 
 ======================================================================
 TESTS TO ADD

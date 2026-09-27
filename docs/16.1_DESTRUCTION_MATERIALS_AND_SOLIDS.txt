@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port the generic destruction material/solid model into native C++ without coupling it to buildings, Infantry, Jolt or rendering. The result is the semantic substrate for impacts, structural damage, rubble and ballistics.
+Implement the generic destruction material/solid model into native C++ without coupling it to buildings, Infantry, Jolt or rendering. The result is the semantic substrate for impacts, structural damage, rubble and ballistics.
 
 ======================================================================
 REQUIRES
@@ -92,7 +92,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define MaterialId, MaterialDefinition and a versioned MaterialCatalog API. Port current material names/coefficients as gameplay calibration data with source provenance.
+    Define MaterialId, MaterialDefinition and a versioned MaterialCatalog API. Implement current material names/coefficients as gameplay calibration data with source provenance.
 
 STEP 2
     Define MaterialFrame validation: finite vectors, nonzero normal, normalized orthogonal basis within explicit tolerance.
@@ -159,7 +159,9 @@ Layer traversal is O(L) for small layer counts; no heap allocation per query. As
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Export selected SOURCE material assemblies into TARGET reference fixtures. Preserve legacy names/calibration; improvements require a versioned material profile rather than rewriting existing fixture expectations.
+TARGET material IDs, assemblies and calibration profiles are authoritative.
+Imported assemblies may supply diagnostic scenarios but do not freeze old names
+or coefficients.
 
 ======================================================================
 TESTS TO ADD
@@ -190,7 +192,7 @@ ACCEPTANCE CRITERIA
     [ ] physicalSolidId semantics
     [ ] frame transform tested
     [ ] deterministic field tested
-    [ ] legacy fixtures exported
+    [ ] TARGET material fixtures complete
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -210,7 +212,7 @@ COMPLETION CHECKLIST
     [ ] physicalSolidId semantics
     [ ] frame transform tested
     [ ] deterministic field tested
-    [ ] legacy fixtures exported
+    [ ] TARGET material fixtures complete
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

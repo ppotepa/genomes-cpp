@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port simple tactical combat observation/memory/intent model onto ECS/job/cadence infrastructure, preserving current behavior as a baseline while making AI model plugins data-oriented and scalable.
+Implement simple tactical combat observation/memory/intent model onto ECS/job/cadence infrastructure, preserving current behavior as a baseline while making AI model plugins data-oriented and scalable.
 
 ======================================================================
 REQUIRES
@@ -99,7 +99,7 @@ STEP 1
     Define AIModel interface/function contract with immutable Observation -> Intent and model-local compact state storage.
 
 STEP 2
-    Port passive/simple-combat baseline logic from SOURCE into data-oriented model.
+    Implement passive/simple-combat baseline logic from SOURCE into data-oriented model.
 
 STEP 3
     Use CadenceScheduler 12-tick compatibility period with stable entity phase; active combat may raise cadence by policy.

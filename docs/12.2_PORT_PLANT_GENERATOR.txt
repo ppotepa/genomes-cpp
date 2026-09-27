@@ -1,16 +1,17 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 12.2 - PORT_PLANT_GENERATOR
+CHAPTER 12.2 - PLANT_GENERATOR
 STATUS: READY
 
 ======================================================================
 GOAL
 ======================================================================
-Port the SOURCE procedural branch/foliage generator into native pure-data stages with cancellable parallel prototype generation and exact/structural parity fixtures.
+Implement the final procedural plant generator as pure-data skeleton, wood,
+foliage and LOD stages with bounded, cancellable parallel generation.
 
 ======================================================================
 REQUIRES
@@ -25,7 +26,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE procedural tree/shrub diversity, async generation semantics, shared geometry identity and cache correctness.
+Tree/shrub diversity, stable identity across LOD/season/age, asynchronous
+generation, shared geometry ownership and cache correctness.
 
 ======================================================================
 OUT OF SCOPE
@@ -38,7 +40,7 @@ TARGET FILE TREE
     modules/vegetation/include/genomes/vegetation/PlantGenerator.hpp
     modules/vegetation/src/PlantGenerator.cpp
     reference/fixtures/vegetation/
-    tests/native/vegetation/plant_generator_parity_tests.cpp
+    tests/native/vegetation/plant_generator_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
@@ -90,13 +92,14 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Export SOURCE fixtures for species x LOD x season/age matrix used by current tests.
+    Define TARGET species x LOD x season/age fixtures and quality bounds.
 
 STEP 2
-    Port skeleton growth with stable per-branch child seeds; eliminate shared mutable generator context.
+    Implement skeleton growth with stable per-branch child seeds; eliminate shared mutable generator context.
 
 STEP 3
-    Compile wood/foliage GeometryRecipe/MeshData separately and preserve SOURCE-relevant geometry metrics/buffer fixtures where exact parity intended.
+    Compile wood/foliage GeometryRecipe/MeshData separately and validate branch
+    connectivity, taper, bounds, density and stable semantic identity.
 
 STEP 4
     Add cancellation points at branch/segment batches.
@@ -105,7 +108,7 @@ STEP 5
     Integrate ArtifactCache and memory high-water metrics.
 
 STEP 6
-    Run SOURCE equivalent of plant_async_smoke/plant_buffer/cache expectations.
+    Run TARGET async, buffer-layout, cancellation and cache tests.
 
 ======================================================================
 PSEUDOCODE
@@ -147,7 +150,8 @@ Cache prototypes, reuse shared topology/materials, benchmark build throughput an
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Port SOURCE algorithms first, then versioned improvements; fixtures pin exact SOURCE commit.
+One TARGET algorithm serves production. Reference plants may inform species
+ranges and visual review but do not create compatibility branches.
 
 ======================================================================
 TESTS TO ADD
@@ -156,7 +160,7 @@ TESTS TO ADD
     sync vs parallel
     cancel cleanup
     cache refcount
-    buffer/bounds parity
+    buffer/bounds invariants
 
 ======================================================================
 COMMANDS TO RUN
@@ -172,7 +176,7 @@ ACCEPTANCE CRITERIA
     [ ] bounded/cancellable
     [ ] parallel safe
     [ ] cache metrics
-    [ ] parity matrix
+    [ ] species/LOD/season acceptance matrix
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -188,7 +192,7 @@ COMPLETION CHECKLIST
     [ ] bounded/cancellable
     [ ] parallel safe
     [ ] cache metrics
-    [ ] parity matrix
+    [ ] species/LOD/season acceptance matrix
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

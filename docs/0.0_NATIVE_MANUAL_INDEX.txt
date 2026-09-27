@@ -1,11 +1,11 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
 TARGET REPOSITORY:
     ppotepa/genomes-cpp
 
-LEGACY / REFERENCE SOURCE REPOSITORY:
+REFERENCE EVIDENCE REPOSITORY:
     ppotepa/genomes
 
 PATH CONVENTION:
@@ -16,19 +16,19 @@ PATH CONVENTION:
         path inside ppotepa/genomes.
 
     Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
-    refer to TARGET unless the section explicitly identifies legacy/source
+    refer to TARGET unless the section explicitly identifies reference/source
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and the
+    owning TARGET chapter are authoritative. Native implementation agents must
+    not add production compatibility modes for SOURCE internals or modify SOURCE
+    while implementing TARGET.
 
 REFERENCE EXPORT RULE:
-    Do not copy private legacy source code wholesale into this repository.
+    Do not copy private source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
 MASTER INDEX / CONTRACT
 Version: 0.1
@@ -39,8 +39,15 @@ Branch policy: implementation chapters target main unless explicitly stated othe
 ======================================================================
 
 Historical design, research and implementation documentation remains in
-SOURCE::docs/. The TARGET::docs/ directory contains the normative migration contract plus
-the executable C++ implementation manual. Historical SOURCE documentation is referenced, not copied wholesale.
+SOURCE::docs/. TARGET::docs/ contains the normative final product contracts and
+the executable C++ implementation manual. SOURCE documentation is referenced,
+not copied wholesale.
+
+The final TARGET contract always takes precedence:
+    docs/TARGET_IMPLEMENTATION_CONTRACT.txt
+
+Classification of optional SOURCE evidence is documented separately in:
+    docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
 
 The numbered X.Y_*.txt files form one roadmap with two chapter classes:
 
@@ -53,12 +60,12 @@ The numbered X.Y_*.txt files form one roadmap with two chapter classes:
         executable implementation chapters that an agent can implement
         chapter-by-chapter.
 
-Together they define the complete migration/implementation manual while
-preserving SOURCE functionality.
+Together they define the complete final implementation manual. SOURCE material
+informs capability coverage but does not define runtime architecture.
 
 The intended usage is:
 
-    "Implement docs/1.1_BOOTSTRAP_CPP_CMAKE.txt in this repository."
+    "Implement docs/1.1_CPP_CMAKE_BOOTSTRAP.txt in this repository."
 
 An implementation agent must be able to execute that chapter without inventing
 architecture that belongs in later chapters.
@@ -87,12 +94,12 @@ Existing systems remain requirements until a chapter explicitly migrates them:
     procedural-building-generator prototype
     tests, fixtures and research documentation
 
-During migration, an old implementation may coexist with a new native
-implementation. Removal of the old path is allowed only after the responsible
-chapter defines parity criteria and those criteria pass.
+SOURCE may continue to exist as a separate prototype/evidence repository, but
+it never defines an alternate native production path. Each accepted capability
+must have a TARGET owner and measurable validation.
 
 NO chapter may silently drop an existing feature because it is inconvenient to
-port.
+implement.
 
 ======================================================================
 2. FILE NAMING
@@ -177,8 +184,8 @@ When told to implement one chapter, the agent must:
 4. Implement ALL chapter steps, not a subset.
 5. Do not implement future chapters unless required to make the current
    chapter compile/test and the chapter explicitly permits the minimal bridge.
-6. Do not delete an existing feature unless the chapter explicitly contains a
-   removal/parity step.
+6. Do not omit an accepted product capability unless the owning TARGET chapter
+   records an explicit rejection/replacement decision.
 7. Add all tests required by the chapter.
 8. Run all commands listed in COMMANDS TO RUN that are possible in the
    environment.
@@ -246,16 +253,15 @@ acceptance criteria.
 7. MANUAL ROADMAP
 ======================================================================
 
-STAGE 0 - ARCHITECTURE / MIGRATION CONTRACT
+STAGE 0 - FINAL ARCHITECTURE / REFERENCE EVIDENCE
 
 0.1 TARGET_ARCHITECTURE
-    Overall layering, dependency direction, preserve-existing-functionality
-    rule, semantic/simulation/presentation split, engine/module boundaries.
+    Overall layering, dependency direction, final TARGET authority,
+    semantic/simulation/presentation split and engine/module boundaries.
 
-0.2 MIGRATION_INVENTORY_AND_PARITY_MATRIX
-    Enumerate every current subsystem/file group/prototype/test and assign a
-    target native module, migration chapter, parity evidence and retirement
-    rule.
+0.2 REFERENCE_CAPABILITY_INVENTORY_AND_VALIDATION_MATRIX
+    Classify prototype capabilities/evidence and assign accepted requirements,
+    improvements or rejections to TARGET owners and validation.
 
 0.3 CODING_AND_DEPENDENCY_RULES
     C++ style, includes, namespaces, ownership, no-cross-layer rules,
@@ -272,8 +278,8 @@ STAGE 0 - ARCHITECTURE / MIGRATION CONTRACT
     reference implementations.
 
 0.6 REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT
-    Freezes SOURCE/TARGET repository responsibilities, reference/ structure,
-    source commit pinning, fixture export rules and cross-repo parity workflow.
+    Defines SOURCE/TARGET repository responsibilities, reference/ structure,
+    provenance, fixture export and optional diagnostic comparison workflow.
 
 STAGE 1 - NATIVE BUILD SKELETON
 
@@ -358,7 +364,7 @@ STAGE 9 - TERRAIN / HYDROLOGY
 
 STAGE 10 - ROADS / CITY
 
-10.1 PORT_ROAD_GRAPH_PRIMITIVES
+10.1 ROAD_GRAPH_PRIMITIVES
 10.2 ROAD_COST_FIELDS_AND_ROUTING
 10.3 ROAD_GROWTH_AND_TOPOLOGY
 10.4 ROAD_GRAPH_VALIDATION
@@ -367,7 +373,7 @@ STAGE 10 - ROADS / CITY
 10.7 ZONING_BLOCKS_AND_HALF_EDGE_FACES
 10.8 PARCELS_AND_BUILDABLE_AREAS
 10.9 CITY_PARALLEL_GENERATION
-10.10 CITY_REFERENCE_PARITY
+10.10 CITY_REFERENCE_VALIDATION
 
 STAGE 11 - BUILDINGS
 
@@ -382,16 +388,16 @@ STAGE 11 - BUILDINGS
 11.9 BUILDING_COLLISION_COMPILER
 11.10 BUILDING_NAV_COMPILER
 11.11 BUILDING_PARALLEL_BATCH_GENERATION
-11.12 BUILDING_REFERENCE_PARITY
+11.12 BUILDING_REFERENCE_VALIDATION
 
 STAGE 12 - VEGETATION / ENVIRONMENT
 
 12.1 PLANT_GENOME_AND_PROTOTYPE_MODEL
-12.2 PORT_PLANT_GENERATOR
+12.2 PLANT_GENERATOR
 12.3 ROCK_GENERATOR
 12.4 VEGETATION_SCATTER
 12.5 INSTANCE_PAGES_AND_GPU_RENDERING
-12.6 VEGETATION_CACHE_AND_PARITY
+12.6 VEGETATION_CACHE_AND_VALIDATION
 
 STAGE 13 - PHYSICS
 
@@ -424,13 +430,13 @@ STAGE 15 - SIMULATION / ECS
 STAGE 16 - DESTRUCTION
 
 16.1 DESTRUCTION_MATERIALS_AND_SOLIDS
-16.2 IMPACT_SOLVER_PORT
+16.2 IMPACT_SOLVER
 16.3 STRUCTURAL_LINKS_AND_DAMAGE_FIELDS
 16.4 HERO_CHEAP_BAKED_DEBRIS
 16.5 RUBBLE_FIELD
 16.6 DESTRUCTION_PHYSICS_INTEGRATION
 16.7 NAV_AND_WORLD_INVALIDATION
-16.8 DESTRUCTION_REFERENCE_PARITY
+16.8 DESTRUCTION_REFERENCE_VALIDATION
 
 STAGE 17 - BALLISTICS
 
@@ -439,7 +445,7 @@ STAGE 17 - BALLISTICS
 17.3 PENETRATION_RICOCHET_DEFLECTION
 17.4 FRAGMENTATION_AND_HE
 17.5 BALLISTICS_BATCHING_AND_SIMD
-17.6 BALLISTICS_REFERENCE_PARITY
+17.6 BALLISTICS_REFERENCE_VALIDATION
 
 STAGE 18 - INFANTRY
 
@@ -453,7 +459,7 @@ STAGE 18 - INFANTRY
 18.8 FACE_AND_EXPRESSION
 18.9 ANIMATION_LOD_AND_PARALLEL_EVALUATION
 18.10 INFANTRY_DAMAGE_AND_RAGDOLL
-18.11 INFANTRY_REFERENCE_PARITY
+18.11 INFANTRY_REFERENCE_VALIDATION
 
 STAGE 19 - WEAPONS / COMBAT / AI
 
@@ -469,12 +475,12 @@ STAGE 19 - WEAPONS / COMBAT / AI
 STAGE 20 - FULL WORLD INTEGRATION
 
 20.1 NATIVE_WORLD_ASSEMBLY
-20.2 OLD_AND_NEW_RUNTIME_PARITY_WORLD
+20.2 FINAL_WORLD_REFERENCE_VALIDATION
 20.3 STREAMING_LARGE_WORLD
 20.4 SAVE_LOAD_AND_ARTIFACT_PACKAGES
 20.5 NATIVE_PROC_VIEWER
 20.6 FULL_GAME_PRESENTATION
-20.7 LEGACY_RUNTIME_RETIREMENT_RULES
+20.7 REFERENCE_EVIDENCE_ARCHIVAL
 
 STAGE 21 - HIGH-END GPU / OPTIONAL CUDA
 
@@ -512,7 +518,7 @@ For each chapter we will track:
     [ ] acceptance criteria measurable
     [ ] forbidden shortcuts specified
     [ ] dependencies explicit
-    [ ] compatibility/parity defined
+    [ ] final TARGET policy and validation defined
     [ ] reviewed against overall architecture
 
 Only after every applicable check may chapter STATUS become READY.

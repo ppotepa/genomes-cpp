@@ -1,17 +1,18 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 16.8 - DESTRUCTION_REFERENCE_PARITY
+CHAPTER 16.8 - DESTRUCTION_REFERENCE_VALIDATION
 STATUS: READY
 VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Freeze and execute the destruction migration parity gate. Export minimal SOURCE fixtures, compare native semantic results/invariants, run stress/conservation scenarios and decide whether native destruction is eligible for integrated use.
+Validate the final TARGET destruction system using semantic invariants,
+conservation, stress scenarios, representation lifecycle and world invalidation.
 
 ======================================================================
 REQUIRES
@@ -41,29 +42,32 @@ All destruction contracts and tests enumerated in 0.2, especially conservation, 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Does not delete SOURCE code. Legacy retirement remains Stage 20.7.
+No ballistics integration beyond the interfaces owned by Stage 16.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
     reference/fixtures/destruction/README.txt
     reference/fixtures/destruction/*.json
-    tests/native/parity/destruction_parity_tests.cpp
+    tests/native/validation/destruction_validation_tests.cpp
     tools/reference/export_destruction_reference.*
-    docs/parity/16.8_DESTRUCTION_PARITY_REPORT.txt
+    docs/reports/16.8_DESTRUCTION_VALIDATION_REPORT.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Parity report records exact SOURCE commit, TARGET commit, fixture schema/exporter version and per-case parity class.
+1. Validation report records TARGET commit/schema and per-case validation class.
+Imported diagnostics additionally retain SOURCE provenance.
 
-2. Do not require identical Rapier/Jolt body transforms where invariant/behavioral parity is correct. Require strong semantic parity for material interval traversal, energy bookkeeping and conservation fixtures.
+2. Require TARGET material traversal, energy bookkeeping and conservation
+contracts; backend body trajectories use explicitly declared tolerances.
 
 3. Historical fixture expected values are immutable once accepted; updates create new fixture version with reason/source commit.
 
-4. All SOURCE destruction test requirements must be mapped to native test or explicitly superseded by stronger documented test.
+4. Every accepted destruction requirement and useful reference failure case maps
+to a TARGET test or an explicit rejection decision.
 
-5. Parity status categories: PASS, FAIL, BLOCKED_SOURCE, INTENTIONAL_VERSIONED_CHANGE. No silent skip.
+5. Status categories are PASS, FAIL or MANUAL_PENDING(owner). No silent skip.
 
 ======================================================================
 DATA LAYOUT
@@ -103,7 +107,7 @@ STEP 2
     Export deterministic minimal cases: layered wall, glass pair/air gap, technical split, thin/thick, moving target, local damage, support failure, rubble deposits/removals, body-budget collapse.
 
 STEP 3
-    Implement native fixture loader/comparator with explicit numeric tolerances documented per field.
+    Implement TARGET fixture loader/validators with explicit field tolerances.
 
 STEP 4
     Translate every 0.2 destruction test category to native test mapping table.
@@ -112,18 +116,17 @@ STEP 5
     Run Debug correctness and Release stress/benchmark; record environment but do not invent absolute performance budget without baseline.
 
 STEP 6
-    Produce parity report listing PASS/FAIL for each fixture/invariant and any intentional algorithm-version changes.
+    Produce validation report listing PASS/FAIL for each TARGET invariant.
 
 STEP 7
-    Only after full PASS mark Stage 16 IMPLEMENTED/eligible; do not remove SOURCE.
+    Only after full PASS mark Stage 16 IMPLEMENTED/eligible.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 FOR fixture IN sorted(fixtures by id):
-    legacyExpected := fixture.expected
     native := runNative(fixture.input)
-    result := compareByParityClass(native, legacyExpected, fixture.policy)
+    result := validateTarget(native, fixture.targetPolicy)
     report.add(fixture.id, result)
 
 require report.count == fixtures.count
@@ -136,17 +139,19 @@ CONSERVATION:
 ELIGIBLE :=
     all required fixtures PASS
     and all invariant tests PASS
-    and no unmapped SOURCE acceptance requirement
+    and no unmapped TARGET requirement
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Parity tests explicitly run selected semantic cases at 1 and N worker counts where destruction jobs parallelize. Expected semantic results must not depend on worker count.
+Validation runs selected semantic cases at 1 and N worker counts. Expected
+TARGET results must not depend on worker count.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-SOURCE unavailable -> BLOCKED_SOURCE only for regeneration; committed fixtures still allow native tests. Any fixture schema mismatch fails loudly.
+SOURCE unavailable skips optional diagnostic regeneration; TARGET validation
+remains runnable. Any fixture schema mismatch fails loudly.
 
 ======================================================================
 DETERMINISM RULES
@@ -161,7 +166,8 @@ Record impact throughput, damage-field update, rubble deposit/query, active-body
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Successful 16.8 permits native destruction integration, not SOURCE deletion. Update 0.2 retirement ledger status.
+Successful TARGET validation permits destruction integration and updates the
+capability inventory status.
 
 ======================================================================
 TESTS TO ADD
@@ -186,9 +192,9 @@ COMMANDS TO RUN
 ACCEPTANCE CRITERIA
 ======================================================================
     [ ] exact provenance
-    [ ] all SOURCE requirements mapped
+    [ ] all TARGET requirements mapped
     [ ] no silent skipped fixtures
-    [ ] semantic parity pass
+    [ ] semantic validation pass
     [ ] conservation pass
     [ ] stress pass
     [ ] report committed
@@ -197,17 +203,17 @@ ACCEPTANCE CRITERIA
 FORBIDDEN SHORTCUTS
 ======================================================================
     editing expected fixture to match a bug
-    claiming parity from visuals only
+    claiming semantic validation from visuals only
     requiring exact Jolt/Rapier trajectories unnecessarily
-    deleting SOURCE after pass
+    adding a compatibility path solely for an imported fixture
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
     [ ] exact provenance
-    [ ] all SOURCE requirements mapped
+    [ ] all TARGET requirements mapped
     [ ] no silent skipped fixtures
-    [ ] semantic parity pass
+    [ ] semantic validation pass
     [ ] conservation pass
     [ ] stress pass
     [ ] report committed

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port Infantry rig/skeleton generation from resolved phenotype into backend-independent skeleton data, preserving bind pose, hierarchy, semantic bone names and skinning contracts.
+Implement the final Infantry rig from resolved phenotype as backend-independent skeleton data with stable bind pose, hierarchy, semantic bone names and skinning contracts.
 
 ======================================================================
 REQUIRES
@@ -22,6 +22,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
     TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
     TARGET::docs/18.2_INFANTRY_GENOME_AND_PHENOTYPE.txt
@@ -30,7 +31,7 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE 39 bones/controllers baseline (22 body + 17 face where still current), one coherent body/face skeleton, per-phenotype bind dimensions, eye/eyelid/jaw/cheek relationships and no old-model absolute pose offsets.
+One canonical 69-bone rig: 22 body + 17 face/controller + 30 finger bones (five digits x three bones x two hands), one coherent body/face/hand skeleton, phenotype-derived bind dimensions and explicit eye/eyelid/jaw/cheek relationships.
 
 ======================================================================
 OUT OF SCOPE
@@ -52,11 +53,15 @@ PUBLIC CONTRACTS
 
 2. Bone hierarchy is deterministic and independent of loadout/LOD. Equipment later shares same skeleton; it does not create a second skeleton.
 
-3. Face controllers: eyes rotate with eye bones; eyelid deformation is morph-driven, eyelid controllers remain head-relative per SOURCE semantics; lower lip/jaw and cheeks preserve documented influence relationships.
+3. Face controllers: eyes rotate with eye bones; eyelid deformation is morph-driven, eyelid controllers remain head-relative; lower lip/jaw and cheeks use explicit influence relationships.
 
 4. Bind pose built from phenotype measurements in metres exactly once; no runtime scale trick that changes skeleton hierarchy.
 
 5. Renderer-specific skinning buffers are compiled later from SkeletonData; Diligent types forbidden here.
+
+6. BoneIndex order is fixed by the single TARGET RigSchema. Hand bones use
+deterministic left/right, digit and segment order with explicit parent chains.
+Loadout selection and weapon presence do not alter schema or bone count.
 
 ======================================================================
 DATA LAYOUT
@@ -79,6 +84,7 @@ ALGORITHM REFERENCES
 SOURCE REFERENCES
 ======================================================================
     SOURCE::js/rendering/infantryRig.js
+    SOURCE::js/weapons/handRig.js
     SOURCE::js/rendering/faceAnatomy.js
     SOURCE::docs/02_MODEL_GENOM_SZKIELET.txt
     SOURCE::docs/11_NAPRAWY_ANATOMII_V08.txt
@@ -88,7 +94,8 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Freeze stable rig schema names/parents from SOURCE and document any deliberate native changes.
+    Freeze all 69 TARGET rig names/parents as one schema and document semantic
+    categories, attachments and the deterministic finger hierarchy.
 
 STEP 2
     Implement RigBuilder(BodyPhenotype,FacePhenotype)->SkeletonData.
@@ -103,7 +110,8 @@ STEP 5
     Expose semantic attachment points derived from phenotype/skeleton for later equipment/weapons.
 
 STEP 6
-    Export selected SOURCE bind landmark/bone fixtures for short/average/tall/extreme phenotypes.
+    Build TARGET bind landmark/bone fixtures for short/average/tall/extreme
+    phenotypes; imported samples are diagnostic comparisons only.
 
 ======================================================================
 PSEUDOCODE
@@ -146,12 +154,16 @@ Build once/cache by phenotype artifact. Bone lookup uses indexed map, not repeat
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve selected bind/reference metrics and hierarchy behavior, not Three.js Bone objects.
+Reference metrics may seed tolerances, but TARGET RigSchema and phenotype rules
+are the only implementation contract. No alternate rig schema is shipped.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     bone count/schema
+    exact 22 body + 17 face/controller + 30 finger category counts
+    five digits x three bones x two hands and parent chains
+    hand grip/pose semantics with and without a weapon
     parent hierarchy
     bind/inverse identity
     height scaling
@@ -171,6 +183,7 @@ ACCEPTANCE CRITERIA
 ======================================================================
     [ ] backend-independent skeleton
     [ ] stable IDs/hierarchy
+    [ ] exact canonical 69-bone TARGET schema
     [ ] bind transforms phenotype-derived
     [ ] no equipment dependency
     [ ] fixtures
@@ -180,7 +193,7 @@ FORBIDDEN SHORTCUTS
 ======================================================================
     THREE/Diligent bone types in semantic rig
     second skeleton for gear
-    absolute offsets copied from old reference body
+    absolute offsets tied to any reference body
     string lookups per animation channel
 
 ======================================================================
@@ -188,6 +201,7 @@ COMPLETION CHECKLIST
 ======================================================================
     [ ] backend-independent skeleton
     [ ] stable IDs/hierarchy
+    [ ] exact canonical 69-bone TARGET schema
     [ ] bind transforms phenotype-derived
     [ ] no equipment dependency
     [ ] fixtures

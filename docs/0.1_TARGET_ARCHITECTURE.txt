@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
@@ -20,15 +20,15 @@ PATH CONVENTION:
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and the
+    owning TARGET chapter are authoritative from the start. Implementation
+    agents must not add production compatibility branches merely to reproduce
+    SOURCE internals or modify SOURCE while implementing TARGET.
 
 REFERENCE EXPORT RULE:
     Do not copy private legacy source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
 CHAPTER 0.1 - TARGET ARCHITECTURE
 STATUS: READY
@@ -43,9 +43,9 @@ follow.
 This chapter makes NO destructive migration. It defines boundaries and
 contracts.
 
-The entire existing Genomes project remains product scope. The native engine is
-a migration and architectural improvement path, not a replacement that may
-discard current behavior.
+The native engine is the product architecture. Existing capabilities are design
+inputs, but each shipped behavior must be expressed as a coherent TARGET
+contract and may be improved instead of copied.
 
 ======================================================================
 REQUIRES
@@ -77,14 +77,13 @@ Read before implementation work:
 PRESERVES
 ======================================================================
 
-All current Genomes capabilities remain requirements, including:
+The final design covers the following product capability areas:
 
     deterministic seeded generation
-    existing browser labs
     terrain generation
     vegetation / rocks
     procedural buildings
-    city and road prototypes
+    procedural city and road generation
     infantry genome and phenotype
     procedural anatomy / rig
     procedural surface generation
@@ -93,11 +92,11 @@ All current Genomes capabilities remain requirements, including:
     ballistics
     destruction
     rubble
-    AI experiments
-    existing test suites
-    existing research and design documentation
+    AI and large-batch simulation
+    deterministic validation, benchmarks and visual acceptance
 
-No existing system is deleted in Chapter 0.1.
+Reference labs/research remain available as evidence but are not shipped native
+subsystems unless an owning chapter defines their final contract.
 
 ======================================================================
 OUT OF SCOPE
@@ -195,6 +194,25 @@ Legacy/reference material remains in SOURCE, not TARGET:
 
 TARGET contains only native implementation, executable migration docs and the
 minimal exported reference artifacts under TARGET::reference/.
+
+Architecture diagram artifacts:
+
+    docs/architecture/TARGET_ARCHITECTURE.drawio.xml
+        canonical editable diagrams.net XML
+
+    docs/architecture/TARGET_ARCHITECTURE.svg
+        reviewable/exported vector rendering
+
+The diagram summarizes this chapter; this text remains normative. When the
+architecture changes, update both diagram artifacts in the same change and
+validate that the dependency direction and authoritative-data boundaries still
+match this chapter.
+
+SOURCE behavior and mockup authority/classification is defined by:
+    docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
+
+The final product contract, which takes precedence over reference history, is:
+    docs/TARGET_IMPLEMENTATION_CONTRACT.txt
 
 ======================================================================
 PUBLIC CONTRACTS
@@ -457,10 +475,10 @@ Chapter 0.1 itself only establishes architecture.
 Every later chapter must implement within these constraints:
 
 STEP 1
-    Preserve the old implementation until parity exists.
+    Read TARGET_IMPLEMENTATION_CONTRACT and the owning chapter.
 
 STEP 2
-    Extract semantic/data contracts from current JS/prototypes.
+    Use JS/prototypes only to discover scenarios, constraints and failure cases.
 
 STEP 3
     Implement generic engine primitives below domain modules.
@@ -469,7 +487,7 @@ STEP 4
     Implement native semantic generator/runtime.
 
 STEP 5
-    Add deterministic/invariant/parity tests.
+    Add deterministic, invariant, quality and acceptance tests for TARGET.
 
 STEP 6
     Add renderer/physics/navigation compilers as consumers.
@@ -478,7 +496,7 @@ STEP 7
     Benchmark.
 
 STEP 8
-    Only then consider retiring the old implementation.
+    Record unresolved product requirements; do not add compatibility modes.
 
 ======================================================================
 PSEUDOCODE
@@ -748,33 +766,31 @@ PERFORMANCE RULES
 MIGRATION / COMPATIBILITY
 ======================================================================
 
-The browser implementation is a reference implementation throughout migration.
+The native architecture has one final behavior per subsystem. For each major
+system an owning chapter defines applicable validation classes:
 
-For each major system a later chapter must define one of:
-
-    EXACT PARITY
-    INVARIANT PARITY
-    BEHAVIORAL PARITY
-    FEATURE PARITY
+    EXACT TARGET ID/SERIALIZATION
+    NUMERIC
+    STRUCTURAL / INVARIANT
+    BEHAVIORAL
+    VISUAL / PERFORMANCE
 
 Examples:
 
 Road graph:
-    invariant/topology parity may be sufficient.
+    topology, access, geometric validity and quality metrics.
 
 Building generator:
-    selected golden seeds + invariant parity.
+    deterministic seeds, semantic-plan validation and representation consistency.
 
 Ballistics:
-    numerical/behavioral parity with current acceptance fixtures.
+    numerical and behavioral acceptance against TARGET physics contracts.
 
 Infantry:
-    genome/appearance/pose/reference parity for selected seeds and tests.
+    deterministic identity, anatomy, appearance, pose and performance acceptance.
 
-Legacy removal is allowed only when:
-    native implementation passes its chapter parity gate,
-    dependent native systems use it,
-    the old path is not the only implementation of a preserved feature.
+Reference implementations and captures may contribute scenarios, but do not
+define alternative production paths or acceptance values by themselves.
 
 ======================================================================
 TESTS TO ADD
@@ -791,8 +807,8 @@ However later tests MUST include architecture tests such as:
     no world dependency on gameplay modules
     headless generation without GPU
 
-Chapter 0.2 will create the parity inventory used to ensure no current feature
-is forgotten.
+Chapter 0.2 inventories evidence so useful capabilities and known failures are
+considered without making prototype internals normative.
 
 ======================================================================
 COMMANDS TO RUN
@@ -821,8 +837,8 @@ Chapter 0.1 is complete when:
 8. Static world and dynamic ECS are separate concepts.
 9. One shared job system is the target.
 10. Determinism is independent of thread scheduling.
-11. Existing project functionality is explicitly preserved during migration.
-12. Legacy implementation remains until a later parity chapter retires it.
+11. Every accepted product capability has an explicit TARGET owner and contract.
+12. Reference implementation details cannot create production compatibility modes.
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -839,14 +855,14 @@ Do NOT:
     make CUDA mandatory
     use render objects as authoritative gameplay objects
     consume random numbers from shared global RNG in parallel generators
-    remove JS/prototypes before parity gates
+    turn JS/prototype details into production compatibility branches
     design Infantry as an engine dependency
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
 
-[x] preserve-existing-functionality rule defined
+[x] capability-coverage and explicit TARGET-decision rule defined
 [x] engine/modules dependency direction defined
 [x] procedural framework role defined
 [x] semantic/simulation/presentation split defined
@@ -858,7 +874,7 @@ COMPLETION CHECKLIST
 [x] physics boundary defined
 [x] navigation boundary defined
 [x] compute/CUDA boundary defined
-[x] migration/parity principle defined
+[x] final TARGET validation principle defined
 [x] architectural removal test for Infantry defined
 
 ======================================================================
@@ -872,10 +888,10 @@ Next chapter:
 It must inspect the entire relevant TARGET/SOURCE repository and build a complete mapping:
 
     existing path / symbol / feature
-        -> preserve requirement
+        -> TARGET decision/requirement
         -> target native module
         -> implementation chapter
-        -> parity test/evidence
-        -> old-path retirement chapter
+        -> validation test/evidence
+        -> reference classification
 
 The inventory must include all current prototypes, not only the main runtime.

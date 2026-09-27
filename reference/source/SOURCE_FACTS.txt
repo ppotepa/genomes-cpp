@@ -165,21 +165,39 @@ genes.
 6. INFANTRY
 ======================================================================
 
-SOURCE docs identify Infantry generator family:
-    infantry-5.0.0
+Infantry compatibility provenance:
+    historical 36b3808 capture family: infantry-5.0.0
+    later implemented v14 research family: infantry-7.0.0
+    current runtime phenotype field: building-6.0.0 (known accidental use of
+        global R.Config.GENERATOR_VERSION; not the Infantry semantic version)
+
+Current parity fixtures must pin the exact SOURCE commit. The observed emitted
+building-6.0.0 value is recorded as legacy provenance and is not adopted as the
+native Infantry generator identity.
 
 SOURCE::js/rendering/infantryRig.js
+SOURCE::js/weapons/handRig.js
 
-Rig/control count:
-    39
+Current rig/control count:
+    69
 
 Breakdown:
-    central body/spine/head: 6
-    paired limbs:            16
-    jaw/lips:                 3
-    paired facial controls:  14
+    original stable body/face prefix: 39
+        central body/spine/head:       6
+        paired limbs:                  16
+        jaw/lips:                      3
+        paired facial controls:        14
+    appended finger bones:             30
+        5 digits x 3 bones x 2 hands
 
-One skeleton is shared by body and facial controls.
+One skeleton is shared by body, facial controls and fingers. HandAnatomy.append
+preserves the original 39 indices and appends finger bones.
+
+Current morph channels:
+    eyelidsClose
+    eyelidsArc
+    neckFlex
+    handsRelax
 
 Infantry genome compatibility streams:
     base: seed

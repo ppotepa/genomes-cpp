@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-All preceding TARGET contracts and relevant SOURCE behavior.
+Semantic identity, schedule independence, reproducible sampling and isolation
+between unrelated procedural domains.
 
 ======================================================================
 OUT OF SCOPE
@@ -47,38 +48,15 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Seed is uint64 semantic root. SeedPath derives child seeds from parent seed + stable UTF-8 label + stable uint64 index using a frozen derivation version.
 
-2. RandomStream algorithm AND seed-derivation algorithm are explicitly
-versioned. SOURCE does not use one universal derivation scheme.
+2. RandomStream algorithm and seed derivation are explicit TARGET schemas.
+Production uses only canonical SeedPath + PCG streams. Reference-export RNGs,
+if needed by tooling, are outside engine/proc and cannot be selected at runtime.
 
-Required compatibility adapters:
-    LegacyCoreSeededRandomJS
-    LegacyBuildingMulberry32
-    LegacyCityMulberry32
-    LegacyBuildingDeriveSeed32
-    LegacyCitySeedTree32
-    LegacyPlantLabelStream32
-    LegacyInfantryGenome32
-    LegacyEquipmentHash32
-    LegacyFaceAnimator32
-    LegacySettlement32
-
-See:
-    ALG-RNG-MULBERRY32-LEGACY-001
-    ALG-RNG-BUILDING-DERIVE32-001
-    ALG-RNG-CITY-SEEDTREE32-001
-    ALG-RNG-PLANT-LABEL32-001
-    ALG-RNG-INFANTRY-GENOME32-001
-    ALG-RNG-EQUIPMENT-HASH32-001
-    ALG-RNG-FACE-ANIMATOR32-001
-    ALG-RNG-SETTLEMENT32-001
-
-3. Default canonical native v1 is PCG32 with 64-bit state/stream selector,
+3. Canonical native v1 is PCG32 with 64-bit state/stream selector,
 seeded from the canonical native SeedPath/StableHash tuple.
 
-However, a migration chapter requesting EXACT SOURCE parity MUST use the
-correct SOURCE compatibility derivation adapter for its fixture/generator
-version. It may switch to native SeedTree only through an explicit generator
-version change and parity report.
+TARGET generators never select algorithms from fixture provenance or
+compatibility configuration.
 
 4. RandomStream provides nextU32, uniform01 [0,1), uniformRange, bounded integer using rejection to avoid modulo bias.
 
@@ -97,10 +75,6 @@ MATHEMATICAL CONTRACTS
 ALGORITHM REFERENCES
 ======================================================================
     ALG-RNG-SEED-TREE-001
-    ALG-RNG-MULBERRY32-LEGACY-001
-    ALG-RNG-BUILDING-DERIVE32-001
-    ALG-RNG-CITY-SEEDTREE32-001
-    ALG-RNG-PLANT-LABEL32-001
 
 ======================================================================
 SOURCE REFERENCES
@@ -121,42 +95,14 @@ STEP 3
     Implement PCG32 canonical stream with published reference constants and golden vectors; record primary PCG source in 0.5 if missing.
 
 STEP 4
-    Implement the SOURCE Mulberry family as explicit compatibility adapters:
-
-        LegacyCoreSeededRandomJS
-        LegacyBuildingMulberry32
-        LegacyCityMulberry32
-
-    Share the mixer implementation where proven equivalent, but preserve each
-    caller's state-storage/coercion semantics and freeze golden vectors from the
-    actual SOURCE implementation.
-
-    A single uint32 adapter may be used for bounded fixtures only if tests prove
-    the fixture stream never reaches a divergence point and the fixture metadata
-    records that compatibility scope.
-
-STEP 5
-    Implement the known SOURCE seed-derivation compatibility paths:
-        Buildings.deriveSeed(seed,path)
-        procedural-city SeedTree/hashString/hash32 path
-        plantGenerator stream(seed,label)
-        InfantryGenome base/body/face seed domains
-        EquipmentSeed hash/slot/item-variant derivation
-        FaceAnimator seed XOR stream
-        simple settlement root/building seed rules
-
-    Freeze independent golden vectors for each.
-
-    Treat this list as a compatibility registry, not one "legacy RNG" switch.
-
-STEP 6
     Implement unbiased bounded uint generation via rejection threshold.
 
-STEP 7
+STEP 5
     Add schedule-independence test: derive 10k child streams in shuffled parallel order and compare by stable index.
 
-STEP 8
-    Export selected SOURCE RNG golden values to reference/fixtures/core only when implementing parity.
+STEP 6
+    Add semantic-isolation tests proving that inserting an unrelated domain,
+    entity or gene does not perturb existing paths.
 
 ======================================================================
 PSEUDOCODE
@@ -201,21 +147,17 @@ No hidden heap churn in hot loops; benchmark performance-sensitive primitives un
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+SeedPath + PCG is the only production RNG policy. Optional reference exporters
+are separate tools and cannot link into engine/modules/apps.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     seed path golden vectors
     PCG32 golden vectors
-    legacy Mulberry exact SOURCE samples
-    building deriveSeed golden vectors
-    city SeedTree golden vectors
-    plant label stream golden vectors
-    Infantry base/body/face golden vectors
-    Equipment seed/hash golden vectors
-    FaceAnimator compatibility stream vectors
-    simple-settlement seed vectors
+    label/index/type encoding separation
+    domain insertion isolation
+    entity/gene insertion isolation
     bounded integer no out of range
     parallel shuffled order equality
 
@@ -231,8 +173,8 @@ ACCEPTANCE CRITERIA
 ======================================================================
     [ ] versioned derivation
     [ ] canonical native RNG
-    [ ] legacy RNG stream separate
-    [ ] all known legacy derivation families implemented
+    [ ] one production SeedPath + PCG policy
+    [ ] no runtime reference-RNG dependency
     [ ] unbiased bounded integers
     [ ] parallel identity stable
 
@@ -249,7 +191,7 @@ COMPLETION CHECKLIST
 ======================================================================
     [ ] versioned derivation
     [ ] canonical native RNG
-    [ ] legacy RNG separate
+    [ ] one production RNG policy
     [ ] unbiased bounded integers
     [ ] parallel identity stable
 

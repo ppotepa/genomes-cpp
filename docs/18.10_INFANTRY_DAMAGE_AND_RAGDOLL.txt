@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port Infantry-specific damage hit volumes and ragdoll transition on top of generic destruction/physics, preserving lazy physics creation and semantic body-part mapping.
+Implement Infantry-specific damage hit volumes and ragdoll transition on top of generic destruction/physics, preserving lazy physics creation and semantic body-part mapping.
 
 ======================================================================
 REQUIRES
@@ -97,7 +97,7 @@ STEP 2
     Update hit transforms after animation authoritative pose stage in batches, then one dynamic spatial-index reindex/commit.
 
 STEP 3
-    Port current damage response/health integration as Infantry domain consumer of generic impact events.
+    Implement current damage response/health integration as Infantry domain consumer of generic impact events.
 
 STEP 4
     Build RagdollSchema lazily/cached per phenotype/rig artifact; validate constraints.
@@ -112,7 +112,7 @@ STEP 7
     Implement sleep/death presentation sync and disposal without orphan handles.
 
 STEP 8
-    Port lazy-physics and damage tests.
+    Implement lazy-physics and damage tests.
 
 ======================================================================
 PSEUDOCODE
@@ -159,7 +159,8 @@ No active ragdoll solver for ordinary living army. Hit volumes compact/batched. 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE lazy schema behavior and hitbox semantics; Jolt replaces Rapier-specific path.
+TARGET hit-volume semantics and lazy ragdoll activation define behavior; Jolt is
+used only through the physics abstraction.
 
 ======================================================================
 TESTS TO ADD

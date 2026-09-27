@@ -1,11 +1,11 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
 TARGET REPOSITORY:
     ppotepa/genomes-cpp
 
-LEGACY / REFERENCE SOURCE REPOSITORY:
+REFERENCE EVIDENCE REPOSITORY:
     ppotepa/genomes
 
 CHAPTER 0.6 - REPOSITORY TOPOLOGY AND REFERENCE PROJECT
@@ -16,7 +16,7 @@ VERSION: 0.1
 GOAL
 ======================================================================
 
-Freeze the two-repository migration model.
+Define the product/evidence two-repository model.
 
 SOURCE:
     ppotepa/genomes
@@ -24,13 +24,13 @@ SOURCE:
 TARGET:
     ppotepa/genomes-cpp
 
-SOURCE contains the current legacy implementation, prototypes, research,
-browser labs and legacy tests.
+SOURCE contains the JavaScript prototype implementation, research, browser labs
+and diagnostic tests.
 
 TARGET contains:
     native C++ implementation,
-    executable migration manual,
-    minimal exported parity/reference artifacts,
+    executable final implementation manual,
+    minimal exported reference/validation artifacts,
     native tests,
     native benchmarks,
     native CI.
@@ -56,8 +56,8 @@ REQUIRES
 PRESERVES
 ======================================================================
 
-SOURCE remains the authoritative legacy implementation until individual parity
-chapters supersede specific systems.
+SOURCE is non-authoritative read-only evidence. TARGET contracts define the
+product from the start; reference fixtures provide diagnostics and calibration.
 
 No SOURCE runtime/prototype is deleted as part of repository separation.
 
@@ -149,7 +149,7 @@ as persistent provenance.
 
 Native implementation is versioned normally by TARGET Git history.
 
-A parity report should record:
+A reference-diagnostic report should record:
 
     sourceCommit
     targetCommit
@@ -179,7 +179,7 @@ After fixtures required by a chapter have been exported, normal TARGET:
 
 must work without access to the private SOURCE repository.
 
-Only parity regeneration/comparison workflows may require SOURCE access.
+Only optional reference regeneration/comparison workflows may require SOURCE access.
 
 
 6. REFERENCE PROJECT
@@ -218,7 +218,7 @@ A migration chapter must:
 Do not assume the baseline SHA freezes all future product requirements.
 
 
-8. REFERENCE BASELINE VS PARITY BASELINE
+8. REFERENCE BASELINE VS TARGET VALIDATION BASELINE
 
 reference/source/BASELINE.txt:
     initial whole-project migration baseline.
@@ -278,7 +278,7 @@ Fixture metadata conceptual schema:
         sourcePath
         sourceSymbol
         sourceGeneratorVersion
-        parityClass
+        validationClass
         schemaVersion
         exporterVersion
     }
@@ -327,7 +327,7 @@ STEP 2
     record exact SOURCE commit.
 
 STEP 3
-    determine parity class.
+    determine TARGET validation class.
 
 STEP 4
     determine whether live SOURCE read is sufficient or persistent fixture is
@@ -354,10 +354,10 @@ STEP 9
     run native tests without SOURCE dependency.
 
 STEP 10
-    run parity comparison with SOURCE where applicable.
+    run optional diagnostic comparison with SOURCE where useful.
 
 STEP 11
-    record sourceCommit + targetCommit in parity result.
+    record sourceCommit + targetCommit in diagnostic result.
 
 ======================================================================
 PSEUDOCODE
@@ -382,7 +382,7 @@ EXPORT FIXTURE:
             sourceRepository: "ppotepa/genomes",
             sourceCommit: sourceCommit,
             domain: domain,
-            parityClass: case.parityClass,
+            validationClass: case.validationClass,
             schemaVersion: case.schemaVersion
         }
 
@@ -390,7 +390,7 @@ EXPORT FIXTURE:
         write TARGET/reference/fixtures/domain/case.meta.json
 
 
-NATIVE PARITY:
+TARGET REFERENCE VALIDATION:
 
     function compareNativeFixture(fixture):
         nativeResult := runNative(fixture.input)
@@ -398,7 +398,7 @@ NATIVE PARITY:
         return compare(
             nativeResult,
             fixture.expected,
-            fixture.parityPolicy
+            fixture.targetValidationPolicy
         )
 
 
@@ -435,8 +435,8 @@ ERROR HANDLING
 SOURCE unavailable during normal TARGET build:
     not an error.
 
-SOURCE unavailable during parity regeneration:
-    parity job reports BLOCKED / source unavailable.
+SOURCE unavailable during optional reference regeneration:
+    regeneration reports SKIPPED / source unavailable; TARGET validation remains runnable.
 
 Fixture missing provenance:
     invalid reference artifact; test/configuration failure.
@@ -549,7 +549,7 @@ COMPLETION CHECKLIST
 [x] source manifest
 [x] public/private rule
 [x] build independence
-[x] parity workflow
+[x] reference-validation workflow
 [x] source evolution workflow
 
 ======================================================================

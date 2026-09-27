@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port the persistent rubble field as a region-aware semantic volume/height representation supporting collision compilation, ballistics queries, navigation hooks and deterministic rendering recipes.
+Implement the persistent rubble field as a region-aware semantic volume/height representation supporting collision compilation, ballistics queries, navigation hooks and deterministic rendering recipes.
 
 ======================================================================
 REQUIRES
@@ -31,7 +31,9 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE v1.1: 0.5 m cells / 4 m tiles compatibility profile, mixed-material volumes, slope relaxation conserving volume, stable overflow merge, terrain base height, navigation/cover queries and immediate logical update with deferred physical/visual rebuild.
+Final 0.5 m cells / 4 m tiles default profile, mixed-material volumes, conserving
+slope relaxation, stable overflow merge, terrain-relative height, navigation/
+cover queries and immediate logical update with deferred representation rebuild.
 
 ======================================================================
 OUT OF SCOPE
@@ -50,7 +52,7 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Compatibility profile SOURCE rubble-1.1.0:
+1. Default TARGET rubble profile:
     cellSize          = 0.5 m
     tileSize          = 4.0 m
     cellsPerTile      = 8 x 8
@@ -66,7 +68,7 @@ These values are configurable/versioned rather than hidden magic assumptions.
 
 4. Tile capacity overflow never modulo-wraps or discards volume.
 
-SOURCE compatibility behavior:
+TARGET capacity behavior:
     if tile count reaches 256:
         prefer removal of a microscopic tile only when total < .003;
         otherwise merge the lowest-volume source tile into its nearest remaining
@@ -74,9 +76,8 @@ SOURCE compatibility behavior:
         one-tile edge case reuses the nearest/only tile rather than dropping the
         incoming deposit.
 
-TARGET may improve the merge metric under a new rubble algorithm version, but
-the compatibility profile must preserve material/volume conservation and avoid
-world-coordinate modulo wrapping.
+The merge metric is deterministic and must preserve per-material volume, avoid
+world-coordinate modulo wrapping and minimize spatial displacement.
 
 5. Logical field updates happen immediately; dirty tile render/physics compilation is deferred/batched. Query APIs read logical state.
 
@@ -196,7 +197,8 @@ Queries use tile broadphase; empty tiles skip narrow sampling. Dirty rebuild bat
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Export SOURCE rubble conservation fixtures and default profile. Exact visual chunk placement not semantic parity; volume/navigation/surface invariants are.
+TARGET conservation, navigation and surface invariants define behavior. Imported
+rubble samples are diagnostic only; visual chunk placement is non-semantic.
 
 ======================================================================
 TESTS TO ADD
@@ -205,9 +207,9 @@ TESTS TO ADD
     single/mixed material deposit
     remove volume
     relax conservation
-    exact SOURCE 0.5m/4m/256/1024 profile values
+    TARGET 0.5m/4m/256/1024 default profile values
     capacity merge conservation
-    microscopic <.003 tile policy compatibility
+    microscopic <.003 tile policy
     one-tile budget
     terrain base height
     navigation/cover query

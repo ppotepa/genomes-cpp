@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -91,7 +91,7 @@ STEP 3
     Implement async submit/fence abstraction mapping CUDA streams/events to ComputeService completion token.
 
 STEP 4
-    Port threat/flow or LOS microkernel only where input/output contract already exists.
+    Implement threat/flow or LOS microkernel only where input/output contract already exists.
 
 STEP 5
     Run correctness/tolerance against CPU and Diligent compute.

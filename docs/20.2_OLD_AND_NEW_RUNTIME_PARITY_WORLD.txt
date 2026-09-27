@@ -1,17 +1,19 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 20.2 - OLD_AND_NEW_RUNTIME_PARITY_WORLD
+CHAPTER 20.2 - FINAL_WORLD_REFERENCE_VALIDATION
 STATUS: READY
 VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Run whole-scenario parity between SOURCE browser world and TARGET native world for selected deterministic scenarios, combining domain parity gates into user-visible/system-level acceptance.
+Run whole-scenario validation of the final TARGET world for selected
+deterministic scenarios, combining domain gates into user-visible and
+system-level acceptance.
 
 ======================================================================
 REQUIRES
@@ -22,6 +24,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
     TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
     TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
@@ -57,15 +60,23 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. World parity uses selected scenarios/seeds with explicit feature matrix, not pixel-perfect browser frame comparison.
+1. World validation uses selected scenarios/seeds with an explicit TARGET
+feature matrix, never pixel-perfect browser comparison.
 
 2. Compare semantic world hashes/invariants, entity initial states, deterministic tick outcomes for controlled scenarios, impact/destruction accounting and lifecycle/dispose.
 
-3. Where native city supersedes simple SOURCE settlement, preserve source scenario as compatibility fixture or mark intentional versioned world-generator change with all feature requirements still represented.
+3. Useful settlement scenarios are translated to TARGET feature coverage. Their
+exact layout is not preserved and no compatibility world generator is shipped.
 
 4. Graphical/headless native modes must produce identical authoritative outcomes for same commands/ticks.
 
-5. Report maps every SOURCE world/browser acceptance test to native equivalent or explicit remaining manual owner.
+5. Report maps every accepted TARGET world requirement to an automated test or
+explicit manual acceptance owner. SOURCE cases are first triaged for product relevance.
+
+6. World fixtures record BuildingSiteRequests and resolved BuildingPlans as
+separate layers. SOURCE city placeholder envelopes may validate request
+placement, while current modular building runtime/lab fixtures validate plans;
+the two evidence types are never compared as the same artifact.
 
 ======================================================================
 DATA LAYOUT
@@ -96,27 +107,30 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Pin SOURCE commit and export small compatibility scenarios including skipEnvironment and full environment.
+    Define small TARGET scenarios including environment-disabled and full
+    environment configurations; imported references provide input ideas only.
 
 STEP 2
     Record selected terrain samples, settlement/building counts/invariants,
     road/driveway topology, parcel gate/fence layouts, field/orchard/zone
-    presence, unit genome/equipment identities and initial transforms.
+    presence, site requests, resolved building plan IDs/footprints/entrances,
+    unit genome/equipment identities and initial transforms.
 
 STEP 3
     Record scripted tick commands for march/arrival, combat fire/impact and destruction case where stable.
 
 STEP 4
-    Run native headless scenario and compare checkpoints by parity class/tolerance.
+    Run native headless scenario and compare checkpoints with TARGET contracts.
 
 STEP 5
     Run native graphical with rendering disabled/limited and confirm same authoritative hashes.
 
 STEP 6
-    Map legacy tests to native report and list intentional city-generator semantic upgrade separately.
+    Map useful legacy cases to TARGET requirements and report rejected
+    implementation-specific behavior separately.
 
 STEP 7
-    Do not mark whole runtime parity complete if a legacy feature has no native owner.
+    Do not mark validation complete if a required product feature has no owner.
 
 ======================================================================
 PSEUDOCODE
@@ -143,7 +157,8 @@ Repeat selected scenarios with 1/N workers; parity snapshots taken only at simul
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Missing SOURCE field mapping -> report FAIL/UNMAPPED, not omit. Visual-only item may be MANUAL_PENDING with owner.
+Missing TARGET requirement mapping -> report FAIL/UNMAPPED. A visual-only
+requirement may be MANUAL_PENDING with an explicit owner.
 
 ======================================================================
 DETERMINISM RULES
@@ -158,18 +173,20 @@ Record native CPU/peak memory separately; parity pass does not require same brow
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-After pass native runtime may become preferred development path; SOURCE remains reference until 20.7.
+After pass the native runtime is the product implementation; SOURCE remains an
+optional evidence repository only.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     selected full scenarios
     driveway/fence/access feature parity
+    site-request to plan/resolution correlation
     fields/orchards/zones feature parity
     headless/render independence
     1/N workers
     dispose/lifetime
-    legacy test map completeness
+    useful reference-case map completeness
 
 ======================================================================
 COMMANDS TO RUN
@@ -184,14 +201,15 @@ ACCEPTANCE CRITERIA
     [ ] world fixtures pinned
     [ ] semantic checkpoints pass
     [ ] render independence
-    [ ] legacy requirements mapped
+    [ ] TARGET requirements mapped
     [ ] report committed
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
     pixel-perfect only parity
-    ignoring simple settlement features because new city is richer
+    omitting required settlement capabilities because the city is richer
+    accepting a city placeholder record as a final generated BuildingPlan
     changing SOURCE expected fixtures silently
     deleting SOURCE
 

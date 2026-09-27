@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -10,7 +10,8 @@ STATUS: READY
 ======================================================================
 GOAL
 ======================================================================
-Implement semantic RoadGraph, node/edge IDs, hierarchy/surface metadata, edge splitting and spatial indexing based on SOURCE prototypes but renderer-independent.
+Implement the final semantic RoadGraph with stable node/edge IDs,
+hierarchy/surface metadata, edge splitting and spatial indexing.
 
 ======================================================================
 REQUIRES
@@ -25,7 +26,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+Complete intercity, urban, service, alley, path and parcel-access semantics with
+renderer-independent topology and geometry.
 
 ======================================================================
 OUT OF SCOPE
@@ -57,8 +59,8 @@ RoadCenterline supports at minimum:
     CubicBezier
 
 SOURCE city currently uses curved/smoothed routed polylines; cubic Bézier is a
-supported native representation for later procedural roads, not a requirement
-that all SOURCE roads be converted to Bézier.
+supported representation for later procedural roads; straight/polyline forms
+remain first-class and are not forcibly converted to Bézier.
 
 HARD GEOMETRIC CONTRACT:
     centerline.startPosition == RoadNode(a).position
@@ -113,7 +115,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define one canonical RoadClass superset covering both SOURCE prototypes:
+    Define one canonical TARGET RoadClass:
 
         Motorway
         Trunk
@@ -124,40 +126,30 @@ STEP 1
         Alley
         Path
 
-    SOURCE road-graph-lab explicitly contains MOTORWAY/TRUNK/ARTERIAL/
-    COLLECTOR/LOCAL/SERVICE/PATH. SOURCE procedural-city exposes
-    trunk/arterial/collector/local/alley concepts.
-
-    SOURCE simple settlement uses "track" as road kind/surface for parcel
-    driveways, NOT as a hierarchy class. Therefore Track belongs to
-    RoadSurface/AccessSurface compatibility data, while the driveway semantic
-    class maps to Service or Local according the native access profile.
-
-    Map SOURCE class IDs/names into the superset through versioned data tables;
-    do not collapse SERVICE and ALLEY merely because one prototype lacks one of
-    them.
+    Track is a RoadSurface/AccessSurface, not a hierarchy class. Parcel
+    driveways use Service or Local class according to the access profile.
 
     Nominal width/speed/capacity/surface policy lives in data tables, not
     switches scattered through code.
 
-    Freeze at least two SOURCE compatibility RoadProfile tables:
+    Define explicit TARGET RoadProfile tables, including:
 
-    ROAD_GRAPH_LAB profile:
+    INTERCITY_NETWORK profile:
         class:       MOTORWAY TRUNK ARTERIAL COLLECTOR LOCAL SERVICE PATH
         width[m]:    16       13    10       7         4.8   3.6     2.2
         speed:       110      85    60       42        30    20      12
         baseLength:  260      220   170      115       78    55      42
         capacity:    2600     2100  1500     900       450   220     90
 
-    PROCEDURAL_CITY compatibility widths:
+    URBAN_NETWORK widths:
         Trunk      12.5 m
         Arterial    9.0 m
         Collector   6.8 m
         Local       4.8 m
         Alley       3.2 m
 
-    Do not average these profiles into one undocumented default. Native default
-    values may be a third versioned profile chosen intentionally.
+    Profiles are selected explicitly by WorldSpec and never averaged into an
+    undocumented default.
 
 STEP 2
     Implement mutable RoadGraphBuilder with node/edge pools and stable IDs.
@@ -172,7 +164,7 @@ STEP 5
     Freeze builder into compact RoadGraphArtifact and validator hooks.
 
 STEP 6
-    Export tiny SOURCE graph fixtures for split/degree behavior where helpful.
+    Add TARGET graph fixtures for split, degree and shared-endpoint behavior.
 
 ======================================================================
 PSEUDOCODE
@@ -217,7 +209,8 @@ Use spatial indexes/fields rather than global scans; batch expensive routing/pla
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+TARGET road topology, profiles and validators are authoritative. Prototype
+graphs are optional diagnostic scenarios only.
 
 ======================================================================
 TESTS TO ADD
@@ -227,8 +220,8 @@ TESTS TO ADD
     split straight/polyline/Bézier
     exact shared-node endpoint equality after split
     no centerline gap at connected node
-    source class superset mapping
-    road-lab width/speed/base-length/capacity profile exact data
+    canonical class/profile mapping
+    intercity width/speed/base-length/capacity profile data
     procedural-city width profile exact data
     stable IDs insertion order test
     spatial nearest
@@ -249,7 +242,7 @@ ACCEPTANCE CRITERIA
     [ ] split lineage
     [ ] RoadCenterline representation
     [ ] exact endpoint/junction contract
-    [ ] SOURCE road-class superset
+    [ ] canonical TARGET road classes
     [ ] compact artifact
     [ ] spatial index
 

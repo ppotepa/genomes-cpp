@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,8 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Replace SOURCE O(N²) all-unit visibility candidate scans with a data-oriented dynamic spatial broadphase producing bounded candidate sets for perception.
+Implement a data-oriented dynamic spatial broadphase producing bounded
+perception candidate sets without O(N²) all-unit scans.
 
 ======================================================================
 REQUIRES
@@ -90,7 +91,7 @@ IMPLEMENTATION STEPS
 STEP 1
     Define PerceptionProfile range/FOV/category/team masks.
 
-Pinned SOURCE SimpleCombat compatibility profile:
+Default TARGET SimpleCombat perception profile:
     range:             100 m
     horizontal half-FOV: 70 degrees
     dot threshold:     cos(70 degrees)
@@ -113,7 +114,8 @@ STEP 6
     Benchmark 1k/10k/50k units under uniform and city-cluster density versus naive reference for small N.
 
 STEP 7
-    Verify exact same candidate membership as naive SOURCE-compatible filter in randomized test scenes.
+    Verify the spatial implementation matches a straightforward TARGET reference
+    filter in randomized test scenes.
 
 ======================================================================
 PSEUDOCODE
@@ -157,15 +159,16 @@ Target removes N² scaling. Report candidates visited/accepted per observer, cac
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Behavioral candidate parity with current range/FOV filters; exact LOS handled next.
+The optimized broadphase and straightforward TARGET filter must return the same
+candidate membership; exact LOS is handled next.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     small scene vs naive
     team/alive filters
-    SOURCE 100 m range boundary
-    SOURCE 70-degree half-FOV boundary
+    TARGET 100 m default range boundary
+    TARGET 70-degree default half-FOV boundary
     FOV boundary
     multi-cell dedupe
     stable order

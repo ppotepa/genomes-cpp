@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port continuous biped posture/locomotion control as simulation/animation-domain state driven by phenotype, preserving phase continuity and explicit requested/actual values.
+Implement continuous biped posture/locomotion control as simulation/animation-domain state driven by phenotype, preserving phase continuity and explicit requested/actual values.
 
 ======================================================================
 REQUIRES
@@ -91,7 +91,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Port phenotype-derived walk/run/crawl baseline speeds/cycle lengths and gait profiles.
+    Implement phenotype-derived walk/run/crawl baseline speeds/cycle lengths and gait profiles.
 
 STEP 2
     Implement requested value setter preserving unspecified field and rejecting nonfinite.
@@ -100,7 +100,8 @@ STEP 3
     Implement posture limit solver (max crouch, reasons) from phenotype/current mode constraints.
 
 STEP 4
-    Implement critically damped/bounded approach or SOURCE-compatible controller for actual crouch/speed using fixed dt.
+    Implement the documented TARGET critically damped/bounded controller for
+    actual crouch/speed using fixed dt.
 
 STEP 5
     Implement gait phase advancement from actual speed/cycle length; preserve phase through biped preset changes.
@@ -112,7 +113,7 @@ STEP 7
     Implement transition handling to/from PRONE/SEATED/REST with explicit guard state and snapshot interpolation contract.
 
 STEP 8
-    Port sprint/posture/locomotion fixtures.
+    Implement sprint/posture/locomotion fixtures.
 
 ======================================================================
 PSEUDOCODE
@@ -162,7 +163,8 @@ No allocations/string lookups in per-unit step. Precompute phenotype constants. 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE biped behavior/phase invariants and exact selected snapshots within tolerances. Do not port Three.js pose objects.
+TARGET biped phase, continuity, speed and posture invariants define behavior;
+selected snapshots use declared tolerances and contain no renderer objects.
 
 ======================================================================
 TESTS TO ADD

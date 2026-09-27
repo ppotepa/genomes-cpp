@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -172,7 +172,7 @@ FORBIDDEN SHORTCUTS
 ======================================================================
     CUDA/Diligent GPU required for terrain correctness
     claiming GPU faster without transfer measurements
-    mixing GPU nondeterministic output into exact legacy fixture silently
+    mixing nondeterministic GPU output into authoritative TARGET artifacts
 
 ======================================================================
 COMPLETION CHECKLIST

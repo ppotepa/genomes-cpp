@@ -1,16 +1,18 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 9.2 - PORT_EXISTING_TERRAIN_GENERATION
+CHAPTER 9.2 - TERRAIN_GENERATION
 STATUS: READY
 
 ======================================================================
 GOAL
 ======================================================================
-Port the current seeded terrain/noise behavior into native generator with explicit legacy compatibility version and golden fixtures before introducing improved terrain algorithms.
+Implement the final seeded native terrain generator with stable semantic noise
+streams, controllable large-scale morphology, erosion-ready fields and explicit
+quality/validation fixtures.
 
 ======================================================================
 REQUIRES
@@ -25,7 +27,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-Selected SOURCE terrain seeds and heightfield semantics, including battlefield vs larger-world profiles where still required.
+Deterministic heightfield semantics and distinct battlefield/large-world product
+profiles, improved through one coherent TARGET algorithm.
 
 ======================================================================
 OUT OF SCOPE
@@ -38,16 +41,21 @@ TARGET FILE TREE
     modules/terrain/include/genomes/terrain/TerrainGenerator.hpp
     modules/terrain/src/TerrainGenerator.cpp
     reference/fixtures/terrain/
-    tests/native/terrain/terrain_legacy_parity_tests.cpp
+    tests/native/terrain/terrain_generation_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. TerrainGenerator v1-legacy reproduces SOURCE SeededPerlin/FBM plan at selected fixture sample points/fields within explicit float tolerance.
+1. TerrainGenerator produces HeightFieldArtifact from TerrainSpec + SeedPath.
+Noise/warp/ridge/continental fields have independent named streams and declared
+frequency/amplitude domains.
 
-2. Native future TerrainGenerator v2 may improve morphology but cannot overwrite v1 artifact version.
+2. Battlefield and large-world profiles select TARGET parameters, not alternate
+legacy algorithms. Profile identity is part of the artifact key.
 
-3. Fixture exports contain exact SOURCE commit, seed, map size, resolution and selected heights/normals/statistics.
+3. TARGET fixtures contain seed, profile, map size, resolution, selected
+heights/normals/statistics and quality thresholds. Imported samples are optional
+diagnostics with provenance.
 
 ======================================================================
 DATA LAYOUT
@@ -61,7 +69,7 @@ Generation scratch is separate:
     optional normals/material classification scratch
 
 No THREE.BufferGeometry or GPU buffer is stored in terrain semantic output.
-Legacy chunk-mesh information is compiled later by 9.4.
+Chunk-mesh information is compiled later by 9.4.
 
 All arrays use explicit width/height/stride metadata and checked index:
     index = z * width + x.
@@ -89,19 +97,23 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Export SOURCE fixtures for at least battlefield and non-battlefield seeds, including full modest grid plus sparse large-map samples.
+    Define TARGET fixtures for battlefield and large-world profiles, including a
+    complete modest grid and sparse large-map quality samples.
 
 STEP 2
-    Port permutation/noise semantics or implement dedicated LegacyTerrainNoise wrapper preserving JS behavior.
+    Implement deterministic coordinate-addressable noise using named SeedPath
+    domains; no sequential compatibility wrapper.
 
 STEP 3
-    Port FBM amplitude/frequency plans and edge shaping with double intermediates where needed to control tolerance.
+    Implement TARGET FBM/warp/ridge/continental composition and edge shaping,
+    using double intermediates where needed for stable results.
 
 STEP 4
-    Generate HeightFieldArtifact and compare fixture samples/statistics.
+    Generate HeightFieldArtifact and validate samples, statistics, slope,
+    continuity, drainage suitability and profile-specific quality bounds.
 
 STEP 5
-    Freeze legacy generator version and document intentional deviations if any.
+    Freeze one TARGET schema identity and benchmark serial/parallel generation.
 
 ======================================================================
 PSEUDOCODE
@@ -114,7 +126,7 @@ GENERATE CELL:
     hills := fbm(...)
     detail := fbm(...)
     ridge := 1-abs(fbm(...))
-    h := documented SOURCE-compatible composition
+    h := documented TARGET terrain composition
     write height
 
 ======================================================================
@@ -130,7 +142,8 @@ Invalid procedural candidates return ValidationReport/Result. Active world is ch
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Legacy fixture parity is independent of thread count. Exact RNG/noise compatibility functions are versioned separately.
+TARGET field identity is independent of thread count, tiling and job completion
+order. Coordinate-addressable streams avoid draw-order coupling.
 
 ======================================================================
 PERFORMANCE RULES
@@ -140,16 +153,17 @@ Generation computes noise once per height sample at build time; routine runtime 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-This chapter creates SOURCE parity fixtures in TARGET/reference and does not change SOURCE.
+No runtime compatibility terrain generator. Reference terrain may inform
+quality bounds but cannot select another implementation path.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    legacy fixture seeds
+    TARGET profile/seed matrix
     1 vs N worker same field
     battlefield profile
     edge shaping
-    worker/native parity
+    serial/parallel exact artifact equality
 
 ======================================================================
 COMMANDS TO RUN
@@ -161,26 +175,26 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] fixtures exported with provenance
-    [ ] legacy generator version frozen
-    [ ] numeric parity tolerances pass
-    [ ] thread count parity
+    [ ] TARGET fixtures and quality thresholds
+    [ ] one generator schema
+    [ ] terrain quality validators pass
+    [ ] thread-count equivalence
     [ ] artifact output
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    changing noise while claiming legacy parity
+    hidden alternate compatibility noise path
     using GPU path as only implementation
-    golden fixtures generated by native code
+    accepting self-generated fixtures without independent invariant checks
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] fixtures exported with provenance
-    [ ] legacy generator version frozen
-    [ ] numeric parity tolerances pass
-    [ ] thread count parity
+    [ ] TARGET fixtures and quality thresholds
+    [ ] one generator schema
+    [ ] terrain quality validators pass
+    [ ] thread-count equivalence
     [ ] artifact output
 
 ======================================================================

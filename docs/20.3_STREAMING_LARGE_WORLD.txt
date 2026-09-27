@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -160,7 +160,8 @@ Benchmark IO/generation/compile overlap, peak memory, churn, cancellation waste,
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE small world lacks equivalent; this is native scalability feature built on preserved semantics.
+This is a TARGET scalability feature built on stable semantic identity and
+region lifecycle contracts.
 
 ======================================================================
 TESTS TO ADD

@@ -1,16 +1,18 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 11.12 - BUILDING_REFERENCE_PARITY
+CHAPTER 11.12 - BUILDING_REFERENCE_VALIDATION
 STATUS: READY
 
 ======================================================================
 GOAL
 ======================================================================
-Create comprehensive parity matrix against SOURCE modular building runtime, building-lab acceptance cases and advanced mathematical prototype before native building system is considered complete.
+Validate the final TARGET building system with a comprehensive matrix of
+programs, footprints, roofs, circulation, structure and representation outputs,
+including useful scenarios discovered in executable prototypes and mockups.
 
 ======================================================================
 REQUIRES
@@ -19,13 +21,16 @@ REQUIRES
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/11.11_BUILDING_PARALLEL_BATCH_GENERATION.txt
     TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+    TARGET::docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+Complete semantic-plan and compiler consistency requirements for the final
+TARGET building generator.
 
 ======================================================================
 OUT OF SCOPE
@@ -53,11 +58,24 @@ buildingCatalog/buildingSpec/buildingPrograms. In particular RURAL_SHED size
 semantics require separate explicit fixture/provenance rather than one guessed
 range.
 
-2. Compare exact preserved parameters/IDs only where required; otherwise compare invariants: footprint validity, room access, stair fit, roof quality, no overlap/opening errors, collision/nav consistency.
+2. Compare TARGET invariants: footprint validity, room access, stair fit, roof
+quality, no overlap/opening errors, deterministic IDs and collision/nav
+consistency. SOURCE-specific IDs or numeric outputs are diagnostic only.
 
-3. Legacy test requirements from SOURCE::tests/building_* and building-lab/acceptance-cases.json are each mapped to at least one native test/parity assertion.
+3. Useful failure cases from SOURCE tests and building-lab are translated to a
+TARGET requirement/test or explicitly rejected as irrelevant; they never create
+a legacy runtime mode.
 
 4. Visual geometry may improve, but semantic openings/rooms/roof/structure must remain internally consistent.
+
+5. The initial TARGET validation corpus covers at least seven programs/presets,
+ten footprint families including EXPLICIT, seven roof families, four stair
+families and all six useful building-lab scenario classes. These are minimum
+coverage requirements, not frozen SOURCE catalogs.
+
+6. Research concepts such as additional families/roofs, kitchens, bathrooms and
+lifts enter the final product scope only when an owning generator contract,
+validator and acceptance case are added. They are not empty compatibility flags.
 
 ======================================================================
 DATA LAYOUT
@@ -88,7 +106,8 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Create export schema and provenance for current modular plans plus advanced prototype metrics.
+    Create the TARGET validation schema. Import useful reference scenarios with
+    provenance, then express their expected outcome as TARGET invariants.
 
 STEP 2
     Export building-lab acceptance cases losslessly into TARGET fixture metadata or reference source path with exact SOURCE commit.
@@ -98,7 +117,8 @@ STEP 3
     plus known regressions and every SOURCE definition conflict from 11.1.
 
 STEP 4
-    Map each SOURCE building test file to native equivalent in parity report.
+    Triage each SOURCE building test into translated TARGET coverage or a
+    documented non-product behavior; require no unowned useful case.
 
 STEP 5
     Run plan validator, geometry compiler validator, collision/nav consistency checks.
@@ -146,7 +166,8 @@ Batch/merge geometry and queries; cache compiler products by plan hash; avoid on
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+The TARGET semantic model and validators own completion. Reference formats and
+renderer-specific output are test inputs only.
 
 ======================================================================
 TESTS TO ADD
@@ -158,6 +179,8 @@ TESTS TO ADD
     catalog/spec conflict fixtures
     cross-representation consistency
     SOURCE test mapping completeness
+    current catalog counts and six acceptance cases
+    research evidence cannot silently expand current parity scope
 
 ======================================================================
 COMMANDS TO RUN
@@ -170,19 +193,21 @@ COMMANDS TO RUN
 ACCEPTANCE CRITERIA
 ======================================================================
     [ ] fixtures pinned
-    [ ] legacy acceptance mapping complete
-    [ ] semantic parity
+    [ ] useful reference-case mapping complete
+    [ ] semantic invariant coverage
     [ ] compiler consistency
     [ ] parity report
     [ ] zero unapproved regressions
     [ ] all 11.1 SOURCE definition conflicts have explicit target resolution
+    [ ] implemented scope and unowned research ideas are reported separately
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
     visual screenshot alone as parity
-    dropping SOURCE tests because architecture changed
+    dropping a useful failure case without a documented TARGET decision
     rewriting fixture expected values after regression without documented product decision
+    shipping empty feature flags for unimplemented research concepts
 
 ======================================================================
 COMPLETION CHECKLIST

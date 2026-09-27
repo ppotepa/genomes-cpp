@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+The final TARGET road/city topology, spatial constraints, deterministic identity
+and quality requirements owned by this stage.
 
 ======================================================================
 OUT OF SCOPE
@@ -133,7 +134,8 @@ Use spatial indexes/fields rather than global scans; batch expensive routing/pla
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+TARGET contracts and validators are authoritative. Prototype scenes are
+optional diagnostic inputs and never select alternate algorithms.
 
 ======================================================================
 TESTS TO ADD

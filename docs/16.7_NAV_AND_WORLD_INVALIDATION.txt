@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -153,7 +153,8 @@ Bound dirty region expansion; benchmark 10k small impacts vs tile/BVH rebuild co
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE has ad-hoc world bridges; TARGET replaces with generic revisioned invalidation, preserving behavior not coupling.
+TARGET uses generic revisioned invalidation with explicit ownership and no
+ad-hoc world bridges.
 
 ======================================================================
 TESTS TO ADD

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port equipment catalog/loadouts/seeded variants, anatomy fitting and procedural gear geometry while keeping equipment identity separate from biological genome and sharing the Infantry skeleton.
+Implement equipment catalog/loadouts/seeded variants, anatomy fitting and procedural gear geometry while keeping equipment identity separate from biological genome and sharing the Infantry skeleton.
 
 ======================================================================
 REQUIRES
@@ -56,15 +56,14 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Equipment data is not genome. For SOURCE equipment schema v1, exact
-compatibility seed derivation is ALG-RNG-EQUIPMENT-HASH32-001:
+1. Equipment data is not genome. Equipment identity uses named SeedPath streams:
 
-    equipmentSeed = hash(unitSeed, "EQUIPMENT/v1")
-    slot choice seed = hash(equipmentSeed, "slot/" + slot)
-    item variant seed = hash(equipmentSeed, slot + "/" + definitionId)
+    equipment root = SeedTree(unitSeed).child("equipment")
+    slot choice     = root.child("slot", canonicalSlotId).child("choice")
+    item variant    = root.child("slot", canonicalSlotId)
+                          .child("item", definitionId)
 
-The resulting random draws use LegacyMulberry32. A canonical native SeedTree
-replacement is allowed only under a new Equipment seed/schema version.
+Canonical slot IDs, not array/hash iteration order, define identity.
 
 2. Equipment catalog/loadouts are immutable data. Overrides explicitly replace profile slots, including null for optional empty. Required clothing null resolves documented base layer policy.
 
@@ -88,8 +87,6 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    ALG-RNG-EQUIPMENT-HASH32-001
-    ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-SEED-TREE-001
 
 ======================================================================
@@ -109,14 +106,13 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Freeze the pinned SOURCE equipment inventory into native versioned data:
+    Define the initial TARGET equipment catalog:
         22 EquipmentSlots
         61 EquipmentCatalog definitions
         10 InfantryLoadout profiles
 
-    Verify counts mechanically in the importer/test, but do not hard-code these
-    counts into engine architecture. A future SOURCE/catalog version may add
-    items/slots while preserving schema compatibility.
+    Verify counts mechanically in catalog tests, but keep schemas data-driven so
+    additions do not require engine changes.
 
 STEP 2
     Implement EquipmentSeed derivation and per-slot/per-definition variant streams.
@@ -128,7 +124,7 @@ STEP 4
     Implement EquipmentFit semantic attachment points from phenotype/skeleton/surface clothing profile.
 
 STEP 5
-    Port procedural gear generators by category; use metres/final anatomy rather than current pose.
+    Implement procedural gear generators by category; use metres/final anatomy rather than current pose.
 
 STEP 6
     Implement hair/headgear visibility/clipping recipe without mutating HairGenome.
@@ -140,39 +136,31 @@ STEP 8
     Implement exact no-op key so setting equivalent equipment skips expensive geometry/support-contact rebuild.
 
 STEP 9
-    Translate all SOURCE loadout smoke tests.
+    Cover every TARGET loadout, slot and override rule; imported smoke cases are
+    supplementary diagnostics.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-RESOLVE EQUIPMENT - SOURCE SCHEMA V1:
-    equipmentSeed := LegacyEquipmentHash32(unitSeed, "EQUIPMENT/v1")
+RESOLVE EQUIPMENT:
+    equipmentRoot := SeedTree(unitSeed).child("equipment")
     slots := profile.defaults
 
-    for slot in SOURCE slotSchema enumeration order:
-        choiceSeed := LegacyEquipmentHash32(equipmentSeed, "slot/" + slot)
-        choiceRng := LegacyMulberry32(choiceSeed)
+    for slot in canonical EquipmentSlot order:
+        choiceRng := equipmentRoot.child("slot",slot.id).child("choice").rng()
         choose profile alternative if array
 
         if override exists:
             item := override.value  // may be null
 
         if item:
-            itemSeed :=
-                LegacyEquipmentHash32(
-                    equipmentSeed,
-                    slot + "/" + item.definitionId
-                )
-
-            variantRng := LegacyMulberry32(itemSeed)
+            variantRng := equipmentRoot.child("slot",slot.id)
+                                       .child("item",item.definitionId).rng()
             variant.size   := .965 + variantRng.next()*.07
             variant.shade  := .92  + variantRng.next()*.13
             variant.detail := variantRng.next()
 
             validate item allowed in slot
-
-A future native schema may canonicalize slot iteration and derive semantic child
-streams, but that change requires a new equipment seed/schema version.
 
 FIT ITEM:
     bindPoint := fit.semanticPoint(item.kind, slot, phenotype, skeleton)
@@ -193,13 +181,9 @@ Unknown ID/incompatible slot/nonfinite seed/options -> explicit error before com
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-For exact SOURCE schema v1, preserve EquipmentHash32 and the observed slot
-resolution semantics. Item variant seed is isolated by slot+definition, so
-unrelated item variants do not reroll each other.
-
-A later native schema may strengthen slot-order independence with canonical
-slot ordering/SeedPath, but must use a new version. Side palette color does not
-alter item identity seed.
+Equipment resolution uses canonical slot ordering and named SeedPath streams.
+Item variant identity is isolated by slot + definition, so unrelated items do
+not reroll one another. Side palette color does not alter item identity seed.
 
 ======================================================================
 PERFORMANCE RULES
@@ -209,7 +193,8 @@ Build only spawn/change/detail transition. Shared materials; merge gear where co
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve catalog IDs/loadouts from SOURCE and fixture exactness where gameplay data. Visual shape invariant/visual parity, not Three.js buffers.
+TARGET catalog IDs/loadouts and fitting invariants define behavior. Imported
+catalog samples and images are diagnostic only, never Three.js buffer contracts.
 
 ======================================================================
 TESTS TO ADD
@@ -217,8 +202,8 @@ TESTS TO ADD
     pinned baseline count = 22 slots / 61 items / 10 loadouts
     all loadouts resolve
     slot overrides/null
-    exact EquipmentSeed.fromUnit vectors
-    exact slot-choice/item-variant hash vectors
+    TARGET EquipmentSeed/SeedPath vectors
+    canonical slot-choice/item-variant identity vectors
     seed isolation
     genome independence
     fit finite for phenotype extremes

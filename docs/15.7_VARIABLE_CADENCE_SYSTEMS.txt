@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -106,7 +106,7 @@ STEP 5
     Add catch-up policy: do not execute missed AI ticks repeatedly after region wake; advance logical elapsed and one update unless subsystem explicitly requires replay.
 
 STEP 6
-    Port SOURCE visual cadence principle separately into presentation; keep authoritative distinction tests.
+    Implement SOURCE visual cadence principle separately into presentation; keep authoritative distinction tests.
 
 ======================================================================
 PSEUDOCODE
@@ -149,7 +149,8 @@ Measure agent updates/tick distribution, avoid bursts, support sleep/dormant reg
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+TARGET data-oriented contracts define behavior; no reference object hierarchy
+or compatibility object model is implemented.
 
 ======================================================================
 TESTS TO ADD

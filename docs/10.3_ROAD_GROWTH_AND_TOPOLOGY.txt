@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -10,7 +10,7 @@ STATUS: READY
 ======================================================================
 GOAL
 ======================================================================
-Port recursive/local road growth with tensor/region guidance, intersection splitting, snapping and loop closure while enforcing planar topology and bounded candidate budgets.
+Implement recursive/local road growth with tensor/region guidance, intersection splitting, snapping and loop closure while enforcing planar topology and bounded candidate budgets.
 
 ======================================================================
 REQUIRES
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+The final TARGET road/city topology, spatial constraints, deterministic identity
+and quality requirements owned by this stage.
 
 ======================================================================
 OUT OF SCOPE
@@ -94,7 +95,7 @@ STEP 1
     Define GrowthSpec budgets/length ranges/turn distributions per RoadClass/morphology.
 
 STEP 2
-    Port tensorDirection/organic/grid/radial blending as pure field function with stable RNG substream.
+    Implement tensorDirection/organic/grid/radial blending as pure field function with stable RNG substream.
 
 STEP 3
     Implement candidate evaluation against RoadSpatialIndex and immutable graph snapshot.
@@ -153,7 +154,8 @@ Use spatial indexes/fields rather than global scans; batch expensive routing/pla
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+TARGET contracts and validators are authoritative. Prototype scenes are
+optional diagnostic inputs and never select alternate algorithms.
 
 ======================================================================
 TESTS TO ADD

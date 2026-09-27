@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port weapon selection, draw/holster, 1H/2H grip, readiness, aiming, recoil and hand-task output as domain state that overlays Infantry animation through explicit interfaces.
+Implement weapon selection, draw/holster, 1H/2H grip, readiness, aiming, recoil and hand-task output as domain state that overlays Infantry animation through explicit interfaces.
 
 ======================================================================
 REQUIRES
@@ -96,7 +96,7 @@ STEP 1
     Define handling state enum/transitions and stable profile IDs.
 
 STEP 2
-    Port selection/reconcile semantics using Equipment state IDs rather than renderer instances.
+    Implement selection/reconcile semantics using Equipment state IDs rather than renderer instances.
 
 STEP 3
     Implement draw/holster timing curves and queued selection transition.
@@ -114,7 +114,7 @@ STEP 7
     Implement canFire policy and emit typed FireIntent with shot sequence when trigger/cadence allows.
 
 STEP 8
-    Port 1H/2H/profile tests and state transitions.
+    Implement 1H/2H/profile tests and state transitions.
 
 ======================================================================
 PSEUDOCODE
@@ -163,7 +163,8 @@ No matrix-world traversal through scene graph. Attachment transforms compiled/ca
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE behavior and grip tests; geometry/render instance reconciliation replaced by IDs/artifacts.
+TARGET handling state, grip constraints and acceptance tests define behavior;
+geometry/render reconciliation uses IDs and immutable artifacts.
 
 ======================================================================
 TESTS TO ADD

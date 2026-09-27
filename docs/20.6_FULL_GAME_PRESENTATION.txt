@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -113,7 +113,7 @@ STEP 4
 
 STEP 5
     Compile FenceLayout/GateSpec into instanced fence presentation grouped by
-    type/region. SOURCE-compatible wood/wire/wall appearance can use compact
+    type/region. TARGET wood/wire/wall appearance can use compact
     box/beam recipes following terrain at endpoints; renderer does not recompute
     semantic collision/exclusion decisions.
 
@@ -177,7 +177,8 @@ GPU-driven culling/indirect where supported. Limit CPU per-object submission. Pr
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE visual feature classes; exact visual style may improve. SOURCE screenshots remain comparison aids, not semantic truth.
+TARGET visual feature classes and acceptance scenes define coverage and quality;
+reference screenshots are optional comparison aids only.
 
 ======================================================================
 TESTS TO ADD

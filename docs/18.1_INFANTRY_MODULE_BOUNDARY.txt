@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -86,7 +86,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Add modules/infantry target with only boundary/registration code and no SOURCE port yet.
+    Add modules/infantry target with only boundary/registration code and no SOURCE implement yet.
 
 STEP 2
     Define InfantryTag/InfantryIdentity component with phenotype/genome artifact handles deferred to later chapters.
@@ -145,7 +145,7 @@ No per-entity heap object introduced by boundary. Compile/link dependency remain
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE Unit/InfantryUnit remain references; do not port generic engine responsibilities back into Infantry.
+SOURCE Unit/InfantryUnit remain references; do not implement generic engine responsibilities back into Infantry.
 
 ======================================================================
 TESTS TO ADD

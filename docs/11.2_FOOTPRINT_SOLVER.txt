@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -10,7 +10,7 @@ STATUS: READY
 ======================================================================
 GOAL
 ======================================================================
-Port/improve footprint morphology solver using connected orthogonal/cell or polygon forms with hard connectivity/no-hole/containment constraints and deterministic wing/recess operations.
+Implement/improve footprint morphology solver using connected orthogonal/cell or polygon forms with hard connectivity/no-hole/containment constraints and deterministic wing/recess operations.
 
 ======================================================================
 REQUIRES
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+The final data-driven BuildingPlan contract, geometric validity, deterministic
+identity and cross-stage solver consistency.
 
 ======================================================================
 OUT OF SCOPE
@@ -138,7 +139,8 @@ Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unb
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+TARGET constraints and quality metrics define behavior. Prototypes contribute
+scenarios only and cannot select alternate solver algorithms.
 
 ======================================================================
 TESTS TO ADD

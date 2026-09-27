@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
@@ -20,17 +20,16 @@ PATH CONVENTION:
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and owning
+    TARGET chapters define production behavior. Inventory entries cannot create
+    runtime compatibility requirements by themselves.
 
 REFERENCE EXPORT RULE:
     Do not copy private legacy source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
-CHAPTER 0.2 - MIGRATION INVENTORY AND PARITY MATRIX
+CHAPTER 0.2 - REFERENCE CAPABILITY INVENTORY AND VALIDATION MATRIX
 STATUS: READY
 INVENTORY BASELINE: repository main as inspected 2026-09-27
 
@@ -38,22 +37,21 @@ INVENTORY BASELINE: repository main as inspected 2026-09-27
 GOAL
 ======================================================================
 
-Create the authoritative migration inventory for the legacy/reference SOURCE repository.
+Inventory SOURCE capabilities and evidence so useful product requirements and
+known failure cases receive explicit TARGET ownership.
 
 This chapter answers, for every current subsystem group:
 
     WHAT EXISTS NOW?
-    WHAT MUST BE PRESERVED?
+    WHAT PRODUCT CAPABILITY OR LESSON DOES IT REPRESENT?
     WHAT IS THE TARGET NATIVE OWNER?
     WHICH IMPLEMENTATION CHAPTER MIGRATES IT?
-    WHAT KIND OF PARITY IS REQUIRED?
+    WHAT TARGET VALIDATION IS REQUIRED?
     WHICH CURRENT TESTS/fixtures are evidence?
-    WHEN MAY THE legacy implementation be retired?
+    IS IT ACCEPTED, IMPROVED, REJECTED OR REFERENCE-ONLY?
 
-The native migration MUST preserve all current project scope unless a later
-chapter explicitly changes product behavior with documented acceptance criteria.
-
-This inventory is the checklist preventing accidental feature loss.
+This inventory prevents accidental feature loss without making prototype
+implementation details normative. Final behavior comes from the owning chapter.
 
 ======================================================================
 REQUIRES
@@ -62,6 +60,8 @@ REQUIRES
     docs/0.0_NATIVE_MANUAL_INDEX.txt
     docs/0.1_TARGET_ARCHITECTURE.txt
     docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
+    docs/TARGET_IMPLEMENTATION_CONTRACT.txt
 
 Repository groups inspected:
 
@@ -84,17 +84,17 @@ Repository groups inspected:
 PRESERVES
 ======================================================================
 
-Everything listed in this inventory is preserved as one of:
+Every item is classified as one of:
 
-    ACTIVE FEATURE
-    REFERENCE IMPLEMENTATION
-    GOLDEN FIXTURE
-    TEST CONTRACT
-    RESEARCH / DESIGN EVIDENCE
-    BUILD / TOOLING REQUIREMENT
+    TARGET FEATURE
+    TARGET IMPROVEMENT / REPLACEMENT
+    REFERENCE SCENARIO
+    TEST / CALIBRATION EVIDENCE
+    RESEARCH CANDIDATE
+    EXPLICITLY REJECTED IMPLEMENTATION DETAIL
 
-A legacy path may become non-shipping later, but cannot disappear until its
-migration gate is satisfied.
+No item becomes a production requirement until the TARGET owner states its
+contract, tests and acceptance criteria.
 
 ======================================================================
 OUT OF SCOPE
@@ -102,9 +102,7 @@ OUT OF SCOPE
 
 No C++ implementation.
 No legacy deletion.
-No algorithm redesign beyond assigning migration owners and parity rules.
-No visual redesign.
-No gameplay rebalance.
+No C++ algorithm or visual/gameplay implementation in this inventory chapter.
 
 ======================================================================
 TARGET FILE TREE
@@ -126,29 +124,29 @@ Legacy/reference sources remain in-place during migration.
 PUBLIC CONTRACTS
 ======================================================================
 
-PARITY-CLASS-EXACT
-    Exact serialized/logical equality is expected for selected deterministic
-    fixtures.
+VALIDATION-CLASS-EXACT
+    Exact equality is reserved for TARGET-owned serialization, IDs and
+    deterministic fixtures, never incidental SOURCE output.
 
-PARITY-CLASS-NUMERIC
+VALIDATION-CLASS-NUMERIC
     Numeric results match within explicitly documented tolerances.
 
-PARITY-CLASS-STRUCTURAL
+VALIDATION-CLASS-STRUCTURAL
     Same semantic graph/topology/schema relationships, even if internal object
     layout differs.
 
-PARITY-CLASS-INVARIANT
+VALIDATION-CLASS-INVARIANT
     Required validity properties and constraints match; exact generated shape
     may intentionally differ.
 
-PARITY-CLASS-BEHAVIORAL
+VALIDATION-CLASS-BEHAVIORAL
     User/game-observable state transition behavior matches acceptance cases.
 
-PARITY-CLASS-VISUAL
+VALIDATION-CLASS-VISUAL
     Selected image/debug fixtures are reviewed by automated metrics and/or
     manual acceptance defined by migration chapter.
 
-PARITY-CLASS-PERFORMANCE
+VALIDATION-CLASS-PERFORMANCE
     New implementation must meet or improve explicit benchmark ceilings.
 
 A subsystem can require multiple classes.
@@ -524,6 +522,12 @@ CURRENT CORE:
     tensor field samples
     instanced debug rendering
 
+IMPORTANT:
+    Placeholder building records from the city/road prototypes are placement
+    envelopes and compatibility evidence for BuildingSiteRequest only. They are
+    not BuildingSpec, BuildingPlan or final geometry. TARGET cities use the
+    Stage-11 building generator for committed buildings.
+
 TARGET:
     modules/roads/
     modules/city/
@@ -819,10 +823,12 @@ CURRENT FILES:
 
 CURRENT FEATURES:
     anatomy-driven rig
+    69 bones/controllers: stable original 39 body/face entries plus 30 appended
+        finger bones from js/weapons/handRig.js
     procedural skinned surface
     face geometry
     hair
-    morph targets
+    four morph targets: eyelidsClose, eyelidsArc, neckFlex, handsRelax
     materials
     appearance cache
     surface/gear integration
@@ -933,7 +939,7 @@ CURRENT FILES:
 
 CURRENT FEATURES:
     equipment schema
-    20-slot infantry schema
+    22-slot infantry schema
     loadouts
     deterministic variants
     fit to anatomy
@@ -1453,9 +1459,9 @@ PARITY:
     PERFORMANCE
     BEHAVIORAL
 
-RETIREMENT:
-    Legacy implementations retire with owning modules, but the design
-    requirements survive.
+TARGET DECISION:
+    Accepted design requirements are owned by final TARGET modules. Reference
+    implementations remain external evidence only.
 
 ======================================================================
 25. TEST SUITE INVENTORY BY FUTURE OWNER
@@ -1589,6 +1595,14 @@ RULE:
     Native baselines are added alongside legacy evidence.
     Do not overwrite historical baselines to make a new implementation "pass".
 
+Evidence classification is mandatory per
+docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt. In particular:
+    historical 39-bone Infantry sheets are HISTORICAL_BASELINE;
+    *-selected-v14-final sheets are IMPLEMENTED_OLDER_CAPTURE;
+    experiment* is NEGATIVE_EXPERIMENT;
+    captures marked workingTree=true or "commit + local changes" are
+        UNPINNED_DIAGNOSTIC and cannot be parity goldens.
+
 ======================================================================
 27. HISTORICAL DOCUMENTATION OWNERSHIP
 ======================================================================
@@ -1618,36 +1632,36 @@ Examples:
         inform 16.x and 17.x.
 
 ======================================================================
-28. MIGRATION STATUS TABLE
+28. REFERENCE EVIDENCE STATUS TABLE
 ======================================================================
 
 At baseline:
 
-    Root/boot/config                  LEGACY ACTIVE
-    Core RNG/time                    LEGACY ACTIVE
-    Terrain                          LEGACY ACTIVE
-    Simple settlement                LEGACY ACTIVE
+    Root/boot/config                  SOURCE CODE EVIDENCE
+    Core RNG/time                    SOURCE CODE EVIDENCE
+    Terrain                          SOURCE CODE EVIDENCE
+    Simple settlement                SOURCE CODE EVIDENCE
     Procedural city prototype        REFERENCE PROTOTYPE
     Road graph prototype             REFERENCE PROTOTYPE
-    Modular buildings                LEGACY ACTIVE
+    Modular buildings                SOURCE CODE EVIDENCE
     Mathematical building prototype  REFERENCE PROTOTYPE
     Building Lab                     REFERENCE/ACTIVE LAB
-    Vegetation/rocks                 LEGACY ACTIVE
-    Infantry genome/unit             LEGACY ACTIVE
-    Infantry rendering               LEGACY ACTIVE
-    Infantry animation               LEGACY ACTIVE
-    Equipment                        LEGACY ACTIVE
-    Weapons                          LEGACY ACTIVE
-    Infantry damage/ragdoll schema   LEGACY ACTIVE/PARTIAL
-    Destruction core                 LEGACY ACTIVE
-    Rubble/physics                   LEGACY ACTIVE
-    Ballistics                       LEGACY ACTIVE
-    AI                               LEGACY ACTIVE/PROTOTYPE
-    Browser UI/labs                  LEGACY ACTIVE
-    Tests/research fixtures          AUTHORITATIVE MIGRATION EVIDENCE
+    Vegetation/rocks                 SOURCE CODE EVIDENCE
+    Infantry genome/unit             SOURCE CODE EVIDENCE
+    Infantry rendering               SOURCE CODE EVIDENCE
+    Infantry animation               SOURCE CODE EVIDENCE
+    Equipment                        SOURCE CODE EVIDENCE
+    Weapons                          SOURCE CODE EVIDENCE
+    Infantry damage/ragdoll schema   SOURCE/PARTIAL EVIDENCE
+    Destruction core                 SOURCE CODE EVIDENCE
+    Rubble/physics                   SOURCE CODE EVIDENCE
+    Ballistics                       SOURCE CODE EVIDENCE
+    AI                               SOURCE/PROTOTYPE EVIDENCE
+    Browser UI/labs                  REFERENCE UI EVIDENCE
+    Tests/research fixtures          NON-NORMATIVE TEST/DESIGN EVIDENCE
 
-No native subsystem is yet allowed to claim parity solely because a directory
-exists.
+No TARGET subsystem is complete solely because a directory exists; its owning
+contract, implementation and TARGET validation must pass.
 
 ======================================================================
 IMPLEMENTATION STEPS
@@ -1655,7 +1669,7 @@ IMPLEMENTATION STEPS
 
 This chapter is documentation-only.
 
-For all later migration chapters:
+For all later implementation chapters:
 
 STEP 1
     Locate the relevant inventory section.
@@ -1664,51 +1678,40 @@ STEP 2
     Read all current files and evidence named by that section.
 
 STEP 3
-    Preserve all listed requirements.
+    Decide which evidence becomes a TARGET requirement, improvement, reference
+    scenario or explicit rejection.
 
 STEP 4
     Implement native equivalent/improvement.
 
 STEP 5
-    Export/construct parity fixtures before deleting legacy code.
+    Construct TARGET fixtures and optionally import minimal diagnostic samples.
 
 STEP 6
-    Run both legacy and native acceptance where feasible.
+    Run TARGET acceptance; reference comparisons are supplementary diagnostics.
 
 STEP 7
-    Mark the subsystem migrated only after named parity classes pass.
+    Mark the subsystem complete only after TARGET validation classes pass.
 
 STEP 8
-    Update this inventory row status only in the parity chapter responsible for
-    the subsystem.
+    Update this inventory row status in the owning validation chapter.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 
-MIGRATION GATE:
+TARGET COMPLETION GATE:
 
-    function mayRetireLegacy(subsystem):
-        row := MigrationInventory[subsystem]
+    function targetSubsystemComplete(subsystem):
+        row := CapabilityInventory[subsystem]
 
-        require row.nativeOwnerImplemented
-        require row.requiredParityTestsExist
-        require all(row.requiredParityTests.pass)
-        require row.dependentsUseNativePath
-        require row.referenceArtifactsPreserved
-
-        if row.retirementRule == KEEP:
-            return false
-
-        if row.retirementRule == REFERENCE_ONLY:
-            markLegacyNonShipping()
-            keepReferenceFiles()
-            return true
-
-        if row.retirementRule == RETIRE_AFTER_PARITY:
-            return true
-
-        return false
+        require row.targetDecision in {FEATURE, IMPROVEMENT, REJECTED}
+        require row.targetOwnerImplemented or row.targetDecision == REJECTED
+        require row.requiredTargetTestsExist
+        require all(row.requiredTargetTests.pass)
+        require row.dependentsUseTargetContracts
+        require noProductionCompatibilityBranches
+        return true
 
 
 FEATURE LOSS CHECK:
@@ -1717,8 +1720,8 @@ FEATURE LOSS CHECK:
         if row.currentRole is ACTIVE FEATURE:
             assert row.targetOwner exists
             assert row.targetChapter exists
-            assert row.parityClasses not empty
-            assert row.retirementRule exists
+            assert row.validationClasses not empty
+            assert row.targetDecision exists
 
 ======================================================================
 THREADING / OWNERSHIP RULES
@@ -1726,9 +1729,9 @@ THREADING / OWNERSHIP RULES
 
 N/A for code in this chapter.
 
-Migration rule:
-    Do not preserve legacy single-thread ownership merely for parity if the
-    semantic result can be preserved under the target JobSystem.
+Implementation rule:
+    Do not preserve prototype ownership or scheduling patterns. Use the TARGET
+    JobSystem and validate the final semantic result.
 
 Thread scheduling is not a parity target.
 Semantic/deterministic behavior is.

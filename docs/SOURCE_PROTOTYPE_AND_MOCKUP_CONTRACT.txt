@@ -1,0 +1,235 @@
+GENOMES SOURCE EVIDENCE AUDIT
+=============================
+
+STATUS: NON-NORMATIVE REFERENCE INPUT
+BASELINE DATE: 2026-09-27
+
+SOURCE repository:
+    ppotepa/genomes
+
+Audited SOURCE commit:
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
+The runtime/prototype files at that commit are identical to runtime commit
+aa61f19b374477e3a474457a2c9dba29d57d679e; later commits only moved the native
+manual out of SOURCE.
+
+======================================================================
+1. AUTHORITY ORDER
+======================================================================
+
+When SOURCE code, old SOURCE documentation and a visual mockup disagree, use:
+
+    1. executing JS/runtime/prototype code at the pinned commit;
+    2. automated tests and clean machine-readable capture metadata;
+    3. clean commit-pinned images/manual acceptance cases;
+    4. interactive prototype behavior;
+    5. research text and historical documentation.
+
+Old SOURCE prose never overrides current executable behavior. It may still
+define an aspirational product goal, but only after that goal is classified and
+accepted explicitly; it is not silently promoted to parity truth.
+
+TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt and the owning implementation
+chapters are the native design authority. This audit records fixtures and design
+evidence only; it cannot add compatibility modes or dictate C++ architecture.
+
+======================================================================
+2. EVIDENCE CLASSES
+======================================================================
+
+CURRENT_IMPLEMENTED
+    Behavior present in current executable SOURCE code and supported by tests
+    or reproducible inspection. Eligible for compatibility/parity fixtures.
+
+REFERENCE_PROTOTYPE
+    Executable standalone prototype whose semantic algorithms/invariants are
+    inputs to TARGET, but which is not the shipping SOURCE world path.
+
+HISTORICAL_BASELINE
+    A valid older capture used for regression history. Never presented as the
+    current expected output.
+
+IMPLEMENTED_OLDER_CAPTURE
+    A clean capture of an implemented intermediate revision. Useful for visual
+    comparison, but not a current golden unless the fixture pins that revision.
+
+NEGATIVE_EXPERIMENT
+    A diagnostic experiment demonstrating that a proposed change was
+    insufficient or intentionally not adopted. It must not become a target
+    golden or parity requirement.
+
+ASPIRATIONAL_RESEARCH
+    Proposed product/design scope not implemented in SOURCE. It becomes a
+    TARGET acceptance requirement only through an explicit versioned decision.
+
+UNPINNED_DIAGNOSTIC
+    Capture produced with local changes or workingTree=true. Useful for human
+    investigation only; forbidden as an exact/numeric/visual golden.
+
+Every exported fixture/golden records EvidenceClass, SOURCE commit, generator
+and schema versions, capture tool/options and whether the worktree was clean.
+
+======================================================================
+3. CURRENT EXECUTABLE SOURCE FACTS
+======================================================================
+
+Infantry:
+    current skeleton: 69 bones/controllers
+        original body/face prefix: 39 (stable original indices)
+        appended finger bones:     30 (5 digits x 3 x 2 hands)
+    current morph channels:
+        eyelidsClose
+        eyelidsArc
+        neckFlex
+        handsRelax
+    equipment:
+        22 slots
+        61 catalog definitions
+        10 loadout profiles
+
+Infantry version provenance is intentionally explicit:
+    historical 36b3808 capture family: infantry-5.0.0 / 39 bones
+    later SOURCE research names the implemented v14 family infantry-7.0.0
+    current JS phenotype incorrectly emits global building-6.0.0 through
+        R.Config.GENERATOR_VERSION
+
+Native fixtures therefore pin the exact SOURCE commit and record both the
+observed emitted value and the semantic compatibility profile. TARGET does not
+copy the global-version leak.
+
+Buildings (current modular runtime):
+    BuildingSpec schema: rts.building-spec/6
+    BuildingPlan schema: rts.building-plan/4
+    generator: building-6.0.0
+    presets: 7
+    footprint families: 10 including EXPLICIT
+    roof families: 7
+    stair families: 4
+    building-lab acceptance cases: 6 named cases
+
+City/road prototypes:
+    procedural-city and procedural-road-graph-lab create placeholder building
+    placement envelopes only. Their placeholder boxes are NOT BuildingPlans and
+    are not an alternative building generator.
+
+Simple settlement runtime:
+    already produces building seed/preset/footprint/roof/width/depth fields,
+    parcel association, access road, gate/fence data and a compatibility
+    footprint. This is evidence for the city-to-building handoff contract.
+
+======================================================================
+4. VISUAL EVIDENCE CLASSIFICATION
+======================================================================
+
+HISTORICAL_BASELINE (39-bone revision 36b3808 or its documented batch):
+    faces.png / faces-selected.png
+    expressions.png / intensity.png
+    necks.png / bodies.png / lod.png
+
+NEGATIVE_EXPERIMENT:
+    experiment.png
+    experiment-selected.png
+    The lower row uses isolated narrowed parameters. SOURCE explicitly states
+    that it is not an implemented fix or approved final appearance.
+
+IMPLEMENTED_OLDER_CAPTURE (revision 2188712, 69 bones):
+    faces-selected-v14-final.*
+    expressions-selected-v14-final.*
+    necks-selected-v14-final.*
+    bodies-selected-v14-final.*
+
+UNPINNED_DIAGNOSTIC until recaptured from a clean pinned commit:
+    cache.*
+    environment.*
+    rocks.*
+    weaponui.*
+    weaponhands.*
+    weapons.*
+
+Other images without adequate embedded provenance remain reference/manual
+evidence until a clean exporter records provenance. Filename suffix "final"
+does not by itself make an image a current golden.
+
+======================================================================
+5. PROCEDURAL WORLD -> BUILDING CONTRACT
+======================================================================
+
+The canonical pipeline is:
+
+    TerrainArtifact + HydrologyArtifact
+        -> RoadGraph
+        -> Region hierarchy + zoning
+        -> blocks
+        -> parcels + buildable polygons
+        -> BuildingSiteRequest
+        -> BuildingSpec
+        -> BuildingPlan
+        -> BuildingSiteResolution
+        -> finalized driveway/gate/fence/reservations
+        -> static world databases + region packages
+        -> render/physics/navigation/destruction representations
+
+Ownership boundary:
+
+CITY OWNS:
+    ParcelId, zone/use intent, parcel/buildable polygons, road frontage,
+    allowed placement envelope, target coverage/height/storey envelope,
+    world transform/orientation hints, development phase, access intent and
+    land reservations.
+
+BUILDINGS OWNS:
+    BuildingSpec resolution, footprint family inside the buildable polygon,
+    room/program/circulation/core solution, actual entrances, structure,
+    openings, roof and immutable BuildingPlan.
+
+WORLD GENERATION ORCHESTRATION OWNS:
+    the dependency edge and transactional commit between the modules, stable
+    batch ordering, failure/fallback policy and final cross-domain validation.
+
+CITY ACCESS FINALIZATION OWNS:
+    connecting the road/frontage access intent to the selected BuildingPlan
+    entrance, then producing final DrivewaySpec, GateSpec and FenceLayout.
+
+Vegetation/scatter consumes the finalized reservations and never places first
+then asks buildings to delete overlapping instances.
+
+The city prototypes' placeholder x/z/w/d/h/rotation records map only to
+BuildingSiteRequest compatibility fixtures. They are never accepted as final
+building semantic or render output.
+
+======================================================================
+6. BUILDING RESEARCH / MOCKUP SCOPE
+======================================================================
+
+CURRENT_IMPLEMENTED includes the modular building-6.0.0 runtime, its six lab
+acceptance cases, executable mathematical building prototype and current tests.
+
+The older research atlas (24 building families, 16 roof families), complete
+apartment programs, kitchens, bathrooms, lifts and other unimplemented design
+ideas are ASPIRATIONAL_RESEARCH. The generic TARGET schemas should allow later
+extension, but Stage 11 parity does not claim those items are implemented.
+
+To promote an aspirational item, add an explicit owning chapter/change with:
+    schema additions,
+    generator behavior,
+    tests/fixtures,
+    visual/manual acceptance,
+    version and migration policy.
+
+======================================================================
+7. ACCEPTANCE RULES
+======================================================================
+
+The documentation is consistent only if:
+
+    current facts are derived from code/tests, not stale SOURCE prose;
+    historical and experimental images cannot pass as current goldens;
+    all city building placeholders terminate at BuildingSiteRequest;
+    every committed city building has exactly one BuildingPlan or an explicit
+        typed failure/fallback record;
+    entrances, driveways, gates and fences are mutually consistent;
+    vegetation respects finalized building/access reservations;
+    BuildingPlan identity survives render/physics/nav/streaming residency;
+    region reload does not reroll city, building or access identity;
+    SOURCE compatibility and future aspirational scope remain separate.

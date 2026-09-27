@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port procedural body/face/hair surface generation into deterministic GeometryRecipe/MeshData artifacts compiled from phenotype and rig, including holes, morph targets, skin weights and appearance caching.
+Implement final procedural body/face/hair surface generation as deterministic GeometryRecipe/MeshData artifacts compiled from phenotype and rig, including holes, morph targets, skin weights and appearance caching.
 
 ======================================================================
 REQUIRES
@@ -22,6 +22,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
     TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
     TARGET::docs/18.3_RIG_AND_SKELETON.txt
@@ -31,7 +32,7 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-Continuous neck/head profile, actual eye/mouth openings, separate nose/ears/hair geometry, up to four normalized influences, eyelidsClose/eyelidsArc/neckFlex morphs, hair styles/identity, shared skeleton and cache/no-shared-mutable-builder fixes.
+Continuous neck/head profile, actual eye/mouth openings, separate nose/ears/hair geometry, up to four normalized influences, eyelidsClose/eyelidsArc/neckFlex/handsRelax morphs, hair identity, one shared skeleton, immutable caching and thread-local generation scratch.
 
 ======================================================================
 OUT OF SCOPE
@@ -97,7 +98,8 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Port generic surface ring/profile builder using local GenerationContext scratch; remove shared module mutable state.
+    Implement the generic surface ring/profile builder using local
+    GenerationContext scratch and no shared mutable state.
 
 STEP 2
     Generate torso/limbs/neck/head from phenotype profiles; preserve seam/index continuity where required.
@@ -115,7 +117,9 @@ STEP 6
     Assign <=4 normalized skin influences and validate sum/indices.
 
 STEP 7
-    Generate three baseline morph targets with relative deltas/normals.
+    Generate the four TARGET morphs with relative deltas/normals:
+    eyelidsClose, eyelidsArc, neckFlex and handsRelax. Finger articulation is
+    skeletal; handsRelax supplies compatible soft-tissue deformation only.
 
 STEP 8
     Implement exact-key AppearanceArtifact cache with ref/lifetime policy from Stage 5/assets.
@@ -171,7 +175,8 @@ No per-frame generation. Cache exact hits. Final arrays tightly packed. Avoid on
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Use selected SOURCE geometry/bounds/morph invariants rather than requiring Three.js binary layout. Preserve research images as visual reference.
+TARGET topology, bounds, skinning and morph invariants are authoritative.
+Selected SOURCE images may inform manual review but never define mesh layout.
 
 ======================================================================
 TESTS TO ADD
@@ -198,7 +203,7 @@ ACCEPTANCE CRITERIA
     [ ] backend-neutral appearance artifact
     [ ] topological openings
     [ ] skin validation
-    [ ] three morphs
+    [ ] four TARGET morphs
     [ ] hair deterministic
     [ ] parallel-safe builder
     [ ] cache benchmark
@@ -218,7 +223,7 @@ COMPLETION CHECKLIST
     [ ] backend-neutral appearance artifact
     [ ] topological openings
     [ ] skin validation
-    [ ] three morphs
+    [ ] four TARGET morphs
     [ ] hair deterministic
     [ ] parallel-safe builder
     [ ] cache benchmark

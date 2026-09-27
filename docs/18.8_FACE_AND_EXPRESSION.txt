@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port deterministic face state, expression blending, look targets, saccades/blinks and facial morph/bone outputs while keeping identity genome immutable and runtime emotion as state.
+Implement deterministic face state, expression blending, look targets, saccades/blinks and facial morph/bone outputs while keeping identity genome immutable and runtime emotion as state.
 
 ======================================================================
 REQUIRES
@@ -51,14 +51,9 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Face identity/neutral baseline belongs to phenotype/genome. Runtime FaceState contains expression weights, gaze target, blink/saccade timers and smoothing state; it never mutates genome.
 
-2. SOURCE face-expression-1.1.0 compatibility uses one sequential
-LegacyMulberry32(uint32(seed XOR 0x9e3779b9)) stream, consumed by blink,
-attention and saccade scheduling.
-
-TARGET may introduce dedicated event-indexed substreams because they are more
-robust under variable cadence/sleep, but this MUST be a new face-animation
-algorithm version. It must not be reported as exact SOURCE random-sequence
-parity.
+2. Blink, attention and saccade scheduling use independent event-indexed
+SeedPath values keyed by stable event kind and event index. Variable cadence,
+sleep and unrelated event evaluation cannot perturb another sequence.
 
 3. Output is PoseDelta/FacialChannels: bone/controller rotations plus morph weights eyelidsClose/eyelidsArc and other explicitly supported channels; no direct mesh mutation.
 
@@ -82,8 +77,6 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    ALG-RNG-FACE-ANIMATOR32-001
-    ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-SEED-TREE-001
 
 ======================================================================
@@ -99,7 +92,7 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Freeze channel enum/profiles from SOURCE expression states.
+    Define the final TARGET channel enum and expression profiles.
 
 STEP 2
     Implement normalized weighted blend of requested expression profiles plus neutral baseline.
@@ -120,23 +113,15 @@ STEP 7
     Implement settled-state fast path and differential test against always-integrate reference including timers/RNG state.
 
 STEP 8
-    Port face cadence fixtures.
+    Implement face cadence fixtures.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-SOURCE COMPATIBILITY EVENT STREAM:
-    random := LegacyMulberry32(unitSeed XOR 0x9e3779b9)
-    // Preserve SOURCE call order for face-expression-1.1.0 fixtures.
-    nextBlink := sourceRandomBlinkDelay(random, phenotype)
-    nextAttention := .55 + random.next()*1.15
-    nextSaccade := sourceRandomSaccadeDelay(random, phenotype)
-    subsequent events consume the same sequential stream as SOURCE.
-
-NATIVE VERSIONED EVENT STREAM (new algorithm version only):
+TARGET EVENT STREAM:
     stream := SeedTree(unitSeed).child("face/events")
     eventValue := stream.event(stableEventKind,eventIndex)
-    // cadence/sleep-independent, but not exact legacy sequence
+    // cadence/sleep-independent and isolated per event kind/index
 
 EXPRESSION:
     target[channel] := neutral[channel]
@@ -164,12 +149,9 @@ Nonfinite target/weights rejected or sanitized at intent boundary with diagnosti
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Compatibility version preserves SOURCE sequential stream/call order exactly.
-Its cadence optimization must not skip RNG-consuming event transitions.
-
-A newer version may use event-indexed RNG to make cadence/sleep independent.
-Same version + ticks/intents must produce stable channels, and version must be
-part of artifact/state/parity metadata.
+Event-indexed SeedPath RNG makes cadence/sleep independent. Same TARGET schema,
+ticks and intents produce stable channels; unrelated face event kinds cannot
+perturb one another.
 
 ======================================================================
 PERFORMANCE RULES
@@ -179,14 +161,14 @@ Variable cadence for distant presentation. Settled channel early-out. No geometr
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE expression labels/behavior and selected fixture outputs; renderer morph application belongs presentation.
+TARGET expression labels, blend rules and event cadence are authoritative;
+renderer morph application belongs to presentation.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
     expression blend
-    SOURCE sequential blink/attention/saccade sequence
-    native versioned event-index sequence
+    event-indexed blink/attention/saccade sequence
     blink sequence
     saccade sequence
     world look clamp

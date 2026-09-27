@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -135,7 +135,8 @@ SoA columns, chunk iteration contiguous, no per-component heap object.
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+TARGET data-oriented contracts define behavior; no reference object hierarchy
+or compatibility object model is implemented.
 
 ======================================================================
 TESTS TO ADD

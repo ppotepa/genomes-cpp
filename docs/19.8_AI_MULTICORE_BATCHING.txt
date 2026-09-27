@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -164,7 +164,8 @@ Scaling benchmark mandatory. Diagnose saturation from LOS, memory bandwidth or t
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-This supersedes SOURCE BattlefieldAIManager loop while preserving simple model behavior and adding scalable architecture.
+One TARGET batched AI architecture owns the simple tactical model and scalable
+execution; no alternate manager loop is retained.
 
 ======================================================================
 TESTS TO ADD

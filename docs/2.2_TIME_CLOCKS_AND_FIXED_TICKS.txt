@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
@@ -20,15 +20,14 @@ PATH CONVENTION:
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and the
+    owning TARGET chapter are authoritative. Implementation agents must not add
+    production compatibility branches for SOURCE internals or modify SOURCE.
 
 REFERENCE EXPORT RULE:
-    Do not copy private legacy source code wholesale into this repository.
+    Do not copy private source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
 CHAPTER 2.2 - TIME, CLOCKS, AND FIXED TICKS
 STATUS: READY
@@ -359,14 +358,14 @@ advance:
 
 STEP 6 - FIRST ADVANCE SEMANTICS
 
-Preserve SOURCE behavior exactly at the wall-clock entry boundary:
+The final wall-clock entry contract is:
 
     first advance sets last wall time
     executes zero simulation catch-up steps
     returns interpolation alpha = 1
 
-SOURCE::js/core/fixedClock.js currently returns 1 on the first advance call.
-This is presentation interpolation behavior, not a simulated tick.
+Returning 1 on first advance is presentation interpolation behavior, not a
+simulated tick.
 
 The deterministic advanceBy(Duration) path has no implicit first-call special
 case because the caller supplies an explicit delta.

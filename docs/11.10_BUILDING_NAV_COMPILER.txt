@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+The final immutable BuildingPlan, strict validation and lazy independent
+representation compilation contracts.
 
 ======================================================================
 OUT OF SCOPE
@@ -137,7 +138,8 @@ Batch/merge geometry and queries; cache compiler products by plan hash; avoid on
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+TARGET BuildingPlan and compiler validators define behavior; no renderer or
+physics reference implementation selects a production path.
 
 ======================================================================
 TESTS TO ADD

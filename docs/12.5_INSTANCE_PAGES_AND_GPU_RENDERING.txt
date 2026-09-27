@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -25,7 +25,8 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE instancing and LOD identity while replacing Three.js InstancedMesh hierarchy.
+Stable TARGET instance/LOD identity with paged rendering and no scene-object
+hierarchy in semantic data.
 
 ======================================================================
 OUT OF SCOPE
@@ -146,7 +147,7 @@ Shared transform buffers, indirect draw groups, page coarse culling, no per-tree
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE environment visuals remain reference; native may improve rendering while keeping procedural layout identity.
+TARGET layout identity, culling, LOD and visual acceptance define behavior.
 
 ======================================================================
 TESTS TO ADD

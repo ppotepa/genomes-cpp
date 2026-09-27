@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -149,7 +149,7 @@ Validation linear in artifact bytes; use streaming hash/checksum. Recovery is ex
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Strengthens native reliability; SOURCE rollback ideas preserved.
+TARGET transactional recovery and artifact-integrity rules define reliability.
 
 ======================================================================
 TESTS TO ADD

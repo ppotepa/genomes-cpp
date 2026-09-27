@@ -1,16 +1,17 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 10.10 - CITY_REFERENCE_PARITY
+CHAPTER 10.10 - CITY_REFERENCE_VALIDATION
 STATUS: READY
 
 ======================================================================
 GOAL
 ======================================================================
-Create durable SOURCE-to-TARGET fixtures and parity gates for procedural-city and road-graph prototypes, separating exact reference values from improved invariant/structural behavior.
+Validate the final TARGET city/road system against a broad fixture matrix built
+from product requirements, adversarial cases and useful prototype scenarios.
 
 ======================================================================
 REQUIRES
@@ -19,18 +20,21 @@ REQUIRES
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/10.9_CITY_PARALLEL_GENERATION.txt
     TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+Coverage of useful road/city capabilities and known failure cases, without
+copying prototype algorithms or output geometry.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Detailed building interiors/geometry; city output produces building requests/artifacts only.
+Detailed building interiors/geometry; city parity ends at BuildingSiteRequest
+and finalized city-owned access/fence data, not BuildingPlan geometry.
 
 ======================================================================
 TARGET FILE TREE
@@ -59,11 +63,20 @@ Road/parcel fixtures additionally cover:
     fenced parcel GateSpec and wood/wire/wall FenceLayout
     FenceGenerator.plan compatibility cases.
 
-2. Exact fixture fields: normalized input, seed hierarchy selected samples, core counts/IDs where legacy semantics intentionally preserved. Structural/invariant fields: graph connectivity, crossings, region counts/depth ranges, block/parcel containment, overlap metrics.
+2. Fixtures contain normalized TARGET inputs and expected invariants: graph
+connectivity, legal crossings, region depth ranges, block/parcel containment,
+overlap limits, access feasibility and deterministic identity. Prototype counts
+or coordinates are diagnostic observations, not expected TARGET values.
 
-3. Native improvements may intentionally differ in exact road geometry only if parity report marks expected divergence and all stronger invariants pass.
+3. Road geometry is accepted by TARGET constraints and quality metrics. A
+difference from a prototype needs no compatibility branch or divergence waiver.
 
 4. Fixture provenance pins exact private SOURCE commit; fixture data contains no wholesale SOURCE code.
+
+5. SOURCE procedural-city building records (x/z/w/d/h/rotation/zone/parcel)
+are reference placement envelopes and map to BuildingSiteRequest fields only.
+They are not BuildingPlan fixtures and their displayed boxes are not required
+to match final generated building geometry.
 
 ======================================================================
 DATA LAYOUT
@@ -99,29 +112,27 @@ STEP 2
 STEP 3
     Export at least 50 deterministic seeds distributed across profiles plus targeted edge cases.
 
+    Export prototype building placeholders as site-request evidence with an
+    explicit REFERENCE_PROTOTYPE classification, never as final building plans.
+
 STEP 4
-    Implement native parity loader/comparator by parity class.
+    Implement the TARGET fixture loader and invariant/quality validators.
 
 STEP 5
-    Generate report listing Pass/ExpectedDivergence/Regression per fixture metric.
+    Generate report listing Pass/Regression per TARGET invariant and quality metric.
 
 STEP 6
-    Block legacy city/road retirement if any unapproved regression remains.
+    Block completion while any required TARGET invariant or scenario is unmapped.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 FOR fixture:
-    legacy := load expected
+    reference := load scenario and diagnostic observations
     native := generate(fixture.input)
 
-    compare exact fields
     run native validators
-    compare structural metrics/tolerances
-
-    if exact geometry differs:
-        require divergence rule documented
-        require all hard invariants pass
+    compare TARGET structural/quality metrics and tolerances
 
     report.add result
 
@@ -130,7 +141,7 @@ require zero Regression
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Parity cases run in parallel only if each is isolated; report sorted by fixture ID.
+Validation cases run in parallel only if each is isolated; report sorted by fixture ID.
 
 ======================================================================
 ERROR HANDLING
@@ -140,7 +151,8 @@ Invalid candidates are rejected through typed result/ValidationReport; bounded f
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Fixture export and native comparison stable by exact SOURCE/TARGET commits.
+TARGET fixture generation is stable by TARGET schema and commit. Imported
+diagnostics additionally retain their SOURCE provenance.
 
 ======================================================================
 PERFORMANCE RULES
@@ -150,7 +162,8 @@ Parity suite correctness-first; separate city benchmark owns timing.
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-After pass, SOURCE prototypes become REFERENCE_ONLY but remain valuable labs until native proc viewer supersedes them.
+Reference prototypes remain optional design laboratories. TARGET fixtures and
+validators are the completion authority.
 
 ======================================================================
 TESTS TO ADD
@@ -159,7 +172,9 @@ TESTS TO ADD
     provenance
     50+ matrix
     regression detection
-    expected divergence classification
+    quality threshold regression detection
+    placeholder-to-BuildingSiteRequest mapping
+    request containment, zone, orientation and stable parcel/seed identity
 
 ======================================================================
 COMMANDS TO RUN
@@ -173,24 +188,25 @@ ACCEPTANCE CRITERIA
 ======================================================================
     [ ] SOURCE fixtures pinned
     [ ] broad profile matrix
-    [ ] native parity comparator
+    [ ] native invariant/quality validator
     [ ] report generated
     [ ] zero unapproved regressions
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    updating golden files to hide failure
+    weakening TARGET constraints to hide failure
     requiring visual mesh equality
+    comparing a city placeholder box as though it were a BuildingPlan
     publishing SOURCE code wholesale
-    retiring prototypes before report
+    adding production compatibility branches for prototype output
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
     [ ] SOURCE fixtures pinned
     [ ] broad profile matrix
-    [ ] native parity comparator
+    [ ] native invariant/quality validator
     [ ] report generated
     [ ] zero unapproved regressions
 

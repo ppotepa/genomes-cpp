@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -147,7 +147,8 @@ Dirty extraction, not full copy. Transform sample data compact.
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+TARGET data-oriented contracts define behavior; no reference object hierarchy
+or compatibility object model is implemented.
 
 ======================================================================
 TESTS TO ADD

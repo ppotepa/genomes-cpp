@@ -1,17 +1,19 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 18.11 - INFANTRY_REFERENCE_PARITY
+CHAPTER 18.11 - INFANTRY_REFERENCE_VALIDATION
 STATUS: READY
 VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Execute the Infantry parity gate across genome, phenotype, rig, appearance, equipment, locomotion, IK, face, animation cadence and damage/ragdoll integration.
+Validate the final TARGET Infantry system across genome, phenotype, canonical
+rig, appearance, equipment, locomotion, IK, face, animation cadence and
+damage/ragdoll integration.
 
 ======================================================================
 REQUIRES
@@ -22,6 +24,7 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
     TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
     TARGET::docs/18.1_INFANTRY_MODULE_BOUNDARY.txt
@@ -35,11 +38,13 @@ REQUIRES
     TARGET::docs/18.9_ANIMATION_LOD_AND_PARALLEL_EVALUATION.txt
     TARGET::docs/18.10_INFANTRY_DAMAGE_AND_RAGDOLL.txt
     TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+    TARGET::docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-The complete SOURCE Infantry acceptance/test surface listed by 0.2, including cache policies, interleaved generation, pose/contact behavior and visual research evidence.
+Complete TARGET capability, determinism, anatomical quality, cache, pose/contact
+and visual acceptance coverage.
 
 ======================================================================
 OUT OF SCOPE
@@ -59,7 +64,10 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Fixture provenance exact SOURCE commit/generator infantry version. Separate exact/numeric/structural/behavioral/visual parity; do not demand identical native mesh binary layout.
+1. TARGET fixtures record schema identity and generation inputs. Imported
+reference samples additionally record provenance/evidence class but remain
+diagnostic. Validation separates numeric, structural, behavioral and visual
+quality; no JavaScript binary layout or sequential RNG equality is required.
 
 2. Seeded genome/selected phenotype fields require strongest feasible parity; topology/appearance validated by invariants plus selected golden metrics/images.
 
@@ -67,12 +75,16 @@ PUBLIC CONTRACTS
 
 4. Parallel generation/evaluation must match 1-worker semantic outputs for deterministic artifacts/channels.
 
-5. Successful parity makes native Infantry eligible for integrated game, but SOURCE remains reference until 20.7.
+5. Passing TARGET validation makes Infantry eligible for integrated gameplay.
+
+6. The only production schema is the canonical 69-bone rig and four TARGET
+morphs. Older or unpinned images may assist manual diagnosis but cannot define
+expected runtime output or create alternate rig profiles.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Fixture families genome/, phenotype/, rig/, appearance/, equipment/, locomotion/, face/, damage/. Visual goldens kept minimal and accompanied by semantic metrics.
+Fixture families genome/, phenotype/, rig/, appearance/, equipment/, locomotion/, face/, damage/. Every fixture/golden stores EvidenceClass, SOURCE commit, working-tree state, capture revision and semantic version/profile. Visual goldens kept minimal and accompanied by semantic metrics.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
@@ -97,6 +109,9 @@ SOURCE REFERENCES
     SOURCE::tests/infantry_face_cadence.cjs
     SOURCE::tests/infantry_lazy_physics.cjs
     SOURCE::tests/infantry_damage_runtime.cjs
+    SOURCE::js/rendering/infantryRig.js
+    SOURCE::js/weapons/handRig.js
+    SOURCE::js/rendering/surfaceBuilder.js
     SOURCE::docs/research/anatomy_rig_audit.md
     SOURCE::docs/research/face_expression_audit.md
     SOURCE::docs/research/genome_distribution_audit.md
@@ -105,7 +120,11 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Pin SOURCE commit and export representative seed matrix: low/mid/high body genes, face/hair styles, all loadouts, locomotion states, expressions.
+    Define representative TARGET seed/input matrix: low/mid/high body genes,
+    face/hair styles, all loadouts, locomotion states and expressions.
+
+    Classify every inherited image/fixture before use. Reject workingTree/local
+    changes as goldens and keep negative experiments as regression context only.
 
 STEP 2
     Export semantic arrays/metrics instead of Three.js object graphs: dimensions, bone bind transforms, counts/bounds, morph hashes, equipment resolved slots, pose channels.
@@ -174,7 +193,8 @@ Record appearance generation/cache, animation tiers, hit-volume update, active r
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Update 0.2 status after pass. SOURCE docs/research remain reference.
+Update completion status after TARGET validation passes. Reference material
+remains optional diagnostic evidence.
 
 ======================================================================
 TESTS TO ADD
@@ -185,6 +205,8 @@ TESTS TO ADD
     long pose sequences
     cache lifetime
     visual golden review hooks
+    evidence classification/provenance validation
+    exact current 69-bone/four-morph schema
     ragdoll invariant
 
 ======================================================================
@@ -198,11 +220,12 @@ COMMANDS TO RUN
 ACCEPTANCE CRITERIA
 ======================================================================
     [ ] SOURCE pinned
+    [ ] every fixture/golden has admissible evidence classification
     [ ] all test requirements mapped
-    [ ] artifact parity
-    [ ] animation parity
-    [ ] cache parity
-    [ ] parallel parity
+    [ ] artifact invariants
+    [ ] animation acceptance
+    [ ] cache correctness
+    [ ] serial/parallel equivalence
     [ ] report committed
 
 ======================================================================
@@ -210,6 +233,8 @@ FORBIDDEN SHORTCUTS
 ======================================================================
     dropping hard visual/anatomy regressions as 'different engine' without versioned decision
     replacing historical golden in place
+    promoting negative experiments or unpinned working-tree captures to goldens
+    adding alternate production rigs to satisfy historical captures
     deleting SOURCE
     camera-dependent semantic parity
 

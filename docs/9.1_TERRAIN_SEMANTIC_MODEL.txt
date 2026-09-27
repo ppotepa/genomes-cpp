@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -135,7 +135,8 @@ Height sample O(1), no raycast/no noise recompute. Contiguous fields and ghost-b
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE::js/terrain.js remains baseline. Native model must preserve O(1) authoritative sampling and grading semantics before SOURCE retirement.
+TARGET terrain provides O(1) authoritative sampling and explicit grading
+semantics. Reference terrain code is diagnostic evidence only.
 
 ======================================================================
 TESTS TO ADD

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -10,7 +10,7 @@ STATUS: READY
 ======================================================================
 GOAL
 ======================================================================
-Subdivide blocks and rural road frontage into deterministic parcels with explicit frontage, access, setbacks and buildable polygons while preventing overlaps/road/water conflict.
+Subdivide blocks and rural road frontage into deterministic parcels with explicit frontage, access intent, setbacks and buildable polygons, then exchange stable site requests/resolutions with the building generator while preventing overlaps/road/water conflict.
 
 ======================================================================
 REQUIRES
@@ -19,17 +19,20 @@ REQUIRES
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/10.7_ZONING_BLOCKS_AND_HALF_EDGE_FACES.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+Deterministic frontage-aware parcels, valid buildable polygons, explicit access
+intent and coherent building/access/fence reservations.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Detailed building interiors/geometry; city output produces building requests/artifacts only.
+Detailed building interiors/geometry. City owns parcels, access intent and site
+requests; the buildings module owns BuildingSpec/BuildingPlan and geometry.
 
 ======================================================================
 TARGET FILE TREE
@@ -37,11 +40,13 @@ TARGET FILE TREE
     modules/city/include/genomes/city/Parcel.hpp
     modules/city/include/genomes/city/ParcelSet.hpp
     modules/city/include/genomes/city/ParcelAccess.hpp
+    modules/city/include/genomes/city/BuildingSite.hpp
     modules/city/include/genomes/city/FenceLayout.hpp
     modules/city/src/ParcelGenerator.cpp
     modules/city/src/FencePlanner.cpp
     tests/native/city/parcel_tests.cpp
     tests/native/city/fence_plan_tests.cpp
+    tests/native/city/building_site_contract_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
@@ -50,13 +55,17 @@ PUBLIC CONTRACTS
 zone, frontage segment/road, access flag and buildable polygon(s).
 
 Parcel access is explicit semantic data:
+    ParcelAccessIntent
+        frontage/access point or admissible frontage interval
+        required clear width and approach constraints
+        semantic access class and surface/kind
     GateSpec
         frontage location / left-right endpoints
         clear width
     DrivewaySpec
         connection from road/access point to parcel/building approach
         semantic access class: Service or Local according profile
-        SOURCE compatibility surface/kind: Track
+        surface/kind: Track for unpaved parcel access
     FenceSpec optional
         fenced flag
         type {Wood, Wire, Wall}
@@ -66,27 +75,39 @@ Parcel access is explicit semantic data:
 
 These are not renderer objects.
 
+BuildingSiteRequest is the city-owned boundary DTO. It contains stable request
+and ParcelId, seed path, zone, buildable polygon, optional preferred footprint
+envelope/orientation, height/storey constraints and ParcelAccessIntent. A box
+drawn by a planning/debug view is only a preferred envelope in this request; it
+is not a finished building.
+
+BuildingSiteResolution is the return DTO from the buildings module. It contains
+the request/parcel IDs, stable BuildingPlanId, resolved footprint, selected
+entrance/approach point, clearance envelope and reserved exterior connections.
+It intentionally does not expose BuildingPlan internals to the city module.
+
 2. Urban parcel subdivision prioritizes road frontage and target width/depth ranges by zone; residual polygons are either valid residual parcels or explicitly reported.
 
 3. Buildable area = parcel minus setback/ROW/water/protected constraints; operation may return multiple polygons, choose/retain according explicit policy.
 
 4. Rural frontage parcels generated along eligible roads with spacing/depth and spatial hash overlap checks.
 
-5. Fence planning preserves SOURCE FenceGenerator.plan() semantics:
-    compatibility panel target length = 2.4 m
-    compatibility default gate width = 4.2 m, capped by frontage policy
+5. Fence planning uses the final TARGET contract:
+    default panel target length = 2.4 m
+    default gate width = 4.2 m, capped by frontage policy
     gate creates a real opening in the front fence
     panel span is rejected if it conflicts with road corridor, another parcel,
     or building footprint clearance
-    all-or-nothing compatibility behavior where SOURCE returns no fence when
-    expected panel segmentation cannot be produced is represented in the
-    legacy compatibility profile
+    conflicting spans are shortened, split or omitted deterministically;
+    the complete fence is omitted only when no valid layout remains
 
-Native later versions may use more flexible partial-fence recovery, but not
-under exact SOURCE fence parity.
+GateSpec, DrivewaySpec and FenceLayout are finalized only after the city
+receives BuildingSiteResolution. Preliminary placeholder rectangles are not
+valid substitutes for the resolved footprint and entrance.
 
-6. Driveway/access geometry is part of parcel/city semantics and reserves space
-before vegetation/fence placement; it is not added later only as visual mesh.
+6. Access intent is part of parcel/city semantics. Final driveway/gate geometry
+is resolved against the returned building entrance and reserves space before
+vegetation/fence placement; it is not added later only as visual mesh.
 
 ======================================================================
 DATA LAYOUT
@@ -131,14 +152,14 @@ STEP 5
     Generate rural road-oriented OBB/polygon parcels using spatial index.
 
 STEP 6
-    Create driveway/access reservations from frontage/gate to building approach.
-    For SOURCE simple-settlement compatibility use an access-class edge
-    (Service/Local profile) with surface/kind Track, and reserve it before
-    scatter.
+    Create ParcelAccessIntent and BuildingSiteRequest from each accepted parcel.
+    Use a Service or Local access-class intent with Track surface for unpaved
+    parcel access.
 
 STEP 7
-    Plan optional fence spans/posts/gate from parcel boundary using SOURCE
-    compatibility profile or newer explicit profile.
+    Pass BuildingSiteRequest to Stage 11. After BuildingSiteResolution returns,
+    finalize the driveway/access reservation from frontage to the actual
+    entrance and plan optional fence spans/posts/gate from the parcel boundary.
 
 STEP 8
     Validate containment, overlap, road/water exclusion, access, gate opening,
@@ -155,8 +176,10 @@ URBAN BLOCK:
         if hard constraints fail: merge/residual policy
         buildable := inset/subtract(p,setbacks,constraints)
         assign stable ParcelId(blockId, frontageOrdinal)
-        plan gate/driveway if access required
-        plan optional fence after reserved access corridor
+        request := make BuildingSiteRequest(buildable, accessIntent, seedPath)
+        resolution := Stage11.resolve(request)
+        finalize gate/driveway against resolution.entrance
+        plan optional fence after resolved footprint/access reservations
 
 RURAL:
     for road in stable order:
@@ -188,7 +211,8 @@ Use spatial indexes/fields rather than global scans; batch expensive routing/pla
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+There is one TARGET parcel/access/fence behavior. Prototype samples contribute
+test cases only; no alternate compatibility planner is implemented.
 
 ======================================================================
 TESTS TO ADD
@@ -200,7 +224,10 @@ TESTS TO ADD
     rural overlap
     residual accounting
     driveway connectivity/reservation
-    SOURCE fence wood/wire/wall plan parity
+    deterministic BuildingSiteRequest mapping
+    BuildingSiteResolution ID/parcel correlation
+    entrance-to-driveway continuity after resolution
+    wood/wire/wall fence planning
     gate opening/default width
     fence-road/neighbor/building exclusion
     stable IDs
@@ -220,15 +247,19 @@ ACCEPTANCE CRITERIA
     [ ] buildable polygons
     [ ] no overlap
     [ ] access validation
-    [ ] driveway Service/Local + Track-surface compatibility semantics
+    [ ] typed building site request/resolution boundary
+    [ ] access/fence finalization uses resolved footprint and entrance
+    [ ] driveway Service/Local + Track-surface semantics
     [ ] fence/gate semantic planner
-    [ ] SOURCE fence compatibility tests
+    [ ] fence constraint and recovery tests
     [ ] residual reporting
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
     building generator deciding parcel geometry
+    city module constructing BuildingPlan or final building geometry
+    treating a prototype placeholder box as a resolved building footprint
     global road scan per parcel
     silently dropping residual land without metric
 
@@ -240,6 +271,7 @@ COMPLETION CHECKLIST
     [ ] buildable polygons
     [ ] no overlap
     [ ] access validation
+    [ ] typed building site request/resolution boundary
     [ ] residual reporting
 
 ======================================================================

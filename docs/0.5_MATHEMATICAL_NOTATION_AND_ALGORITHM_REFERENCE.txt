@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
@@ -20,15 +20,14 @@ PATH CONVENTION:
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and the
+    owning TARGET chapter are authoritative. Implementation agents must not add
+    production compatibility branches for SOURCE internals or modify SOURCE.
 
 REFERENCE EXPORT RULE:
-    Do not copy private legacy source code wholesale into this repository.
+    Do not copy private source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
 CHAPTER 0.5 - MATHEMATICAL NOTATION AND ALGORITHM REFERENCE
 STATUS: READY
@@ -100,19 +99,12 @@ Existing algorithm references to inspect when relevant:
 PRESERVES
 ======================================================================
 
-This reference does not change current Genomes behavior.
+This reference establishes canonical mathematics for the final native product.
 
-It formalizes mathematics already present in the project and establishes
-canonical forms for the native migration.
-
-If current JS behavior differs from a canonical formula in this file, a later
-migration chapter MUST explicitly choose one of:
-
-    A. preserve legacy behavior for parity,
-    B. correct the behavior and update parity expectations,
-    C. preserve legacy behavior behind a compatibility mode.
-
-Never silently change semantics because a formula in this reference is cleaner.
+If reference code differs from a canonical formula, the owning TARGET chapter
+must choose and document the product rule, numerical policy and acceptance test.
+Production never carries both formulas solely for compatibility. Reference
+outputs may remain diagnostic fixtures but cannot override the TARGET decision.
 
 ======================================================================
 OUT OF SCOPE
@@ -2115,11 +2107,12 @@ END OF CHAPTER 0.5
 
 
 ======================================================================
-31. LEGACY RNG COMPATIBILITY DEFINITIONS
+31. REFERENCE-EXPORT RNG DEFINITIONS (NON-PRODUCTION)
 ======================================================================
 
-These definitions exist ONLY to reproduce SOURCE fixtures during migration.
-They do not replace the canonical versioned native SeedTree.
+These definitions exist only in optional reference-export tooling to explain or
+recapture SOURCE diagnostics. engine/, modules/ and apps/ must not depend on
+them. All production generators use canonical TARGET SeedPath streams.
 
 ALG-RNG-MULBERRY32-LEGACY-001
 
@@ -2167,7 +2160,7 @@ C. LegacyCityMulberry32
         a := ToInt32(a + 0x6D2B79F5)
     then applies the equivalent mixer.
 
-For all migration fixtures, freeze golden vectors from the exact SOURCE caller
+For imported diagnostic fixtures, record vectors from the exact SOURCE caller
 and adapter family. Do not use the generic label "LegacyMulberry32" alone when
 the state-storage distinction matters.
 
@@ -2254,10 +2247,9 @@ REF-PCG
     Use for:
         canonical native PCG family algorithm definition and test vectors.
 
-IMPORTANT MIGRATION RULE:
-    SOURCE contains multiple historical seed-derivation families.
-    "Legacy-compatible RNG" therefore means both the random stream algorithm
-    AND the domain-specific seed derivation function.
+REFERENCE TOOLING RULE:
+    An exporter identifying a SOURCE sequence records both the random stream
+    and domain-specific derivation. These algorithms never enter production.
 
 
 ALG-RNG-INFANTRY-GENOME32-001

@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -25,12 +25,14 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+The exact semantic output of the final city generation graph for every worker
+count, including stable site requests and access finalization.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Detailed building interiors/geometry; city output produces building requests/artifacts only.
+Detailed building interiors/geometry; city output is CityLayoutDraft with
+BuildingSiteRequests, followed later by finalized access/fence layout.
 
 ======================================================================
 TARGET FILE TREE
@@ -42,7 +44,11 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. City generation is a GenerationGraph: terrain/hydrology inputs -> core -> transport/regions -> local road proposals -> zoning -> blocks -> parcels -> building requests.
+1. City generation produces CityLayoutDraft through this GenerationGraph:
+terrain/hydrology inputs -> core -> transport/regions -> local road proposals
+-> zoning -> blocks -> parcels -> BuildingSiteRequests. Stage 11 independently
+resolves those requests to BuildingPlans + BuildingSiteResolutions; the city
+then finalizes access/fences into CityLayout.
 
 2. Independent leaf regions may evaluate local road candidates in parallel against stable snapshots; commits that can conflict are stable-ordered/revalidated.
 
@@ -105,6 +111,11 @@ GRAPH:
     parcelChunks := parallelMap(blocks, generateParcels)
     parcels := stableMerge(parcelChunks)
     buildingRequests := parallelMap(parcels, makeRequest)
+    return CityLayoutDraft(roads,zones,blocks,parcels,buildingRequests)
+
+LATER DEPENDENCY:
+    plans,resolutions := Buildings.generate(buildingRequests)
+    cityLayout := parallelMap(resolutions, finalizeAccessAndFences)
 
 ======================================================================
 THREADING / OWNERSHIP RULES
@@ -129,7 +140,8 @@ Benchmark stage-by-stage; avoid overparallelizing tiny hamlets. Auto policy can 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Improves SOURCE single-thread prototype execution without changing semantic requirements.
+One deterministic algorithm serves serial and parallel execution. No prototype
+execution mode or scheduler-dependent output is retained.
 
 ======================================================================
 TESTS TO ADD
@@ -139,6 +151,8 @@ TESTS TO ADD
     cancel generation
     small city no task explosion
     large city scaling
+    stable BuildingSiteRequest hashes in 1 vs N mode
+    stable access/fence finalization from reordered BuildingSiteResolutions
 
 ======================================================================
 COMMANDS TO RUN

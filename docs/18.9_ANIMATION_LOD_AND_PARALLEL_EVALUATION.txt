@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -160,7 +160,8 @@ Grain-size benchmark, no full matrix-tree updates unless needed, skip unchanged 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE cadence/pose invariants and optimized no-op behavior concept; exact Three.js matrix update behavior is not parity target.
+TARGET cadence, pose error bounds and no-op behavior define acceptance; renderer
+matrix update mechanics are not semantic behavior.
 
 ======================================================================
 TESTS TO ADD

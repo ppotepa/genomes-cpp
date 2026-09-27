@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -157,7 +157,8 @@ Bound convex vertices/subshapes. Batch dirty tiles and commands. Avoid rebuildin
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Rapier implementation is SOURCE reference only. Jolt shape choice may differ while preserving collision/navigation/settle behavior.
+Jolt shape selection follows TARGET collision/navigation/settling contracts;
+reference physics implementations are diagnostic only.
 
 ======================================================================
 TESTS TO ADD

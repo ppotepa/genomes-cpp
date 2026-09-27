@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -138,7 +138,8 @@ Choose row grain large enough to amortize scheduling; report speedup and memory 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-SOURCE cooperative yield/one Worker semantics are replaced by real native parallel jobs while preserving cancellability.
+TARGET uses real native parallel jobs with bounded cancellation points and
+schedule-independent output.
 
 ======================================================================
 TESTS TO ADD

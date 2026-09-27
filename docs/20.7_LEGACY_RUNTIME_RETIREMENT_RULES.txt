@@ -1,17 +1,19 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 20.7 - LEGACY_RUNTIME_RETIREMENT_RULES
+CHAPTER 20.7 - REFERENCE_EVIDENCE_ARCHIVAL
 STATUS: READY
 VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Perform the formal retirement review for the SOURCE browser runtime after native parity/integration. Decide what becomes historical/reference-only, what remains useful as labs/exporters and what may be removed from active product expectations.
+Classify and archive useful SOURCE fixtures, labs, exporters and research after
+TARGET integration without changing the fact that TARGET contracts are the
+product authority.
 
 ======================================================================
 REQUIRES
@@ -19,55 +21,56 @@ REQUIRES
     TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
     TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
     TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
-    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
-    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
-    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
-    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
-    TARGET::docs/7.8_DEBUG_RENDERING_AND_PROFILING.txt
-    TARGET::docs/15.7_VARIABLE_CADENCE_SYSTEMS.txt
-    TARGET::docs/16.8_DESTRUCTION_REFERENCE_PARITY.txt
-    TARGET::docs/17.6_BALLISTICS_REFERENCE_PARITY.txt
-    TARGET::docs/18.11_INFANTRY_REFERENCE_PARITY.txt
-    TARGET::docs/19.8_AI_MULTICORE_BATCHING.txt
+    TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt
     TARGET::docs/20.2_OLD_AND_NEW_RUNTIME_PARITY_WORLD.txt
-    TARGET::docs/20.3_STREAMING_LARGE_WORLD.txt
-    TARGET::docs/20.4_SAVE_LOAD_AND_ARTIFACT_PACKAGES.txt
     TARGET::docs/20.5_NATIVE_PROC_VIEWER.txt
     TARGET::docs/20.6_FULL_GAME_PRESENTATION.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-Historical SOURCE evidence, golden fixtures, research, algorithm labs that retain unique diagnostic value, and all parity provenance.
+Useful reference fixtures, research, algorithm labs and complete provenance for
+every diagnostic artifact imported into TARGET.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-This chapter does not automatically delete SOURCE repository or rewrite its history.
+No SOURCE deletion or history rewrite. No change to TARGET product authority,
+runtime APIs or generator behavior.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
-    docs/parity/20.7_LEGACY_RETIREMENT_REPORT.txt
-    reference/manifests/LEGACY_RETIREMENT_LEDGER.txt
+    docs/reports/20.7_REFERENCE_ARCHIVAL_REPORT.txt
+    reference/manifests/REFERENCE_EVIDENCE_LEDGER.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Retirement is per subsystem/path category, never blanket "native exists so legacy deleted".
+1. Evidence status is one of: IMPORTED_FIXTURE, OPTIONAL_EXPORTER,
+REFERENCE_LAB, RESEARCH_DOCUMENT, REDUNDANT_EVIDENCE or DO_NOT_DELETE_EVIDENCE.
 
-2. Statuses: ACTIVE_SOURCE_REQUIRED, FIXTURE_EXPORTER, REFERENCE_LAB, HISTORICAL_DOC, RETIREABLE_SHIPPING_PATH, DO_NOT_DELETE_EVIDENCE.
+2. No TARGET runtime module may depend on SOURCE. Exporters are development
+tools only; the TARGET validation suite remains runnable without SOURCE access.
 
-3. A subsystem can be RETIREABLE only if owning native parity chapter PASS, native dependents no longer require SOURCE runtime, native debug/acceptance route exists and fixture provenance is preserved.
+3. Imported fixtures retain exact repository/commit/tool/options/clean-worktree
+provenance and map to an explicit TARGET requirement.
 
-4. SOURCE prototypes may remain permanently as lightweight algorithm labs even after shipping path retired.
+4. Unclassified or unpinned evidence cannot become an automated expectation.
 
-5. No deletion of legacy tests/research fixtures that are sole evidence for behavior; convert/export before any cleanup.
+5. External repository cleanup is a separate reviewed task and is never implied
+by completion of this chapter.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-RetirementLedger rows: source path group, 0.2 entry, native owner/chapter, parity report, current status, rationale, required retained fixtures/exporter.
+ReferenceEvidenceLedger row:
+    source path group
+    evidence class/status
+    TARGET owner/chapter/requirement
+    retained fixture or optional exporter
+    provenance
+    rationale
 
 ======================================================================
 MATHEMATICAL CONTRACTS
@@ -82,54 +85,46 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
-    SOURCE::docs/NATIVE_CPP_MANUAL_MOVED.txt
     SOURCE::tests/*
     SOURCE::prototypes/*
     SOURCE::building-lab/*
+    SOURCE::docs/research/*
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Read entire 0.2 matrix and all parity reports 10.10/11.12/12.6/16.8/17.6/18.11/20.2.
+    Read the 0.2 evidence inventory and TARGET validation reports.
 
 STEP 2
-    For each SOURCE subsystem group, verify native owner and test/fixture coverage.
+    Map each useful evidence group to a TARGET owner and requirement.
 
 STEP 3
-    Classify browser shipping entrypoint separately from reference labs/prototypes/docs.
+    Classify fixtures, optional exporters, labs and research independently.
 
 STEP 4
-    Verify native proc viewer replaces manual acceptance workflows before downgrading labs.
+    Verify the native proc viewer covers required manual acceptance workflows.
 
 STEP 5
-    Create retirement ledger with explicit decisions; ambiguous rows remain ACTIVE_SOURCE_REQUIRED.
+    Produce ReferenceEvidenceLedger; ambiguous artifacts remain unimported
+    reference material, never production dependencies.
 
 STEP 6
-    If SOURCE cleanup is desired later, execute in SOURCE as separate reviewed change, never implicitly from TARGET implementation agent.
-
-STEP 7
-    Update TARGET README/manual status to state native authority only after all mandatory gates.
+    Verify all TARGET tests run without SOURCE availability.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-for row in MigrationInventory:
-    if !row.parityPass:
-        status := ACTIVE_SOURCE_REQUIRED
-    else if row.onlyHistoricalEvidence:
-        status := DO_NOT_DELETE_EVIDENCE
-    else if row.uniqueLabValue and nativeViewerNotEquivalent:
-        status := REFERENCE_LAB
-    else if row.usedToRegenerateFixtures:
-        status := FIXTURE_EXPORTER
-    else:
-        status := RETIREABLE_SHIPPING_PATH
-    ledger.add(row,status,rationale)
+for row in EvidenceInventory:
+    require row.status in allowedEvidenceStatuses
+    if row.status == IMPORTED_FIXTURE:
+        require row.provenance.complete
+        require row.targetRequirement exists
+        require row.targetTest exists
+    ledger.add(row)
 
-require no row missing
-require every RETIREABLE row has native tests + parity report + provenance
+require TARGET runtime dependencies exclude SOURCE
+require TARGET validation can run without SOURCE
 
 ======================================================================
 THREADING / OWNERSHIP RULES
@@ -139,29 +134,34 @@ N/A documentation/review chapter.
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Missing parity evidence prevents retirement. Do not resolve by assuming equivalent behavior.
+Missing provenance prevents importing an artifact as an automated expectation.
+It remains manual reference evidence until recaptured.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Retained fixtures keep exact SOURCE commit provenance permanently.
+Imported fixtures retain exact provenance. TARGET expected outputs are generated
+only by declared TARGET schemas and inputs.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Legacy retirement is not a performance optimization and must not be justified by repository size alone.
+Evidence archival is outside the runtime critical path and cannot introduce a
+SOURCE process or parser into production.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-This is the only stage authorized to declare broad legacy shipping paths retireable. Actual SOURCE changes remain separate.
+This stage classifies evidence only. It cannot add compatibility behavior or
+authorize SOURCE changes.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    ledger completeness checker
-    all 0.2 rows accounted
-    retireable rows parity references exist
+    evidence-ledger schema/completeness
+    imported fixture provenance
+    imported fixture -> TARGET requirement mapping
+    TARGET build/tests with SOURCE unavailable
 
 ======================================================================
 COMMANDS TO RUN
@@ -173,32 +173,33 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] complete ledger
-    [ ] no unmapped source group
-    [ ] parity evidence linked
-    [ ] labs/evidence policy
-    [ ] no automatic SOURCE deletion
+    [ ] complete evidence ledger
+    [ ] every imported fixture has provenance and TARGET owner
+    [ ] no runtime SOURCE dependency
+    [ ] labs/research classified
+    [ ] no automatic SOURCE mutation
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    blanket delete SOURCE
-    remove sole fixture exporter before replacement
-    treat richer native feature as proof old feature covered
-    rewrite history/goldens
+    treating a reference implementation as product authority
+    adding runtime compatibility paths for imported fixtures
+    importing unpinned outputs as goldens
+    deleting or modifying SOURCE from this chapter
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] complete ledger
-    [ ] no unmapped source group
-    [ ] parity evidence linked
-    [ ] labs/evidence policy
-    [ ] no automatic SOURCE deletion
+    [ ] complete evidence ledger
+    [ ] every imported fixture has provenance and TARGET owner
+    [ ] no runtime SOURCE dependency
+    [ ] labs/research classified
+    [ ] no automatic SOURCE mutation
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Stage 20 complete. Native Genomes is now eligible to become authoritative product path subject to Stages 21-22 optimization/hardening.
+Stage 20 complete. Native Genomes remains the authoritative product path and
+continues to Stages 21-22 optimization/hardening.
 
 END OF CHAPTER 20.7

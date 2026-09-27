@@ -1,6 +1,6 @@
 # Genomes C++
 
-Native C++ implementation and migration target for Genomes.
+Final native C++ implementation of Genomes, informed by the earlier prototype.
 
 ## Repository roles
 
@@ -10,12 +10,14 @@ This repository contains:
 
 - native C++ engine and game implementation,
 - executable implementation manual under `docs/`,
-- minimal parity/reference project under `reference/`,
+- minimal reference-validation project under `reference/`,
 - native tests, benchmarks and CI.
 
-**SOURCE / legacy reference:** `ppotepa/genomes`
+**REFERENCE EVIDENCE:** `ppotepa/genomes`
 
-The source repository contains the existing JavaScript/browser runtime, procedural prototypes, legacy tests, research and calibration material.
+The JavaScript repository supplies prototypes, test scenarios, research and
+calibration evidence. It does not define native runtime architecture or require
+legacy compatibility modes.
 
 ## Manual
 
@@ -23,6 +25,10 @@ Start with:
 
 - `docs/0.0_NATIVE_MANUAL_INDEX.txt`
 - `docs/0.1_TARGET_ARCHITECTURE.txt`
+- `docs/TARGET_IMPLEMENTATION_CONTRACT.txt`
+- `docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt` (non-normative evidence audit)
+- `docs/architecture/TARGET_ARCHITECTURE.svg`
+- `docs/architecture/TARGET_ARCHITECTURE.drawio.xml`
 - `docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt`
 - `docs/MANUAL_STATUS.txt`
 
@@ -36,7 +42,9 @@ should be sufficient for an implementation agent to execute one verified step.
 
 `reference/` is not a mirror of the private legacy repository.
 
-It contains only versioned manifests, schemas, fixtures and golden outputs required for native parity. Every exported artifact must record its exact SOURCE commit and provenance.
+It contains only versioned manifests, schemas, fixtures and selected reference
+outputs used to validate TARGET requirements. Every imported artifact records
+its provenance, but reference data cannot select production algorithms.
 
 ## Core technology direction
 

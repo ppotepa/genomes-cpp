@@ -1,16 +1,17 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
-CHAPTER 12.6 - VEGETATION_CACHE_AND_PARITY
+CHAPTER 12.6 - VEGETATION_CACHE_AND_VALIDATION
 STATUS: READY
 
 ======================================================================
 GOAL
 ======================================================================
-Create parity/caching gates covering SOURCE plant/rock generators, LODs, async behavior, layout variation and retained-memory accounting.
+Validate final TARGET plant/rock generation, LOD identity, asynchronous
+execution, layout variation, caching and retained-memory accounting.
 
 ======================================================================
 REQUIRES
@@ -25,7 +26,7 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-All SOURCE environment acceptance categories remain mapped and regression evidence retained.
+Complete TARGET vegetation capability, quality, determinism and cache coverage.
 
 ======================================================================
 OUT OF SCOPE
@@ -38,26 +39,27 @@ TARGET FILE TREE
     reference/fixtures/vegetation/
     reference/schemas/vegetation_fixture_v1.txt
     tools/reference_export/vegetation_export.*
-    tests/native/parity/vegetation_parity_tests.cpp
-    docs/reports/VEGETATION_PARITY_V1.txt
+    tests/native/validation/vegetation_validation_tests.cpp
+    docs/reports/VEGETATION_VALIDATION_V1.txt
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Fixtures include all current species/rock families across selected age/season/LOD combinations and layout seeds.
+1. Fixtures include all TARGET species/rock families across selected
+age/season/LOD combinations and layout seeds.
 
-2. Parity compares exact selected genome/semantic buffers where practical, structural/visual metrics for improved meshes, and exact sync-vs-parallel semantic equality.
+2. Validation checks TARGET genome identity, structural/visual quality metrics
+and exact sync-vs-parallel semantic equality.
 
 3. Cache tests cover duplicate-key hit, refcount/lifetime, retained bytes, eviction and cancellation cleanup.
 
-4. Scatter parity checks distributions/invariants rather than exact Three.js scene objects.
+4. Scatter validation checks distributions/reservations rather than scene objects.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
 Cache keys are explicit tuples:
-    explicit vegetation generator version (environmentGeneratorVersion /
-    PlantGenome version domain), never the building generator version
+    explicit TARGET vegetation/PlantGenome schema identity
     species/prototype definition version
     genome/seed hash
     geometry-affecting age/season/detail parameters
@@ -65,17 +67,13 @@ Cache keys are explicit tuples:
 Cache entries hold immutable PlantPrototypeArtifact plus byte size/refcount and
 derived representation handles owned by the corresponding renderer cache.
 
-Parity fixtures store:
-    SOURCE commit
-    SOURCE version.json environmentGeneratorVersion
-    PlantGenome.version
-    and, separately, the observed legacy accidental R.Config.GENERATOR_VERSION
-    value where needed to explain historical cache keys
+TARGET fixtures store:
+    TARGET commit and schema identities
     species/seed/state/detail
     semantic genome
     branch/skeleton metrics
     bounds/counts/buffer hashes where exact
-    parity policy/tolerances
+    validation policy/tolerances
 
 World instance identity and prototype-cache identity are separate.
 
@@ -104,13 +102,14 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Export selected genome/prototype geometry stats/buffers with exact SOURCE provenance.
+    Define TARGET genome/prototype geometry metrics and acceptance fixtures.
 
 STEP 2
-    Map every SOURCE environment test to native equivalent/report row.
+    Map every accepted vegetation requirement and useful reference failure case
+    to a TARGET test/report row.
 
 STEP 3
-    Run generator 1/N workers and cancellation parity.
+    Run generator with 1/N workers and require exact semantic equivalence.
 
 STEP 4
     Validate LODs share identity/bounds continuity and scatter satisfies distribution constraints.
@@ -119,7 +118,7 @@ STEP 5
     Measure retained artifact cache bytes and GPU prototype/instance memory separately.
 
 STEP 6
-    Publish parity report with approved visual divergences only.
+    Publish TARGET validation report with explicit visual acceptance results.
 
 ======================================================================
 PSEUDOCODE
@@ -137,7 +136,7 @@ require zero unapproved regressions
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Parity cases independent and can parallelize; report order stable by fixture ID.
+Validation cases are independent and may parallelize; report order is stable.
 
 ======================================================================
 ERROR HANDLING
@@ -147,17 +146,18 @@ Invalid procedural candidates return typed validation failures; missing optional
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Exact SOURCE commit and generator versions stored with fixtures.
+TARGET schema/input identity is stored with every fixture. Imported diagnostics
+add SOURCE provenance but do not define expected output.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Parity correctness separate from 100k/1M render/scatter benchmarks.
+Correctness validation is separate from 100k/1M render/scatter benchmarks.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-After pass SOURCE environment becomes REFERENCE_ONLY; may remain lightweight browser lab.
+TARGET validation owns completion. Browser labs remain optional evidence only.
 
 ======================================================================
 TESTS TO ADD
@@ -180,26 +180,26 @@ COMMANDS TO RUN
 ACCEPTANCE CRITERIA
 ======================================================================
     [ ] fixture provenance
-    [ ] SOURCE tests mapped
+    [ ] TARGET requirements mapped
     [ ] cache accounting
     [ ] LOD identity
-    [ ] parity report
+    [ ] validation report
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
     dropping exact cache tests
-    using screenshots as only vegetation parity
-    rewriting golden after regression
+    using screenshots as the only vegetation acceptance
+    rewriting TARGET expectations to hide a regression
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
     [ ] fixture provenance
-    [ ] SOURCE tests mapped
+    [ ] TARGET requirements mapped
     [ ] cache accounting
     [ ] LOD identity
-    [ ] parity report
+    [ ] validation report
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

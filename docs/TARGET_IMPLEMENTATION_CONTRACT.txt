@@ -1,0 +1,113 @@
+GENOMES FINAL TARGET IMPLEMENTATION CONTRACT
+============================================
+
+STATUS: NORMATIVE
+
+This document defines how the native C++ manuals are to be read.
+
+======================================================================
+1. ONE PRODUCT, ONE CONTRACT
+======================================================================
+
+The C++ implementation is the final product architecture. It is not a runtime
+portability layer for historical JavaScript revisions and it does not expose
+legacy compatibility profiles, old generator identities or duplicated schemas.
+
+Implementation chapters specify the behavior to build. SOURCE code, tests,
+prototypes, mockups and research are design inputs used to discover useful
+features, failure cases and acceptance examples. They do not override a final
+TARGET contract and are not production dependencies.
+
+Historical provenance belongs only in reference exporters, fixture metadata and
+audit reports. It must not leak into public runtime types, cache keys, module
+boundaries, configuration menus or normal generation paths.
+
+======================================================================
+2. IMPROVEMENT POLICY
+======================================================================
+
+The native design keeps validated product capabilities while improving:
+    deterministic identity through semantic SeedPath streams;
+    explicit immutable artifacts and ownership boundaries;
+    bounded parallel generation and transactional commit;
+    renderer/physics/navigation independence;
+    robust validators and typed failure/fallback policy;
+    streaming without procedural rerolls;
+    data-driven catalogs instead of feature switches;
+    final cross-domain geometry instead of visual placeholders.
+
+Exact reproduction of an implementation accident is not a product requirement.
+A useful SOURCE behavior is translated into a named TARGET invariant or test.
+If no TARGET invariant owns it, it is not part of the implementation contract.
+
+======================================================================
+3. FINAL PROCEDURAL WORLD PIPELINE
+======================================================================
+
+    TerrainArtifact + HydrologyArtifact
+        -> RoadGraph
+        -> Region hierarchy + zoning
+        -> blocks
+        -> parcels + buildable polygons + access intent
+        -> BuildingSiteRequest
+        -> BuildingSpec
+        -> BuildingPlan + BuildingSiteResolution
+        -> finalized driveway + gate + fence + reservations
+        -> vegetation/environment layout
+        -> static world databases + RegionPackages
+        -> render/physics/navigation/destruction representations
+
+City planning owns land, zoning, frontage, buildable area and access intent.
+The building generator owns the complete building solution, including its
+resolved footprint and entrance. City planning then connects that entrance to
+the road and finalizes parcel infrastructure. Vegetation consumes only final
+reservations. No module may substitute a display box for BuildingPlan.
+
+======================================================================
+4. FINAL INFANTRY CONTRACT
+======================================================================
+
+The target Infantry pipeline is:
+    semantic genome -> resolved phenotype -> 69-bone skeleton -> appearance ->
+    equipment -> animation/IK/expression -> damage/ragdoll representations.
+
+The skeleton contains 22 body, 17 face/controller and 30 finger bones. Its IDs
+and hierarchy are one canonical TARGET schema. The appearance system supports
+eyelidsClose, eyelidsArc, neckFlex and handsRelax; finger articulation remains
+skeletal, while handsRelax represents compatible soft-tissue deformation.
+
+Genome, phenotype, rig, appearance and animation have independent TARGET schema
+identities. Generation uses named SeedPath streams, so extending one semantic
+domain does not perturb unrelated results.
+
+======================================================================
+5. FINAL BUILDING CONTRACT
+======================================================================
+
+There is one data-driven BuildingSpec and one immutable BuildingPlan schema.
+Presets, programs, footprint solvers, roofs, stairs, structure and materials are
+catalog data over shared algorithms. Ambiguous prototype concepts receive
+distinct semantic IDs; production behavior never depends on which source file
+defined a similarly named item.
+
+The schema supports urban and rural buildings, arbitrary buildable polygons,
+multiple storeys, rooms/programs, circulation, stairs/cores, openings, roofs,
+structure, entrances and representation compilation. Research concepts may be
+added when their generator rule, validation, test and acceptance criteria are
+defined; the runtime does not carry empty feature flags for undocumented ideas.
+
+======================================================================
+6. REFERENCE VALIDATION
+======================================================================
+
+Reference suites answer whether the target retained intended capabilities and
+improved known failure cases. They compare semantic invariants, deterministic
+identity, constraints and selected visual outcomes. They do not require binary
+or algorithmic equality with JavaScript and cannot reintroduce legacy branches.
+
+SOURCE-specific versions and evidence classes are documented only in:
+    docs/SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt
+
+That file is a non-normative evidence audit. This file and the owning TARGET
+chapter take precedence for implementation decisions.
+

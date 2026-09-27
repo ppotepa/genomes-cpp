@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port the native material-contact/impact solver as a bounded deterministic game model with explicit energy and impulse accounting. It must consume semantic material assemblies and projectile contact state without mutating render or physics objects directly.
+Implement the native material-contact/impact solver as a bounded deterministic game model with explicit energy and impulse accounting. It must consume semantic material assemblies and projectile contact state without mutating render or physics objects directly.
 
 ======================================================================
 REQUIRES
@@ -95,7 +95,7 @@ STEP 1
     Define versioned ImpactInput and ImpactResult contracts with explicit world/local quantities and units.
 
 STEP 2
-    Port relative target velocity and contact-frame calculations; isolate strategy/calibration lookups from mechanics bookkeeping.
+    Implement relative target velocity and contact-frame calculations; isolate strategy/calibration lookups from mechanics bookkeeping.
 
 STEP 3
     Implement sequential interval traversal preserving real gaps and shared physical interfaces.
@@ -169,7 +169,7 @@ Target no allocation in solve(); reuse scratch. Benchmark scalar and later SIMD/
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Keep legacy calibration data as versioned profiles. Native numerical parity tolerances are explicit per fixture; do not retune coefficients just to hide port bugs.
+Keep legacy calibration data as versioned profiles. Native numerical parity tolerances are explicit per fixture; do not retune coefficients just to hide implement bugs.
 
 ======================================================================
 TESTS TO ADD

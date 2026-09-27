@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 
@@ -20,15 +20,14 @@ PATH CONVENTION:
     material.
 
 SOURCE OWNERSHIP RULE:
-    The source repository remains authoritative legacy/reference behavior until
-    the responsible native parity chapter passes. Native implementation agents
-    must not modify SOURCE as part of a TARGET chapter unless that chapter
-    explicitly requires exporting a fixture/reference artifact.
+    SOURCE is read-only evidence. TARGET_IMPLEMENTATION_CONTRACT.txt and the
+    owning TARGET chapter are authoritative. Implementation agents must not add
+    production compatibility branches for SOURCE internals or modify SOURCE.
 
 REFERENCE EXPORT RULE:
-    Do not copy private legacy source code wholesale into this repository.
+    Do not copy private source code wholesale into this repository.
     Export only the smallest versioned fixtures, schemas, golden outputs and
-    explanatory reference data required for native parity.
+    explanatory reference data required for TARGET validation.
 
 CHAPTER 2.1 - STRONG IDS, RESULT, AND STABLE HASH
 STATUS: READY
@@ -807,7 +806,7 @@ ACCEPTANCE CRITERIA
     [ ] exact golden hash fixtures
     [ ] unit tests pass
     [ ] benchmark builds
-    [ ] no legacy behavior removed
+    [ ] no accepted TARGET behavior omitted
 
 ======================================================================
 FORBIDDEN SHORTCUTS

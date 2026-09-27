@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -156,7 +156,8 @@ Only run after candidate reduction. Batch memory contiguous. Track requests/acce
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Replace SOURCE 9 terrain sample heuristic with native exact/heightfield query while preserving intended blocking behavior; version differences recorded in parity.
+Use TARGET heightfield/geometry queries with documented blocking and clearance
+rules; no sampled compatibility heuristic is retained.
 
 ======================================================================
 TESTS TO ADD

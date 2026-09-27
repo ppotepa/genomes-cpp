@@ -1,4 +1,4 @@
-GENOMES NATIVE MIGRATION MANUAL
+GENOMES NATIVE IMPLEMENTATION MANUAL
 REPOSITORY CONTEXT
 ======================================================================
 TARGET: ppotepa/genomes-cpp
@@ -11,7 +11,7 @@ VERSION: 0.1
 ======================================================================
 GOAL
 ======================================================================
-Port two-bone IK, foot/hand support targets and ground/equipment contact corrections as generic pose-evaluation data inside Infantry, preserving stable bind lengths and authoritative terrain query separation.
+Implement two-bone IK, foot/hand support targets and ground/equipment contact corrections as generic pose-evaluation data inside Infantry, preserving stable bind lengths and authoritative terrain query separation.
 
 ======================================================================
 REQUIRES
@@ -98,7 +98,7 @@ STEP 2
     Validate bind lengths and unreachable targets; clamp target distance inside [|a-b|+eps,a+b-eps].
 
 STEP 3
-    Port foot phase/support target generation from gait state.
+    Implement foot phase/support target generation from gait state.
 
 STEP 4
     Implement batched terrain height/normal query for candidate supports and solve pelvis/body lift.
@@ -155,7 +155,8 @@ Batch terrain samples; cache unchanged cells/revisions; no full mesh CPU skinnin
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE support/clearance invariants; exact quaternion values selected fixtures where coordinate conventions align.
+TARGET support, reach and clearance invariants define IK acceptance; selected
+quaternion fixtures validate the declared coordinate convention.
 
 ======================================================================
 TESTS TO ADD
