@@ -1,0 +1,190 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.4 - GENERATION_DAG
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement versioned generation graph planning/execution using JobSystem dependencies, typed artifact inputs and stable semantic node identity.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.2_WORK_STEALING_AND_DEPENDENCIES.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/GenerationGraph.hpp
+    engine/proc/include/genomes/proc/GenerationNode.hpp
+    engine/proc/src/GenerationGraph.cpp
+    tests/native/proc/generation_graph_tests.cpp
+    benchmarks/proc/generation_graph_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GenerationNode identity derives from generator ID + semantic node key + normalized input/dependency fingerprints, never schedule order.
+
+2. DAG builder detects cycles before execution.
+
+3. Node states: Planned, Waiting, Runnable, Running, Succeeded, Failed, Cancelled, SkippedDependencyFailure.
+
+4. Independent nodes execute through JobSystem; result publication occurs only after generator success + validation hook.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement graph builder with typed/artifact input references and stable NodeId.
+
+STEP 2
+    Topologically validate graph using Kahn/DFS with stable node ID ordering for diagnostics.
+
+STEP 3
+    Compile DAG into JobSystem dependency counters.
+
+STEP 4
+    On node failure, mark downstream skipped unless node policy declares optional dependency.
+
+STEP 5
+    Collect per-node timings/status/errors in GenerationReport.
+
+STEP 6
+    Test graph output equivalence at 1 and N workers and shuffled scheduler.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+PLAN:
+    for node:
+        indegree[node] := dependency count
+    stableQueue := nodes with indegree 0 sorted by NodeId
+    pop/visit to detect cycle
+
+EXECUTE NODE:
+    if cancelled: Cancelled
+    inputs := resolve immutable artifacts
+    result := generator.generate(inputs, ctx)
+    if failure: mark Failed; propagate
+    validate result
+    publish immutable artifact
+    mark Succeeded
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    linear graph
+    diamond DAG
+    cycle rejection
+    failure propagation
+    optional dependency policy
+    1 vs N worker semantic equality
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] cycle detection
+    [ ] parallel independent nodes
+    [ ] stable node IDs
+    [ ] failure propagation
+    [ ] GenerationReport
+    [ ] worker-count deterministic outputs
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    recursive generator calls bypassing DAG
+    publishing half-built artifact
+    node IDs from insertion order
+    continuing required dependency after failure
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] cycle detection
+    [ ] parallel independent nodes
+    [ ] stable node IDs
+    [ ] failure propagation
+    [ ] GenerationReport
+    [ ] worker-count deterministic outputs
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.4
