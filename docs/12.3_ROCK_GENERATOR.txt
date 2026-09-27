@@ -1,0 +1,173 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.3 - ROCK_GENERATOR
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port procedural rock genomes/prototype generation into versioned geometry recipes with formation/variant diversity and shared LOD identity.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/12.1_PLANT_GENOME_AND_PROTOTYPE_MODEL.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE rock catalog/genome variation and placement-facing footprint/burial/orientation metadata.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/vegetation/include/genomes/vegetation/RockGenome.hpp
+    modules/vegetation/include/genomes/vegetation/RockGenerator.hpp
+    modules/vegetation/src/RockGenerator.cpp
+    tests/native/vegetation/rock_generator_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RockGenome stable traits include family/variant, base dimensions, angularity, fracture/noise profile, material class and optional weathering; placement transform/burial is instance data, not prototype genome.
+
+2. RockPrototypeArtifact has LOD geometry recipes, bounds, collision proxy recipe and footprint radius.
+
+3. Noise/deformation is deterministic from semantic vertex/sample identity and does not depend on tessellation iteration order where possible.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/environment/rockGenerator.js
+    SOURCE::tests/rocks_smoke.cjs
+    SOURCE::tests/rocks_checks.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Map SOURCE RockCatalog/RockGenome into v1 schema.
+
+STEP 2
+    Implement base primitive/polyhedron + deterministic deformation recipe.
+
+STEP 3
+    Generate LODs by controlled tessellation/simplification preserving silhouette metrics and identity.
+
+STEP 4
+    Generate collision proxy bounds/convex recipe.
+
+STEP 5
+    Add SOURCE selected variant fixtures and visual/statistical tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+GEN:
+    base := choose canonical primitive(genome.family)
+    vertices := tessellate(base, lodBase)
+    for stable vertex semantic coordinate:
+        displacement := noise(genome.seed, direction/position)
+        vertex *= radius*(1+displacement)
+    compute bounds
+    derive LOD simplifications
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Prototype builds independent and cacheable. No runtime placement mutation of shared geometry.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Same genome/version produces same recipe independent of instance placement.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Small bounded prototype set heavily instanced; avoid unique mesh per rock instance.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE::js/environment/rockGenerator.js remains parity reference until 12.6.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    genome stability
+    LOD bounds
+    finite mesh
+    collision proxy contains prototype
+    fixture metrics
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] rock genome
+    [ ] LOD recipes
+    [ ] collision proxy
+    [ ] fixtures
+    [ ] instancing-ready
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    unique random geometry per placed rock without prototype key
+    placement burial baked into shared mesh
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] rock genome
+    [ ] LOD recipes
+    [ ] collision proxy
+    [ ] fixtures
+    [ ] instancing-ready
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.3
