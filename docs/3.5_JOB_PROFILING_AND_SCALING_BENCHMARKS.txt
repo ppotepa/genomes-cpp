@@ -1,0 +1,197 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 3.5 - JOB PROFILING AND SCALING BENCHMARKS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Instrument JobSystem and establish mandatory scaling benchmarks so later
+multicore claims are measurable by throughput, utilization, queue latency and
+critical-path behavior.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.4_CANCELLATION_AND_JOB_GROUPS.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/jobs/include/genomes/jobs/JobMetrics.hpp
+    engine/jobs/src/JobMetrics.cpp
+    benchmarks/jobs/scaling_benchmark.cpp
+    tests/native/jobs/metrics_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Metrics counters include submitted, executed, stolen, inlineExecuted, cancelled, queueWaitNs, executeNs, workerSleepNs, maxQueueDepth.
+
+2. Per-worker counters use cache-line separation/padding to avoid false sharing; aggregate on snapshot, not atomic contention per dashboard read.
+
+3. Profiling tags are stable small IDs/string literals assigned at submission; no dynamic string allocation in worker hot path.
+
+4. Scaling suite records 1,2,4,8,... workers up to hardware max and emits JSON compatible with 0.4 policy.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    PERF-PAR-WORK-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Add per-worker metrics with relaxed atomics or worker-owned counters where safe.
+
+STEP 2
+    Timestamp queue wait only when metrics level enabled; compile/runtime off path has minimal overhead.
+
+STEP 3
+    Implement snapshot/aggregate API.
+
+STEP 4
+    Create benchmark workloads: uniform CPU, uneven CPU, fan-out/fan-in, nested parallelFor, memory-bandwidth-limited.
+
+STEP 5
+    Calculate speedup S(P)=T1/TP and efficiency E(P)=S(P)/P in report tool/output.
+
+STEP 6
+    Record hardware_concurrency, compiler/build config, worker count and task count.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WORKER EXECUTE:
+    t0 := now()
+    job := dequeue()
+    t1 := now()
+    execute(job)
+    t2 := now()
+    metrics.queueWait += t1-job.enqueuedAt
+    metrics.execute += t2-t1
+    metrics.executed += 1
+
+REPORT:
+    for P in workerCounts:
+        TP := median(repeatedRun(P))
+        speedup := T1 / TP
+        efficiency := speedup / P
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    metrics count exact small workload
+    stolen count nonnegative/consistent
+    snapshot while idle
+    metrics disabled does not change semantics
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] metrics implemented
+    [ ] false-sharing mitigation documented
+    [ ] 1..N scaling benchmark
+    [ ] speedup/efficiency output
+    [ ] JSON metadata
+    [ ] disabled metrics path benchmarked
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    using one contended global atomic for every metric event
+    claiming scalability from only 1 vs max threads
+    benchmarking Debug as performance conclusion
+    omitting task-size metadata
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] metrics implemented
+    [ ] false-sharing mitigation documented
+    [ ] 1..N scaling benchmark
+    [ ] speedup/efficiency output
+    [ ] JSON metadata
+    [ ] disabled metrics path benchmarked
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 3.5
