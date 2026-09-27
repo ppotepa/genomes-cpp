@@ -1,0 +1,194 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.7 - NAV_AND_WORLD_INVALIDATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Connect committed destruction changes to world queries, static/dynamic spatial
+indexes, render extraction, collision and navigation using revisioned dirty
+bounds so every representation describes the same damage state.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.6_DESTRUCTION_PHYSICS_INTEGRATION.txt
+    TARGET::docs/14.6_DYNAMIC_NAV_INVALIDATION.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE requirement that a hit changes the same state seen by ballistics,
+support graph, visible geometry and collision, with grouped/batched synchronization
+rather than one full rebuild per event.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/include/genomes/destruction/DestructionChangeSet.hpp
+    modules/destruction/src/DestructionInvalidation.cpp
+    tests/native/destruction/destruction_invalidation_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. DestructionChangeSet is emitted once per committed damage batch/building and contains target/building revision, changed StructuralElementIds, removed/added hole geometry, detached debris IDs, dirty world bounds, rubble dirty tiles and reason/tick.
+
+2. Consumers subscribe through explicit world event/command bus: Building render compiler/chunk manager, Collision compiler/physics, Nav invalidation, WorldQuery static/dynamic index updater, cover/threat fields. They compare source revision/generation and discard stale rebuild results.
+
+3. World logical ballistic query reads latest committed structural DamageField/Holes immediately. Expensive render/collision/nav rebuild may lag by bounded ticks but revision mismatch is visible; no old geometry may be resurrected after target element Removed.
+
+4. Finishes/details owned by structural element follow owner removal state in render representation; they are not independent immortal visual objects.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define DestructionChangeSet schema and publish at semantic transaction commit.
+
+STEP 2
+    Update logical Building/MaterialModel spatial index immediately or through same commit so next projectile trace sees holes/removals.
+
+STEP 3
+    Route dirty bounds to building render/collision compilers and NavDirtyBounds; group repeated element changes.
+
+STEP 4
+    Add generation/revision token to asynchronous rebuild jobs and reject stale completion.
+
+STEP 5
+    Update WorldQuery snapshots atomically with new target revision and dynamic debris memberships.
+
+STEP 6
+    Implement representation consistency diagnostic comparing semantic element revision vs render/physics/nav revision lag.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMMIT DAMAGE:
+    apply damage fields/structural states
+    reindex logical target once
+    changeSet := aggregate dirty elements/bounds/revision
+    publish changeSet
+
+CONSUMER:
+    job := rebuild(changeSet.revision)
+    on complete:
+        if currentSemanticRevision != job.sourceRevision:
+            discard
+        else swap representation
+
+REMOVED ELEMENT:
+    all later rebuild inputs omit element and owned finish details
+    stale jobs with prior revision cannot commit
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Semantic destruction commit is single owner per target; downstream compiler jobs parallel. World/index snapshot swap uses revisions, not shared mutable geometry.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Failed render rebuild keeps last visual with diagnostic but semantic/ballistic state stays authoritative; failed collision/nav rebuild triggers conservative safety representation or retry according subsystem, never reintroduces removed solid.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+ChangeSet ordering stable by StructuralElementId/DebrisId. Async completion order does not alter semantic revision.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+One logical reindex per damage batch/cascade; dirty bounds localized; downstream jobs coalesce revisions to latest.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Directly addresses SOURCE historical bugs where visual/collider/model diverged or queued jobs recreated removed sections.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    hole visible to next logical trace before render rebuild
+    stale rebuild discarded
+    finish detail removed with owner
+    one nav dirty batch
+    one index rebuild per blast batch
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] single ChangeSet
+    [ ] revision tokens
+    [ ] logical query immediate
+    [ ] all representations invalidated
+    [ ] stale resurrection impossible
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    each representation maintaining independent damage truth
+    rebuild whole world per hit
+    queued stale mesh/collider restoring removed element
+    waiting renderer before semantic commit
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] single ChangeSet
+    [ ] revision tokens
+    [ ] logical query immediate
+    [ ] all representations invalidated
+    [ ] stale resurrection impossible
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.7
