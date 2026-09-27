@@ -1,0 +1,1237 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 0.4 - BENCHMARK AND DETERMINISM POLICY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+
+Define one benchmark, telemetry and determinism policy for every native Genomes
+subsystem before implementation begins.
+
+This chapter prevents invalid comparisons such as:
+
+    "new code feels faster",
+    comparing Debug to Release,
+    comparing different semantic workloads,
+    comparing 1-thread and N-thread versions that do different work,
+    hiding queue/drain cost outside the measured interval,
+    declaring determinism from one run,
+    treating browser FPS as a CPU subsystem benchmark,
+    treating one average time as sufficient evidence.
+
+Every later performance-sensitive chapter must use these rules.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+Legacy evidence:
+    docs/26_CACHE_I_WYDAJNOSC.md
+    docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    docs/destruction/benchmark.json
+    docs/destruction/effects-benchmark.json
+    tools/destruction/world-benchmark.cjs
+    tools/destruction/effects-benchmark.cjs
+    tests/world_performance_telemetry.cjs
+    tests/snapshot_interpolation.cjs
+    tests/terrain_worker_parity.cjs
+    tests/plant_async_smoke.cjs
+    tests/infantry_surface_interleave.cjs
+
+======================================================================
+PRESERVES
+======================================================================
+
+Current benchmark JSON and research measurements are historical evidence.
+They are not overwritten.
+
+Native benchmark baselines are added separately.
+
+Current lessons preserved:
+    measure p50/p95/p99 rather than only average;
+    distinguish CPU submit/simulation from GPU rendering;
+    include full queued work when claiming subsystem cost;
+    report hardware/platform;
+    avoid presenting heap deltas as leak proof;
+    preserve exact sync/async semantic parity where already tested.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No concrete benchmark executable implementation yet.
+No Tracy/PIX integration yet.
+No final performance budgets for all systems yet.
+No cross-machine CI performance farm yet.
+No network lockstep policy.
+
+These are implemented in later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Future:
+
+    apps/benchmark/
+        src/
+
+    benchmarks/
+        cases/
+        baselines/
+        results/        local/untracked by default
+        schemas/
+
+    tests/native/determinism/
+    tests/native/performance/
+
+    engine/foundation/telemetry/
+    engine/jobs/profiling/
+
+Do not store every developer benchmark run in git.
+
+Commit:
+    benchmark definitions
+    selected approved baselines
+    regression fixtures
+
+Do not commit by default:
+    noisy ad-hoc local results
+
+unless a chapter asks for diagnostic evidence.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+BENCHMARK LEVELS:
+
+BENCH-MICRO
+    One primitive or tight algorithm.
+    Example:
+        orient2d batch
+        BVH query
+        RNG throughput
+
+BENCH-SUBSYSTEM
+    Complete subsystem operation.
+    Example:
+        generate 1000 BuildingPlans
+        100k spatial radius queries
+        one physics fixed tick
+
+BENCH-SCENARIO
+    Several real subsystems interacting.
+    Example:
+        10k units + perception + movement + projectiles
+
+BENCH-STRESS
+    Capacity / degradation test.
+    Not necessarily a normal gameplay target.
+
+A chapter must name which level it measures.
+
+
+DETERMINISM LEVELS:
+
+DET-EXACT
+    Exact equality of canonical semantic serialization/hash.
+
+Use for:
+    integer/topological artifacts,
+    IDs,
+    deterministic event ordering,
+    selected generator fixtures when native algorithm is intentionally exact.
+
+DET-NUMERIC
+    Same semantic result with explicitly defined numeric tolerance.
+
+Use for:
+    floating geometric quantities where bitwise equality is not required.
+
+DET-INVARIANT
+    Exact shape may differ, but all named invariants and stable semantic rules
+    must hold for the same generator version.
+
+DET-BEHAVIOR
+    Same externally observable state-transition contract.
+
+DET-NONAUTHORITATIVE
+    Bitwise/numeric determinism not required.
+
+Use for:
+    VFX,
+    presentation-only particles,
+    timing-dependent visual-only GPU work.
+
+Every subsystem chapter must declare one or more levels.
+
+
+RULE-BENCH-001
+    Benchmark semantic workload is immutable inside one comparison.
+
+Changing:
+    entity count,
+    seed,
+    geometry detail,
+    physics settings,
+    output validation,
+    drain policy
+
+creates a different benchmark case/version.
+
+
+RULE-BENCH-002
+    Measured interval includes all work necessary to produce the claimed result.
+
+Forbidden:
+    queue expensive jobs inside measured loop,
+    drain them after timer,
+    claim only queue-submit cost as subsystem cost.
+
+Queue-submit time may be separately reported, but must be labelled.
+
+
+RULE-BENCH-003
+    Warm-up is explicit.
+
+For native code:
+    execute enough setup iterations to populate expected caches and stabilize
+    one-time initialization before steady-state timing.
+
+Also separately benchmark cold-start when startup latency matters.
+
+
+RULE-BENCH-004
+    Release/optimized build is required for performance claims.
+
+Debug builds may be used for correctness only.
+
+
+RULE-BENCH-005
+    Run under debugger = invalid performance baseline.
+
+
+RULE-BENCH-006
+    Validation may be outside the timed interval only if:
+        it does not alter workload behavior,
+        all output is validated after timing,
+        benchmark description says so.
+
+If validation itself is part of real runtime behavior, keep it inside.
+
+
+RULE-BENCH-007
+    Each sample distribution reports at minimum:
+
+        sampleCount
+        mean
+        min
+        p50
+        p95
+        p99
+        max
+
+For throughput:
+        itemsPerSecond or ticksPerSecond
+
+For fixed simulation:
+        simulatedSeconds
+        wallSeconds
+        realTimeFactor
+
+
+RULE-BENCH-008
+    Never call a one-run max a stable regression metric.
+
+Use percentile/budget policy plus repeated benchmark runs where variance matters.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+Canonical conceptual benchmark result:
+
+    BenchmarkResult {
+        schemaVersion
+        benchmarkId
+        benchmarkVersion
+
+        gitCommit
+        buildType
+        compiler
+        compilerVersion
+        architecture
+
+        os
+        cpuModel
+        physicalCoreCount
+        logicalThreadCount
+        memoryBytes
+
+        gpuModel optional
+        gpuDriver optional
+        graphicsBackend optional
+
+        workerCount
+
+        datasetId
+        seed
+        workloadParameters
+
+        warmupIterations
+        measuredIterations
+        sampleCount
+
+        timing {
+            meanNs
+            minNs
+            p50Ns
+            p95Ns
+            p99Ns
+            maxNs
+        }
+
+        throughput optional
+        memory optional
+        counters
+        semanticOutputHash optional
+
+        notes
+    }
+
+Machine-specific clocks/frequency telemetry may be added when reliable.
+Do not fabricate unavailable fields.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+PERF-PAR-WORK-001
+ALG-PAR-REDUCE-001
+
+Definitions for scaling:
+
+    T1      measured single-worker time
+    Tp      measured P-worker time
+
+    speedup(P) = T1 / Tp
+
+    efficiency(P) = speedup(P) / P
+
+Use the SAME semantic workload.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+    ALG-PAR-STABLE-COMMIT-001
+    ALG-PAR-REDUCE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+    REF-BLUMOFE-LEISERSON-1999
+    legacy benchmark files listed under REQUIRES
+
+======================================================================
+1. HARDWARE FINGERPRINT
+======================================================================
+
+Every benchmark baseline records at least:
+
+    CPU model
+    logical threads
+    total RAM
+    OS
+    architecture
+    compiler/version
+    build configuration
+    git commit
+
+GPU benchmarks additionally:
+
+    GPU model
+    driver version when obtainable
+    backend: D3D12/Vulkan/etc.
+    render resolution
+    quality preset
+    present/vsync mode
+
+A result missing critical hardware metadata is diagnostic evidence, not a
+portable performance baseline.
+
+======================================================================
+2. CPU BENCHMARK EXECUTION
+======================================================================
+
+Canonical procedure:
+
+    configure optimized native build
+
+    create deterministic dataset from:
+        benchmarkVersion
+        seed
+        explicit workload parameters
+
+    initialize subsystem
+
+    run warmup
+
+    for repetition in benchmarkRepetitions:
+        reset to same semantic initial state
+
+        for measured iteration:
+            start = highResolutionClock()
+
+            execute COMPLETE benchmark operation
+
+            end = highResolutionClock()
+
+            samples.push(end-start)
+
+        validate semantic outputs
+
+    compute distribution
+    emit JSON
+
+Do not rebuild a semantically different random dataset between worker counts.
+
+======================================================================
+3. MULTICORE SCALING
+======================================================================
+
+Every CPU-heavy parallel subsystem gets a scaling run.
+
+Required worker counts when hardware supports them:
+
+    1
+    2
+    4
+    8
+    then powers/meaningful points up to available worker count
+
+On 16 logical workers:
+
+    1,2,4,8,16
+
+On 24:
+
+    1,2,4,8,12,16,24
+
+Exact topology-aware cases may later separate:
+    physical cores
+    SMT threads
+
+Report:
+    T1
+    Tp
+    speedup
+    efficiency
+
+Do not reserve different amounts of work at different worker counts.
+
+======================================================================
+4. JOB SYSTEM BENCHMARK REQUIREMENTS
+======================================================================
+
+Chapter 3.x benchmark cases must include:
+
+A. EMPTY/LIGHT JOB OVERHEAD
+    enough jobs to measure scheduler overhead.
+
+B. MEDIUM COMPUTE JOB
+    representative small batch.
+
+C. DEPENDENCY DAG
+    fan-out/fan-in graph.
+
+D. PARALLEL_FOR
+    controllable grain size.
+
+E. CONTENTION
+    multiple workers producing local outputs then deterministic merge.
+
+F. NESTED/FORK-JOIN
+    if supported.
+
+Measure:
+    submit cost
+    execution wall time
+    steal count
+    worker utilization
+    queue latency where instrumentation permits
+
+Do not optimize only the artificial empty-job microbenchmark.
+
+======================================================================
+5. DETERMINISM TEST MATRIX
+======================================================================
+
+For any deterministic generator/simulation case:
+
+Run same:
+    build
+    version
+    seed
+    inputs
+
+under:
+
+    workerCount = 1
+    workerCount = 2
+    workerCount = max/2
+    workerCount = max
+
+Additionally when test scheduler supports it:
+    randomized ready-job selection
+    randomized artificial yields
+    repeated runs
+
+Compare according to declared DET-* level.
+
+
+DET TEST PSEUDOCODE:
+
+    baseline := run(case, workers=1, scheduleSeed=0)
+
+    for workers in workerCounts:
+        for scheduleSeed in stressScheduleSeeds:
+            result := run(case, workers, scheduleSeed)
+
+            compare(
+                baseline,
+                result,
+                case.determinismContract
+            )
+
+A failure is never dismissed as "thread timing".
+
+======================================================================
+6. CANONICAL SEMANTIC HASH
+======================================================================
+
+DET-EXACT systems may use canonical hashes.
+
+Rules:
+
+    serialize fields in defined stable order;
+    sort unordered semantic sets by stable ID;
+    encode integers with explicit width;
+    normalize enum encoding;
+    define floating-point policy before hashing;
+    include schema/generator version.
+
+Do NOT hash:
+    raw struct memory,
+    pointer addresses,
+    padding,
+    unordered_map bucket order,
+    backend object handles.
+
+
+PSEUDOCODE:
+
+    function hashRoadGraph(graph):
+        nodes := sort(graph.nodes, by StableNodeId)
+        edges := sort(graph.edges, by StableEdgeId)
+
+        hasher.add(schemaVersion)
+
+        for node in nodes:
+            hasher.add(node.id)
+            hasher.add(canonicalPosition(node.position))
+            hasher.add(node.semanticType)
+
+        for edge in edges:
+            hasher.add(edge.id)
+            hasher.add(edge.a)
+            hasher.add(edge.b)
+            hasher.add(edge.roadClass)
+
+        return hasher.finish()
+
+======================================================================
+7. NUMERIC DETERMINISM
+======================================================================
+
+DET-NUMERIC comparison must name tolerances per quantity.
+
+Use NUM-SCALE-001 where appropriate.
+
+Bad:
+    "results are close enough"
+
+Good:
+    position:
+        absTol = 1e-5 m
+        relTol = 1e-6
+
+But exact values belong to domain chapters.
+
+Topology is never accepted merely because positions are numerically close if
+the topology changed and topology is required to remain exact.
+
+======================================================================
+8. CROSS-PLATFORM POLICY
+======================================================================
+
+Initial mandatory determinism target:
+
+    same supported native build semantics,
+    same generator/simulation version,
+    same inputs,
+    independent of worker count and scheduling.
+
+Cross-compiler / cross-CPU bitwise floating determinism is NOT automatically
+promised in Stage 0.
+
+Later networking/lockstep requirements may raise this target.
+
+However:
+    integer IDs,
+    graph topology,
+    deterministic ordering,
+    seed derivation
+
+SHOULD be designed to remain portable whenever possible.
+
+Do not accidentally make scheduler nondeterminism part of the model merely
+because cross-platform bitwise floating behavior is not yet required.
+
+======================================================================
+9. MEMORY BENCHMARK POLICY
+======================================================================
+
+Report separately where available:
+
+    process RSS
+    committed/resident memory
+    subsystem persistent bytes
+    cache bytes
+    scratch/arena high-water
+    allocation count
+    peak dynamic entity count
+
+GPU later:
+    allocated VRAM
+    resident resource bytes if backend provides
+    transient render graph high-water
+    staging/upload bytes
+
+Do not sum overlapping counters.
+
+Example:
+    cache bytes that are already included in process RSS are not "total memory"
+    to add again.
+
+Heap delta before/after is NOT proof of no leak.
+
+Leak/lifetime testing is separate.
+
+======================================================================
+10. GPU BENCHMARK POLICY
+======================================================================
+
+Do not infer GPU cost from CPU render-submit time.
+
+GPU passes use:
+    GPU timestamp queries
+    backend profiler
+    PIX/RenderDoc or equivalent diagnostic tools as appropriate
+
+Report:
+    CPU frame time
+    simulation CPU
+    presentation/extraction CPU
+    render submission CPU
+    GPU frame
+    key GPU pass timings
+
+When async compute is enabled:
+    also report overlap and total frame critical path.
+
+A 2 ms compute pass running fully overlapped is not equivalent to adding 2 ms to
+frame critical path.
+
+
+GPU CASE MUST STATE:
+    resolution
+    MSAA
+    quality
+    visibility/camera
+    object counts
+    backend
+    vsync/present setting
+
+======================================================================
+11. CPU/GPU TRANSFER BENCHMARKING
+======================================================================
+
+Compute chapters must measure:
+
+    upload bytes/frame
+    readback bytes/frame
+    number of synchronization points
+    dispatch count
+    CPU wait time
+    GPU queue wait time where observable
+
+Forbidden claim:
+    "GPU version is faster"
+
+if result timing ignores mandatory readback needed by the CPU consumer.
+
+Measure end-to-end path.
+
+======================================================================
+12. BENCHMARK CASE VERSIONING
+======================================================================
+
+Case ID example:
+
+    GENOMES.BUILDING.BATCH_GENERATION
+
+Version:
+
+    caseVersion = 3
+
+If workload semantics change:
+    increment caseVersion.
+
+Do not compare:
+    v2 numbers to v3 as direct regression
+
+without explaining the workload difference.
+
+======================================================================
+13. BASELINE POLICY
+======================================================================
+
+A baseline is approved only when:
+
+    semantic validation passes;
+    benchmark metadata is complete;
+    build is optimized;
+    workload version is frozen;
+    multiple runs do not show pathological instability.
+
+Baselines live under:
+
+    benchmarks/baselines/<benchmark-id>/<machine-class-or-reference>.json
+
+Early chapters may store one developer reference baseline.
+Production CI later decides reference machine classes.
+
+======================================================================
+14. REGRESSION POLICY
+======================================================================
+
+Early migration:
+    record metrics first;
+    do not invent arbitrary hard budgets.
+
+Once subsystem workload stabilizes:
+    responsible chapter defines:
+        warning threshold
+        failure threshold
+
+Prefer percentile budgets.
+
+Example concept only:
+
+    p95 regression > 10% -> warning
+    p95 regression > 20% -> failure
+
+DO NOT adopt these example numbers globally.
+Each mature benchmark defines its own noise envelope and budget.
+
+
+Correctness regression always fails regardless of performance gain.
+
+======================================================================
+15. PERFORMANCE TARGET CATEGORIES
+======================================================================
+
+Each chapter can classify target:
+
+LATENCY
+    e.g. path request, single interactive generator edit.
+
+THROUGHPUT
+    e.g. buildings generated per second.
+
+FRAME BUDGET
+    e.g. simulation tick / renderer.
+
+MEMORY
+    persistent / transient high-water.
+
+SCALING
+    speedup/efficiency over cores.
+
+CAPACITY
+    maximum supported objects before budget breach.
+
+Most Genomes systems need more than one category.
+
+======================================================================
+16. GENERATION BENCHMARKS
+======================================================================
+
+Procedural generators must distinguish:
+
+COLD:
+    no relevant artifact cache.
+
+WARM:
+    reusable dependencies/cache populated.
+
+INCREMENTAL:
+    only one dependency/subregion changed.
+
+Examples:
+
+    terrain cold generation
+    building batch cold generation
+    repeat same BuildingPlan artifact lookup
+    regenerate one city district after local edit
+
+Do not report warm cache as "generator speed" without label.
+
+======================================================================
+17. WORLD / SIMULATION BENCHMARKS
+======================================================================
+
+Fixed-step benchmark should report:
+
+    tickHz target
+    simulated ticks
+    entities
+    active combat entities
+    spatial queries
+    path requests
+    projectiles
+    physics bodies
+    destruction events
+
+Measure complete fixed-tick critical path.
+
+If subsystems run variable cadence:
+    keep cadence configuration in case metadata.
+
+======================================================================
+18. PRESENTATION BENCHMARKS
+======================================================================
+
+Presentation is measured separately from authoritative simulation.
+
+Report:
+    extraction time
+    changed entities
+    transform uploads
+    visible representations
+    skeletal detailed count
+    LOD counts
+    draw/dispatch counts
+    GPU timings
+
+This preserves the architectural separation from 0.1.
+
+======================================================================
+19. STRESS TEST PHILOSOPHY
+======================================================================
+
+Stress cases answer:
+
+    how does the system degrade?
+    where does it become memory-bound?
+    where does scheduling stop scaling?
+    what happens at budget limits?
+    is failure bounded/graceful?
+
+They are not promises that every stress load is shipping gameplay.
+
+A stress test must not crash merely because a configured representation budget
+is reached if the design specifies degradation/demotion.
+
+Example:
+    debris capacity pressure should demote/bake according to system policy.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+Later benchmark harness chapters implement this policy.
+
+Every subsystem chapter must:
+
+STEP 1
+    define benchmark ID/version.
+
+STEP 2
+    define deterministic dataset and workload.
+
+STEP 3
+    define correctness validation.
+
+STEP 4
+    define measured interval.
+
+STEP 5
+    define warm-up/reset.
+
+STEP 6
+    define required worker counts.
+
+STEP 7
+    define timing/memory/counter output.
+
+STEP 8
+    define determinism level.
+
+STEP 9
+    capture baseline.
+
+STEP 10
+    only then use benchmark results to justify optimization.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+CPU BENCHMARK:
+
+    function runBenchmark(case, workerCount):
+        env := captureEnvironment()
+
+        dataset := case.buildDataset(
+            seed = case.seed,
+            parameters = case.parameters
+        )
+
+        subsystem := case.createSubsystem(workerCount)
+
+        repeat case.warmupIterations:
+            case.reset(subsystem, dataset)
+            case.execute(subsystem, dataset)
+
+        allSamples := []
+
+        repeat case.repetitions:
+            case.reset(subsystem, dataset)
+
+            samples := []
+
+            repeat case.iterations:
+                t0 := MonotonicClock.now()
+                case.execute(subsystem, dataset)
+                t1 := MonotonicClock.now()
+
+                samples.push(t1 - t0)
+
+            case.validate(subsystem, dataset)
+            allSamples.extend(samples)
+
+        result := summarize(allSamples)
+        result.semanticHash := case.semanticHash(subsystem)
+        result.environment := env
+        result.workerCount := workerCount
+
+        emitJson(result)
+
+
+SCALING:
+
+    base := runBenchmark(case, 1)
+
+    for p in supportedWorkerCounts:
+        result := runBenchmark(case, p)
+
+        result.speedup := base.mean / result.mean
+        result.efficiency := result.speedup / p
+
+
+REGRESSION:
+
+    function compareBaseline(base, current, policy):
+        require base.benchmarkId == current.benchmarkId
+        require base.benchmarkVersion == current.benchmarkVersion
+        require comparableEnvironment(base, current)
+
+        assert current.correctness == PASS
+
+        delta := current.p95 / base.p95 - 1
+
+        if delta > policy.failureThreshold:
+            failRegression(delta)
+
+        if delta > policy.warningThreshold:
+            warnRegression(delta)
+
+
+DETERMINISM:
+
+    canonical := runDeterminismCase(workers=1, scheduleSeed=0)
+
+    for workers in matrix:
+        for scheduleSeed in schedulerStressSeeds:
+            test := runDeterminismCase(workers, scheduleSeed)
+
+            compareByContract(
+                canonical,
+                test,
+                determinismContract
+            )
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+Benchmarking code must not introduce a different ownership/thread model than
+production solely to make timing easier.
+
+Instrumentation counters:
+    avoid one contended global atomic per inner-loop operation.
+
+Prefer:
+    per-worker counters
+    end-of-phase aggregation
+
+when measuring hot systems.
+
+Profiler instrumentation overhead should be measured/known for microbenchmarks.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Benchmark returns non-zero/failure when:
+
+    correctness validation fails,
+    dataset construction fails,
+    output metadata required by case is unavailable and case requires it,
+    determinism comparison fails,
+    baseline compatibility check fails.
+
+A performance regression result must never hide a correctness failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Summary:
+
+    deterministic seed hierarchy
+    stable semantic IDs
+    stable commit order
+    no semantic unordered-container iteration
+    no completion-order semantics
+    fixed reduction order where exact floating result is required
+    worker-count test matrix
+    schedule perturbation test where supported
+
+Presentation-only systems may explicitly declare DET-NONAUTHORITATIVE.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Summary:
+
+    optimized build
+    no debugger
+    same workload
+    explicit warm-up
+    complete cost
+    distributions not only mean
+    hardware fingerprint
+    scaling matrix
+    correctness validation
+    memory high-water
+    separate CPU/GPU timings
+    end-to-end transfer cost for compute
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy browser benchmarks remain historical reference.
+
+Do not claim direct percentage speedup against a browser number unless the
+semantic workload and measured interval are actually equivalent.
+
+Use legacy benchmark primarily to preserve:
+    workloads,
+    counters,
+    invariants,
+    known pathological scenarios.
+
+Native benchmark becomes performance authority once its subsystem parity gate
+passes.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+Stage 1/2:
+    benchmark result schema serialization test
+    environment metadata test
+
+Stage 3:
+    scheduler scaling benchmarks
+    determinism worker-count matrix
+
+Stage 5:
+    generation artifact hash determinism tests
+
+Per subsystem:
+    benchmark-specific correctness tests
+
+Stage 22:
+    regression gate integration
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Documentation-only now.
+
+Future desired CLI shape:
+
+    genomes_benchmark --list
+
+    genomes_benchmark \
+        --case GENOMES.BUILDING.BATCH_GENERATION \
+        --workers 1,2,4,8,16 \
+        --seed 20260927 \
+        --output result.json
+
+    genomes_headless \
+        --determinism-case CITY_REFERENCE \
+        --workers 1,2,4,8,16 \
+        --schedule-stress
+
+Exact CLI is implemented by later chapters.
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+0.4 is complete when:
+
+    [x] benchmark levels defined
+    [x] determinism levels defined
+    [x] workload immutability rule defined
+    [x] full measured-cost rule defined
+    [x] warm-up policy defined
+    [x] release/no-debugger rule defined
+    [x] percentile output defined
+    [x] hardware fingerprint defined
+    [x] multicore scaling formulas/matrix defined
+    [x] scheduler benchmark requirements defined
+    [x] determinism worker/schedule matrix defined
+    [x] semantic hash rule defined
+    [x] numeric determinism policy defined
+    [x] cross-platform initial scope defined
+    [x] memory reporting policy defined
+    [x] GPU timing policy defined
+    [x] CPU/GPU transfer policy defined
+    [x] case versioning defined
+    [x] baseline/regression policy defined
+    [x] cold/warm/incremental generation split defined
+    [x] simulation/presentation benchmark split defined
+    [x] stress philosophy defined
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    benchmark Debug and publish it as production performance;
+    compare semantically different workloads as speedup;
+    time job submission while draining expensive work later;
+    report only average;
+    omit worker count;
+    omit seed/dataset parameters;
+    change RNG dataset between worker counts;
+    interpret heap delta as leak proof;
+    infer GPU time from CPU submit;
+    ignore mandatory GPU readback;
+    accept nondeterministic authoritative output because "threads race";
+    hash raw structs/pointers/unordered iteration;
+    overwrite historical baseline files to hide regression;
+    fail to validate output after a fast benchmark.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[x] benchmark contract is implementation-ready
+[x] determinism contract is implementation-ready
+[x] native scaling methodology defined
+[x] CPU/GPU timing separation defined
+[x] historical browser evidence preserved
+[x] no arbitrary global regression percentage frozen prematurely
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Stage 0 executable policy set is now complete:
+
+    0.0 manual index
+    0.1 target architecture
+    0.2 migration inventory/parity
+    0.3 coding/dependency rules
+    0.4 benchmark/determinism policy
+    0.5 mathematical/algorithm reference
+
+Next implementation-authoring target:
+
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+
+Before 1.1 becomes READY, it must contain exact files, CMake content/pseudocode,
+toolchain assumptions, build commands, tests and acceptance gates.
+
+END OF CHAPTER 0.4
