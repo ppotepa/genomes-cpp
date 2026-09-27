@@ -1,0 +1,195 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.5 - CITY_HYDROLOGY_BOUNDARY_CENTRES
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement early city stages: profile/morphology, seeded hydrology relation, approximate target-area boundary, polycentric centers and external gateways as versioned artifacts.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.6_HYDROLOGY_FIELDS.txt
+    TARGET::docs/10.4_ROAD_GRAPH_VALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/city/CMakeLists.txt
+    modules/city/include/genomes/city/CitySpec.hpp
+    modules/city/include/genomes/city/CityCoreArtifact.hpp
+    modules/city/src/CityCoreGenerator.cpp
+    tests/native/city/city_core_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CitySpec includes target area, settlement scale, morphology, density, terrain weight, rural fringe, polycentricity, plannedness, hydrology mode and seed.
+
+2. Boundary is semantic Polygon2 approximating target area and respecting terrain/water constraints; boundary-area error has explicit acceptance threshold by city scale.
+
+3. Centers have stable IDs, strength/radius/mass/role. Main center not required to be world origin; secondary centers obey spacing/water/slope rules.
+
+4. Gateways lie on/near boundary and represent external transport connections; count/directions derive from scale/morphology/seed.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-POLY-SIGNED-AREA-001
+    MATH-POLY-CENTROID-001
+    MATH-POLY-PCA-AXIS-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-CITY-PIPELINE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define CityProfile presets as data assets/constants with versioning; user modifiers apply to cloned normalized profile.
+
+STEP 2
+    Generate center candidates with deterministic separation and terrain/hydrology validation.
+
+STEP 3
+    Solve boundary radius/shape iteratively to target area using field sampling, with max iterations and fallback report.
+
+STEP 4
+    Classify river-city relation None/Through/Adjacent/External from boundary/water overlap.
+
+STEP 5
+    Generate gateways distributed by external attraction/axes and validate inside/outside crossing semantics.
+
+STEP 6
+    Export golden seeds across hamlet/village/town/city/metropolis and hydrology relations.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BOUNDARY SOLVE:
+    shapeParams := seed children
+    lo,hi := radius bounds
+    repeat maxIterations:
+        r := midpoint(lo,hi)
+        poly := sampleBoundary(r,terrainInfluence,noise)
+        area := abs(area(poly))
+        if area < target: lo=r else hi=r
+    validate simple polygon + area error
+    return best
+
+CENTRES:
+    add main valid candidate
+    for desired secondary:
+        sample semantic candidates
+        accept if slope/water/spacing
+        assign stable CenterId
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    target area tolerance
+    center not forced origin
+    secondary spacing
+    gateway boundary
+    hydrology relation fixtures
+    deterministic profiles
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CitySpec/version
+    [ ] boundary valid
+    [ ] area tolerance
+    [ ] polycentric centers
+    [ ] gateways
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    river always through center
+    hardcoded main center at 0,0
+    unbounded boundary iteration
+    mutating preset globals
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CitySpec/version
+    [ ] boundary valid
+    [ ] area tolerance
+    [ ] polycentric centers
+    [ ] gateways
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.5
