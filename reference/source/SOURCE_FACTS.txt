@@ -1,0 +1,335 @@
+GENOMES SOURCE FACTS BASELINE
+=============================
+
+AUDITED SOURCE:
+    repository: ppotepa/genomes
+    commit: 16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+    branch: main
+
+PURPOSE
+-------
+
+This file records mechanically verified facts from the pinned SOURCE baseline.
+It is not an architectural design document.
+
+If SOURCE changes, update the exact commit and re-run the relevant counts before
+using these facts as parity requirements.
+
+======================================================================
+1. VERSION.JSON
+======================================================================
+
+product version:
+    0.22.0
+
+environmentGeneratorVersion:
+    plants-1.0.0
+
+building generator/version:
+    building-6.0.0
+
+animationVersion:
+    continuous-biped-1.0.0
+    +weapon-handling-1.1.0
+    +face-expression-1.1.0
+
+weaponGeometryVersion:
+    procedural-arms-2.0.0
+
+equipmentSchemaVersion:
+    1
+
+destructionVersion:
+    caliber-strategy-1
+    +local-damage-field-1
+    +rubble-1.1.0
+
+rubbleVersion:
+    rubble-1.1.0
+
+destruction contract versions:
+    projectileState:      projectile-state-3
+    projectileTrace:      projectile-trace-3
+    materialAssembly:     material-assembly-1
+    buildingAdapter:      building-adapter-2
+    ammunitionStrategy:   ammunition-strategy-1
+    materialDamageField:  material-damage-field-1
+
+======================================================================
+2. FIXED SIMULATION CONFIG
+======================================================================
+
+SOURCE::js/config.js
+
+    FIXED_DT     = 1 / 60
+    MAX_STEPS    = 8
+    MAX_FRAME_DT = 0.25
+
+Infantry height:
+    MIN_HEIGHT = 1.60 m
+    MAX_HEIGHT = 1.95 m
+
+Baseline movement values:
+    WALK_BASE_SPEED   = 1.4 m/s
+    RUN_BASE_SPEED    = 4.2 m/s
+    PRONE_BASE_SPEED  = 0.55 m/s
+    CROUCH_BASE_SPEED = 0.75 m/s
+
+Global SOURCE GENERATOR_VERSION currently:
+    building-6.0.0
+
+IMPORTANT:
+    this global is accidentally reused by some non-building code.
+    TARGET must use subsystem-specific version domains instead.
+
+======================================================================
+3. SOURCE TREE COUNTS
+======================================================================
+
+js/* files:
+    114
+
+tests/* files:
+    65
+
+prototypes/* files:
+    3
+
+building-lab/* files:
+    8
+
+tools/* files:
+    17
+
+Prototype files:
+    procedural-building-generator/index.html
+    procedural-city/index.html
+    procedural-road-graph-lab/index.html
+
+All 65 SOURCE test filenames are mapped by:
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+
+======================================================================
+4. BUILDING SCHEMAS / CONFLICT
+======================================================================
+
+SOURCE::js/buildings/buildingSpec.js:
+    rts.building-spec/6
+
+SOURCE::js/buildings/buildingPlan.js:
+    rts.building-plan/4
+    rts.room-graph-set/1
+
+Pinned building generator version:
+    building-6.0.0
+
+Known overlapping definition conflict:
+
+SOURCE::js/buildings/buildingCatalog.js
+    RURAL_SHED width 2..3 m
+    RURAL_SHED depth 2..3 m
+
+SOURCE::js/buildings/buildingSpec.js
+    RURAL_SHED width 2.5..7 m
+    RURAL_SHED depth 2.5..6 m
+
+TARGET must resolve/version this explicitly rather than choose one silently.
+
+======================================================================
+5. VEGETATION
+======================================================================
+
+SOURCE::js/environment/plantCatalog.js
+
+Plant species rows:
+    20
+
+PlantGenome.version:
+    plants-1.0.0
+
+SOURCE genome genes:
+    stature
+    spread
+    branching
+    crookedness
+    foliage
+    leafSize
+    fruiting
+    girth
+    damage
+
+Age and season are separate generator/presentation inputs, not PlantGenome
+genes.
+
+======================================================================
+6. INFANTRY
+======================================================================
+
+SOURCE docs identify Infantry generator family:
+    infantry-5.0.0
+
+SOURCE::js/rendering/infantryRig.js
+
+Rig/control count:
+    39
+
+Breakdown:
+    central body/spine/head: 6
+    paired limbs:            16
+    jaw/lips:                 3
+    paired facial controls:  14
+
+One skeleton is shared by body and facial controls.
+
+Infantry genome compatibility streams:
+    base: seed
+    body: seed XOR 0x8b7a3d11
+    face: seed XOR 0x51f15e37
+
+======================================================================
+7. EQUIPMENT
+======================================================================
+
+SOURCE::js/equipment/equipmentCatalog.js
+
+EquipmentSlots:
+    22
+
+EquipmentCatalog item definitions:
+    61
+
+SOURCE::js/equipment/infantryLoadouts.js
+
+Loadout profiles:
+    10
+
+Equipment seed domain:
+    EquipmentSeed.fromUnit(seed)
+        = SOURCE custom hash(seed, "EQUIPMENT/v1")
+
+======================================================================
+8. WEAPON / HAND-PROP CATALOG
+======================================================================
+
+SOURCE::js/weapons/weaponCatalog.js
+
+Entries:
+    8
+
+IDs:
+    knife
+    grenade
+    sidearm
+    carbine
+    rifle
+    marksman_rifle
+    support_gun
+    heavy_support_gun
+
+knife:
+    ONE_HANDED
+    1H
+    firearm=false
+
+grenade:
+    ONE_HANDED
+    1H
+    firearm=false
+
+The current SOURCE grenade is a catalog/handling prop, not a complete thrown
+grenade gameplay system.
+
+======================================================================
+9. SIMPLE SETTLEMENT ACCESS / FENCES
+======================================================================
+
+SOURCE simple settlement includes:
+    roads
+    parcels
+    gates
+    driveway Track roads
+    optional fences
+    fence types:
+        wood
+        wire
+        wall
+
+FenceGenerator.plan compatibility constants:
+    target panel length: 2.4 m
+    default gate width:  4.2 m (subject to frontage cap)
+
+Fence planning excludes panels conflicting with:
+    roads
+    neighboring parcel polygon
+    building footprint
+
+======================================================================
+10. ROAD / CITY PROTOTYPES
+======================================================================
+
+procedural-road-graph-lab class family includes:
+    MOTORWAY
+    TRUNK
+    ARTERIAL
+    COLLECTOR
+    LOCAL
+    SERVICE
+    PATH
+
+procedural-city presents:
+    trunk
+    arterial
+    collector
+    local
+    alley
+
+simple settlement uses:
+    track
+    asphalt
+    dirt
+
+TARGET RoadClass is therefore intentionally a superset.
+
+procedural-city pipeline explicitly describes:
+    curved cost-routed regional roads
+
+and contains polyline smoothing/curve operations.
+
+TARGET must preserve exact node/centerline endpoint joins even when roads are
+curved.
+
+======================================================================
+11. TERRAIN
+======================================================================
+
+SOURCE terrain keeps one authoritative mutable height field.
+
+Road/pad grading writes the authoritative heights and then updates render
+geometry/normals.
+
+Routine getHeightAt/sample reads the same height field in O(1).
+
+Cell interpolation uses the explicit diagonal:
+    u + v <= 1
+        triangle (a,d,b)
+    else
+        triangle (c,b,d)
+
+This convention is part of numeric parity fixtures.
+
+======================================================================
+12. AUDIT POLICY
+======================================================================
+
+Do not copy this file's counts into engine hard limits.
+
+Use it to:
+    verify migration fixtures,
+    catch stale documentation,
+    identify intentional version changes.
+
+If a number changes in SOURCE:
+    pin the new SOURCE commit,
+    update this file,
+    update affected parity chapter,
+    do not silently alter existing golden fixtures.

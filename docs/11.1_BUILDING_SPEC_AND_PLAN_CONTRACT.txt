@@ -51,7 +51,17 @@ PUBLIC CONTRACTS
 
 3. Every child ID derives from BuildingId + semantic stage/local stable key. IDs cannot depend on vector insertion/completion order.
 
-4. Plan stage metadata records generator version and validation stage; compilers consume only frozen valid plan.
+4. Plan stage metadata records generator version and validation stage; compilers
+consume only frozen valid plan.
+
+SOURCE schema facts for the audited baseline:
+    BuildingSpec:  rts.building-spec/6
+    BuildingPlan:  rts.building-plan/4
+    RoomGraphSet:  rts.room-graph-set/1
+    generator:     building-6.0.0
+
+TARGET may define a new native schema version, but fixture importers must record
+which SOURCE schema/version they translate from.
 
 5. SOURCE currently contains overlapping building catalogs/spec systems that
 are not fully identical. Native migration MUST NOT silently merge conflicting
