@@ -1,0 +1,772 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 1.2 - THIRD-PARTY DEPENDENCY POLICY AND PINNING
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Define exactly how native Genomes acquires, pins, exposes and isolates external
+libraries.
+
+This chapter exists to prevent dependency drift and architectural leakage.
+
+Target major dependencies:
+
+    Diligent Engine
+    Jolt Physics
+    Recast / Detour
+
+Potential later dependencies:
+
+    test framework
+    benchmark framework
+    profiling SDK integrations
+    image/asset codecs
+    optional ECS library during Stage 15 evaluation
+    optional CUDA backend
+
+No external dependency may become an implicit global requirement merely because
+one subsystem uses it.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+
+External primary references to verify at implementation time:
+
+    Diligent Engine official repository/documentation
+    Jolt Physics official repository/releases
+    RecastNavigation official repository/documentation
+
+======================================================================
+PRESERVES
+======================================================================
+
+Existing JS dependencies and vendor bundles remain untouched.
+
+This chapter governs the new native tree only.
+
+Do not remove:
+
+    js/vendor/*
+    tools/*/node_modules assumptions in legacy harnesses
+    current browser CDN/local fallback behavior
+
+until legacy retirement chapters.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No renderer initialization.
+No physics world creation.
+No navmesh creation.
+No actual Diligent RenderDevice wrapper.
+No Jolt PhysicsWorld abstraction.
+No Recast NavigationWorld abstraction.
+No CUDA installation.
+
+Those belong to Stages 7, 13, 14 and 21.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+When this chapter is implemented, target native dependency structure:
+
+    external/
+        README.txt
+        DiligentEngine/
+        JoltPhysics/
+        recastnavigation/
+
+    cmake/
+        GenomesDependencies.cmake
+        GenomesThirdParty.cmake
+
+    docs/
+        THIRD_PARTY_NATIVE.txt
+
+Existing source tree remains unchanged.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+1. ACQUISITION METHOD
+
+Primary dependency acquisition method:
+
+    git submodules pinned by the parent Genomes commit.
+
+Reason:
+
+    - exact source revision is visible in Git,
+    - offline rebuild after recursive clone is possible,
+    - no network access is required during ordinary CMake configure,
+    - dependency update is an explicit source-control change,
+    - large dependencies do not re-download per build directory.
+
+Forbidden as default architecture:
+
+    FetchContent tracking master/main
+    ExternalProject downloading at configure/build time
+    unpinned ZIP URLs
+    system-wide "whatever version is installed" for core libraries
+
+
+2. PINNING RULE
+
+Every dependency is pinned by exact submodule commit SHA.
+
+If the project additionally records a release/tag, record BOTH:
+
+    humanVersion = "v5.6.0"
+    exactCommit  = "<immutable SHA>"
+
+The SHA is authoritative.
+
+Never specify only:
+
+    master
+    main
+    latest
+    vX without verifying immutable source
+
+
+3. UPDATE RULE
+
+Dependency update is its own deliberate change.
+
+Required sequence:
+
+    inspect release/changelog
+    update submodule commit
+    clean configure/build
+    run owning subsystem tests
+    run dependency smoke tests
+    record version/SHA/license
+    commit as dependency update
+
+Do not casually update dependencies while implementing unrelated gameplay.
+
+
+4. THIRD-PARTY COMPILE POLICY
+
+Third-party code:
+
+    may use its upstream warning policy
+    must NOT inherit GENOMES_WARNINGS_AS_ERRORS by accident
+    is considered SYSTEM/external for warnings where appropriate
+
+Genomes wrappers/adapters:
+    use full Genomes warnings.
+
+
+5. TYPE LEAK POLICY
+
+Diligent types:
+    only engine/render/diligent and narrowly scoped render implementation files.
+
+Jolt types:
+    only engine/physics/jolt and narrowly scoped bridge implementation files.
+
+Recast/Detour types:
+    only engine/navigation/recast and narrowly scoped bridge files.
+
+Public domain headers expose Genomes types/handles.
+
+
+6. LICENSE POLICY
+
+Every native external library requires:
+
+    name
+    source URL
+    pinned revision
+    version/tag if available
+    license identifier
+    local license path
+    usage scope
+
+Record in:
+
+    docs/THIRD_PARTY_NATIVE.txt
+
+No dependency may ship without license metadata review.
+
+
+7. DILIGENT SCOPE
+
+Initial Diligent acquisition:
+
+    complete official DiligentEngine meta repository recursively,
+    but build only modules explicitly required by Genomes.
+
+Initial target intention:
+    Core required by renderer.
+
+Tools/FX:
+    disabled until a chapter explicitly demonstrates need.
+
+Samples:
+    disabled in Genomes build.
+
+Official Diligent documentation currently describes:
+    CMake integration via add_subdirectory,
+    modular Core/Tools/FX structure,
+    Direct3D12/Vulkan and other backends,
+    recursive submodules.
+
+Genomes must NOT build Diligent samples as part of normal game build.
+
+
+8. JOLT SCOPE
+
+Pin a stable Jolt release.
+
+At manual authoring baseline, official Jolt release page reports v5.6.0 as the
+latest stable release.
+
+Implementation agent MUST re-check official releases at implementation time.
+Do not silently switch to a newer release; if a newer candidate is chosen,
+record the reason and exact SHA.
+
+Initial Genomes use:
+    physics backend only.
+
+Samples/viewer:
+    OFF.
+
+Jolt's own release history documents custom job-system integration facilities;
+actual adapter is Chapter 13.3.
+
+
+9. RECAST / DETOUR SCOPE
+
+Pin official recastnavigation repository to an exact commit/release.
+
+Build target intent:
+
+    Recast
+    Detour
+    DetourCrowd only if later chapter explicitly needs it
+    DetourTileCache if Chapter 14 requires it
+
+Demo/debug applications:
+    OFF.
+
+Tiled navigation is a target requirement, but backend-specific usage starts in
+Stage 14.
+
+
+10. OPTIONAL CUDA
+
+CUDA is NOT acquired as a mandatory source dependency in Stage 1.
+
+Chapter 21 will:
+    detect CUDA SDK/toolchain optionally,
+    build backend conditionally,
+    preserve CPU/Diligent compute fallback.
+
+No standard Genomes target may fail configure merely because CUDA is absent.
+
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+docs/THIRD_PARTY_NATIVE.txt entry format:
+
+    DEPENDENCY: Jolt Physics
+    SOURCE: https://github.com/jrouwe/JoltPhysics
+    PIN: <exact SHA>
+    VERSION: v5.6.0
+    LICENSE: MIT
+    LOCAL_LICENSE: external/JoltPhysics/LICENSE
+    USED_BY:
+        engine/physics/jolt
+    OPTIONAL: no
+    NOTES:
+        samples disabled
+        tests controlled separately
+
+GenomesDependencies.cmake owns dependency discovery/add_subdirectory.
+
+Individual domain CMakeLists files must not each reinvent acquisition logic.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+N/A.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+External primary sources:
+
+    DiligentGraphics/DiligentEngine official GitHub repository.
+    jrouwe/JoltPhysics official GitHub repository/releases.
+    recastnavigation/recastnavigation official GitHub repository.
+
+License files in the pinned source trees are authoritative for shipping review.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1 - VERIFY 1.1
+
+Before adding external sources:
+
+    clean configure
+    clean build
+    foundation_smoke pass
+
+If 1.1 is not green:
+    do not hide the problem by adding dependencies.
+
+
+STEP 2 - CREATE external/README.txt
+
+Explain:
+
+    external/ is third-party source only.
+    Do not edit vendor source to implement Genomes features.
+    Any patch must be documented and preferably maintained as upstreamable
+    patch/commit rather than silent local edits.
+
+
+STEP 3 - ADD PINNED SUBMODULES
+
+Conceptual commands:
+
+    git submodule add <Diligent official URL> external/DiligentEngine
+    git submodule add <Jolt official URL> external/JoltPhysics
+    git submodule add <Recast official URL> external/recastnavigation
+
+Then checkout exact desired commits.
+
+For Diligent:
+
+    initialize recursively
+
+because official meta repository itself uses submodules.
+
+Implementation report records exact SHAs.
+
+
+STEP 4 - CREATE docs/THIRD_PARTY_NATIVE.txt
+
+For all three dependencies record:
+
+    source
+    SHA
+    version/tag if any
+    license
+    local license file
+    scope
+    optionality
+
+
+STEP 5 - CREATE GenomesThirdParty.cmake
+
+Purpose:
+    utility functions for third-party target isolation.
+
+Conceptual helper:
+
+    function(genomes_mark_third_party target)
+        if target exists:
+            mark relevant includes SYSTEM where safe
+            do not apply project warning function
+    endfunction()
+
+Do not mutate compiler warning flags globally.
+
+
+STEP 6 - CREATE GenomesDependencies.cmake
+
+It validates submodule presence before add_subdirectory.
+
+Pseudocode:
+
+    function(require_submodule path name):
+        if NOT EXISTS expected file:
+            message FATAL_ERROR with:
+                "Missing <name>. Run git submodule update --init --recursive"
+
+Then configure upstream options BEFORE add_subdirectory.
+
+
+STEP 7 - DILIGENT CONFIGURATION
+
+Before add_subdirectory:
+
+    DILIGENT_BUILD_SAMPLES = OFF
+    DILIGENT_BUILD_DOCS    = OFF
+
+Tools/FX:
+    prefer OFF until renderer chapter requires them.
+
+If official Diligent option dependency forces Tools/FX state:
+    follow upstream option contracts,
+    document exact minimal module set.
+
+Add:
+    external/DiligentEngine
+
+but DO NOT link Diligent into genomes_foundation.
+
+
+STEP 8 - JOLT CONFIGURATION
+
+Disable upstream sample/viewer/test extras not required by Genomes normal build.
+
+Add Jolt source tree in the supported upstream manner.
+
+Do not link Jolt into foundation.
+
+
+STEP 9 - RECAST CONFIGURATION
+
+Disable demos/examples/tests unless explicitly desired.
+
+Enable core libraries needed later.
+
+Do not link Recast into foundation.
+
+
+STEP 10 - ADD NATIVE DEPENDENCY SMOKE TARGET
+
+Create a small Stage-1-only test target:
+
+    genomes_test_dependencies_smoke
+
+Goal:
+    prove required library targets configure/link.
+
+It may include one minimal public header from each dependency but MUST NOT
+initialize a renderer or physics world yet.
+
+If static link causes unnecessary platform bootstrap complexity, separate
+compile-target smoke tests are acceptable, but document why.
+
+
+STEP 11 - VERIFY NO TYPE LEAK
+
+Search project-owned public headers:
+
+    engine/foundation/include/**
+    future generic public headers
+
+Assert no include paths containing:
+
+    Diligent
+    Jolt
+    Detour
+    Recast
+
+except their own backend directories once those exist.
+
+
+STEP 12 - CLEAN BUILD
+
+Delete build directory.
+
+Reconfigure from clean tree with recursive submodules present.
+
+Build Debug.
+
+Run:
+    foundation_smoke
+    dependency smoke
+
+
+STEP 13 - MISSING-SUBMODULE NEGATIVE TEST
+
+Temporarily verify configuration failure message is understandable when a
+required dependency directory is absent/uninitialized.
+
+Do NOT leave the repository broken.
+
+Acceptance is that the error says what command resolves it.
+
+
+STEP 14 - LEGACY SANITY
+
+Run:
+    node tests/check_core.js
+
+if supported.
+
+Dependency addition must not alter browser runtime.
+
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+DEPENDENCY VALIDATION:
+
+    function requireSubmodule(path, expectedFile, displayName):
+        if not exists(path / expectedFile):
+            fatal(
+                displayName
+                + " is not initialized. "
+                + "Run: git submodule update --init --recursive"
+            )
+
+
+DEPENDENCY REGISTRATION:
+
+    function configureDependencies():
+        requireSubmodule(Diligent)
+        requireSubmodule(Jolt)
+        requireSubmodule(Recast)
+
+        configureDiligentMinimal()
+        addSubdirectory(Diligent)
+
+        configureJoltMinimal()
+        addSubdirectory(Jolt)
+
+        configureRecastMinimal()
+        addSubdirectory(Recast)
+
+
+VERSION/PIN REVIEW:
+
+    function updateDependency(dep, candidateRevision):
+        changelog := readUpstreamChangelog(candidateRevision)
+        license   := readLicense(candidateRevision)
+
+        if license incompatible:
+            reject
+
+        checkout exact candidateRevision
+
+        cleanConfigure()
+        buildAll()
+        runOwningSubsystemTests()
+
+        if any required test fails:
+            revert dependency revision
+
+        record exact SHA + version + license
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+No dependency may create a permanent runtime thread merely by being linked.
+
+Actual worker/physics/render thread ownership is defined in owning chapters.
+
+Stage 1 performs no runtime initialization.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Uninitialized required submodule:
+    CMake FATAL_ERROR with remediation command.
+
+Unsupported upstream configuration:
+    fail clearly rather than silently enabling huge optional components.
+
+License metadata missing:
+    chapter incomplete.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Dependency source revision is part of reproducibility.
+
+"Same Genomes commit" must identify exact dependency commits through submodules.
+
+Do not permit configure-time network resolution to change dependency code.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Do not benchmark dependency examples as proof of Genomes performance.
+
+Do not build samples/demos in normal developer path.
+
+Keep dependency compilation isolated so incremental Genomes code rebuilds do not
+unnecessarily rebuild vendor source.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy JS libraries remain.
+
+Native dependency tree is additive.
+
+No browser path switches to Diligent/Jolt/Recast in Stage 1.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+    tests/native/dependencies_smoke.cpp
+or equivalent small compile/link smoke target.
+
+Tests:
+
+    required dependency targets exist
+    minimal public headers compile
+    project foundation still has no third-party dependency
+    clean clone/submodule remediation message is clear
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+After submodule setup:
+
+    git submodule status --recursive
+
+Then clean native build:
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug
+
+Verify legacy:
+
+    node tests/check_core.js
+
+where available.
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+All required:
+
+    [ ] Diligent pinned exact SHA
+    [ ] nested Diligent submodules initialized
+    [ ] Jolt pinned exact SHA
+    [ ] Recast pinned exact SHA
+    [ ] no dependency tracks main/master/latest
+    [ ] docs/THIRD_PARTY_NATIVE.txt complete
+    [ ] license metadata present
+    [ ] samples/demos disabled for normal build
+    [ ] dependency CMake centralized
+    [ ] missing-submodule message actionable
+    [ ] foundation still does not link Diligent/Jolt/Recast
+    [ ] dependency smoke builds/passes
+    [ ] Genomes warnings remain project-local
+    [ ] clean build succeeds
+    [ ] legacy sanity preserved
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    use moving branches as pins,
+    download core dependencies during normal CMake configure,
+    edit vendor source silently,
+    apply /WX/-Werror globally to vendor code,
+    expose Diligent/Jolt/Recast types through foundation,
+    build all samples to "make sure it works",
+    require CUDA,
+    rely on globally installed random versions,
+    add a dependency without license entry,
+    update dependency revisions during unrelated feature chapters.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] 1.1 green first
+[ ] external/README.txt
+[ ] Diligent submodule pinned
+[ ] Jolt submodule pinned
+[ ] Recast submodule pinned
+[ ] recursive submodules verified
+[ ] GenomesThirdParty.cmake
+[ ] GenomesDependencies.cmake
+[ ] THIRD_PARTY_NATIVE.txt
+[ ] licenses recorded
+[ ] optional upstream components disabled
+[ ] dependency smoke test
+[ ] clean configure/build/test
+[ ] missing submodule error verified
+[ ] no generic-header type leakage
+[ ] legacy sanity
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Implementation report must list for every dependency:
+
+    exact remote
+    exact SHA
+    tag/version
+    license
+    enabled upstream components
+    disabled upstream components
+
+Next:
+
+    docs/1.3_EXECUTABLE_TARGETS_AND_TEST_RUNNER.txt
+
+END OF CHAPTER 1.2
