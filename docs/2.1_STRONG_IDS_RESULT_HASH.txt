@@ -1,0 +1,857 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 2.1 - STRONG IDS, RESULT, AND STABLE HASH
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Implement the first reusable Foundation primitives:
+
+    - strongly typed stable IDs,
+    - generation-safe runtime handles,
+    - C++20 Result<T,E>,
+    - canonical stable 64-bit semantic hashing primitives.
+
+These primitives become dependencies of:
+
+    jobs
+    procedural generation
+    world/regions
+    ECS
+    artifacts
+    navigation
+    rendering handles
+    physics handles
+
+The implementation must avoid:
+
+    accidental ID-type mixing,
+    std::hash as persisted/deterministic identity,
+    exception-driven normal control flow,
+    invalid stale runtime handles,
+    hidden allocations in common Result/ID paths.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+    docs/1.3_EXECUTABLE_TARGETS_AND_TEST_RUNNER.txt
+
+Stage 1 must be implemented/green before this chapter is implemented.
+
+======================================================================
+PRESERVES
+======================================================================
+
+No existing JS identity scheme is removed.
+
+Current JS string/numeric IDs remain reference behavior until owning migration
+chapters translate them.
+
+This chapter introduces native primitives only.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No Entity ECS storage.
+No Region database.
+No Artifact schema.
+No SeedTree RNG.
+No cryptographic hash.
+No content-addressed disk cache.
+No UUID framework.
+No network GUID.
+No serialization implementation.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Extend:
+
+    engine/foundation/
+        include/
+            genomes/
+                foundation/
+                    StrongId.hpp
+                    Handle.hpp
+                    Result.hpp
+                    Error.hpp
+                    StableHash.hpp
+        src/
+            StableHash.cpp
+
+    tests/native/foundation/
+        strong_id_tests.cpp
+        handle_tests.cpp
+        result_tests.cpp
+        stable_hash_tests.cpp
+
+    benchmarks/
+        foundation/
+            stable_hash_benchmark.cpp
+
+Update:
+    engine/foundation/CMakeLists.txt
+    tests/native/CMakeLists.txt
+    benchmarks/CMakeLists.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+1. StrongId
+
+Concept:
+
+    template<class Tag, class Rep = std::uint64_t>
+    class StrongId;
+
+Properties:
+
+    explicit construction from Rep
+    equality/ordering
+    value()
+    invalid/default value = 0
+    isValid()
+    no implicit conversion between ID types
+    trivially copyable target
+    standard-layout target
+    no allocation
+
+Example tags:
+
+    struct EntityIdTag;
+    struct RegionIdTag;
+
+Aliases themselves should live in owning modules later:
+
+    using EntityId = StrongId<EntityIdTag>;
+
+Foundation should not declare domain-specific tags unless needed by foundation.
+
+
+2. Handle
+
+Runtime generational handle:
+
+    template<class Tag>
+    struct Handle
+    {
+        std::uint32_t index;
+        std::uint32_t generation;
+    };
+
+Invalid:
+
+    index      = UINT32_MAX
+    generation = 0
+
+Properties:
+
+    equality
+    validity
+    stable packing to uint64 if needed
+
+This is for ephemeral runtime slot identity, NOT persisted semantic identity.
+
+
+3. Result<T,E>
+
+C++20 value-or-error type.
+
+Required:
+
+    Result<T,E>::success(T)
+    Result<T,E>::failure(E)
+    hasValue()
+    operator bool()
+    value()
+    error()
+
+No implicit conversion from T/E if ambiguity can occur.
+
+Accessing wrong alternative in Debug:
+    assertion / contract diagnostic.
+
+In Release:
+    behavior must still be defined; preferred explicit terminate/assert helper or
+    checked access implementation.
+
+Do not throw for expected generator failures.
+
+
+4. Result<void,E>
+
+Required specialization.
+
+Used for operations with no success payload.
+
+
+5. Error
+
+Foundation error descriptor must be compact:
+
+    enum class ErrorCode : uint32_t
+
+    struct Error
+    {
+        ErrorCode code;
+        std::string_view message;
+    };
+
+Do not add owning std::string to every hot-path Error yet.
+
+Detailed dynamic context can be layered later by diagnostic systems.
+
+
+6. StableHash64
+
+Distinct from std::hash.
+
+Required APIs:
+
+    uint64_t stableHashBytes(span<const byte>)
+    uint64_t stableHashString(string_view)
+    uint64_t stableHashU64(uint64_t)
+    uint64_t stableHashCombine(uint64_t seed, uint64_t value)
+
+Contract:
+    same byte sequence + same algorithm version -> same result across supported
+    platforms.
+
+Never hash raw object memory for semantic identity unless representation is
+explicitly canonicalized byte-for-byte.
+
+
+7. HASH VERSION
+
+Define:
+
+    StableHashAlgorithmVersion = 1
+
+Later persistence/artifact systems record algorithm version where hashes survive
+process boundaries.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+StrongId:
+
+    Rep value_;
+
+Target:
+    sizeof(StrongId<Tag,uint64_t>) == 8
+
+Handle:
+
+    uint32 index
+    uint32 generation
+
+Target:
+    sizeof(Handle<Tag>) == 8
+
+Result implementation:
+    std::variant<T,E> is ACCEPTABLE for Chapter 2.1 if tests confirm behavior and
+    no heap allocation is introduced by the chosen T/E.
+
+Do not prematurely implement a hand-written union unless profiling or compile
+requirements justify it.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+Deterministic hash identity is discrete, not approximate.
+
+No floating approximate comparison applies.
+
+Canonical combine is order-sensitive:
+
+    H(a,b) != assumed equal H(b,a)
+
+unless collision occurs.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+ALG-PAR-STABLE-COMMIT-001
+    later consumers depend on stable IDs/hash ordering.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+C++20 standard library:
+    std::variant
+    std::string_view
+    std::span
+    std::byte
+    type traits
+
+Existing repository:
+    js/core/seededRandom.js
+    prototype hash32/hashString implementations
+
+IMPORTANT:
+    legacy hashes are references for migration fixtures, not automatically the
+    canonical native StableHash64.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1 - StrongId.hpp
+
+Implement:
+
+    template<class Tag, class Rep = uint64_t>
+    class StrongId final
+
+Pseudo-interface:
+
+    constexpr StrongId() noexcept = default;
+
+    explicit constexpr StrongId(Rep v) noexcept
+        : value_(v) {}
+
+    [[nodiscard]]
+    constexpr Rep value() const noexcept;
+
+    [[nodiscard]]
+    constexpr bool isValid() const noexcept
+    {
+        return value_ != 0;
+    }
+
+    explicit constexpr operator bool() const noexcept;
+
+    auto operator<=>(...) const = default;
+
+Do NOT provide:
+    implicit Rep conversion,
+    arithmetic operators,
+    cross-tag constructor.
+
+
+STEP 2 - compile-time tests
+
+static_assert:
+    trivially_copyable
+    standard_layout
+    size target
+    EntityId-like tag not constructible from another tag type
+
+
+STEP 3 - Handle.hpp
+
+Implement:
+
+    template<class Tag>
+    struct Handle final
+    {
+        uint32_t index = InvalidIndex;
+        uint32_t generation = 0;
+
+        isValid()
+        packed()
+        equality/order if useful
+    };
+
+packed():
+
+    (uint64_t(generation) << 32)
+    | uint64_t(index)
+
+Do not interpret packed value as persistent semantic ID.
+
+
+STEP 4 - stale handle test model
+
+Test miniature slot table semantics:
+
+    create slot generation 1
+    acquire handle {index,1}
+    destroy increments generation
+    old handle fails generation check
+    new handle {index,2} validates
+
+Actual slot table is not implemented here.
+
+
+STEP 5 - Error.hpp
+
+Define small error taxonomy sufficient for foundation tests:
+
+    None
+    InvalidArgument
+    InvalidState
+    NotFound
+    OutOfRange
+    Unsupported
+    Internal
+
+Later modules may define richer domain enums or error payloads.
+
+
+STEP 6 - Result.hpp
+
+Preferred C++20 implementation:
+
+    std::variant<T,E>
+
+Factories:
+
+    static success(T)
+    static failure(E)
+
+Observers:
+
+    bool hasValue() const noexcept
+    explicit operator bool() const noexcept
+
+Accessors:
+    T& value()
+    const T& value() const
+    E& error()
+    const E& error() const
+
+Move-only T must work.
+
+Do not require T to be copyable.
+
+
+STEP 7 - Result<void,E>
+
+Represent with:
+
+    bool success_
+    E error_
+
+or equivalent optional/variant structure.
+
+Default construction policy must be explicit.
+
+Preferred:
+    no ambiguous implicit "success by default".
+
+Factory use only:
+    success()
+    failure(error)
+
+
+STEP 8 - StableHash
+
+Chapter 2.1 freezes a simple deterministic 64-bit semantic hash primitive.
+
+Use canonical byte hash:
+
+    FNV-1a 64-bit
+
+Constants:
+
+    offset_basis = 14695981039346656037
+    prime        = 1099511628211
+
+For each byte b in exact byte order:
+
+    hash = hash XOR uint64(b)
+    hash = hash * prime          // uint64 wraparound is intentional
+
+Then apply no hidden platform-dependent transformation.
+
+This choice is for:
+    stable semantic keys,
+    labels,
+    small IDs,
+    reproducibility.
+
+It is NOT selected as:
+    cryptographic hash,
+    high-throughput artifact content hash,
+    adversarial hash-table defense.
+
+Later artifact/cache chapter may introduce XXH3/BLAKE3 or another separately
+versioned content hash without changing StableHash64 v1.
+
+
+STEP 9 - U64 CANONICAL BYTES
+
+stableHashU64(value) MUST NOT hash host-memory byte order.
+
+Canonical byte order:
+    little-endian semantic encoding.
+
+Pseudocode:
+
+    bytes[0] = (value >> 0)  & 0xff
+    ...
+    bytes[7] = (value >> 56) & 0xff
+
+Then stableHashBytes(bytes).
+
+
+STEP 10 - HASH COMBINE
+
+Do NOT concatenate host structs.
+
+Define:
+
+    stableHashCombine(seed, value):
+        encode seed as canonical 8 bytes
+        encode value as canonical 8 bytes
+
+        hash := FNV_offset_basis
+        feed bytes(seed)
+        feed bytes(value)
+
+        return hash
+
+Later SeedTree may hash more explicit tuple fields with length delimiters.
+
+
+STEP 11 - STRING HASH
+
+Hash exact UTF-8 bytes of std::string_view.
+
+No locale.
+No case folding.
+No Unicode normalization.
+
+If semantic normalization is required, owning subsystem normalizes BEFORE hash.
+
+
+STEP 12 - TEST FIXTURES
+
+Freeze exact expected hashes for:
+
+    empty byte sequence
+    "Genomes"
+    "terrain"
+    "building"
+    0
+    1
+    UINT64_MAX
+    combine(0,0)
+    combine(hash("city"), 42)
+
+Expected values must be generated once from an independent/reference
+implementation and committed in tests.
+
+Do not make tests calculate expected values with the same function under test.
+
+
+STEP 13 - RESULT TESTS
+
+Cases:
+
+    success int
+    failure Error
+    const access
+    move-only payload via unique_ptr test
+    Result<void,Error>
+    boolean observer
+
+
+STEP 14 - STRONG ID TESTS
+
+Cases:
+
+    default invalid
+    explicit value valid
+    equality/order
+    map/sort compatibility if operator ordering exists
+    no cross-tag conversion compile-time assertion
+
+
+STEP 15 - HASH BENCHMARK
+
+Infrastructure benchmark only:
+
+    small string hashing
+    fixed 8-byte hashing
+    1 KiB byte buffer hashing
+
+Do NOT set performance gate.
+Purpose:
+    establish baseline for later replacement discussion.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+STRONG ID:
+
+    template Tag, Rep:
+        value := 0
+
+        constructor(rep):
+            value := rep
+
+        isValid():
+            return value != 0
+
+
+GENERATION HANDLE VALIDATION:
+
+    function validate(handle, slot):
+        if !handle.isValid:
+            return false
+
+        if handle.index >= slots.size:
+            return false
+
+        return slots[handle.index].generation == handle.generation
+
+
+RESULT:
+
+    function successful(value):
+        result.storage := ValueAlternative(value)
+        return result
+
+    function failed(error):
+        result.storage := ErrorAlternative(error)
+        return result
+
+
+FNV1A64:
+
+    function stableHashBytes(bytes):
+        h := 14695981039346656037
+
+        for each byte b in bytes:
+            h := h XOR uint64(b)
+            h := h * 1099511628211
+            // unsigned 64-bit overflow wraps modulo 2^64
+
+        return h
+
+
+U64 CANONICALIZATION:
+
+    function encodeLE64(x):
+        for i in [0,8):
+            bytes[i] := byte((x >> (8*i)) & 0xff)
+
+        return bytes
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+All primitives are thread-safe by value.
+
+No internal shared mutable state.
+
+StableHash functions are pure.
+
+StrongId/Handle are POD-like values.
+
+Result owns only its payload/error according to T/E ownership.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Result is the expected-error mechanism for future APIs.
+
+Exceptions:
+    not used for ordinary generation/query failure.
+
+Programmer contract violation:
+    assertion/diagnostic policy from 2.3 later.
+
+Until 2.3 exists:
+    use standard assert only internally where unavoidable,
+    tests must not rely on undefined wrong-alternative access.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+std::hash is forbidden for:
+    persisted IDs,
+    seed derivation,
+    deterministic artifacts,
+    network/save identity,
+    parity fixtures.
+
+StableHash64 v1 is byte-defined.
+
+Never hash:
+    pointer value,
+    object address,
+    padding bytes,
+    platform-native size_t encoding,
+    unordered container iteration order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+StrongId and Handle:
+    zero-overhead wrappers target.
+
+Result:
+    no heap required by wrapper itself.
+
+Hash:
+    FNV1a is accepted for small semantic keys.
+    Do not use it blindly for multi-megabyte artifact hashing later.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy JS IDs/hashes remain.
+
+Migration chapters explicitly map:
+    legacy numeric/string ID
+    -> native StrongId
+
+When exact legacy hash is part of behavior:
+    implement legacy hash as a separately named compatibility function.
+
+Do NOT overload StableHash64 v1 with legacy quirks.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+    strong_id_tests.cpp
+    handle_tests.cpp
+    result_tests.cpp
+    stable_hash_tests.cpp
+
+Labels:
+    unit
+    foundation
+
+Benchmark:
+    stable_hash_benchmark.cpp
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+Release benchmark wiring:
+
+    cmake --preset dev-release
+    cmake --build --preset dev-release
+    <stable hash benchmark> --benchmark_list_tests
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+    [ ] StrongId implemented
+    [ ] no implicit cross-tag conversion
+    [ ] StrongId target size 8 for uint64 rep
+    [ ] Handle implemented
+    [ ] stale-generation semantics tested
+    [ ] Result<T,E> implemented
+    [ ] move-only T works
+    [ ] Result<void,E> implemented
+    [ ] Error/ErrorCode base implemented
+    [ ] StableHash64 v1 implemented
+    [ ] exact FNV constants frozen
+    [ ] canonical LE uint64 encoding
+    [ ] no std::hash deterministic usage
+    [ ] exact golden hash fixtures
+    [ ] unit tests pass
+    [ ] benchmark builds
+    [ ] no legacy behavior removed
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    typedef all IDs to uint64_t,
+    allow implicit StrongId -> integer conversion,
+    allow different StrongId tags to mix,
+    use raw pointer as stable ID,
+    use std::hash for deterministic identity,
+    hash native struct memory including padding,
+    use host endian as semantic encoding,
+    use exceptions as normal Result failure,
+    force Result payloads to be copyable,
+    use FNV1a later as unquestioned cryptographic/content hash,
+    change hash algorithm without version bump.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] StrongId
+[ ] Handle
+[ ] Error
+[ ] Result<T,E>
+[ ] Result<void,E>
+[ ] StableHash
+[ ] golden fixtures
+[ ] compile-time traits
+[ ] stale handle test
+[ ] move-only Result test
+[ ] benchmark
+[ ] Debug tests
+[ ] Release build
+[ ] documentation comments identify semantic vs runtime identity
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next:
+
+    docs/2.2_TIME_CLOCKS_AND_FIXED_TICKS.txt
+
+END OF CHAPTER 2.1
