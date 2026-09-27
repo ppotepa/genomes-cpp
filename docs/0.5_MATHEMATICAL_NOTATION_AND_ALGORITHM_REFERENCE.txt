@@ -1831,6 +1831,61 @@ REF-RECAST
         Detour runtime query semantics.
 
 
+
+REF-DILIGENT-ENGINE
+    Diligent Engine official repository/documentation.
+    https://github.com/DiligentGraphics/DiligentEngine
+
+    Use for:
+        RHI/render backend capabilities,
+        async compute,
+        multiple command queues,
+        D3D12/Vulkan backend integration,
+        mesh/ray-tracing/bindless capability references.
+
+    Current official project documentation explicitly lists async compute and
+    multiple command queues. Genomes still benchmarks whether concurrent queues
+    improve a given workload; feature availability is not a performance proof.
+
+
+REF-VULKAN-QUEUES
+    Khronos Vulkan Documentation Project, Queues and Synchronization.
+    https://docs.vulkan.org/guide/latest/queues.html
+    https://docs.vulkan.org/spec/latest/chapters/synchronization.html
+
+    Use for:
+        queue-family semantics,
+        compute/graphics/transfer queues,
+        semaphore/fence synchronization,
+        explicit memory/execution dependency rules,
+        queue ownership transfer reasoning.
+
+    Important:
+        separate VkQueue objects do not guarantee separate hardware execution.
+        Cross-queue ordering must be explicit.
+
+
+REF-CUDA-INTEROP
+    NVIDIA CUDA Programming Guide,
+    CUDA Interoperability with APIs / external memory and semaphores.
+    https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/graphics-interop.html
+
+    Use for:
+        Vulkan-CUDA external-memory interoperability,
+        external semaphore synchronization,
+        device matching by stable device identifiers,
+        lifetime/destruction rules for imported resources.
+
+
+REF-D3D12-EXECUTEINDIRECT
+    Microsoft Direct3D 12 ExecuteIndirect documentation.
+    https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12graphicscommandlist-executeindirect
+
+    Use for:
+        GPU-generated indirect command streams,
+        GPU-driven draw/dispatch architecture reference.
+
+
 REF-PARNAS-1972
     David L. Parnas,
     "On the Criteria To Be Used in Decomposing Systems into Modules",
