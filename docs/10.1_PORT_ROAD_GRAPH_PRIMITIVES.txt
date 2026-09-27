@@ -1,0 +1,191 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.1 - PORT_ROAD_GRAPH_PRIMITIVES
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement semantic RoadGraph, node/edge IDs, hierarchy/surface metadata, edge splitting and spatial indexing based on SOURCE prototypes but renderer-independent.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.6_STATIC_BVH_AND_QUERY_SERVICE.txt
+    TARGET::docs/5.1_SEED_TREE_RANDOM_STREAMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/roads/CMakeLists.txt
+    modules/roads/include/genomes/roads/RoadGraph.hpp
+    modules/roads/include/genomes/roads/RoadTypes.hpp
+    modules/roads/src/RoadGraph.cpp
+    tests/native/roads/road_graph_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RoadNode has stable RoadNodeId, XZ position + sampled height/ref, node type, region lineage. RoadEdge has stable RoadEdgeId, endpoints, RoadClass, surface, width/ROW, speed/capacity, bridge/tunnel level, lineage/seed metadata.
+
+2. Graph mutation occurs only during candidate generation. Published RoadGraphArtifact is immutable.
+
+3. splitEdge(eid,p) retires original edge in build graph and creates deterministic child IDs derived from parent ID + split ordinal/quantized semantic point key.
+
+4. Adjacency arrays/indices support degree/other/endpoints without per-edge heap sets in published artifact.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-GRAPH-001
+    MATH-GEO-CLOSEST-SEGMENT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-SPATIAL-HASH-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-city/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define RoadClass hierarchy Trunk/Arterial/Collector/Local/Alley/Path with data table for nominal width/speed, not switch scattered through code.
+
+STEP 2
+    Implement mutable RoadGraphBuilder with node/edge pools and stable IDs.
+
+STEP 3
+    Implement duplicate-edge prevention, add/split/deactivate and deterministic adjacency finalize.
+
+STEP 4
+    Build RoadSpatialIndex for nearest node/edge and crossing candidate broadphase.
+
+STEP 5
+    Freeze builder into compact RoadGraphArtifact and validator hooks.
+
+STEP 6
+    Export tiny SOURCE graph fixtures for split/degree behavior where helpful.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+ADD EDGE:
+    require a != b
+    if adjacency contains same endpoint pair + semantic lane/level key:
+        return Existing
+    id := deriveEdgeId(seed,parent,lineageOrdinal)
+    append edge
+    adjacencyBuild[a].push(id)
+    adjacencyBuild[b].push(id)
+
+SPLIT:
+    old := edge[eid]
+    deactivate old
+    n := addNode(point, Junction)
+    e1 := addEdge(old.a,n,copyMetadata(old), child=0)
+    e2 := addEdge(n,old.b,copyMetadata(old), child=1)
+    return n,e1,e2
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    add duplicate
+    degree
+    split
+    stable IDs insertion order test
+    spatial nearest
+    freeze compact adjacency
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] semantic graph
+    [ ] stable IDs
+    [ ] split lineage
+    [ ] compact artifact
+    [ ] spatial index
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Three.js objects in graph
+    IDs = vector index only
+    unordered adjacency order as semantic
+    global O(E) nearest edge per road growth step
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] semantic graph
+    [ ] stable IDs
+    [ ] split lineage
+    [ ] compact artifact
+    [ ] spatial index
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.1
