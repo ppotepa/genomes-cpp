@@ -1,0 +1,183 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.4 - STATIC_REGION_COLLISION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile/load/unload static terrain and building collision per region with broadphase layers, immutable shapes and safe streaming swaps.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.3_JOLT_JOB_SYSTEM_ADAPTER.txt
+    TARGET::docs/9.5_TERRAIN_PHYSICS_AND_QUERY_REPRESENTATION.txt
+    TARGET::docs/11.9_BUILDING_COLLISION_COMPILER.txt
+    TARGET::docs/6.4_STREAMING_STATE_MACHINE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/include/genomes/physics/RegionCollision.hpp
+    engine/physics/jolt/JoltRegionCollision.cpp
+    tests/native/physics/static_region_collision_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RegionCollisionArtifact groups terrain heightfield shape recipe + building/static shapes with stable semantic IDs and collision chunks.
+
+2. Static Jolt bodies/shapes created on physics owner command phase and mapped to RegionId/chunk. Region unload removes bodies only after no dynamic references/query snapshots depend on them.
+
+3. Large static geometry partitioned by region/chunk to support broadphase and localized rebuild; no single world-wide triangle mesh.
+
+4. Terrain uses HeightFieldShape where suitable; buildings use box/convex/mesh recipes from compiler with material/user data mapping.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement RegionCollisionLoader that converts backend-neutral recipes to cached Jolt Shapes off-step where thread-safe, then enqueues body add commands.
+
+STEP 2
+    Map stable semantic IDs to Body user data table without stuffing raw pointers.
+
+STEP 3
+    Implement stream-in commit and stream-out command with generation token.
+
+STEP 4
+    Implement localized dirty chunk rebuild for TerrainChanged/BuildingChanged events.
+
+STEP 5
+    Test adjacent region seams and dynamic body crossing while neighbor streams in/out under pin policy.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+LOAD REGION:
+    recipes := region.physicsArtifact
+    shapes := parallelCompileShapes(recipes)
+    commandBuffer.add:
+        create static bodies for chunks
+        attach semanticId mapping
+    after step commit residency Physics=true
+
+DIRTY CHUNK:
+    build replacement shape
+    preStep:
+        remove old body
+        add replacement at same semantic mapping
+        increment collision revision
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Jolt body add/remove only outside active Update via physics owner. Shape creation may parallelize if allowed by backend and immutable inputs.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Static body IDs backend-private; semantic mapping stable. Streaming timing does not change world semantics beyond explicitly unloaded query completeness.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Chunk shapes, sleeping dynamic bodies, broadphase static layer. Avoid one body per wall where compound/chunk cheaper and damage policy allows.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Replaces SOURCE Rapier static maps/building proxies after building/destruction parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    terrain collision
+    door opening building collision
+    region load/unload
+    dirty chunk swap
+    cross-region seam
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] region collision artifact
+    [ ] stream safe
+    [ ] localized rebuild
+    [ ] semantic mapping
+    [ ] no world mesh monolith
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one global triangle mesh world
+    body remove during Update
+    raw Building* in Jolt user data
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] region collision artifact
+    [ ] stream safe
+    [ ] localized rebuild
+    [ ] semantic mapping
+    [ ] no world mesh monolith
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.4
