@@ -1,0 +1,194 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 3.4 - CANCELLATION AND JOB GROUPS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Add cooperative cancellation, scoped job groups and generation-safe teardown so
+world/procedural builds can abort without leaking partial work or invalidating
+active state.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.3_PARALLEL_FOR_BATCHING.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/jobs/include/genomes/jobs/CancelToken.hpp
+    engine/jobs/include/genomes/jobs/JobGroup.hpp
+    engine/jobs/src/JobGroup.cpp
+    tests/native/jobs/cancellation_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CancelSource owns atomic cancellation state; CancelToken is copyable read-only view. Cancellation is cooperative, not thread termination.
+
+2. JobGroup owns child-job accounting and optional CancelSource; destroying an active group requires explicit wait/cancel policy, never silent detach.
+
+3. Cancellation does not imply semantic rollback by itself. Procedural transaction chapter owns rollback/commit.
+
+4. Long jobs define bounded cancellation polling interval by work units, not every instruction.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement CancelState atomic flag + optional reason code.
+
+STEP 2
+    Implement CancelSource::cancel(reason) idempotently.
+
+STEP 3
+    Pass token through JobContext and group-submitted jobs.
+
+STEP 4
+    Implement JobGroup submit/add/wait/cancelAndWait with child counter.
+
+STEP 5
+    Define cancellation-aware parallelFor that stops scheduling new batches and lets running batches exit cooperatively.
+
+STEP 6
+    Test partial completion never touches freed group-owned data because wait occurs before teardown.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+JOB:
+    for chunk in work:
+        if ctx.cancelToken.isCancelled():
+            return Cancelled
+        process(chunk)
+
+CANCEL GROUP:
+    group.cancel(reason)
+    group.stopAcceptingNewJobs()
+    group.wait()
+    release group-owned buffers
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    cancel before start
+    cancel during many batches
+    idempotent cancel
+    group wait
+    no submit after sealed group
+    nested group token propagation
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] cooperative cancellation
+    [ ] group teardown safe
+    [ ] idempotent cancel
+    [ ] token propagated
+    [ ] no thread termination
+    [ ] tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    TerminateThread/pthread_cancel
+    destroying shared input while jobs still run
+    treating cancel as successful transaction commit
+    polling global singleton cancel flag
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] cooperative cancellation
+    [ ] group teardown safe
+    [ ] idempotent cancel
+    [ ] token propagated
+    [ ] no thread termination
+    [ ] tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 3.4
