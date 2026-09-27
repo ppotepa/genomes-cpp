@@ -1,0 +1,197 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 6.6 - REGION_PACKAGE_SERIALIZATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define self-contained versioned region packages that can persist semantic/static world products and representation recipes while remaining rebuildable and backend-independent.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.5_SERIALIZATION_SCHEMA_FOUNDATION.txt
+    TARGET::docs/5.5_ARTIFACT_CACHE.txt
+    TARGET::docs/6.3_STATIC_WORLD_DATABASES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/RegionPackage.hpp
+    engine/world/include/genomes/world/RegionPackageIO.hpp
+    engine/world/src/RegionPackageIO.cpp
+    tests/native/world/region_package_tests.cpp
+    reference/schemas/region_package_v1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RegionPackage contains header/provenance, RegionId/coord/bounds, artifact references or embedded selected semantic artifacts, static record pages, compiler recipe refs and dependency fingerprints.
+
+2. Do not serialize live Diligent/Jolt/Recast handles. Render/physics/nav runtime representations are rebuilt from recipes/artifacts or stored in separately versioned backend cache blobs.
+
+3. Package reader validates magic/version/size/content hash and hard resource limits before allocations.
+
+4. Package write is deterministic canonical order and atomic at file level.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define RegionPackageSchema v1 and document in reference/schemas.
+
+STEP 2
+    Implement canonical section table: Metadata, ArtifactRefs, Buildings, RoadsRef, ParcelsRef, VegetationPages, TerrainRef, OptionalDomainSections.
+
+STEP 3
+    Write offsets/lengths with 64-bit bounds checking and per-section hashes if selected.
+
+STEP 4
+    Implement reader lazy section views where practical, plus full validation before publish.
+
+STEP 5
+    Implement package content fingerprint and dependency compatibility check.
+
+STEP 6
+    Roundtrip generated synthetic region package and corruption/fuzz tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+WRITE:
+    sections := buildSectionsInStableTypeOrder()
+    header := {magic,version,regionId,sectionCount}
+    reserve section table
+    for section:
+        align output
+        write canonical bytes
+        record offset,length,hash
+    finalize table
+    atomic write
+
+READ:
+    read header
+    validate version/limits
+    read section descriptors
+    for descriptor:
+        validate offset+length within file
+        verify hash
+    expose immutable package view
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    roundtrip
+    stable byte output twice
+    truncated package
+    bad offset overflow
+    bad section hash
+    unknown optional section skip
+    no backend handle serialization
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] v1 schema documented
+    [ ] deterministic bytes
+    [ ] bounds checked
+    [ ] backend independent
+    [ ] content fingerprint
+    [ ] corruption tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    serializing pointers/handles
+    memory-map trust without bounds validation
+    embedding GPU/physics runtime objects
+    host-endian raw records
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] v1 schema documented
+    [ ] deterministic bytes
+    [ ] bounds checked
+    [ ] backend independent
+    [ ] content fingerprint
+    [ ] corruption tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 6.6
