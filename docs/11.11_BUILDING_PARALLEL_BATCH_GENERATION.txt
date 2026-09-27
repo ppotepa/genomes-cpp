@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.11 - BUILDING_PARALLEL_BATCH_GENERATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Generate thousands of BuildingPlans and representation recipes concurrently with stable seeds, bounded memory and cache reuse, while avoiding shared solver state.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.10_BUILDING_NAV_COMPILER.txt
+    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/AI/Infantry integration except defined compiler contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/src/BuildingBatchGenerator.cpp
+    benchmarks/buildings/building_batch_benchmark.cpp
+    tests/native/buildings/building_parallel_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Each BuildingRequest/BuildingId is independent GenerationGraph subgraph with child SeedPath and ScratchContext. No generator static mutable scratch.
+
+2. Batch output slots indexed/sorted by stable BuildingId. Failed individual building follows explicit city policy: retry with deterministic fallback spec/version, placeholder semantic record, or fail transaction—never silently disappear.
+
+3. Memory concurrency limited by maxInFlightBuildings/scratch budget; scheduler does not start 10k heavy solvers simultaneously if memory budget exceeded.
+
+4. Representation compilers may run after each plan or in separate batches; artifact cache prevents duplicate plan/compiler work.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Semantic plan arrays remain renderer/physics/nav independent. Compiler products are versioned artifacts keyed by BuildingPlan fingerprint.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Audit every building generator helper for shared mutable state; convert to GenerationContext/local scratch.
+
+STEP 2
+    Implement BuildingBatchGenerator using parallelFor/job groups with in-flight semaphore/budget.
+
+STEP 3
+    Derive child seeds from BuildingId, not batch index.
+
+STEP 4
+    Implement deterministic fallback chain with versioned reason codes.
+
+STEP 5
+    Compile render/collision/nav recipes in parallel after frozen plan; destruction structure already part of semantic model.
+
+STEP 6
+    Benchmark 100/1k/10k buildings, worker scaling, peak memory and cache hit scenario.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR request stable list:
+    childSeed := citySeed.child("building", request.id)
+    acquire memory budget token
+    spawn:
+        plan := generate(request,childSeed,scratch)
+        if fail: plan := deterministicFallback(request, reason)
+        validate/freeze
+        in parallel compile render/collision/nav
+        outputs[stableSlot(request.id)] := artifacts
+        release token
+wait all
+verify no missing IDs
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Building plan is immutable. Compilers can run independently/parallel from the same plan revision and publish separate representation artifacts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Compiler failure never mutates BuildingPlan. Return typed errors/ValidationReport and keep prior valid representation if rebuilding.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Compiler output identity derives from plan fingerprint + compiler version/options. Job completion order never changes content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch/merge geometry and queries; cache compiler products by plan hash; avoid one object per architectural micro-feature.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    1 vs N plan hashes
+    interleaved generators isolation
+    memory in-flight cap
+    failure fallback stable
+    cache reuse
+    10k stress
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] no shared generator state
+    [ ] stable seeds
+    [ ] bounded in-flight memory
+    [ ] parallel compilers
+    [ ] scaling benchmark
+    [ ] stress
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one global RNG
+    unbounded tasks with huge scratch
+    dropping failed building without report
+    completion-order output array
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] no shared generator state
+    [ ] stable seeds
+    [ ] bounded in-flight memory
+    [ ] parallel compilers
+    [ ] scaling benchmark
+    [ ] stress
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.11
