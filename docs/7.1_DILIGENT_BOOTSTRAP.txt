@@ -1,0 +1,196 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.1 - DILIGENT_BOOTSTRAP
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create the first native renderer backend using Diligent Engine while preserving a headless build path and keeping every Diligent type below engine/render/diligent.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+    TARGET::docs/6.6_REGION_PACKAGE_SERIALIZATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/CMakeLists.txt
+    engine/render/core/include/genomes/render/RenderBackend.hpp
+    engine/render/diligent/DiligentBackend.hpp
+    engine/render/diligent/DiligentBackend.cpp
+    apps/render_smoke/main.cpp
+    tests/native/render/render_bootstrap_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RenderBackend lifecycle: create(config)->device/context/queues, create surface/swapchain only for windowed app, beginFrame/endFrame, waitIdle, shutdown. Headless/null backend remains possible.
+
+2. Diligent IRenderDevice/IDeviceContext/ISwapChain never appear in public engine/world/module headers.
+
+3. Backend selection is explicit: D3D12 on Windows preferred, Vulkan cross-platform preferred; capability fallback policy is reported, not hidden.
+
+4. Initial window integration may use a minimal platform layer chosen in implementation chapter, but renderer bootstrap must also support offscreen/no-swapchain tests.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Diligent official API documentation
+    DiligentSamples tutorials 1/14/16/18
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Create render core target independent from Diligent and diligent backend target depending on Diligent Core.
+
+STEP 2
+    Define RenderConfig with backend enum, validation/debug flags, framesInFlight, adapter selection optional.
+
+STEP 3
+    Initialize Diligent factory/device/contexts according to official backend path; query adapter/device properties into Genomes capabilities.
+
+STEP 4
+    Implement explicit shutdown ordering: stop submissions, wait idle, release frame resources, swapchain, contexts/device.
+
+STEP 5
+    Create render_smoke drawing clear color/offscreen triangle only; no game scene.
+
+STEP 6
+    Add device-lost/error diagnostic path and tests that render core compiles without backend.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CREATE:
+    backend := choose requested backend
+    factory := diligentFactory(backend)
+    enumerate adapters
+    adapter := select(config)
+    create device + immediate context
+    query features
+    if windowed: create swapchain(surface)
+    return RenderBackend
+
+FRAME:
+    acquire backbuffer
+    transition/clear
+    submit
+    present
+
+SHUTDOWN:
+    stop new frames
+    waitIdle
+    destroy frame resources
+    release swapchain/context/device
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    render core header no Diligent include
+    offscreen backend creation where CI supports
+    capability query
+    clean repeated create/shutdown
+    headless build without render app
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] Diligent isolated
+    [ ] headless preserved
+    [ ] backend capabilities reported
+    [ ] smoke frame/offscreen works
+    [ ] clean shutdown
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Diligent types in modules/world
+    renderer singleton accessed globally
+    forcing window/GPU for headless tests
+    creating gameplay state in render backend
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] Diligent isolated
+    [ ] headless preserved
+    [ ] backend capabilities reported
+    [ ] smoke frame/offscreen works
+    [ ] clean shutdown
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.1
