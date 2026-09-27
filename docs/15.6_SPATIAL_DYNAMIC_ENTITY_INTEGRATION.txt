@@ -1,0 +1,184 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.6 - SPATIAL_DYNAMIC_ENTITY_INTEGRATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Integrate ECS dynamic entities with region/dynamic spatial grids through batched dirty-position updates, enabling scalable perception/query broadphase.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.2_CUSTOM_ARCHETYPE_ECS.txt
+    TARGET::docs/4.5_SPATIAL_HASH_AND_DYNAMIC_GRID.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/SpatialComponents.hpp
+    engine/simulation/src/DynamicSpatialSystem.cpp
+    tests/native/simulation/dynamic_spatial_tests.cpp
+    benchmarks/simulation/dynamic_spatial_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SpatialBounds component contains local/global broadphase radius/AABB class and current spatial membership revision; exact world Transform remains separate.
+
+2. DynamicSpatialSystem runs after movement/physics commit, collects entities whose spatial cell/bounds changed and emits batched remove/insert/update to region grids.
+
+3. Cross-region movement transfers membership atomically at commit; query snapshot never sees entity absent from both due to half update.
+
+4. Query returns EntityId candidates; caller validates generation/alive/filter and narrow-phase distance/FOV.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Add SpatialBounds/SpatialMembership generic components.
+
+STEP 2
+    Mark spatial dirty when transform moves beyond cached cell/bounds tolerance; avoid update for movement within same cells.
+
+STEP 3
+    Batch updates by old/new RegionId then apply under world spatial commit.
+
+STEP 4
+    Handle cross-region: insert new then publish membership/removal order according snapshot ownership so query consistency defined.
+
+STEP 5
+    Expose through WorldQuery dynamic candidate route.
+
+STEP 6
+    Benchmark 10k/100k moving entities at different cell sizes/densities.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SYSTEM:
+    parallelFor transform chunks:
+        if cellsFor(newBounds) != membership.cells:
+            localCommands.push(SpatialMove(entity,old,new))
+
+COMMIT:
+    group moves by region
+    for move:
+        validate entity generation
+        update grids
+        membership := new cells/region
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Detection jobs read ECS and write local commands. Grid mutation owned by spatial commit stage; query snapshots read immutable/stable grid revision.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Grid membership not semantic ordering. Candidate stable sort only for consumers requiring deterministic order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Skip same-cell updates, local buckets, benchmark cell size; broadphase replaces O(N²).
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    same-cell no update
+    cross-cell
+    cross-region
+    stale entity
+    query brute-force parity
+    100k benchmark
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] ECS-grid bridge
+    [ ] dirty-only updates
+    [ ] cross-region safe
+    [ ] WorldQuery candidates
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    rebuild whole grid every tick
+    N² perception candidate scan
+    raw component pointer stored in grid
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] ECS-grid bridge
+    [ ] dirty-only updates
+    [ ] cross-region safe
+    [ ] WorldQuery candidates
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.6
