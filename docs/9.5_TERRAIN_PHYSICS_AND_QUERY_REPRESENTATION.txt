@@ -1,0 +1,167 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.5 - TERRAIN_PHYSICS_AND_QUERY_REPRESENTATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile heightfield terrain into physics/query representations and shared collision/ground sampling without triangle-mesh duplication where backend heightfield support is appropriate.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.1_TERRAIN_SEMANTIC_MODEL.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Ground height used by movement, ballistics and render derives from same authoritative terrain artifact.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/terrain/physics/TerrainPhysicsRecipe.hpp
+    modules/terrain/world/TerrainQueryProvider.hpp
+    tests/native/terrain/terrain_query_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. WorldQuery terrain height/normal reads HeightFieldArtifact directly for cheap samples; physics collision is separate compiled representation for dynamic bodies.
+
+2. Physics recipe stores dimensions/cell size/heights or backend-neutral heightfield ref, not Jolt objects.
+
+3. Terrain modifications invalidate affected physics/nav tiles by bounds/revision; entire world is not rebuilt.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement TerrainQueryProvider over HeightFieldArtifact and hook WorldQuerySnapshot.
+
+STEP 2
+    Define physics heightfield recipe and region bounds.
+
+STEP 3
+    Implement dirty rectangle calculation for TerrainPatch differences.
+
+STEP 4
+    Emit representation invalidation events for physics/nav compilers.
+
+STEP 5
+    Test query/physics recipe heights align at sampled points.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+APPLY PATCH:
+    newArtifact := compile(base,patch)
+    dirtyBounds := patch.bounds expanded by normal/collision margin
+    emit TerrainChanged(region,oldRevision,newRevision,dirtyBounds)
+    physics.enqueueRebuild(dirtyBounds)
+    nav.enqueueDirty(dirtyBounds)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Queries read immutable height artifacts; physics recipe rebuild jobs read same artifact revision.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Terrain query results tied to artifact revision, not physics simulation timing.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Routine height query O(1); no physics raycast required for every foot/AI terrain sample.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserves SOURCE direct height sampling advantage and removes coupling to render geometry.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    WorldQuery terrain sample
+    dirty bounds
+    patch revision
+    physics recipe sample parity
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] O(1) query
+    [ ] shared artifact revision
+    [ ] backend-neutral physics recipe
+    [ ] localized invalidation
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raycast for routine terrain height
+    physics body as height authority
+    full-world rebuild for small patch
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] O(1) query
+    [ ] shared artifact revision
+    [ ] backend-neutral physics recipe
+    [ ] localized invalidation
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.5
