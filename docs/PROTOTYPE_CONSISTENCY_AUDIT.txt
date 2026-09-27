@@ -273,3 +273,95 @@ After placeholder repair:
     - no C++ implementation should start from an affected chapter before its
       correction is committed.
 
+
+
+======================================================================
+5. ADDITIONAL RNG / VERSIONING FINDINGS
+======================================================================
+
+E. INFANTRY GENOME COMPATIBILITY STREAMS
+
+SOURCE::js/units/infantryGenome.js uses three fixed historical streams:
+
+    base:
+        SeededRandom(seed)
+
+    body:
+        SeededRandom(seed XOR 0x8b7a3d11)
+
+    face:
+        SeededRandom(seed XOR 0x51f15e37)
+
+Gene draw order inside each stream is part of exact seeded identity.
+
+Correction:
+    0.5/5.1 define ALG-RNG-INFANTRY-GENOME32-001.
+    18.2 requires exact compatibility before any versioned child-stream redesign.
+
+
+F. EQUIPMENT HASH IS NOT GENERIC SEEDTREE
+
+SOURCE::js/equipment/equipment.js uses a custom FNV-like hash plus two avalanche
+multiplications, then Mulberry32.
+
+Correction:
+    ALG-RNG-EQUIPMENT-HASH32-001 records exact formula.
+    18.5 now uses it for schema-v1 parity and reserves SeedTree redesign for a
+    new equipment version.
+
+
+G. FACE ANIMATION RANDOM STREAM
+
+SOURCE FaceAnimator uses one sequential:
+    SeededRandom(seed XOR 0x9e3779b9)
+
+for blink/attention/saccade events.
+
+Correction:
+    18.8 preserves this for SOURCE face-expression-1.1.0 parity.
+    Event-indexed streams remain a native improvement only under a new explicit
+    face-animation version.
+
+
+H. SOURCE GLOBAL GENERATOR VERSION LEAKS
+
+SOURCE version.json defines:
+    environmentGeneratorVersion = plants-1.0.0
+    generator/buildingGeneratorVersion = building-6.0.0
+    animationVersion = continuous-biped-1.0.0+weapon-handling-1.1.0+face-expression-1.1.0
+
+But current SOURCE code has accidental use of global R.Config.GENERATOR_VERSION
+(building-6.0.0) in at least:
+    InfantryGenome.express().generatorVersion
+    plantGenerator skeleton cache version fallback/use
+
+TARGET must NOT preserve this coupling as architecture.
+
+Correction:
+    separate version domains are required for vegetation, Infantry genome/
+    phenotype, rig, appearance, animation, buildings and other generators.
+    Legacy mismatched global value is retained only as provenance where a SOURCE
+    cache/fixture historically contained it.
+
+
+======================================================================
+6. UPDATED AUDIT STATUS
+======================================================================
+
+Corrections applied so far:
+    rational fixed tick / first-alpha SOURCE behavior
+    multiple legacy RNG derivations
+    building definition conflict registry
+    mathematical reference typo
+    Stage 9 DATA LAYOUT placeholders
+    Stage 12 DATA LAYOUT placeholders
+    Stage 15 DATA LAYOUT placeholders
+    vegetation generator version-domain correction
+    Infantry/equipment/face compatibility seed rules
+
+Further audit still checks:
+    exact SOURCE file coverage,
+    remaining version-domain leaks,
+    algorithm references,
+    integration assumptions.
+

@@ -51,7 +51,14 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Face identity/neutral baseline belongs to phenotype/genome. Runtime FaceState contains expression weights, gaze target, blink/saccade timers and smoothing state; it never mutates genome.
 
-2. Blink/saccade random events use dedicated stable substreams/event counters so sleeping/skipping an already-settled spring does not change future event sequence.
+2. SOURCE face-expression-1.1.0 compatibility uses one sequential
+LegacyMulberry32(uint32(seed XOR 0x9e3779b9)) stream, consumed by blink,
+attention and saccade scheduling.
+
+TARGET may introduce dedicated event-indexed substreams because they are more
+robust under variable cadence/sleep, but this MUST be a new face-animation
+algorithm version. It must not be reported as exact SOURCE random-sequence
+parity.
 
 3. Output is PoseDelta/FacialChannels: bone/controller rotations plus morph weights eyelidsClose/eyelidsArc and other explicitly supported channels; no direct mesh mutation.
 
@@ -75,6 +82,8 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
+    ALG-RNG-FACE-ANIMATOR32-001
+    ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-SEED-TREE-001
 
 ======================================================================
@@ -116,13 +125,18 @@ STEP 8
 ======================================================================
 PSEUDOCODE
 ======================================================================
-EVENT STREAM:
-    blinkStream := SeedTree(unitSeed).child("face/blink")
-    blinkIndex := state.blinkEventIndex
-    nextBlinkDelay := sample(blinkStream.event(blinkIndex))
-    when timer crosses event:
-        start blink
-        blinkEventIndex++
+SOURCE COMPATIBILITY EVENT STREAM:
+    random := LegacyMulberry32(unitSeed XOR 0x9e3779b9)
+    // Preserve SOURCE call order for face-expression-1.1.0 fixtures.
+    nextBlink := sourceRandomBlinkDelay(random, phenotype)
+    nextAttention := .55 + random.next()*1.15
+    nextSaccade := sourceRandomSaccadeDelay(random, phenotype)
+    subsequent events consume the same sequential stream as SOURCE.
+
+NATIVE VERSIONED EVENT STREAM (new algorithm version only):
+    stream := SeedTree(unitSeed).child("face/events")
+    eventValue := stream.event(stableEventKind,eventIndex)
+    // cadence/sleep-independent, but not exact legacy sequence
 
 EXPRESSION:
     target[channel] := neutral[channel]
@@ -150,7 +164,12 @@ Nonfinite target/weights rejected or sanitized at intent boundary with diagnosti
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Event-indexed RNG prevents cadence/sleep from consuming different random sequence. Same ticks/intents => same semantic channels.
+Compatibility version preserves SOURCE sequential stream/call order exactly.
+Its cadence optimization must not skip RNG-consuming event transitions.
+
+A newer version may use event-indexed RNG to make cadence/sleep independent.
+Same version + ticks/intents must produce stable channels, and version must be
+part of artifact/state/parity metadata.
 
 ======================================================================
 PERFORMANCE RULES
@@ -166,6 +185,8 @@ Preserve SOURCE expression labels/behavior and selected fixture outputs; rendere
 TESTS TO ADD
 ======================================================================
     expression blend
+    SOURCE sequential blink/attention/saccade sequence
+    native versioned event-index sequence
     blink sequence
     saccade sequence
     world look clamp

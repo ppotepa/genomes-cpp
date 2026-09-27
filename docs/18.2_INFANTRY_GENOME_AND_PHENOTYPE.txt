@@ -61,6 +61,17 @@ PUBLIC CONTRACTS
 
 5. Phenotype artifact is immutable and cacheable by genome/version/override hash.
 
+6. Version domains are explicit. TARGET must not copy the SOURCE accident where
+InfantryGenome.express() reports R.Config.GENERATOR_VERSION and that global value
+is currently building-6.0.0. Native code defines independent versions for:
+    InfantryGenome schema/generator
+    Phenotype resolver
+    Rig
+    Appearance/surface generator
+and records them in fixtures/artifacts. SOURCE docs identify the current
+Infantry generator family as infantry-5.0.0; the mismatched runtime global is
+recorded as legacy provenance, not adopted as native identity.
+
 ======================================================================
 DATA LAYOUT
 ======================================================================
@@ -77,6 +88,8 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
+    ALG-RNG-INFANTRY-GENOME32-001
+    ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-SEED-TREE-001
 
 ======================================================================
@@ -96,7 +109,23 @@ STEP 1
     Inventory all SOURCE genome fields/categories and assign stable schema IDs/defaults/ranges.
 
 STEP 2
-    Port seeded genome generation with compatibility stream or versioned native stream per fixture decision.
+    Implement exact SOURCE InfantryGenome compatibility generation before any
+    native RNG redesign:
+
+        heightGene/speedGene:
+            LegacyMulberry32(seed)
+
+        body genes:
+            LegacyMulberry32(seed XOR 0x8b7a3d11)
+
+        face genes:
+            LegacyMulberry32(seed XOR 0x51f15e37)
+
+    Preserve the exact SOURCE draw order inside each stream for
+    infantry-5.0.0 fixtures.
+
+    A semantic child-stream redesign is allowed only under a new explicit
+    InfantryGenome generator version.
 
 STEP 3
     Implement applyVariation including exact zero behavior and explicit finite validation.
@@ -151,7 +180,12 @@ Nonfinite overrides/ranges return validation error with gene name. Resolver infe
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Named SeedPath streams and stable gene schema order. Same artifact key identical regardless of worker scheduling.
+SOURCE compatibility for infantry-5.0.0 uses the exact sequential legacy
+streams and exact gene draw order from ALG-RNG-INFANTRY-GENOME32-001.
+
+Canonical future native versions may use named SeedPath streams, but only after
+a generator-version bump and parity report. Same artifact key is independent of
+worker scheduling in either mode.
 
 ======================================================================
 PERFORMANCE RULES

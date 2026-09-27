@@ -50,7 +50,15 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Equipment data is not genome. Equipment seed derives from unit seed via separate domain stream EQUIPMENT/version; slot variant derives from stable slot+definition identity, not iteration order.
+1. Equipment data is not genome. For SOURCE equipment schema v1, exact
+compatibility seed derivation is ALG-RNG-EQUIPMENT-HASH32-001:
+
+    equipmentSeed = hash(unitSeed, "EQUIPMENT/v1")
+    slot choice seed = hash(equipmentSeed, "slot/" + slot)
+    item variant seed = hash(equipmentSeed, slot + "/" + definitionId)
+
+The resulting random draws use LegacyMulberry32. A canonical native SeedTree
+replacement is allowed only under a new Equipment seed/schema version.
 
 2. Equipment catalog/loadouts are immutable data. Overrides explicitly replace profile slots, including null for optional empty. Required clothing null resolves documented base layer policy.
 
@@ -74,6 +82,8 @@ MATHEMATICAL CONTRACTS
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
+    ALG-RNG-EQUIPMENT-HASH32-001
+    ALG-RNG-MULBERRY32-LEGACY-001
     ALG-RNG-SEED-TREE-001
 
 ======================================================================
@@ -122,16 +132,34 @@ STEP 9
 ======================================================================
 PSEUDOCODE
 ======================================================================
-RESOLVE EQUIPMENT:
-    equipmentSeed := seedTree(unitSeed).child("EQUIPMENT", version)
+RESOLVE EQUIPMENT - SOURCE SCHEMA V1:
+    equipmentSeed := LegacyEquipmentHash32(unitSeed, "EQUIPMENT/v1")
     slots := profile.defaults
-    for slot in canonicalSlotOrder:
+
+    for slot in SOURCE slotSchema enumeration order:
+        choiceSeed := LegacyEquipmentHash32(equipmentSeed, "slot/" + slot)
+        choiceRng := LegacyMulberry32(choiceSeed)
+        choose profile alternative if array
+
         if override exists:
-            slots[slot] := override.value  // may be null
+            item := override.value  // may be null
+
         if item:
-            itemSeed := child(equipmentSeed, slot, item.definitionId)
-            variant := generateVariant(itemSeed)
+            itemSeed :=
+                LegacyEquipmentHash32(
+                    equipmentSeed,
+                    slot + "/" + item.definitionId
+                )
+
+            variantRng := LegacyMulberry32(itemSeed)
+            variant.size   := .965 + variantRng.next()*.07
+            variant.shade  := .92  + variantRng.next()*.13
+            variant.detail := variantRng.next()
+
             validate item allowed in slot
+
+A future native schema may canonicalize slot iteration and derive semantic child
+streams, but that change requires a new equipment seed/schema version.
 
 FIT ITEM:
     bindPoint := fit.semanticPoint(item.kind, slot, phenotype, skeleton)
@@ -152,7 +180,13 @@ Unknown ID/incompatible slot/nonfinite seed/options -> explicit error before com
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Canonical slots and separate domain streams mean adding unrelated slot does not reroll existing item/body. Side palette color does not alter item identity seed.
+For exact SOURCE schema v1, preserve EquipmentHash32 and the observed slot
+resolution semantics. Item variant seed is isolated by slot+definition, so
+unrelated item variants do not reroll each other.
+
+A later native schema may strengthen slot-order independence with canonical
+slot ordering/SeedPath, but must use a new version. Side palette color does not
+alter item identity seed.
 
 ======================================================================
 PERFORMANCE RULES
@@ -169,6 +203,8 @@ TESTS TO ADD
 ======================================================================
     all loadouts resolve
     slot overrides/null
+    exact EquipmentSeed.fromUnit vectors
+    exact slot-choice/item-variant hash vectors
     seed isolation
     genome independence
     fit finite for phenotype extremes
