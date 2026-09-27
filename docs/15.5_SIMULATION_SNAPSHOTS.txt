@@ -1,0 +1,183 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.5 - SIMULATION_SNAPSHOTS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define authoritative read snapshots, previous/current state interpolation data and publication to presentation without copying all ECS state every tick.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
+    TARGET::docs/7.6_PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/SimulationSnapshot.hpp
+    engine/simulation/include/genomes/simulation/SnapshotBuilder.hpp
+    engine/simulation/src/SnapshotBuilder.cpp
+    tests/native/simulation/snapshot_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SimulationSnapshot is not full ECS clone by default. It is immutable published view/package of selected components/state revisions needed by consumers (render, replay/hash, async queries).
+
+2. Hot transform interpolation stores previous/current transform or sample pair per relevant entity, updated at fixed tick commit; render computes alpha separately.
+
+3. Snapshot has SimulationTick, world/ecs revision, region origin/rebase revision and stable entity presentation records.
+
+4. Replay/checksum snapshot uses separate canonical serialization of authoritative components, not presentation record hash.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define component revision/dirty tracking hooks for snapshot extraction.
+
+STEP 2
+    Implement transform PreviousCurrent component or extraction cache updating old=current before simulation write/commit according fixed tick.
+
+STEP 3
+    Build PresentationSnapshot delta directly from dirty presentation components after commit.
+
+STEP 4
+    Define AuthoritativeStateHash input registry for later determinism tests: stable entity order by Persistent/Entity ID, canonical component serialization.
+
+STEP 5
+    Implement snapshot exchange integration.
+
+STEP 6
+    Test interpolation across tick and entity create/destroy.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TICK BEGIN:
+    for transform dirty last tick:
+        previous := current
+
+SYSTEMS/PHYSICS update current
+
+COMMIT:
+    apply commands
+    build dirty presentation records
+    publish snapshot(tick,current,previous)
+
+STATE HASH:
+    entities := stable sort semantic IDs
+    serialize selected authoritative components canonical
+    contentHash
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Snapshot building reads committed state. Published data immutable; renderer never reads live ECS.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Authoritative hash stable order/canonical bytes; presentation interpolation not authoritative.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Dirty extraction, not full copy. Transform sample data compact.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    previous/current interpolation
+    create/destroy snapshot
+    dirty-only extraction
+    state hash stable row reorder
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] immutable snapshots
+    [ ] dirty extraction
+    [ ] state hash independent chunk order
+    [ ] render separation
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    memcpy full ECS every frame
+    hash chunk memory/padding
+    renderer live component pointers
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] immutable snapshots
+    [ ] dirty extraction
+    [ ] state hash independent chunk order
+    [ ] render separation
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.5
