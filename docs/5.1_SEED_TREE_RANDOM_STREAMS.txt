@@ -51,7 +51,9 @@ PUBLIC CONTRACTS
 versioned. SOURCE does not use one universal derivation scheme.
 
 Required compatibility adapters:
-    LegacyMulberry32
+    LegacyCoreSeededRandomJS
+    LegacyBuildingMulberry32
+    LegacyCityMulberry32
     LegacyBuildingDeriveSeed32
     LegacyCitySeedTree32
     LegacyPlantLabelStream32
@@ -119,7 +121,19 @@ STEP 3
     Implement PCG32 canonical stream with published reference constants and golden vectors; record primary PCG source in 0.5 if missing.
 
 STEP 4
-    Implement LegacyMulberry32 exact 32-bit JS semantics for parity fixtures.
+    Implement the SOURCE Mulberry family as explicit compatibility adapters:
+
+        LegacyCoreSeededRandomJS
+        LegacyBuildingMulberry32
+        LegacyCityMulberry32
+
+    Share the mixer implementation where proven equivalent, but preserve each
+    caller's state-storage/coercion semantics and freeze golden vectors from the
+    actual SOURCE implementation.
+
+    A single uint32 adapter may be used for bounded fixtures only if tests prove
+    the fixture stream never reaches a divergence point and the fixture metadata
+    records that compatibility scope.
 
 STEP 5
     Implement the known SOURCE seed-derivation compatibility paths:

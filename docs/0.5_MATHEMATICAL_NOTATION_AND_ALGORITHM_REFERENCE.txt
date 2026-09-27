@@ -2123,22 +2123,53 @@ They do not replace the canonical versioned native SeedTree.
 
 ALG-RNG-MULBERRY32-LEGACY-001
 
-SOURCE references:
+SOURCE family references:
     SOURCE::js/core/seededRandom.js
     SOURCE::js/buildings/buildingRandom.js
+    SOURCE::prototypes/procedural-city/index.html
 
-32-bit state:
+The output mixer is the Mulberry32 family, but SOURCE has small state-storage
+differences that MUST be distinguished for exact compatibility:
+
+A. LegacyCoreSeededRandomJS
+   SOURCE::js/core/seededRandom.js
+
+    state is a JavaScript Number initialized with seed >>> 0.
+
+    next():
+        state = state + 0x6D2B79F5      // no explicit uint32 assignment
+        t = ToInt32(state) for bitwise operations
+        t = imul(t XOR (t >>> 15), t OR 1)
+        t = t XOR [t + imul(t XOR (t >>> 7), t OR 61)]
+        u = uint32(t XOR (t >>> 14))
+        return u / 2^32
+
+   For ordinary generator stream lengths below JavaScript integer precision
+   limits, this produces the same low-32-bit sequence as uint32 wrapping.
+   An EXACT adapter claiming arbitrary-length JS parity should model the
+   JavaScript Number/ToInt32 semantics rather than silently assuming uint32
+   state forever.
+
+B. LegacyBuildingMulberry32
+   SOURCE::js/buildings/buildingRandom.js
+
     state := uint32(seed)
+    each next explicitly:
+        state := uint32(state + 0x6D2B79F5)
+    then applies the same mixer.
 
-next():
-    state := uint32(state + 0x6D2B79F5)
-    t := imul(state XOR (state >>> 15), state OR 1)
-    t := t XOR [t + imul(t XOR (t >>> 7), t OR 61)]
-    u := uint32(t XOR (t >>> 14))
-    return u / 2^32
+C. LegacyCityMulberry32
+   SOURCE::prototypes/procedural-city/index.html
 
-The C++ implementation MUST emulate JavaScript uint32/Math.imul wrap semantics
-exactly for compatibility fixtures.
+    a := uint32(seed)
+    each next begins:
+        a := ToInt32(a)
+        a := ToInt32(a + 0x6D2B79F5)
+    then applies the equivalent mixer.
+
+For all migration fixtures, freeze golden vectors from the exact SOURCE caller
+and adapter family. Do not use the generic label "LegacyMulberry32" alone when
+the state-storage distinction matters.
 
 
 ALG-RNG-BUILDING-DERIVE32-001

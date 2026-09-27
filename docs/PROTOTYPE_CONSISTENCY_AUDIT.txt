@@ -440,3 +440,29 @@ Current SOURCE WeaponCatalog entries:
 Correction:
     19.1 explicitly preserves knife and grenade as non-firearm one-handed
     catalog entries instead of implicitly focusing only on firearm ballistics.
+
+
+======================================================================
+9. LEGACY MULBERRY STATE-STORAGE DETAIL
+======================================================================
+
+L. SOURCE RNG FAMILY IS NOT LITERALLY ONE STATE IMPLEMENTATION
+
+SOURCE::js/core/seededRandom.js:
+    this.state += constant
+    // state remains JavaScript Number
+
+SOURCE::js/buildings/buildingRandom.js:
+    this.state = (this.state + constant) >>> 0
+
+SOURCE::prototypes/procedural-city/index.html:
+    a |= 0
+    a = (a + constant) | 0
+
+The mixer/output are equivalent for normal bounded generator streams, but an
+unqualified statement that all three are "exact uint32 Mulberry32" is stronger
+than SOURCE actually guarantees for arbitrarily long streams.
+
+Correction:
+    0.5/5.1 now distinguish Core/Building/City legacy adapters.
+    Golden vectors must be generated from the actual SOURCE caller.
