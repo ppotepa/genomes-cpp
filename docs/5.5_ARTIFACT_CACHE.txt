@@ -1,0 +1,202 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.5 - ARTIFACT_CACHE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement bounded in-memory and disk-ready artifact caching keyed by exact generator/input/dependency provenance, with collision-safe content fingerprints and explicit eviction.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.3_VERSIONED_ARTIFACTS.txt
+    TARGET::docs/2.5_SERIALIZATION_SCHEMA_FOUNDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/ArtifactCache.hpp
+    engine/proc/include/genomes/proc/CacheKey.hpp
+    engine/proc/src/ArtifactCache.cpp
+    tests/native/proc/artifact_cache_tests.cpp
+    benchmarks/proc/artifact_cache_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CacheKey includes artifact type, generator ID/version, schema version, normalized input fingerprint, sorted dependency fingerprints, seed derivation version and relevant build/platform recipe version only when output truly platform-dependent.
+
+2. Select BLAKE3 as canonical content fingerprint if dependency/license review passes; otherwise use another explicitly versioned >=128-bit content hash. StableHash64 is not sufficient as sole artifact integrity key.
+
+3. In-memory cache has byte budget + LRU/clock eviction; pinned/in-use artifacts are not evicted. Disk cache format uses atomic temp-write + rename and validates header/fingerprint before publish.
+
+4. Cache miss/failure is not generator failure: regenerate unless artifact is explicitly required offline.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Add selected content-hash dependency under 1.2 policy and record license/version.
+
+STEP 2
+    Implement CacheKey canonical serialization before hashing; no host struct bytes.
+
+STEP 3
+    Implement memory cache with retainedBytes accounting, hit/miss/evict metrics and explicit pin/view lifetime.
+
+STEP 4
+    Implement disk-cache interface and file naming by fingerprint; disk backend may be minimal but atomicity/checksum tests required.
+
+STEP 5
+    Reject artifact whose recomputed fingerprint mismatches header.
+
+STEP 6
+    Implement version namespace so generator/schema changes cannot accidentally reuse old cache.
+
+STEP 7
+    Benchmark 100k key lookups, LRU churn and disk metadata scan separately.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+LOOKUP(key):
+    fp := contentHash(canonicalEncode(key))
+    if memory.contains(fp):
+        touchLRU(fp); return hit
+    if disk.enabled:
+        bytes := disk.read(fp)
+        if validateHeaderAndHash(bytes):
+            artifact := deserialize(bytes)
+            memory.insert(fp, artifact)
+            return hit
+    return miss
+
+STORE:
+    bytes := canonicalSerialize(artifact)
+    fp := contentHash(bytes.payload)
+    write temp
+    fsync/close according policy
+    atomicRename(temp, final)
+    memory.insert(fp, artifact)
+    evictUntilWithinBudget()
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    same key hit
+    version change miss
+    dependency-order normalization
+    content corruption rejection
+    LRU budget
+    pinned object not evicted
+    atomic temp file recovery
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] versioned content hash
+    [ ] canonical cache key
+    [ ] bounded memory
+    [ ] collision/integrity validation
+    [ ] atomic disk write
+    [ ] metrics
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    seed-only cache keys
+    StableHash64 as sole large-content fingerprint
+    unbounded session cache
+    trusting filename without payload verification
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] versioned content hash
+    [ ] canonical cache key
+    [ ] bounded memory
+    [ ] collision/integrity validation
+    [ ] atomic disk write
+    [ ] metrics
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.5
