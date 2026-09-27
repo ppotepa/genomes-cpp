@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.7 - VARIABLE_CADENCE_SYSTEMS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement simulation cadence policies so expensive sense/AI/animation-adjacent systems run at appropriate rates while authoritative clocks and event time remain coherent.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.3_SYSTEM_SCHEDULING.txt
+    TARGET::docs/2.2_TIME_CLOCKS_AND_FIXED_TICKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/Cadence.hpp
+    engine/simulation/src/CadenceScheduler.cpp
+    tests/native/simulation/cadence_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. CadencePolicy = EveryTick, EveryNTicks, FrequencyHz mapped to integer tick pattern, AdaptiveTier selected by semantic activity/distance/visibility policy. Tick skipping never pauses entity's world time.
+
+2. Per-entity/system due scheduling uses nextDueTick/phase bucket, not accumulating float dt.
+
+3. Camera visibility may affect presentation cadence; authoritative tactical simulation cadence may use relevance/activity but cannot make outcomes camera-dependent unless explicitly nonauthoritative.
+
+4. When a low-rate system runs, elapsedTicks since last run is passed so timers/integration can advance correctly or system uses event timestamps.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/world/unitPresentationScheduler.js
+    SOURCE::js/ai/battlefieldAIManager.js
+    SOURCE::tests/visual_cadence_scheduler.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement fixed integer EveryNTicks and rational frequency schedule relative to 60 Hz.
+
+STEP 2
+    Implement stagger offset from stable EntityId hash so 10k agents do not all sense same tick.
+
+STEP 3
+    Implement cadence tier component/state changed only by authoritative relevance policy (combat/proximity/world region activity), not render camera.
+
+STEP 4
+    System scheduler filters chunks/entities due; batch by bucket.
+
+STEP 5
+    Add catch-up policy: do not execute missed AI ticks repeatedly after region wake; advance logical elapsed and one update unless subsystem explicitly requires replay.
+
+STEP 6
+    Port SOURCE visual cadence principle separately into presentation; keep authoritative distinction tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DUE:
+    period := cadence.periodTicks
+    phase := stableHash(entityId) % period
+    return (tick % period) == phase
+
+RUN:
+    elapsed := tick - state.lastRunTick
+    system.update(entity, elapsedTicks=elapsed)
+    state.lastRunTick := tick
+
+TIER:
+    if inCombat: period=1 or tactical configured
+    else if activeRegion: period=6
+    else dormant: period=30/aggregate
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Cadence selection can parallel read relevance state; nextDue/lastRun writes owned by system component chunk.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stagger phase stable from entity ID; never wall-clock. Camera not authoritative.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Measure agent updates/tick distribution, avoid bursts, support sleep/dormant regions.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    period/stagger
+    10k distribution
+    elapsed ticks
+    tier change
+    camera independence
+    dormant wake
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] integer tick cadence
+    [ ] stable staggering
+    [ ] elapsed time explicit
+    [ ] authoritative relevance separate camera
+    [ ] burst benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    float accumulators for each AI if tick buckets suffice
+    all agents same phase
+    camera hides AI/simulation decisions
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] integer tick cadence
+    [ ] stable staggering
+    [ ] elapsed time explicit
+    [ ] authoritative relevance separate camera
+    [ ] burst benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.7
