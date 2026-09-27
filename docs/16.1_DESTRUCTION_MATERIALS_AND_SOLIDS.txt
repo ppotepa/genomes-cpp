@@ -1,0 +1,221 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.1 - DESTRUCTION_MATERIALS_AND_SOLIDS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port the semantic destruction material/solid model into native C++ while
+preserving layered assemblies, explicit voids/air gaps, material frames,
+physicalSolidId semantics and gameplay-calibrated material behavior.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.7_STRUCTURAL_AND_MATERIAL_MODEL.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE contracts material-assembly-1, ordered layers, explicit air gaps,
+physicalSolidId continuity, local material frames, seed-stable local material
+sampling and the rule that coefficients are game-model parameters rather than
+certified real-world ballistic data.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/CMakeLists.txt
+    modules/destruction/include/genomes/destruction/MaterialCatalog.hpp
+    modules/destruction/include/genomes/destruction/MaterialAssembly.hpp
+    modules/destruction/include/genomes/destruction/Solid.hpp
+    modules/destruction/include/genomes/destruction/MaterialField.hpp
+    modules/destruction/src/MaterialCatalog.cpp
+    modules/destruction/src/MaterialAssembly.cpp
+    tests/native/destruction/material_solid_tests.cpp
+    reference/schemas/material_assembly_v1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. MaterialId identifies a versioned gameplay material profile. MaterialProfile stores density, elastic/plastic/crush/fracture response parameters, porous/packing behavior, surface response categories and calibration metadata. Every value carries provenance class: measured-reference, derived, or gameplay-tuned.
+
+2. MaterialAssembly exposes assemblyId, physicalSolidId, local MaterialFrame {origin,normal,tangent,bitangent}, ordered MaterialLayer intervals and explicit Air/Void intervals. A contiguous technical mesh split sharing one physicalSolidId does not create a new physical interface.
+
+3. Layer interval start/end are scalar distances along MaterialFrame.normal. Traversal from opposite direction reverses encounter order but does not redefine layer locations. Undeclared gaps are treated according explicit assembly validation policy, never silently filled with material.
+
+4. MaterialField provides bounded deterministic local variation (strength/density/porosity/etc.) sampled in material-local coordinates from a stable seed. Rotation/translation of the world object must not change local material pattern.
+
+5. Solid/StructuralPart carries stable semantic IDs, assembly/material refs, immutable base geometry/topology, current DamageField handle/revision and dynamic representation state. Rendering/physics bodies are not the source of destruction truth.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Material catalog is immutable SoA/cold data. MaterialAssembly stores small ordered layer vector. MaterialField parameters are compact analytic/noise descriptors; no dense voxel field unless a later profile explicitly chooses one. Solid records reference geometry/artifact IDs and damage state by stable handles.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    DATA-COORD-001
+    MATH-VEC-DOT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::docs/destruction/data-sources.md
+    SOURCE::docs/destruction/material-response-calibration.json
+    SOURCE::js/destruction/catalogs.js
+    SOURCE::js/destruction/materialModel.js
+    SOURCE::js/destruction/solid.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define MaterialProfile schema and import current SOURCE material IDs/parameters with explicit calibration/provenance fields; do not relabel gameplay coefficients as engineering constants.
+
+STEP 2
+    Define MaterialFrame transform helpers world<->material local and test rotation/translation equivariance.
+
+STEP 3
+    Define MaterialLayer/Assembly validation: monotonic intervals, positive thickness for solids, explicit void/air, stable physicalSolidId, no NaN/overlap ambiguity.
+
+STEP 4
+    Implement deterministic MaterialField sample(localPoint, property) using SeedPath/StableHash child streams or analytic noise; sampling must not mutate RNG state.
+
+STEP 5
+    Define Solid/StructuralPart semantic record and immutable base-shape reference suitable for building structural elements and generic test fixtures.
+
+STEP 6
+    Add canonical serialization schemas/fixtures and SOURCE parity cases: single layer, layered wall, two glass panes with air gap, technical sections same physicalSolidId.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TRACE ASSEMBLY INTERVALS:
+    localStart := dot(worldStart - frame.origin, frame.normal)
+    localEnd   := dot(worldEnd   - frame.origin, frame.normal)
+    direction := sign(localEnd-localStart)
+
+    intervals := assembly.layers sorted by start
+    if direction < 0:
+        iterate reversed
+
+    for layer in intervals intersecting [min,max]:
+        travel := intersectionLength(segmentInterval, layer.interval)
+        if layer.kind == Air/Void:
+            resistance := 0
+        else:
+            localPoint := frame.toLocal(contactPoint)
+            sampled := materialField.sample(localPoint)
+            emit Traversal(layer, travel, sampled)
+
+MATERIAL FIELD:
+    key := stableHash(materialField.seed, quantized/local semantic coordinate, propertyId)
+    variation := deterministicNoise(key)
+    return baseProperty * boundedVariation(variation)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Material catalogs/assemblies are immutable after publication. Solid damage mutation is staged through destruction command buffers; workers read immutable geometry/material frames and write local impact results.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid assembly returns ValidationReport with stable codes (overlap, missing frame, negative thickness, nonfinite). Missing optional calibration data selects documented gameplay default; missing required material ID is hard error.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Material sampling depends only on local coordinates, seed and material-field version. World transform, worker count and trace direction do not change intrinsic sampled material values.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Layer traversal O(layer count), normally very small. MaterialField analytic sampling avoids allocating dense fields. Spatial broadphase belongs to 17.2/physics/world indexes, not material assembly scans.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Port current SOURCE values under explicit native catalog version. Preserve legacy compatibility profiles where parity requires exact behavior; improved material models get new version IDs.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single material interval
+    two layers + void
+    reverse traversal ordering
+    same physicalSolidId continuity
+    material-field transform equivariance
+    schema validation
+    SOURCE calibration fixture import
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] versioned material catalog
+    [ ] assembly/frame schema
+    [ ] explicit air gaps
+    [ ] physicalSolidId semantics
+    [ ] deterministic local material field
+    [ ] game-model provenance documented
+    [ ] tests pass
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    calling gameplay coefficients certified V50/FEM values
+    using render material as destruction material
+    world-space RNG field that changes after rotation
+    treating technical mesh seams as material interfaces
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] versioned material catalog
+    [ ] assembly/frame schema
+    [ ] explicit air gaps
+    [ ] physicalSolidId semantics
+    [ ] deterministic local material field
+    [ ] game-model provenance documented
+    [ ] tests pass
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.1
