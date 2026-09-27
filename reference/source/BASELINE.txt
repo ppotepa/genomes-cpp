@@ -1,0 +1,28 @@
+GENOMES LEGACY SOURCE BASELINE
+================================
+
+SOURCE_REPOSITORY:
+    ppotepa/genomes
+
+BASELINE_COMMIT:
+    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+
+BASELINE_BRANCH:
+    main
+
+TARGET_REPOSITORY:
+    ppotepa/genomes-cpp
+
+POLICY
+------
+
+The commit above is the initial documentation/reference baseline.
+
+Later parity chapters MAY pin a newer SOURCE commit if legacy Genomes evolves
+during the C++ migration.
+
+A fixture must record the exact SOURCE commit it came from; do not rely only on
+"main".
+
+The SOURCE repository is private. Do not mirror its full source tree into the
+public TARGET repository.
