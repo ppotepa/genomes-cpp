@@ -48,12 +48,15 @@ PUBLIC CONTRACTS
 extremes, hydrology none/adjacent/through, multiple seeds and at least one
 pathological SOURCE regression seed.
 
-Road fixtures additionally cover:
+Road/parcel fixtures additionally cover:
     SOURCE road-graph-lab MOTORWAY/TRUNK/ARTERIAL/COLLECTOR/LOCAL/SERVICE/PATH
     SOURCE city trunk/arterial/collector/local/alley mapping
     routed curved/smoothed centerlines
     edge splits on curved/polyline roads
-    exact shared-node endpoint equality.
+    exact shared-node endpoint equality
+    SOURCE simple-settlement driveway Track/access semantics
+    fenced parcel GateSpec and wood/wire/wall FenceLayout
+    FenceGenerator.plan compatibility cases.
 
 2. Exact fixture fields: normalized input, seed hierarchy selected samples, core counts/IDs where legacy semantics intentionally preserved. Structural/invariant fields: graph connectivity, crossings, region counts/depth ranges, block/parcel containment, overlap metrics.
 

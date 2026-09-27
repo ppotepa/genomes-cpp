@@ -61,7 +61,9 @@ PUBLIC CONTRACTS
 
 2. Render quality controls framebuffer/shadow/LOD/presentation budgets only, not procedural semantic identity or combat outcomes.
 
-3. GPU Scene handles terrain chunks, building representations, vegetation instance pages, dynamic entity instances/skeletons and debris/rubble with independent LOD/visibility.
+3. GPU Scene handles terrain chunks, road/driveway corridors, parcel fence/gate
+instance pages, building representations, vegetation instance pages, dynamic
+entity instances/skeletons and debris/rubble with independent LOD/visibility.
 
 4. Combat/destruction presentation is event-driven and may drop/coalesce purely visual effects under budget without dropping semantic events.
 
@@ -106,18 +108,25 @@ STEP 3
     Integrate GPU skinning/morph channels and weapon/equipment shared skeleton presentation.
 
 STEP 4
-    Integrate building near/far/damaged representation and vegetation instance LOD/culling.
+    Integrate building near/far/damaged representation and vegetation instance
+    LOD/culling.
 
 STEP 5
-    Integrate rubble/debris and projectile trace/effects as presentation-only consumers.
+    Compile FenceLayout/GateSpec into instanced fence presentation grouped by
+    type/region. SOURCE-compatible wood/wire/wall appearance can use compact
+    box/beam recipes following terrain at endpoints; renderer does not recompute
+    semantic collision/exclusion decisions.
 
 STEP 6
-    Implement quality profiles for pixel budget/shadows/presentation LOD and dynamic resource budgets.
+    Integrate rubble/debris and projectile trace/effects as presentation-only consumers.
 
 STEP 7
-    Benchmark representative city/battle scenes with CPU submission, GPU frame, draw/dispatch, VRAM/upload metrics.
+    Implement quality profiles for pixel budget/shadows/presentation LOD and dynamic resource budgets.
 
 STEP 8
+    Benchmark representative city/battle scenes with CPU submission, GPU frame, draw/dispatch, VRAM/upload metrics.
+
+STEP 9
     Verify headless and render OFF produce identical authoritative test hashes.
 
 ======================================================================
@@ -178,6 +187,7 @@ TESTS TO ADD
     GPU scene lifetime
     skinned/equipment attachment
     damaged building/rubble visibility
+    fence/gate/driveway presentation
     debug toggle no semantic effect
 
 ======================================================================

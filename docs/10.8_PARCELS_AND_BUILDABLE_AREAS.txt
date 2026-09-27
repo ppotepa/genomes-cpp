@@ -36,19 +36,56 @@ TARGET FILE TREE
 ======================================================================
     modules/city/include/genomes/city/Parcel.hpp
     modules/city/include/genomes/city/ParcelSet.hpp
+    modules/city/include/genomes/city/ParcelAccess.hpp
+    modules/city/include/genomes/city/FenceLayout.hpp
     modules/city/src/ParcelGenerator.cpp
+    modules/city/src/FencePlanner.cpp
     tests/native/city/parcel_tests.cpp
+    tests/native/city/fence_plan_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Parcel has stable ParcelId, source BlockId or rural road ref, polygon, area, zone, frontage segment/road, access flag and buildable polygon(s).
+1. Parcel has stable ParcelId, source BlockId or rural road ref, polygon, area,
+zone, frontage segment/road, access flag and buildable polygon(s).
+
+Parcel access is explicit semantic data:
+    GateSpec
+        frontage location / left-right endpoints
+        clear width
+    DrivewaySpec
+        connection from road/access point to parcel/building approach
+        preferred RoadClass::Track or Service according profile
+    FenceSpec optional
+        fenced flag
+        type {Wood, Wire, Wall}
+        planned panel spans
+        post points
+        gate reference
+
+These are not renderer objects.
 
 2. Urban parcel subdivision prioritizes road frontage and target width/depth ranges by zone; residual polygons are either valid residual parcels or explicitly reported.
 
 3. Buildable area = parcel minus setback/ROW/water/protected constraints; operation may return multiple polygons, choose/retain according explicit policy.
 
 4. Rural frontage parcels generated along eligible roads with spacing/depth and spatial hash overlap checks.
+
+5. Fence planning preserves SOURCE FenceGenerator.plan() semantics:
+    compatibility panel target length = 2.4 m
+    compatibility default gate width = 4.2 m, capped by frontage policy
+    gate creates a real opening in the front fence
+    panel span is rejected if it conflicts with road corridor, another parcel,
+    or building footprint clearance
+    all-or-nothing compatibility behavior where SOURCE returns no fence when
+    expected panel segmentation cannot be produced is represented in the
+    legacy compatibility profile
+
+Native later versions may use more flexible partial-fence recovery, but not
+under exact SOURCE fence parity.
+
+6. Driveway/access geometry is part of parcel/city semantics and reserves space
+before vegetation/fence placement; it is not added later only as visual mesh.
 
 ======================================================================
 DATA LAYOUT
@@ -70,6 +107,9 @@ ALGORITHM REFERENCES
 SOURCE REFERENCES
 ======================================================================
     SOURCE::prototypes/procedural-city/index.html
+    SOURCE::js/world/settlementGenerator.js
+    SOURCE::js/world/fenceGenerator.js
+    SOURCE::tests/fence_generation.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
@@ -90,7 +130,16 @@ STEP 5
     Generate rural road-oriented OBB/polygon parcels using spatial index.
 
 STEP 6
-    Validate containment, overlap, road/water exclusion and access.
+    Create driveway/access reservations from frontage/gate to building approach
+    using Track/Service road/access semantics and reserve them before scatter.
+
+STEP 7
+    Plan optional fence spans/posts/gate from parcel boundary using SOURCE
+    compatibility profile or newer explicit profile.
+
+STEP 8
+    Validate containment, overlap, road/water exclusion, access, gate opening,
+    fence-road/building/neighbor clearances and driveway continuity.
 
 ======================================================================
 PSEUDOCODE
@@ -103,6 +152,8 @@ URBAN BLOCK:
         if hard constraints fail: merge/residual policy
         buildable := inset/subtract(p,setbacks,constraints)
         assign stable ParcelId(blockId, frontageOrdinal)
+        plan gate/driveway if access required
+        plan optional fence after reserved access corridor
 
 RURAL:
     for road in stable order:
@@ -145,6 +196,10 @@ TESTS TO ADD
     setback buildable
     rural overlap
     residual accounting
+    driveway connectivity/reservation
+    SOURCE fence wood/wire/wall plan parity
+    gate opening/default width
+    fence-road/neighbor/building exclusion
     stable IDs
 
 ======================================================================
@@ -162,6 +217,9 @@ ACCEPTANCE CRITERIA
     [ ] buildable polygons
     [ ] no overlap
     [ ] access validation
+    [ ] driveway/Track semantics
+    [ ] fence/gate semantic planner
+    [ ] SOURCE fence compatibility tests
     [ ] residual reporting
 
 ======================================================================

@@ -35,7 +35,10 @@ REQUIRES
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE START NEW behaviors and integrated interactions: terrain, buildings/environment, Infantry, AI/combat, ballistics/destruction, lifecycle and telemetry concepts.
+SOURCE START NEW behaviors and integrated interactions: terrain, roads including
+driveways/access tracks, parcels/gates/fences, buildings/environment including
+orchards/fields, Infantry, AI/combat, ballistics/destruction, lifecycle and
+telemetry concepts.
 
 ======================================================================
 OUT OF SCOPE
@@ -95,7 +98,9 @@ STEP 1
     Pin SOURCE commit and export small compatibility scenarios including skipEnvironment and full environment.
 
 STEP 2
-    Record selected terrain samples, settlement/building counts/invariants, unit genome/equipment identities and initial transforms.
+    Record selected terrain samples, settlement/building counts/invariants,
+    road/driveway topology, parcel gate/fence layouts, field/orchard/zone
+    presence, unit genome/equipment identities and initial transforms.
 
 STEP 3
     Record scripted tick commands for march/arrival, combat fire/impact and destruction case where stable.
@@ -158,6 +163,8 @@ After pass native runtime may become preferred development path; SOURCE remains 
 TESTS TO ADD
 ======================================================================
     selected full scenarios
+    driveway/fence/access feature parity
+    fields/orchards/zones feature parity
     headless/render independence
     1/N workers
     dispose/lifetime

@@ -365,3 +365,38 @@ Further audit still checks:
     algorithm references,
     integration assumptions.
 
+
+
+======================================================================
+7. PARCEL ACCESS / FENCE OWNERSHIP FINDING
+======================================================================
+
+I. ORPHANED SOURCE FEATURE RISK
+
+SOURCE::js/world/settlementGenerator.js produces:
+    parcel.gate
+    parcel.driveway
+    parcel.fenced
+    parcel.fenceType
+    Track driveway roads
+
+SOURCE::js/world/fenceGenerator.js has an important renderer-independent
+FenceGenerator.plan() stage:
+    2.4 m compatibility panel segmentation
+    front gate opening
+    road/neighbor/building-footprint clearance
+    wood/wire/wall semantic type
+    panel/post/gate output
+
+The previous TARGET roadmap listed fence generation in 0.2 but did not give its
+semantic planner a sufficiently concrete implementation owner.
+
+Correction:
+    10.8 now owns GateSpec, DrivewaySpec and FenceLayout/FencePlanner.
+    RoadClass superset includes Track for simple-settlement driveways.
+    10.10 requires driveway/fence/gate parity fixtures.
+    20.6 owns fence presentation compilation/instancing.
+    20.2 whole-world parity explicitly checks these features.
+
+This prevents fencing from becoming a visual afterthought or being dropped
+because the newer procedural city prototype focuses on road/block/parcel logic.
