@@ -44,7 +44,14 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Fixture corpus covers rectangle/L/U/irregular footprints, 1..multi storeys, family/apartment/factory/public-like programs where SOURCE supports, multiple roofs, high/low regularity/symmetry, stair/core edge cases and regression seeds.
+1. Fixture corpus covers rectangle/L/U/irregular footprints, 1..multi storeys,
+family/apartment/factory/public-like programs where SOURCE supports, multiple
+roofs, high/low regularity/symmetry, stair/core edge cases and regression seeds.
+
+It MUST also cover every conflict recorded by Chapter 11.1 between SOURCE
+buildingCatalog/buildingSpec/buildingPrograms. In particular RURAL_SHED size
+semantics require separate explicit fixture/provenance rather than one guessed
+range.
 
 2. Compare exact preserved parameters/IDs only where required; otherwise compare invariants: footprint validity, room access, stair fit, roof quality, no overlap/opening errors, collision/nav consistency.
 
@@ -87,7 +94,8 @@ STEP 2
     Export building-lab acceptance cases losslessly into TARGET fixture metadata or reference source path with exact SOURCE commit.
 
 STEP 3
-    Build at least 100 seeded fixtures across footprint/program/roof/core matrix plus known regressions.
+    Build at least 100 seeded fixtures across footprint/program/roof/core matrix
+    plus known regressions and every SOURCE definition conflict from 11.1.
 
 STEP 4
     Map each SOURCE building test file to native equivalent in parity report.
@@ -147,6 +155,7 @@ TESTS TO ADD
     schema version
     100+ matrix
     regression seed set
+    catalog/spec conflict fixtures
     cross-representation consistency
     SOURCE test mapping completeness
 
@@ -166,6 +175,7 @@ ACCEPTANCE CRITERIA
     [ ] compiler consistency
     [ ] parity report
     [ ] zero unapproved regressions
+    [ ] all 11.1 SOURCE definition conflicts have explicit target resolution
 
 ======================================================================
 FORBIDDEN SHORTCUTS

@@ -71,7 +71,7 @@ AppearanceArtifact contains body MeshData, optional hair/detail submeshes, skinI
 MATHEMATICAL CONTRACTS
 ======================================================================
     DATA-UNIT-001
-    MATH-VEC-NORMALIZE-001
+    NUM-NORMALIZE-001
     MATH-POLY-SIGNED-AREA-001
 
 ======================================================================

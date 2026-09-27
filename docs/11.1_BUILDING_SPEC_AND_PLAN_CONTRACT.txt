@@ -53,6 +53,27 @@ PUBLIC CONTRACTS
 
 4. Plan stage metadata records generator version and validation stage; compilers consume only frozen valid plan.
 
+5. SOURCE currently contains overlapping building catalogs/spec systems that
+are not fully identical. Native migration MUST NOT silently merge conflicting
+values. A SourceCompatibility record is required for any conflicting preset ID.
+
+Known audited example:
+    SOURCE::js/buildings/buildingCatalog.js
+        RURAL_SHED width 2..3 m, depth 2..3 m
+
+    SOURCE::js/buildings/buildingSpec.js
+        RURAL_SHED width 2.5..7 m, depth 2.5..6 m
+
+The TARGET schema must preserve provenance and resolve this explicitly. Preferred
+semantic resolution is to separate distinct concepts/versions (for example a
+small shed compatibility profile and a larger rural outbuilding profile) rather
+than make one ambiguous ID depend on which SOURCE file happened to be read.
+
+6. SOURCE room programs, roof families, stair families, structural systems,
+materials and current BuildingSpec seed domains are migration data and must be
+enumerated into the v1 schema/parity matrix before implementation is marked
+complete.
+
 ======================================================================
 DATA LAYOUT
 ======================================================================
@@ -71,27 +92,45 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/buildings/buildingSpec.js
+    SOURCE::js/buildings/buildingCatalog.js
+    SOURCE::js/buildings/buildingPrograms.js
+    SOURCE::js/buildings/buildingPlan.js
+    SOURCE::js/buildings/buildingFootprints.js
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::building-lab/acceptance-cases.json
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Map existing js/buildings BuildingSpec/Plan semantics and advanced prototype parameters into a unified v1 schema.
+    Inventory both SOURCE building definition paths before designing v1:
+        buildingCatalog.js style/catalog values
+        buildingSpec.js PRESETS/seed domains
+        buildingPrograms.js room/capacity rules
+        BuildingPlan/runtime schema
+        advanced mathematical prototype parameters
+
+    Produce a conflict table keyed by semantic preset/program/field. No
+    conflicting SOURCE value may be resolved implicitly.
 
 STEP 2
-    Define enum/data tables for use/program without hardwiring every architectural style into code paths.
+    Map the audited SOURCE semantics into a unified v1 schema with explicit
+    compatibility/version provenance.
 
 STEP 3
-    Define local building coordinate system: X/Z footprint plane, Y up, transform to world external.
+    Define enum/data tables for use/program without hardwiring every architectural style into code paths.
 
 STEP 4
-    Define storey model with floorElevation, clearHeight, slab thickness and vertical connections.
+    Define local building coordinate system: X/Z footprint plane, Y up, transform to world external.
 
 STEP 5
-    Define Space/Opening/Core/Structural records with stable IDs and references, not owning pointers.
+    Define storey model with floorElevation, clearHeight, slab thickness and vertical connections.
 
 STEP 6
+    Define Space/Opening/Core/Structural records with stable IDs and references, not owning pointers.
+
+STEP 7
     Document schema in reference/schemas and add serialization roundtrip.
 
 ======================================================================
@@ -150,6 +189,8 @@ TESTS TO ADD
     no render/physics types
     coordinate convention
     program normalization
+    SOURCE catalog/spec conflict table
+    RURAL_SHED conflict resolved/versioned explicitly
 
 ======================================================================
 COMMANDS TO RUN
@@ -166,6 +207,7 @@ ACCEPTANCE CRITERIA
     [ ] world/local separation
     [ ] compiler-independent
     [ ] serialization tests
+    [ ] SOURCE building definition conflicts explicitly resolved
 
 ======================================================================
 FORBIDDEN SHORTCUTS

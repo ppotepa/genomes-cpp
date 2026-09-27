@@ -172,22 +172,33 @@ Tick zero = initial simulation state.
 
 Use integer duration representation for fixedStep.
 
-Preferred exact rational construction:
+DO NOT round 1/60 to one integer nanosecond step and repeatedly subtract it.
+16,666,667 ns accumulates a systematic +20 ns per 60 ticks.
 
-    fixedStepNs := round(1e9 / 60)
-
-But note 1/60 cannot be represented exactly in integer nanoseconds.
-
-Therefore simulation logic MUST define one canonical discrete step duration:
+Canonical simulation rate:
 
     FixedStepNumerator   = 1
     FixedStepDenominator = 60
 
-Tick-based systems should use tick count where exact long-term identity matters.
+Wall-time accumulation uses a rational phase accumulator. One robust integer
+form when wall deltas are measured in nanoseconds is:
 
-Floating seconds for physics may be derived as:
+    phaseUnits += frameNanoseconds * FixedStepDenominator
 
-    1.0 / 60.0
+One fixed tick is due whenever:
+
+    phaseUnits >= 1,000,000,000 * FixedStepNumerator
+
+and execution subtracts exactly that threshold from phaseUnits.
+
+Thus 60 logical ticks represent exactly one rational simulation second even
+though one wall-clock tick interval is not representable as integer ns.
+
+Tick-based systems use SimulationTick as authoritative time identity.
+
+Floating dt passed to physics/integration is derived explicitly as:
+
+    double fixedDtSeconds = 1.0 / 60.0
 
 
 4. FixedStepAdvanceResult
@@ -214,9 +225,12 @@ DATA LAYOUT
 FixedStepClock target state:
 
     optional<steady_clock::time_point> lastWallTime
-    nanoseconds accumulator
+    uint64/128-bit rational phaseUnits or checked equivalent
     nanoseconds droppedTimeTotal
     uint64_t totalSteps
+
+The accumulator representation must preserve the rational 1/60 threshold
+without repeatedly rounding a tick duration to nanoseconds.
 
 No heap allocation per frame.
 
@@ -226,9 +240,12 @@ MATHEMATICAL CONTRACTS
 
 Interpolation alpha:
 
-    alpha = accumulator / fixedStep
+    alpha =
+        phaseUnits
+        /
+        (1,000,000,000 * FixedStepNumerator)
 
-with:
+for the nanosecond-scaled rational representation, with:
 
     0 <= alpha < 1
 
@@ -339,11 +356,17 @@ advance:
 
 STEP 6 - FIRST ADVANCE SEMANTICS
 
-Preserve current conceptual behavior:
+Preserve SOURCE behavior exactly at the wall-clock entry boundary:
 
     first advance sets last wall time
     executes zero simulation catch-up steps
-    returns alpha = 0
+    returns interpolation alpha = 1
+
+SOURCE::js/core/fixedClock.js currently returns 1 on the first advance call.
+This is presentation interpolation behavior, not a simulated tick.
+
+The deterministic advanceBy(Duration) path has no implicit first-call special
+case because the caller supplies an explicit delta.
 
 Do not invent one fake simulation step on first timestamp.
 
@@ -383,7 +406,7 @@ STEP 9 - TEST LEGACY CASES
 
 Cases:
 
-    first advance
+    first advance -> alpha 1, zero steps
     exact one step
     half step -> alpha 0.5
     two steps
@@ -422,25 +445,28 @@ ADVANCE BY:
 
         steps := 0
 
-        while accumulator >= fixedStep
+        threshold := 1_000_000_000 * FixedStepNumerator
+        phaseUnits += frameNanoseconds * FixedStepDenominator
+
+        while phaseUnits >= threshold
               and steps < config.maxSteps:
 
             callback(fixedDtSeconds, currentTick)
 
-            accumulator -= fixedStep
+            phaseUnits -= threshold
             currentTick += 1
             totalSteps += 1
             steps += 1
 
-        if accumulator >= fixedStep:
-            wholeExcess :=
-                floor(accumulator / fixedStep) * fixedStep
-
-            accumulator -= wholeExcess
-            droppedTotal += wholeExcess
+        if phaseUnits >= threshold:
+            wholeExcessTicks := floor(phaseUnits / threshold)
+            droppedPhase := wholeExcessTicks * threshold
+            phaseUnits -= droppedPhase
+            droppedTotal +=
+                rationalPhaseToDuration(droppedPhase)
 
         alpha :=
-            accumulator / fixedStep
+            phaseUnits / threshold
 
         return {
             stepsExecuted: steps,
@@ -454,7 +480,11 @@ WALL ADVANCE:
     function advance(now):
         if lastWallTime is None:
             lastWallTime := now
-            return zero-step-result
+            return {
+                stepsExecuted: 0,
+                interpolationAlpha: 1,
+                droppedTime: 0
+            }
 
         raw := max(now - lastWallTime, 0)
         lastWallTime := now

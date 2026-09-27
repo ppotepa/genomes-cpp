@@ -47,9 +47,28 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Seed is uint64 semantic root. SeedPath derives child seeds from parent seed + stable UTF-8 label + stable uint64 index using a frozen derivation version.
 
-2. RandomStream algorithm is explicitly versioned. Implement legacy-compatible Mulberry32 stream for SOURCE parity and canonical native PCG32 or xoshiro family only after exact algorithm constants are frozen here.
+2. RandomStream algorithm AND seed-derivation algorithm are explicitly
+versioned. SOURCE does not use one universal derivation scheme.
 
-3. Default canonical v1: PCG32 with 64-bit state/stream selector, seeded from StableHash tuple. LegacyMulberry32 is separately named compatibility type.
+Required compatibility adapters:
+    LegacyMulberry32
+    LegacyBuildingDeriveSeed32
+    LegacyCitySeedTree32
+    LegacyPlantLabelStream32
+
+See:
+    ALG-RNG-MULBERRY32-LEGACY-001
+    ALG-RNG-BUILDING-DERIVE32-001
+    ALG-RNG-CITY-SEEDTREE32-001
+    ALG-RNG-PLANT-LABEL32-001
+
+3. Default canonical native v1 is PCG32 with 64-bit state/stream selector,
+seeded from the canonical native SeedPath/StableHash tuple.
+
+However, a migration chapter requesting EXACT SOURCE parity MUST use the
+correct SOURCE compatibility derivation adapter for its fixture/generator
+version. It may switch to native SeedTree only through an explicit generator
+version change and parity report.
 
 4. RandomStream provides nextU32, uniform01 [0,1), uniformRange, bounded integer using rejection to avoid modulo bias.
 
@@ -68,6 +87,10 @@ MATHEMATICAL CONTRACTS
 ALGORITHM REFERENCES
 ======================================================================
     ALG-RNG-SEED-TREE-001
+    ALG-RNG-MULBERRY32-LEGACY-001
+    ALG-RNG-BUILDING-DERIVE32-001
+    ALG-RNG-CITY-SEEDTREE32-001
+    ALG-RNG-PLANT-LABEL32-001
 
 ======================================================================
 SOURCE REFERENCES
@@ -91,12 +114,19 @@ STEP 4
     Implement LegacyMulberry32 exact 32-bit JS semantics for parity fixtures.
 
 STEP 5
-    Implement unbiased bounded uint generation via rejection threshold.
+    Implement the three known SOURCE seed-derivation compatibility paths:
+        Buildings.deriveSeed(seed,path)
+        procedural-city SeedTree/hashString/hash32 path
+        plantGenerator stream(seed,label)
+    Freeze independent golden vectors for each.
 
 STEP 6
-    Add schedule-independence test: derive 10k child streams in shuffled parallel order and compare by stable index.
+    Implement unbiased bounded uint generation via rejection threshold.
 
 STEP 7
+    Add schedule-independence test: derive 10k child streams in shuffled parallel order and compare by stable index.
+
+STEP 8
     Export selected SOURCE RNG golden values to reference/fixtures/core only when implementing parity.
 
 ======================================================================
@@ -150,6 +180,9 @@ TESTS TO ADD
     seed path golden vectors
     PCG32 golden vectors
     legacy Mulberry exact SOURCE samples
+    building deriveSeed golden vectors
+    city SeedTree golden vectors
+    plant label stream golden vectors
     bounded integer no out of range
     parallel shuffled order equality
 
@@ -165,7 +198,8 @@ ACCEPTANCE CRITERIA
 ======================================================================
     [ ] versioned derivation
     [ ] canonical native RNG
-    [ ] legacy RNG separate
+    [ ] legacy RNG stream separate
+    [ ] all known legacy derivation families implemented
     [ ] unbiased bounded integers
     [ ] parallel identity stable
 

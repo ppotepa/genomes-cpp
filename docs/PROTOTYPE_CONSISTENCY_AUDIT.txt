@@ -1,0 +1,275 @@
+GENOMES CPP MANUAL VS SOURCE PROTOTYPE - CONSISTENCY AUDIT
+======================================================================
+
+AUDIT DATE:
+    2026-09-27
+
+TARGET:
+    ppotepa/genomes-cpp
+
+SOURCE:
+    ppotepa/genomes
+
+STATUS:
+    IN PROGRESS / CORRECTIONS APPLIED
+
+======================================================================
+1. CONFIRMED HIGH-SEVERITY FINDINGS
+======================================================================
+
+A. FIXED CLOCK REPRESENTATION
+
+SOURCE:
+    SOURCE::js/config.js
+        FIXED_DT = 1/60
+        MAX_STEPS = 8
+        MAX_FRAME_DT = .25
+
+    SOURCE::js/core/fixedClock.js
+
+Problems found in previous TARGET 2.2:
+    - suggested repeatedly subtracting round(1e9/60) nanoseconds,
+      which creates systematic long-run drift;
+    - documented first wall-clock advance alpha=0 while SOURCE returns 1.
+
+Correction:
+    - rational 60 Hz phase accumulator specified;
+    - SimulationTick remains authoritative;
+    - first wall-clock call now explicitly returns alpha=1, zero steps for
+      SOURCE compatibility.
+
+
+B. MULTIPLE LEGACY RNG DERIVATION FAMILIES
+
+SOURCE has multiple non-identical systems:
+
+    SOURCE::js/core/seededRandom.js
+        Mulberry32 stream
+
+    SOURCE::js/buildings/buildingRandom.js
+        FNV-style deriveSeed(seed,path) + Mulberry32
+
+    SOURCE::prototypes/procedural-city/index.html
+        own hashString + hash32 + pathful SeedTree + Mulberry32
+
+    SOURCE::js/environment/plantGenerator.js
+        label FNV-style stream(seed,label) + SeededRandom
+
+Problem:
+    TARGET 5.1 previously defined LegacyMulberry32 only, which is insufficient
+    for exact SOURCE generator parity.
+
+Correction:
+    0.5 now freezes separate legacy algorithms.
+    5.1 now requires domain-specific derivation adapters and golden vectors.
+
+
+C. BUILDING DEFINITION CONFLICT
+
+SOURCE contains overlapping non-identical building definitions.
+
+Confirmed example:
+
+    SOURCE::js/buildings/buildingCatalog.js
+        RURAL_SHED:
+            width 2..3 m
+            depth 2..3 m
+
+    SOURCE::js/buildings/buildingSpec.js
+        RURAL_SHED:
+            width 2.5..7 m
+            depth 2.5..6 m
+
+This cannot be safely "merged" without a product/version decision.
+
+Correction:
+    11.1 now requires a SOURCE conflict inventory and explicit provenance.
+    11.12 parity must include fixtures for every conflict.
+    Target should use separate/versioned semantic profiles where two SOURCE
+    concepts must both survive rather than one ambiguous ID.
+
+
+D. BROKEN MATHEMATICAL REFERENCE
+
+TARGET 18.4 referenced:
+    MATH-VEC-NORMALIZE-001
+
+Canonical 0.5 defines:
+    NUM-NORMALIZE-001
+
+Correction:
+    18.4 reference fixed.
+
+
+======================================================================
+2. CONFIRMED ARCHITECTURAL ALIGNMENT
+======================================================================
+
+A. CITY / ROADS
+
+SOURCE procedural-city pipeline:
+    terrain
+    seeded hydrology
+    boundary
+    centres/gateways
+    Delaunay/kNN
+    MST/bridge-aware transport
+    recursive RegionNode roads
+    road-deficit growth
+    planar graph
+    zoning
+    blocks
+    parcels
+    buildable polygons
+    OBB/SAT building placement
+    validation
+
+TARGET Stage 9/10 preserves this semantic pipeline while separating fields,
+graphs, geometry and renderer.
+
+Alignment:
+    GOOD.
+
+Native RoadGraph stable IDs and spatial indexes are improvements over mutable
+browser structures and do not remove SOURCE capability.
+
+
+B. BUILDING GENERATION
+
+SOURCE advanced prototype uses:
+    exact cell-set footprint construction
+    connected-components validation
+    outside flood-fill hole detection
+    occupancy/aspect/compactness/symmetry metrics
+    bounded wing/recess operations
+    macro rectangular decomposition
+    core candidate solving
+    circulation/rooms
+
+TARGET Stage 11 mirrors these stages and keeps semantic BuildingPlan separate
+from render/collision/nav compilers.
+
+Alignment:
+    GOOD, subject to SOURCE catalog/spec conflict correction above.
+
+
+C. VEGETATION
+
+SOURCE has:
+    20 plant species in current catalog
+    PlantGenome plants-1.0.0
+    genes including stature/spread/branching/crookedness/foliage/leafSize/
+    fruiting plus additive girth/damage
+    age/season/detail-dependent presentation
+    season-independent skeleton/timber caches
+    reference-counted geometry caches
+
+TARGET Stage 12 direction:
+    semantic genome/prototype
+    same identity across LOD
+    cache/artifact separation
+    async/parallel pure generation
+
+Alignment:
+    GOOD.
+
+Stage 12 DATA LAYOUT placeholders discovered separately are a documentation
+quality defect and must be corrected before implementation.
+
+
+D. DESTRUCTION / BALLISTICS
+
+SOURCE contracts confirm:
+    projectile-state-3
+    projectile-trace-3
+    material-assembly-1
+    building-adapter-2
+    local material frames
+    physicalSolidId semantics
+    explicit air/void gaps
+    relative target velocity
+    energy ledger
+    HERO -> CHEAP -> BAKED rubble
+    per-material volume conservation
+    deterministic fragment relationships
+
+TARGET Stage 16/17 now models these as semantic contracts independent of
+Rapier/Three.js.
+
+Alignment:
+    STRONG.
+
+
+E. INFANTRY
+
+SOURCE confirms:
+    genome -> phenotype -> resolved anatomy -> rig/surface
+    one 39-bone/controller skeleton baseline
+    body/face identity independent of loadout
+    morph-driven eyelids and neck correction
+    separate equipment seed
+    continuous locomotion/posture
+    TwoBoneIK / ground contact
+    deterministic face state
+    lazy ragdoll/physics intent
+
+TARGET Stage 18 follows the same decomposition and keeps Infantry outside engine
+core.
+
+Alignment:
+    STRONG.
+
+
+F. AI
+
+SOURCE BattlefieldAIManager currently:
+    periodic observation ~0.2s
+    target memory ~2.5s
+    FOV/range filtering
+    terrain/destruction LOS
+    per-unit all-units scan
+
+TARGET Stage 19:
+    preserves cadence/memory/intent semantics
+    replaces O(N^2) candidate scan with dynamic spatial broadphase
+    batches LOS
+    adds optional delayed squad signal sharing
+
+Alignment:
+    GOOD; native architecture intentionally improves complexity rather than
+    preserving the SOURCE implementation accident.
+
+
+======================================================================
+3. DOCUMENTATION-QUALITY DEFECTS FOUND
+======================================================================
+
+The following chapters contained literal DATA LAYOUT placeholder "undefined"
+during this audit:
+
+    Stage 9:
+        9.2 - 9.7
+
+    Stage 12:
+        12.1 - 12.6
+
+    Stage 15:
+        15.2 - 15.7
+
+These violate the 0.0 READY contract.
+
+They are being replaced with explicit layouts before the audit can conclude
+PASS.
+
+======================================================================
+4. NEXT AUDIT ACTION
+======================================================================
+
+After placeholder repair:
+    - verify all affected chapters have concrete ownership/storage layouts;
+    - re-check SOURCE/TARGET parity assumptions;
+    - update MANUAL_AUDIT and MANUAL_STATUS wording so "100% READY" refers only
+      to corrected documents;
+    - no C++ implementation should start from an affected chapter before its
+      correction is committed.
+

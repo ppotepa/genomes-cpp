@@ -2112,3 +2112,118 @@ Before any mathematics-heavy implementation chapter becomes READY:
     - verify pseudocode contains deterministic tie-breaking and failure behavior.
 
 END OF CHAPTER 0.5
+
+
+======================================================================
+31. LEGACY RNG COMPATIBILITY DEFINITIONS
+======================================================================
+
+These definitions exist ONLY to reproduce SOURCE fixtures during migration.
+They do not replace the canonical versioned native SeedTree.
+
+ALG-RNG-MULBERRY32-LEGACY-001
+
+SOURCE references:
+    SOURCE::js/core/seededRandom.js
+    SOURCE::js/buildings/buildingRandom.js
+
+32-bit state:
+    state := uint32(seed)
+
+next():
+    state := uint32(state + 0x6D2B79F5)
+    t := imul(state XOR (state >>> 15), state OR 1)
+    t := t XOR [t + imul(t XOR (t >>> 7), t OR 61)]
+    u := uint32(t XOR (t >>> 14))
+    return u / 2^32
+
+The C++ implementation MUST emulate JavaScript uint32/Math.imul wrap semantics
+exactly for compatibility fixtures.
+
+
+ALG-RNG-BUILDING-DERIVE32-001
+
+SOURCE:
+    SOURCE::js/buildings/buildingRandom.js
+
+deriveSeed(seed,path):
+    h := uint32(2166136261 XOR uint32(seed))
+    for each UTF-16/ASCII-compatible code unit ch in String(path):
+        h := uint32(imul(h XOR ch, 16777619))
+    if h == 0:
+        return 1
+    return h
+
+Building domains in SOURCE include:
+    preset
+    footprint
+    program
+    storeys
+    structure
+    stairs
+    facade
+    roof
+    furniture
+
+
+ALG-RNG-CITY-SEEDTREE32-001
+
+SOURCE:
+    SOURCE::prototypes/procedural-city/index.html
+
+hashString(s, seed=2166136261):
+    h := uint32(seed)
+    for each code unit:
+        h := uint32(imul(h XOR codeUnit, 16777619))
+    return cityHash32(h)
+
+child(label,index):
+    childSeed :=
+        hashString(
+            decimal(parent.seed)
+            + "|" + parent.path
+            + "|" + label
+            + "|" + decimal(index)
+        )
+
+rng(label,index):
+    rngSeed :=
+        hashString(
+            decimal(parent.seed)
+            + "|" + parent.path
+            + "|" + label
+            + "|" + decimal(index)
+        )
+    return LegacyMulberry32(rngSeed)
+
+The exact cityHash32 mixing sequence must be ported from SOURCE and frozen by
+golden vectors if exact city intermediate parity is requested.
+
+
+ALG-RNG-PLANT-LABEL32-001
+
+SOURCE:
+    SOURCE::js/environment/plantGenerator.js
+
+stream(seed,label):
+    h := uint32(seed)
+    for each label code unit:
+        h := uint32(imul(h XOR codeUnit, 16777619))
+    return LegacyMulberry32(h)
+
+This differs from Building deriveSeed and City SeedTree and MUST NOT be silently
+replaced when exporting exact SOURCE vegetation fixtures.
+
+
+REF-PCG
+    Melissa E. O'Neill, PCG: A Family of Simple Fast Space-Efficient
+    Statistically Good Algorithms for Random Number Generation.
+    https://www.pcg-random.org/
+
+    Use for:
+        canonical native PCG family algorithm definition and test vectors.
+
+IMPORTANT MIGRATION RULE:
+    SOURCE contains multiple historical seed-derivation families.
+    "Legacy-compatible RNG" therefore means both the random stream algorithm
+    AND the domain-specific seed derivation function.
