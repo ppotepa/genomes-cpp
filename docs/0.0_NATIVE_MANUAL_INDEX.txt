@@ -38,8 +38,9 @@ Branch policy: implementation chapters target main unless explicitly stated othe
 0. PURPOSE
 ======================================================================
 
-This directory already contains historical design, research and implementation
-documentation. None of it is deleted by this manual.
+Historical design, research and implementation documentation remains in
+SOURCE::docs/. The TARGET::docs/ directory contains the executable C++ migration
+manual. Historical SOURCE documentation is referenced, not copied wholesale.
 
 The new numbered X.Y_*.txt files form an EXECUTABLE IMPLEMENTATION MANUAL for
 migrating and improving Genomes while preserving the functionality already
@@ -242,6 +243,10 @@ STAGE 0 - ARCHITECTURE / MIGRATION CONTRACT
     robustness rules, canonical algorithm pseudocode, source-quality rules and
     references to original papers, official documentation and current Genomes
     reference implementations.
+
+0.6 REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT
+    Freezes SOURCE/TARGET repository responsibilities, reference/ structure,
+    source commit pinning, fixture export rules and cross-repo parity workflow.
 
 STAGE 1 - NATIVE BUILD SKELETON
 
