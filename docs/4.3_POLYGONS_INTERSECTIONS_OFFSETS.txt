@@ -1,0 +1,191 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 4.3 - POLYGONS_INTERSECTIONS_OFFSETS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement simple-polygon representation, winding/containment, signed area/centroid, clipping, triangulation interface and safe offset policy needed by city/building generation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.2_GEOMETRY_2D_PRIMITIVES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/geometry/include/genomes/geometry/Polygon2.hpp
+    engine/geometry/include/genomes/geometry/PolygonOps.hpp
+    engine/geometry/src/PolygonOps.cpp
+    tests/native/geometry/polygon_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Polygon2 stores one outer ring initially; holes are explicit PolygonWithHoles type, never encoded by magic winding in the base type.
+
+2. Validation distinguishes TooFewVertices, DegenerateArea, SelfIntersection, DuplicateEdge, NonFinite.
+
+3. pointInPolygon returns Outside/Inside/Boundary.
+
+4. Offset API returns zero/one/multiple polygons because concave offsets can split/collapse; callers may not assume one polygon.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-POLY-SIGNED-AREA-001
+    MATH-POLY-CENTROID-001
+    MATH-POLY-COMPACTNESS-001
+    MATH-POLY-PCA-AXIS-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-POLY-POINT-IN-001
+    ALG-GEO-HALFPLANE-CLIP-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    REF-DEBERG-CG
+    REF-ERICSON-RTCD
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement ring normalization: remove exact/within-domain duplicate consecutive points only under caller tolerance, preserve semantic coordinates.
+
+STEP 2
+    Implement signed area, perimeter, centroid with explicit degenerate failure.
+
+STEP 3
+    Implement O(n^2) validation baseline using robust segment predicates; acceleration can follow after profiling.
+
+STEP 4
+    Implement point classification and half-plane clipping.
+
+STEP 5
+    Choose and pin triangulation/offset implementation: prefer proven library for robust concave offset/triangulation; wrap behind Genomes API and record license.
+
+STEP 6
+    Add property/fuzz tests for translated/reversed polygons, concavity and collapse.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+VALIDATE:
+    if n < 3: fail TooFew
+    if any !finite: fail NonFinite
+    for non-adjacent edge pairs:
+        if intersection is Proper/Overlap: fail SelfIntersection
+    if abs(signedArea) < areaTolerance: fail Degenerate
+    return Valid
+
+OFFSET:
+    validate input
+    backendResult := offsetBackend(ring, distance)
+    normalize every returned ring
+    validate every returned polygon
+    return vector<Polygon2>
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CW/CCW area
+    centroid rectangle/L shape
+    boundary point
+    self intersection bowtie
+    concave clipping
+    positive/negative offset collapse
+    triangulation area conservation
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] validation typed
+    [ ] boundary classification
+    [ ] offset multi-result
+    [ ] triangulation area tests
+    [ ] no renderer dependency
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    centroid fallback silently averaging vertices
+    assuming offset returns one ring
+    ear clipping ad hoc without degeneracy tests
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] validation typed
+    [ ] boundary classification
+    [ ] offset multi-result
+    [ ] triangulation area tests
+    [ ] no renderer dependency
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 4.3
