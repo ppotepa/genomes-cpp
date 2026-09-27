@@ -1,0 +1,178 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.3 - TERRAIN_MULTICORE_GENERATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Parallelize terrain generation, normals/material fields and chunk metadata through JobSystem with deterministic row/tile partitioning and cancellation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.2_PORT_EXISTING_TERRAIN_GENERATION.txt
+    TARGET::docs/3.4_CANCELLATION_AND_JOB_GROUPS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Same semantic heightfield as serial generator for same generator version.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/terrain/src/TerrainJobs.cpp
+    benchmarks/terrain/terrain_generation_benchmark.cpp
+    tests/native/terrain/terrain_parallel_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Partition by stable row/tile ranges; each job writes exclusive output span. Border-dependent normals run after heights barrier or use ghost rows with clear dependency.
+
+2. Cancellation checked at bounded row/tile intervals. Cancelled candidate is never published.
+
+3. Stage DAG: positions/height -> normals/slope -> material field -> tile bounds/statistics; independent post stages may parallelize.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement parallel height row generation using parallelFor fixed batch identity.
+
+STEP 2
+    Barrier before normal computation; normal jobs read immutable complete height field and write normal/slope arrays.
+
+STEP 3
+    Compute min/max/tile bounds using per-batch local reductions then stable reduction.
+
+STEP 4
+    Add cancellation tests and no-partial-publish transaction integration.
+
+STEP 5
+    Benchmark serial vs 1/2/4/8/16 workers at multiple resolutions and report memory bandwidth saturation.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+HEIGHT:
+    parallelFor rows:
+        for x: heights[index]=sampleNoise(seed,x,z)
+    wait
+
+NORMAL:
+    parallelFor rows:
+        read neighbor heights
+        write normals/slope
+
+REDUCE:
+    localStats[batch] := min/max
+    final := reduce localStats in batchIndex order
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Exclusive writes per batch; no atomics per sample. Reduction local then stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Byte/numeric output equals serial within defined float policy regardless worker count.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Choose row grain large enough to amortize scheduling; report speedup and memory bandwidth plateau.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE cooperative yield/one Worker semantics are replaced by real native parallel jobs while preserving cancellability.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    serial vs parallel field
+    1..N thread hash
+    cancel mid build
+    normal barrier
+    stable min/max
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] parallel generation
+    [ ] deterministic
+    [ ] cancellable
+    [ ] no per-sample atomics
+    [ ] scaling benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one job per vertex
+    shared RNG
+    publishing incomplete field
+    parallel normal before height dependencies complete
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] parallel generation
+    [ ] deterministic
+    [ ] cancellable
+    [ ] no per-sample atomics
+    [ ] scaling benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.3
