@@ -1,0 +1,188 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.5 - GPU_SCENE_DATABASE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement persistent GPU-resident tables for meshes, materials, transforms, instances and optional skeleton records so CPU does not resubmit every visible object each frame.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.4_RENDER_GRAPH.txt
+    TARGET::docs/6.3_STATIC_WORLD_DATABASES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/gpu_scene/include/genomes/render/gpu_scene/GpuScene.hpp
+    engine/render/gpu_scene/include/genomes/render/gpu_scene/GpuSceneRecords.hpp
+    engine/render/gpu_scene/src/GpuScene.cpp
+    tests/native/render/gpu_scene_tests.cpp
+    benchmarks/render/gpu_scene_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. GPUScene persistent record IDs are generational handles tied to semantic source IDs in a CPU mapping table.
+
+2. Tables: Transform, Instance, Mesh, Material, BoundingData; Skeleton added later without changing base instance schema.
+
+3. CPU writes staged deltas into upload batches; unchanged records cause zero upload.
+
+4. Static instance pages may upload once and remain immutable until region unload; dynamic transforms use dirty ranges or scatter update strategy.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define tightly packed GPU structs with explicit alignment/size static_assert and shader mirror generation/check.
+
+STEP 2
+    Implement record alloc/free generations and semanticId->GpuHandle maps outside authoritative world.
+
+STEP 3
+    Implement dirty bit/range tracking and upload staging.
+
+STEP 4
+    Implement capacity grow policy geometric growth; growth creates new buffer and copy/transition through graph, not CPU readback.
+
+STEP 5
+    Implement region bulk add/remove for vegetation/buildings.
+
+STEP 6
+    Add memory accounting and 1M instance synthetic benchmark.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SYNC SNAPSHOT:
+    for change in extraction.changes:
+        handle := map.getOrCreate(change.semanticId)
+        cpuShadow[handle] := encode(change)
+        dirty.mark(handle.index)
+
+UPLOAD:
+    ranges := coalesce(dirty)
+    for range:
+        stage copy cpuShadow[range] -> gpuTable[range]
+    dirty.clear()
+
+REMOVE REGION:
+    for handles in regionGpuPage:
+        freeDeferred(handle)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    record create/update/remove
+    stale handle
+    unchanged snapshot zero uploads
+    dirty coalescing
+    grow preserves records
+    region bulk unload
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] persistent GPU tables
+    [ ] delta uploads
+    [ ] 1M instance memory measured
+    [ ] region bulk operations
+    [ ] shader struct validation
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one Diligent object per passive instance
+    full transform table upload every frame
+    authoritative gameplay data owned by GPUScene
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] persistent GPU tables
+    [ ] delta uploads
+    [ ] 1M instance memory measured
+    [ ] region bulk operations
+    [ ] shader struct validation
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.5
