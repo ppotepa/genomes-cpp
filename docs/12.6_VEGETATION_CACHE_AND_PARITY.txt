@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.6 - VEGETATION_CACHE_AND_PARITY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create parity/caching gates covering SOURCE plant/rock generators, LODs, async behavior, layout variation and retained-memory accounting.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/12.5_INSTANCE_PAGES_AND_GPU_RENDERING.txt
+    TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All SOURCE environment acceptance categories remain mapped and regression evidence retained.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    reference/fixtures/vegetation/
+    reference/schemas/vegetation_fixture_v1.txt
+    tools/reference_export/vegetation_export.*
+    tests/native/parity/vegetation_parity_tests.cpp
+    docs/reports/VEGETATION_PARITY_V1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Fixtures include all current species/rock families across selected age/season/LOD combinations and layout seeds.
+
+2. Parity compares exact selected genome/semantic buffers where practical, structural/visual metrics for improved meshes, and exact sync-vs-parallel semantic equality.
+
+3. Cache tests cover duplicate-key hit, refcount/lifetime, retained bytes, eviction and cancellation cleanup.
+
+4. Scatter parity checks distributions/invariants rather than exact Three.js scene objects.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/environment/*
+    SOURCE::tests/plant_async_smoke.cjs
+    SOURCE::tests/plant_buffer_smoke.cjs
+    SOURCE::tests/plant_cache_smoke.cjs
+    SOURCE::tests/vegetation_variation.cjs
+    SOURCE::tests/rocks_smoke.cjs
+    SOURCE::tests/tree_lod_hysteresis.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Export selected genome/prototype geometry stats/buffers with exact SOURCE provenance.
+
+STEP 2
+    Map every SOURCE environment test to native equivalent/report row.
+
+STEP 3
+    Run generator 1/N workers and cancellation parity.
+
+STEP 4
+    Validate LODs share identity/bounds continuity and scatter satisfies distribution constraints.
+
+STEP 5
+    Measure retained artifact cache bytes and GPU prototype/instance memory separately.
+
+STEP 6
+    Publish parity report with approved visual divergences only.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR fixture:
+    native := generate fixture
+    compare genome exact fields
+    compare geometry buffers/metrics per fixture policy
+    validate all LOD identity
+    run cache lifecycle checks
+FOR layout fixture:
+    compare counts/distribution ranges/reservation invariants
+require zero unapproved regressions
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Parity cases independent and can parallelize; report order stable by fixture ID.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Exact SOURCE commit and generator versions stored with fixtures.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Parity correctness separate from 100k/1M render/scatter benchmarks.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+After pass SOURCE environment becomes REFERENCE_ONLY; may remain lightweight browser lab.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    all species matrix
+    rocks matrix
+    cache lifecycle
+    parallel equality
+    scatter invariants
+    LOD hysteresis
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] fixture provenance
+    [ ] SOURCE tests mapped
+    [ ] cache accounting
+    [ ] LOD identity
+    [ ] parity report
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    dropping exact cache tests
+    using screenshots as only vegetation parity
+    rewriting golden after regression
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] fixture provenance
+    [ ] SOURCE tests mapped
+    [ ] cache accounting
+    [ ] LOD identity
+    [ ] parity report
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.6
