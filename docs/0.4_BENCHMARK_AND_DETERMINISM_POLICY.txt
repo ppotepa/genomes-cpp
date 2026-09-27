@@ -64,11 +64,11 @@ REQUIRES
     docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
 
 Legacy evidence:
-    docs/26_CACHE_I_WYDAJNOSC.md
-    docs/27_AUDYT_WYDAJNOSCI_KODU.md
-    docs/destruction/benchmark.json
-    docs/destruction/effects-benchmark.json
-    tools/destruction/world-benchmark.cjs
+    SOURCE::docs/26_CACHE_I_WYDAJNOSC.md
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    SOURCE::docs/destruction/benchmark.json
+    SOURCE::docs/destruction/effects-benchmark.json
+    SOURCE::tools/destruction/world-benchmark.cjs
     tools/destruction/effects-benchmark.cjs
     tests/world_performance_telemetry.cjs
     tests/snapshot_interpolation.cjs
