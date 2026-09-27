@@ -333,3 +333,66 @@ If a number changes in SOURCE:
     update this file,
     update affected parity chapter,
     do not silently alter existing golden fixtures.
+
+
+======================================================================
+13. ROAD-LAB COMPATIBILITY TABLE
+======================================================================
+
+SOURCE::prototypes/procedural-road-graph-lab/index.html
+
+Road class order:
+    MOTORWAY
+    TRUNK
+    ARTERIAL
+    COLLECTOR
+    LOCAL
+    SERVICE
+    PATH
+
+Nominal width [m]:
+    16
+    13
+    10
+    7
+    4.8
+    3.6
+    2.2
+
+Nominal speed profile:
+    110
+    85
+    60
+    42
+    30
+    20
+    12
+
+Base growth length [m]:
+    260
+    220
+    170
+    115
+    78
+    55
+    42
+
+Capacity profile:
+    2600
+    2100
+    1500
+    900
+    450
+    220
+    90
+
+SOURCE procedural-city UI/reference widths:
+    trunk:      12.5 m
+    arterial:    9.0 m
+    collector:   6.8 m
+    local:       4.8 m
+    alley:       3.2 m
+
+These are TWO compatibility profiles, not one table to average together.
+The native RoadClass abstraction may unify semantic class IDs while keeping
+versioned RoadProfile data for each SOURCE generator family.

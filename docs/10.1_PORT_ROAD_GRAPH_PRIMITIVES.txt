@@ -140,6 +140,25 @@ STEP 1
     Nominal width/speed/capacity/surface policy lives in data tables, not
     switches scattered through code.
 
+    Freeze at least two SOURCE compatibility RoadProfile tables:
+
+    ROAD_GRAPH_LAB profile:
+        class:       MOTORWAY TRUNK ARTERIAL COLLECTOR LOCAL SERVICE PATH
+        width[m]:    16       13    10       7         4.8   3.6     2.2
+        speed:       110      85    60       42        30    20      12
+        baseLength:  260      220   170      115       78    55      42
+        capacity:    2600     2100  1500     900       450   220     90
+
+    PROCEDURAL_CITY compatibility widths:
+        Trunk      12.5 m
+        Arterial    9.0 m
+        Collector   6.8 m
+        Local       4.8 m
+        Alley       3.2 m
+
+    Do not average these profiles into one undocumented default. Native default
+    values may be a third versioned profile chosen intentionally.
+
 STEP 2
     Implement mutable RoadGraphBuilder with node/edge pools and stable IDs.
 
@@ -209,6 +228,8 @@ TESTS TO ADD
     exact shared-node endpoint equality after split
     no centerline gap at connected node
     source class superset mapping
+    road-lab width/speed/base-length/capacity profile exact data
+    procedural-city width profile exact data
     stable IDs insertion order test
     spatial nearest
     freeze compact adjacency
