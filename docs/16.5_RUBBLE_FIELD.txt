@@ -1,0 +1,226 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.5 - RUBBLE_FIELD
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement persistent tile/cell rubble volume field with material mixtures, slope
+relaxation, navigation/cover hooks, ballistic surface representation and static
+collision recipes while conserving volume.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.4_HERO_CHEAP_BAKED_DEBRIS.txt
+    TARGET::docs/14.6_DYNAMIC_NAV_INVALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Persistent Rubble Field v1.1: default 0.5 m cells / 4 m tiles as
+starting profile, per-material volumes, packing-derived height, overflow merge
+without volume loss, slope relaxation, navigation hooks, ballistic queries and
+localized collider rebuilds.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/include/genomes/destruction/RubbleField.hpp
+    modules/destruction/include/genomes/destruction/RubbleTile.hpp
+    modules/destruction/include/genomes/destruction/RubbleNavigation.hpp
+    modules/destruction/src/RubbleField.cpp
+    modules/destruction/src/RubbleRelaxation.cpp
+    tests/native/destruction/rubble_field_tests.cpp
+    benchmarks/destruction/rubble_field_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. RubbleField grid cell stores total solid volume plus compact per-material mixture. World surface height = baseTerrainHeight + rubbleHeight(volume, cellArea, packingFactor). Material volumes sum to total within numeric tolerance.
+
+2. Tile key from floor(worldXZ/tileSize). Field has max retained tiles/bytes. Capacity pressure never discards new volume: eligible low-volume/cold tiles are merged into nearest compatible retained tile or explicit world-stream spill artifact; with one-tile local budget clamp/merge policy is deterministic.
+
+3. Deposit accepts material-volume map, world point, spread radius/impact speed and relaxation iterations. Remove/excavate returns exact removed material mix for re-ejection/accounting.
+
+4. Slope relaxation moves volume between neighbor cells using bounded iterations while preserving each material fraction/total; no negative volume.
+
+5. Queries: rubbleHeight, surfaceHeight(base provider), rubbleSlope, movementCost, cover, materialMix, segment/surface hit. Broadphase checks nonempty tile before cell sampling.
+
+6. Dirty tile produces backend-neutral static collision surface recipe (heightfield preferred; low-poly mesh/cuboid conservative fallback) and NavDirtyBounds.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Tile = fixed cell grid (e.g. 8x8 at default) with float/double total volume and small material mixture storage. Prefer fixed known material slots/compact sparse pairs; exact accumulation may use double at commit then quantize/store per policy.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-SPATIAL-GRID-001
+    DATA-UNIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/rubble-field.md
+    SOURCE::js/destruction/rubbleField.js
+    SOURCE::tests/destruction_rubble.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement tile/cell addressing with negative coordinates and base height provider.
+
+STEP 2
+    Implement deposit spreading weights normalized so requested material volume is conserved exactly within tolerance; update dirty set.
+
+STEP 3
+    Implement bounded slope relaxation using double-buffer/local deltas, preserving material composition; validate no negative cell.
+
+STEP 4
+    Implement tile capacity/merge policy and accounting before/after overflow scenarios.
+
+STEP 5
+    Implement removeDistributed/excavate returning material mix; support bounded eject packet requests for HE/impact consumer.
+
+STEP 6
+    Implement navigation/cover query formulas as gameplay-profile data and dirty bounds emission.
+
+STEP 7
+    Compile static collision recipe only for dirty tiles and atomically swap through Physics/Navigation services later.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DEPOSIT:
+    weights := cellsWithin(radius) with nonnegative kernel
+    normalize sum(weights)
+    for cell in stable order:
+        for material m:
+            dv := requested[m]*weight
+            cell.material[m] += dv
+            cell.total += dv
+    mark tiles dirty
+
+RELAX ITERATION:
+    delta := zero scratch
+    for cell:
+        for lower neighbor stable:
+            transfer := boundedSlopeExcess(cell,neighbor)
+            mix := cell.material / cell.total
+            delta[cell] -= transfer*mix
+            delta[neighbor] += transfer*mix
+    apply delta
+    assert conservation/no negatives
+
+OVERFLOW:
+    if new tile and capacity full:
+        victim := eligible lowest-volume/cold stable tie
+        merge victim material/volume to nearest compatible retained tile
+        free victim
+    insert new requested tile
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Deposits from jobs become per-tile commands; commit partitions by tile so separate tiles can process in parallel. Relaxation within tile uses scratch/double buffer. Cross-tile border transfer uses staged halo commands and stable commit.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Nonfinite/negative deposit rejected. Capacity with no eligible merge target uses configured persistent spill/forced merge policy and reports metric; never drops volume.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Cell/tile mapping uses floor. Deposit/relax order stable or uses commutative double accumulators with stable final application. Visual chunk generation never changes field.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Tile sparse map, dirty-only collision/nav rebuild, near-detail rendering separate. Benchmark 1/100/1000 dirty tiles, deposit rate, relaxation.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Match SOURCE conservation tests first. Jolt collision representation may differ but field/accounting/navigation semantics remain.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single deposit volume
+    material mixture
+    slope conservation
+    excavate/redeposit
+    negative coords
+    tile overflow no loss
+    dirty-only rebuild
+    navigation sample
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] per-material volume
+    [ ] conservation
+    [ ] overflow no loss
+    [ ] relaxation
+    [ ] navigation/cover hooks
+    [ ] ballistic surface query
+    [ ] dirty tile recipes
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    height-only field losing material composition
+    tile eviction deleting volume
+    terrain slope charged twice in rubble movement cost
+    full-field rebuild every deposit
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] per-material volume
+    [ ] conservation
+    [ ] overflow no loss
+    [ ] relaxation
+    [ ] navigation/cover hooks
+    [ ] ballistic surface query
+    [ ] dirty tile recipes
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.5
