@@ -11,195 +11,184 @@ STATUS BASELINE:
     2026-09-27
 
 ======================================================================
-1. HOW PROGRESS IS MEASURED
+1. TWO SEPARATE PROGRESS METRICS
 ======================================================================
 
-This file tracks two different metrics.
+A. IMPLEMENTATION MANUAL AUTHORING
 
-A. MANUAL AUTHORING PROGRESS
+COMPLETE:
+    160 / 160 executable chapters READY
 
-A chapter counts as authored when:
-    file exists,
-    STATUS is READY,
-    it satisfies the 0.0 completeness contract.
+AUTHORING COMPLETION:
+    100%
 
-This is NOT implementation progress.
+AUTHORING REMAINING:
+    0% of the currently defined roadmap
 
-B. NATIVE IMPLEMENTATION PROGRESS
+This means the full planned implementation path from architecture through
+production hardening exists as executable chapter documentation.
 
-A chapter counts as implemented only after:
-    required source changes exist,
-    required tests pass,
-    acceptance criteria pass,
-    chapter is verified.
+It does NOT mean the native engine has been implemented.
 
-At the current baseline no native implementation chapter has been executed in
-ppotepa/genomes-cpp yet.
 
-======================================================================
-2. ROADMAP SIZE
-======================================================================
+B. NATIVE C++ IMPLEMENTATION
 
-Executable chapter count in current roadmap:
+The TARGET repository is still at documentation/reference-project stage unless
+implementation agents have independently executed chapters after this status
+update.
 
-    Stage 0   6
-    Stage 1   4
-    Stage 2   5
-    Stage 3   5
-    Stage 4   6
-    Stage 5   8
-    Stage 6   6
-    Stage 7   8
-    Stage 8   5
-    Stage 9   7
-    Stage 10 10
-    Stage 11 12
-    Stage 12  6
-    Stage 13  6
-    Stage 14  6
-    Stage 15  7
-    Stage 16  8
-    Stage 17  6
-    Stage 18 11
-    Stage 19  8
-    Stage 20  7
-    Stage 21  7
-    Stage 22  6
-
-TOTAL EXECUTABLE CHAPTERS:
-    160
-
-The master index 0.0 is not counted as an executable implementation chapter.
-
-======================================================================
-3. AUTHORED / READY CHAPTERS
-======================================================================
-
-STAGE 0:
-    [READY] 0.1 TARGET_ARCHITECTURE
-    [READY] 0.2 MIGRATION_INVENTORY_AND_PARITY_MATRIX
-    [READY] 0.3 CODING_AND_DEPENDENCY_RULES
-    [READY] 0.4 BENCHMARK_AND_DETERMINISM_POLICY
-    [READY] 0.5 MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE
-    [READY] 0.6 REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT
-
-    6 / 6
-
-STAGE 1:
-    [READY] 1.1 CPP_CMAKE_BOOTSTRAP
-    [READY] 1.2 THIRD_PARTY_DEPENDENCIES
-    [READY] 1.3 EXECUTABLE_TARGETS_AND_TEST_RUNNER
-    [READY] 1.4 CI_NATIVE_BASELINE
-
-    4 / 4
-
-STAGE 2:
-    [READY] 2.1 STRONG_IDS_RESULT_HASH
-    [READY] 2.2 TIME_CLOCKS_AND_FIXED_TICKS
-
-    [PLANNED] 2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
-    [PLANNED] 2.4 MEMORY_ARENAS_AND_SCRATCH
-    [PLANNED] 2.5 SERIALIZATION_SCHEMA_FOUNDATION
-
-    2 / 5
-
-TOTAL READY:
-    12 / 160
-
-RAW CHAPTER-COUNT AUTHORING COMPLETION:
-    7.5%
-
-RAW CHAPTER-COUNT AUTHORING REMAINING:
-    92.5%
-
-======================================================================
-4. WEIGHTED ESTIMATE
-======================================================================
-
-Later stages are substantially heavier than Stage 0/1 documentation.
-
-The largest documentation work remains in:
-
-    3.x  JobSystem
-    5.x  procedural framework
-    7.x  renderer/GPU scene
-    9.x  terrain/hydrology
-    10.x roads/city
-    11.x buildings
-    13.x physics
-    14.x navigation
-    15.x simulation/ECS
-    16.x destruction
-    17.x ballistics
-    18.x infantry
-    19.x combat/AI
-    20.x full integration
-    21.x compute/CUDA
-
-Therefore a weighted manual-authoring estimate is intentionally more
-conservative than raw chapter count:
-
-    DOCUMENTATION / MANUAL COMPLETE:
-        approximately 6-8%
-
-    DOCUMENTATION / MANUAL REMAINING:
-        approximately 92-94%
-
-======================================================================
-5. IMPLEMENTATION ESTIMATE
-======================================================================
-
-Native implementation in TARGET has not yet started.
-
-Existing work so far is:
-    architecture,
-    migration inventory,
-    mathematical reference,
-    executable implementation chapters,
-    repository/reference topology.
-
-Approximate C++ implementation completion:
-
+Approximate implementation completion at this baseline:
     < 1%
 
-Approximate C++ implementation remaining:
-
+Approximate implementation remaining:
     > 99%
 
-This is expected. The purpose of the manual is to make that implementation
-mechanical, incremental and verifiable rather than exploratory.
+Implementation progress must be tracked by chapter status transitions from
+READY -> IMPLEMENTED after code + tests + acceptance verification.
+
 
 ======================================================================
-6. NEXT AUTHORING BLOCK
+2. COMPLETE ROADMAP
 ======================================================================
 
-Next documentation target:
+Stage 0  Architecture / migration contract                 6 / 6 READY
+Stage 1  Native build skeleton                            4 / 4 READY
+Stage 2  Foundation                                       5 / 5 READY
+Stage 3  Multicore execution                              5 / 5 READY
+Stage 4  Math / geometry / spatial                        6 / 6 READY
+Stage 5  Procedural framework                             8 / 8 READY
+Stage 6  World / regions                                  6 / 6 READY
+Stage 7  Diligent render foundation                       8 / 8 READY
+Stage 8  Compute framework                                5 / 5 READY
+Stage 9  Terrain / hydrology                              7 / 7 READY
+Stage 10 Roads / city                                    10 / 10 READY
+Stage 11 Buildings                                       12 / 12 READY
+Stage 12 Vegetation / environment                         6 / 6 READY
+Stage 13 Physics                                          6 / 6 READY
+Stage 14 Navigation                                       6 / 6 READY
+Stage 15 Simulation / ECS                                 7 / 7 READY
+Stage 16 Destruction                                      8 / 8 READY
+Stage 17 Ballistics                                       6 / 6 READY
+Stage 18 Infantry                                        11 / 11 READY
+Stage 19 Weapons / combat / AI                            8 / 8 READY
+Stage 20 Full world integration                           7 / 7 READY
+Stage 21 High-end GPU / optional CUDA                     7 / 7 READY
+Stage 22 Production hardening                             6 / 6 READY
 
-    2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
-    2.4 MEMORY_ARENAS_AND_SCRATCH
-    2.5 SERIALIZATION_SCHEMA_FOUNDATION
+TOTAL:
+    160 / 160 READY
 
-Then:
-
-    Stage 3 - MULTICORE EXECUTION
-
-This is the first major performance-critical manual block:
-    JobSystem core
-    work stealing
-    dependencies
-    parallel_for batching
-    cancellation
-    profiling/scaling benchmarks
 
 ======================================================================
-7. UPDATE RULE
+3. AUDIT SUMMARY
 ======================================================================
 
-After every completed documentation block:
+Master-roadmap filename audit:
+    expected executable chapters: 160
+    existing executable chapters: 160
+    missing: 0
+    extra: 0
 
-    update READY count
-    update stage counts
-    update raw percentage
+Placeholder search:
+    STATUS: DRAFT   0
+    STATUS: PLANNED 0
+    undefined       0
+    TODO            0
+    TBD             0
+    FIXME           0
 
-Do not change TOTAL merely to make percentage look better.
-If roadmap gains a necessary chapter, increase TOTAL explicitly.
+Chapter file-size sanity:
+    smallest executable chapter is > 6 KiB.
+    No empty/stub chapter detected by size.
+
+Central contracts:
+    0.0 master manual contract
+    0.1 architecture
+    0.2 SOURCE parity inventory
+    0.3 C++ coding/dependency rules
+    0.4 benchmark/determinism policy
+    0.5 mathematical/algorithm reference
+    0.6 SOURCE/TARGET repository topology
+
+Reference project:
+    reference/source
+    reference/manifests
+    reference/fixtures
+    reference/golden
+    reference/schemas
+    reference/FIXTURE_EXPORT_POLICY.txt
+
+SOURCE/TARGET roles:
+    SOURCE ppotepa/genomes remains legacy/reference implementation.
+    TARGET ppotepa/genomes-cpp owns native manual and future implementation.
+
+
+======================================================================
+4. WHAT "MANUAL COMPLETE" MEANS
+======================================================================
+
+An implementation agent can be assigned a chapter such as:
+
+    Implement docs/3.1_JOB_SYSTEM_CORE.txt
+
+or:
+
+    Implement docs/11.5_CIRCULATION_AND_ROOM_SOLVER.txt
+
+and must follow:
+    dependencies,
+    target file tree,
+    public contracts,
+    math/algorithm references,
+    implementation steps,
+    pseudocode,
+    threading/ownership,
+    error/determinism/performance rules,
+    migration/parity,
+    tests,
+    acceptance criteria,
+    forbidden shortcuts.
+
+The agent must not treat future chapters as permission to skip the current
+chapter's acceptance gates.
+
+
+======================================================================
+5. IMPLEMENTATION ORDER
+======================================================================
+
+Default implementation order is numerical chapter order.
+
+Do not jump directly to Infantry/rendering before foundation/procedural/world
+prerequisites unless the chapter dependency graph explicitly allows a narrow
+independent spike.
+
+Recommended implementation start:
+
+    1.1 CPP_CMAKE_BOOTSTRAP
+    1.2 THIRD_PARTY_DEPENDENCIES
+    1.3 EXECUTABLE_TARGETS_AND_TEST_RUNNER
+    1.4 CI_NATIVE_BASELINE
+
+then Stage 2 onward.
+
+
+======================================================================
+6. FUTURE MANUAL CHANGES
+======================================================================
+
+The roadmap is now CLOSED as baseline v0.1.
+
+Add a new chapter only for:
+
+    genuinely new product scope,
+    a discovered architectural gap,
+    an incompatibility found during implementation,
+    a versioned correction/replacement of an existing contract.
+
+Do not add chapters merely to make the progress counter move.
+
+When implementation reveals a documentation defect:
+    fix the responsible chapter,
+    preserve old semantic/reference IDs where already depended upon,
+    update this audit if roadmap count changes.
