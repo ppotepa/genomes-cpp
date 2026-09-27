@@ -1,0 +1,190 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 8.4 - READBACK_UPLOAD_AND_STAGING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement bounded upload/readback staging rings, asynchronous tickets and explicit CPU-GPU transfer budgeting to avoid stalls and transient allocations.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.2_DILIGENT_COMPUTE_BACKEND.txt
+    TARGET::docs/7.2_RENDER_DEVICE_HANDLES_AND_CAPABILITIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+GPU compute is an acceleration/backend service. Authoritative gameplay remains
+correct with CPU fallback unless a later chapter explicitly changes that rule.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+CUDA fast paths and domain-specific kernels introduced by later stages.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/core/include/genomes/render/UploadArena.hpp
+    engine/render/core/include/genomes/render/ReadbackQueue.hpp
+    engine/render/diligent/DiligentStaging.cpp
+    tests/native/render/staging_tests.cpp
+    benchmarks/render/staging_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. UploadArena is per-frame ring/suballocator with alignment and fence-based reuse; large overflow uses tracked dedicated upload allocation under budget.
+
+2. ReadbackRequest returns ReadbackTicket {id,size,completionFence}; map/read is legal only after ready. No implicit wait.
+
+3. TransferBudget tracks uploaded/readback bytes per frame and can reject/defer noncritical diagnostics.
+
+4. Persistent dynamic data should use GPUScene deltas, not arbitrary Map/Unmap everywhere.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compute inputs/outputs are explicit buffer/view descriptors with versioned kernel parameter blocks; no backend-native pointer leakage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement frames-in-flight upload pages and aligned allocate(size,alignment).
+
+STEP 2
+    Copy CPU data into mapped upload page and schedule copy through graph/transfer queue.
+
+STEP 3
+    Implement readback pool with requested byte range and delayed map.
+
+STEP 4
+    Add pollReady and tryMap APIs; blocking wait only explicit tooling path.
+
+STEP 5
+    Record per-frame transfer counters/high-water.
+
+STEP 6
+    Test ring wrap/fence protection and stale ticket generations.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+UPLOAD ALLOC:
+    page := currentFramePage
+    if aligned(cursor)+size <= capacity:
+        return slice
+    else allocate overflow page or defer
+
+READBACK:
+    ticket := allocateReadback(size)
+    schedule gpuCopy(src,ticket.buffer)
+    ticket.fence := submittedFence
+    return ticket
+
+TRY MAP:
+    if completedFence < ticket.fence: return NotReady
+    return mapped bytes
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU prepares immutable dispatch inputs; backend owns GPU resources and synchronization. Readbacks become visible only after completion tokens/fences.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported GPU feature selects explicit CPU/fallback path where allowed; shader/dispatch failures return typed errors and diagnostics.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+GPU-derived advisory fields may be numerically non-bitwise-identical across hardware; authoritative CPU state cannot depend on undocumented nondeterministic reductions.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch dispatches, avoid CPU/GPU ping-pong, measure transfer cost separately from kernel cost and prefer GPU-resident pipelines.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET compute service is new infrastructure; SOURCE has no equivalent general
+compute layer and remains reference for domain outputs only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    alignment
+    ring wrap
+    inflight page not reused
+    readback NotReady
+    ticket stale
+    budget counters
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] bounded staging
+    [ ] explicit tickets
+    [ ] no implicit wait
+    [ ] fence-safe reuse
+    [ ] transfer metrics
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    new upload buffer per small update
+    blocking readback in render frame
+    reusing in-flight staging memory
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] bounded staging
+    [ ] explicit tickets
+    [ ] no implicit wait
+    [ ] fence-safe reuse
+    [ ] transfer metrics
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next compute chapter.
+
+END OF CHAPTER 8.4
