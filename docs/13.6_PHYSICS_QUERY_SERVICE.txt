@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.6 - PHYSICS_QUERY_SERVICE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Expose batched ray/shape/overlap queries with Genomes filters, semantic hit mapping and snapshot/step safety, integrating static region and dynamic bodies.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.5_DYNAMIC_BODY_COMMAND_BUFFERS.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/core/include/genomes/physics/PhysicsQueryService.hpp
+    engine/physics/jolt/JoltQueries.cpp
+    tests/native/physics/physics_query_tests.cpp
+    benchmarks/physics/physics_query_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Query types RayCast, SegmentCast, ShapeCast, OverlapAabb/Shape. QueryFilter has layer mask, ignore body/semantic IDs and optional predicate executed after broadphase hit mapping.
+
+2. Hit record: fraction/distance, point, normal, PhysicsBodyHandle, semantic ID, material/surface tag, subshape/structural ID optional. No Jolt pointer escapes.
+
+3. Batch query API accepts spans and per-job output/scratch; queries are scheduled only in a phase safe relative to PhysicsSystem::Update unless backend provides documented concurrent query snapshot.
+
+4. WorldQuery may choose terrain semantic direct sample instead of physics ray where appropriate.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement filter conversion to Jolt BroadPhaseLayer/ObjectLayer/BodyFilter/ShapeFilter.
+
+STEP 2
+    Implement ray closest/all/sorted options with stable semantic sort only when requested.
+
+STEP 3
+    Implement shape casts/overlaps and semantic user data lookup.
+
+STEP 4
+    Implement batchQueries over JobSystem in safe phase; partition queries, not mutate physics.
+
+STEP 5
+    Add broadphase-vs-logical building comparison tests and high-volume LOS/ray benchmark.
+
+STEP 6
+    Document precision/local-origin conversion for large world regions.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BATCH:
+    require phase == QuerySafe
+    parallelFor query ranges:
+        for q:
+            joltCollector := execute backend query
+            for hit:
+                map BodyID -> PhysicsBodyHandle/semanticId
+                apply post filter
+                write caller output
+            optional sort by fraction then semanticId
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Queries may run concurrently only according to Jolt documented safe access phase. Do not run while Update locks world unless explicitly proven supported. Outputs are job-local.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Closest hit fraction defines result; equal-fraction tie uses stable semantic ID if deterministic ordering requested.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch thousands of queries, reuse collectors/scratch, layer filters before narrow phase, benchmark 1k/100k rays.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE destruction/AI traces later switch to this service or logical structural query depending material needs.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    ray static/dynamic
+    ignore self
+    layer mask
+    shape cast
+    batch
+    stable tie
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] public hit mapping
+    [ ] filters
+    [ ] batch safe
+    [ ] no backend pointers
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    raycast all layers then filter everything
+    query allocation per ray
+    running queries in unsafe Jolt update phase
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] public hit mapping
+    [ ] filters
+    [ ] batch safe
+    [ ] no backend pointers
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.6
