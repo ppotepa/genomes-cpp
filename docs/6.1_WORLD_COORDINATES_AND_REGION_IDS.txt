@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 6.1 - WORLD_COORDINATES_AND_REGION_IDS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define large-world global/local coordinate model, deterministic region coordinates/IDs and rebasing contracts so precision does not degrade as world size grows.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/4.1_MATH_TYPES_AND_COORDINATE_CONVENTIONS.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/CMakeLists.txt
+    engine/world/include/genomes/world/WorldPosition.hpp
+    engine/world/include/genomes/world/RegionCoord.hpp
+    engine/world/include/genomes/world/RegionId.hpp
+    tests/native/world/world_coordinates_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Global semantic position uses double meters or integer fixed world cell + local float; initial canonical API uses Vec3d WorldPosition.
+
+2. RegionCoord is signed integer (x,z, optional layer) computed with floor; RegionId derives deterministically from WorldId + coord, not load order.
+
+3. RegionLocalPosition is float relative to region origin. Conversions are explicit and round-trip within documented precision.
+
+4. Region size is configuration/schema data, not constexpr hidden across code; initial default may be selected later by benchmark.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-COORD-001
+    DATA-COORD-002
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define WorldId/RegionId strong semantic IDs and RegionCoord signed ints.
+
+STEP 2
+    Implement regionCoordFor(globalXZ, regionSize) using floor for negatives.
+
+STEP 3
+    Implement regionOrigin and toLocal/toGlobal.
+
+STEP 4
+    Define WorldCoordinateConfig with regionSizeMeters and validation.
+
+STEP 5
+    Add edge tests at +/- boundaries and distances far from origin.
+
+STEP 6
+    Do not implement floating-origin renderer move yet; only semantic conversion.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+REGION COORD:
+    rx := floor(global.x / regionSize)
+    rz := floor(global.z / regionSize)
+
+ORIGIN:
+    return (rx*regionSize, 0, rz*regionSize)
+
+LOCAL:
+    return float(global - origin(coord))
+
+ID:
+    bytes := canonical(WorldId, rx, rz, layer)
+    return RegionId(stableHash(bytes))
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    positive/negative boundaries
+    zero
+    1e6 meter position
+    roundtrip
+    RegionId stable
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] negative floor correct
+    [ ] explicit global/local types
+    [ ] stable IDs
+    [ ] configurable region size
+    [ ] precision tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    float-only global world
+    truncation for negative regions
+    region IDs from vector index/load order
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] negative floor correct
+    [ ] explicit global/local types
+    [ ] stable IDs
+    [ ] configurable region size
+    [ ] precision tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 6.1
