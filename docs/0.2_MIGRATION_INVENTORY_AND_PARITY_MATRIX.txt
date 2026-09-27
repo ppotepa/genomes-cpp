@@ -1,0 +1,1922 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 0.2 - MIGRATION INVENTORY AND PARITY MATRIX
+STATUS: READY
+INVENTORY BASELINE: repository main as inspected 2026-09-27
+
+======================================================================
+GOAL
+======================================================================
+
+Create the authoritative migration inventory for the legacy/reference SOURCE repository.
+
+This chapter answers, for every current subsystem group:
+
+    WHAT EXISTS NOW?
+    WHAT MUST BE PRESERVED?
+    WHAT IS THE TARGET NATIVE OWNER?
+    WHICH IMPLEMENTATION CHAPTER MIGRATES IT?
+    WHAT KIND OF PARITY IS REQUIRED?
+    WHICH CURRENT TESTS/fixtures are evidence?
+    WHEN MAY THE legacy implementation be retired?
+
+The native migration MUST preserve all current project scope unless a later
+chapter explicitly changes product behavior with documented acceptance criteria.
+
+This inventory is the checklist preventing accidental feature loss.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+Repository groups inspected:
+
+    README.md
+    version.json
+    index.html
+    environment.html
+
+    js/*                         114 runtime/source/vendor files
+    prototypes/*                  3 major standalone prototypes
+    building-lab/*                 8 files
+    tests/*                       65 test files
+    tools/*                       17 tool/harness files
+    docs/destruction/*
+    docs/research/*
+    docs/00_START.txt ... docs/32_*
+    docs/world-settlement-runtime.md
+
+======================================================================
+PRESERVES
+======================================================================
+
+Everything listed in this inventory is preserved as one of:
+
+    ACTIVE FEATURE
+    REFERENCE IMPLEMENTATION
+    GOLDEN FIXTURE
+    TEST CONTRACT
+    RESEARCH / DESIGN EVIDENCE
+    BUILD / TOOLING REQUIREMENT
+
+A legacy path may become non-shipping later, but cannot disappear until its
+migration gate is satisfied.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No C++ implementation.
+No legacy deletion.
+No algorithm redesign beyond assigning migration owners and parity rules.
+No visual redesign.
+No gameplay rebalance.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+This chapter creates no native source files.
+
+Target ownership follows Chapter 0.1:
+
+    engine/*
+    modules/*
+    apps/*
+    tests/*
+    reference/*
+
+Legacy/reference sources remain in-place during migration.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+PARITY-CLASS-EXACT
+    Exact serialized/logical equality is expected for selected deterministic
+    fixtures.
+
+PARITY-CLASS-NUMERIC
+    Numeric results match within explicitly documented tolerances.
+
+PARITY-CLASS-STRUCTURAL
+    Same semantic graph/topology/schema relationships, even if internal object
+    layout differs.
+
+PARITY-CLASS-INVARIANT
+    Required validity properties and constraints match; exact generated shape
+    may intentionally differ.
+
+PARITY-CLASS-BEHAVIORAL
+    User/game-observable state transition behavior matches acceptance cases.
+
+PARITY-CLASS-VISUAL
+    Selected image/debug fixtures are reviewed by automated metrics and/or
+    manual acceptance defined by migration chapter.
+
+PARITY-CLASS-PERFORMANCE
+    New implementation must meet or improve explicit benchmark ceilings.
+
+A subsystem can require multiple classes.
+
+RETIREMENT STATES:
+
+    KEEP
+        legacy stays indefinitely as active/reference tool.
+
+    REFERENCE_ONLY
+        legacy no longer production path but retained for parity/research.
+
+    RETIRE_AFTER_PARITY
+        legacy production path may be removed after named parity chapter.
+
+    NEVER_DELETE_FIXTURE
+        test/research artifact retained as regression evidence.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+Each inventory row conceptually contains:
+
+    CurrentPath
+    CurrentSymbols
+    CurrentRole
+    PreserveRequirement
+    TargetOwner
+    TargetChapter
+    ParityClasses
+    Evidence
+    RetirementRule
+
+Later chapters may split a row into finer-grained symbols, but must not drop it.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+This chapter inventories systems. Mathematics is defined in 0.5 and referenced
+by implementation chapters.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+N/A for implementation.
+
+Repository algorithm references:
+    REF-REPO-CITY
+    REF-REPO-BUILDING
+    REF-REPO-DESTRUCTION
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+    REF-REPO-CITY
+    REF-REPO-BUILDING
+    REF-REPO-DESTRUCTION
+
+======================================================================
+1. ROOT APPLICATION / BOOT / CONFIG
+======================================================================
+
+CURRENT FILES:
+    index.html
+    environment.html
+    js/loader.js
+    js/config.js
+    js/game.js
+    version.json
+    README.md
+
+CURRENT RESPONSIBILITIES:
+    browser boot order
+    dependency loading
+    Rapier/Three initialization
+    runtime configuration
+    fixed-step game loop host
+    renderer/camera/root scene
+    world creation and START NEW
+    quality profile UI/runtime
+    application lifetime/dispose
+    version metadata
+
+TARGET:
+    apps/game/
+    apps/proc_viewer/
+    engine/foundation/
+    engine/simulation/
+    engine/render/
+    engine/assets/
+
+MIGRATION CHAPTERS:
+    1.1-1.4 native build skeleton
+    2.x foundation
+    7.x render foundation
+    20.1 native world assembly
+    20.5 native proc viewer
+    20.6 full game presentation
+
+PARITY:
+    BEHAVIORAL
+    STRUCTURAL
+    PERFORMANCE where current telemetry contracts exist
+
+EVIDENCE:
+    tests/lazy_startup_smoke.cjs
+    tests/render_quality_smoke.cjs
+    tests/world_performance_telemetry.cjs
+    tests/world_render_budget.cjs
+    tests/snapshot_interpolation.cjs
+
+RETIREMENT:
+    RETIRE_AFTER_PARITY for shipping browser game path.
+    README/version history remains.
+    Browser labs may remain REFERENCE_ONLY after native game is authoritative.
+
+IMPORTANT:
+    Current fixed-step semantics are a requirement, not the current JS class
+    layout.
+    Current browser boot ordering is NOT a target architecture requirement.
+
+======================================================================
+2. CORE RNG / TIME / BASIC MATH
+======================================================================
+
+CURRENT FILES:
+    js/core/seededRandom.js
+    js/core/fixedClock.js
+    js/noise.js
+    js/config.js::R.Math
+
+CURRENT SYMBOLS / FEATURES:
+    RTS.SeededRandom (Mulberry32-style stream)
+    RTS.FixedClock
+    SeededPerlin2D
+    clamp/mix/smooth/angle helpers
+    fixed dt = 1/60 current runtime
+
+TARGET:
+    engine/foundation/random/
+    engine/simulation/time/
+    engine/math/
+    modules/terrain/noise/
+
+MIGRATION:
+    2.1 IDs/hash foundations
+    2.2 clocks/ticks
+    4.1 math types
+    5.1 seed tree/random streams
+    9.2 terrain generation
+
+PARITY:
+    EXACT for selected existing RNG streams where legacy generated results
+          require exact reproduction.
+    NUMERIC for fixed clock interpolation behavior.
+    STRUCTURAL for seed hierarchy when moving from flat seeds to SeedPath.
+
+EVIDENCE:
+    tests/check_core.js
+    tests/numeric_math.cjs
+    tests/run_numeric.cjs
+    tests/snapshot_interpolation.cjs
+    tests/terrain_worker_parity.cjs
+
+RETIREMENT:
+    RETIRE_AFTER_PARITY.
+    Keep reference fixtures generated from JS.
+
+NOTE:
+    Chapter 5.1 must explicitly decide whether native canonical RNG preserves
+    exact legacy Mulberry32 output or introduces versioned streams with legacy
+    compatibility.
+
+======================================================================
+3. TERRAIN
+======================================================================
+
+CURRENT FILES:
+    js/terrain.js
+    js/workers/terrainHeightWorker.js
+    js/noise.js
+
+CURRENT FEATURES:
+    deterministic terrain height generation
+    full height array
+    terrain mesh/chunks
+    normal generation
+    color generation
+    async/cooperative build
+    one actual Web Worker path for height data
+    road grading / flattenRoads
+    building pad grading / flattenPads
+    O(1)-style height sampling from retained height grid
+    diagnostic grids
+    chunk bounds/frustum culling support
+
+TARGET:
+    modules/terrain/
+    engine/proc/
+    engine/geometry/
+    engine/world/
+    engine/render compilers
+    engine/physics static compiler
+
+MIGRATION:
+    9.1-9.7
+
+PARITY:
+    EXACT or NUMERIC for selected heightfield seeds depending Chapter 9.2.
+    STRUCTURAL for chunk/world representation.
+    BEHAVIORAL for getHeightAt/sample and grading.
+    PERFORMANCE for generation and sampling.
+
+EVIDENCE:
+    tests/terrain_build_async.cjs
+    tests/terrain_worker_parity.cjs
+    tests/numeric_math.cjs
+    tests/battlefield_checks.js
+
+RETIREMENT:
+    legacy renderer path RETIRE_AFTER_PARITY.
+    JS terrain remains REFERENCE_ONLY for golden seeds.
+
+======================================================================
+4. CURRENT SIMPLE WORLD / SETTLEMENT
+======================================================================
+
+CURRENT FILES:
+    js/world/settlementGenerator.js
+    js/world/fenceGenerator.js
+    js/world/side.js
+    docs/world-settlement-runtime.md
+
+CURRENT FEATURES:
+    current simple village layout
+    winding/crossroads/hamlets variants
+    parcels near roads
+    building requests
+    zones/fields/orchards/etc.
+    driveways
+    fences
+    deterministic seed behavior
+
+TARGET:
+    modules/city/
+    modules/roads/
+    modules/terrain/
+    modules/vegetation/
+    modules/buildings/
+    world artifact pipeline
+
+MIGRATION:
+    9.x terrain
+    10.x roads/city
+    11.x buildings
+    12.x environment
+    20.2 old/new world parity
+
+PARITY:
+    IMPORTANT: current simple settlement is a preserved scenario/reference,
+    but is NOT the target city architecture.
+    Require BEHAVIORAL/FEATURE parity for existing START NEW use cases.
+    New city generator may supersede exact layout only after explicit world
+    integration acceptance.
+
+EVIDENCE:
+    tests/fence_generation.cjs
+    tests/battlefield_checks.js
+    tests/lazy_startup_smoke.cjs
+
+RETIREMENT:
+    REFERENCE_ONLY after native city/world assembly reproduces all required
+    user-facing features.
+
+======================================================================
+5. PROCEDURAL CITY PROTOTYPE
+======================================================================
+
+CURRENT FILE:
+    prototypes/procedural-city/index.html
+
+CURRENT CORE:
+    SeedTree
+    polygon/segment geometry
+    SpatialHash2D
+    terrain fields
+    hydrology
+    boundary solve
+    centres
+    bridge candidates
+    gateways
+    transport skeleton
+    recursive RegionNode hierarchy
+    road deficit/local growth
+    planar graph repair
+    zoning
+    blocks
+    urban/rural parcels
+    buildable polygons
+    OBB/SAT building placement
+    validator
+    headless generation entry point
+    standalone WebGL debug renderer
+
+TARGET:
+    engine/proc/
+    engine/geometry/
+    engine/spatial/
+    modules/terrain/
+    modules/hydrology/
+    modules/roads/
+    modules/city/
+
+MIGRATION:
+    4.x geometry/spatial prerequisites
+    5.x procedural framework
+    9.6 hydrology
+    10.1-10.10 city migration
+
+PARITY:
+    STRUCTURAL
+    INVARIANT
+    EXACT for selected seed-derived intermediate artifacts where useful.
+    PERFORMANCE.
+    VISUAL only for debug/reference, not semantic acceptance.
+
+REQUIRED INVARIANTS:
+    road graph connectivity requirements
+    valid bridge/water crossings
+    no unregistered road crossings
+    parcels inside source blocks
+    buildings inside parcels/buildable polygons
+    no forbidden building-road/water overlap
+    deterministic results by seed/version
+
+EVIDENCE:
+    prototype validator itself
+    future exported golden fixtures required by Chapter 10.10
+
+RETIREMENT:
+    NEVER DELETE as REFERENCE_ONLY lab until native proc viewer contains
+    equivalent diagnostic introspection.
+    May remain permanently as a lightweight algorithm lab.
+
+======================================================================
+6. PROCEDURAL ROAD GRAPH LAB
+======================================================================
+
+CURRENT FILE:
+    prototypes/procedural-road-graph-lab/index.html
+
+CURRENT CORE:
+    deterministic hashing/RNG
+    WorldField
+    terrain, river, population, urbanity, cost fields
+    RoadGraph
+    recursive growth
+    A* macro routing
+    traffic assignment
+    traffic feedback/upgrades
+    bypass/ring roads
+    secondary growth
+    zoning
+    half-edge face walk
+    blocks
+    placeholder buildings
+    tensor field samples
+    instanced debug rendering
+
+TARGET:
+    modules/roads/
+    modules/city/
+    engine/geometry/
+    engine/spatial/
+    engine/proc/
+
+MIGRATION:
+    10.1-10.10
+
+PARITY:
+    STRUCTURAL
+    INVARIANT
+    BEHAVIORAL for traffic feedback concept where retained
+    PERFORMANCE
+
+EVIDENCE:
+    future Chapter 10 reference exports from this file
+
+RETIREMENT:
+    REFERENCE_ONLY; do not delete before Chapter 20.5 native proc viewer.
+
+======================================================================
+7. MODULAR BUILDING RUNTIME
+======================================================================
+
+CURRENT FILES:
+    js/buildings/buildingCatalog.js
+    js/buildings/buildingRandom.js
+    js/buildings/buildingPolygon.js
+    js/buildings/buildingSpec.js
+    js/buildings/buildingFootprints.js
+    js/buildings/buildingPrograms.js
+    js/buildings/buildingSolver.js
+    js/buildings/buildingAssemblies.js
+    js/buildings/buildingPlan.js
+    js/buildings/buildingInstance.js
+    js/buildings/buildingGeometry.js
+    js/buildings/buildingCollisionProxy.js
+    js/buildings/buildingWorldRepresentation.js
+    js/buildings/buildingRuntime.js
+    js/buildings/buildingDamageChunkManager.js
+    js/buildings/buildingDamageChunks.js
+    js/buildings/buildingSpatialIndex.js
+    js/buildings/buildingRepresentationManager.js
+    js/buildings/buildingBackends.js
+    js/buildings/proceduralBuildingGenerator.js
+    js/vendor/buildings-6.0.0.js
+
+CURRENT FEATURES:
+    BuildingSpec/Plan concepts
+    footprint families
+    programs
+    solver/assemblies
+    geometry
+    collision proxy
+    world/far representation
+    runtime detail switching
+    spatial indexing
+    lazy damage chunk representation
+    vendor bundle/backend compatibility
+
+TARGET:
+    modules/buildings/
+    engine/geometry/
+    engine/spatial/
+    representation compilers
+
+MIGRATION:
+    11.1-11.12
+    16.x destruction integration
+
+PARITY:
+    STRUCTURAL
+    INVARIANT
+    BEHAVIORAL
+    NUMERIC where dimensions/clearance exactness matters
+    PERFORMANCE
+
+EVIDENCE:
+    tests/building_collision_proxy.cjs
+    tests/building_damage_chunks.cjs
+    tests/building_destruction_quality.cjs
+    tests/building_destruction_v6.cjs
+    tests/building_fuzz_v6.cjs
+    tests/building_geometry_quality.cjs
+    tests/building_lazy_destruction.cjs
+    tests/building_roof_quality.cjs
+    tests/building_solver_quality.cjs
+    tests/building_v6.cjs
+    tests/building_world_representation.cjs
+    tests/clearance_broadphase.cjs
+    tests/world_building_spatial_index.cjs
+
+RETIREMENT:
+    RETIRE_AFTER Chapter 11.12 + destruction compatibility.
+    vendor buildings bundle may then be removed from native shipping dependency,
+    but retained in history/reference if needed.
+
+======================================================================
+8. NEW MATHEMATICAL BUILDING PROTOTYPE
+======================================================================
+
+CURRENT FILE:
+    prototypes/procedural-building-generator/index.html
+
+CURRENT FEATURES:
+    grid/cell footprint morphology
+    connectivity
+    hole detection
+    rectangularity/aspect metrics
+    symmetry
+    macro decomposition
+    vertical core candidates
+    stair-core solving
+    entrance candidates
+    A* circulation backbone
+    room planning/solver
+    detailed procedural building output
+    validation/debug inspection
+
+TARGET:
+    primary semantic design source for modules/buildings/
+
+MIGRATION:
+    11.1-11.12
+
+PARITY:
+    INVARIANT first.
+    STRUCTURAL for BuildingPlan semantics.
+    EXACT selected fixtures where stable candidate ordering is preserved.
+    PERFORMANCE for batch building generation.
+
+REFERENCE IDs:
+    ALG-BUILD-PIPELINE-001
+    ALG-BUILD-CANDIDATE-SOLVER-001
+    ALG-GRID-CONNECTIVITY-001
+    ALG-GRID-HOLE-DETECT-001
+    ALG-GRAPH-ASTAR-001
+
+RETIREMENT:
+    REFERENCE_ONLY / KEEP as algorithm lab until native proc viewer clearly
+    supersedes its debugging value.
+
+======================================================================
+9. BUILDING LAB
+======================================================================
+
+CURRENT FILES:
+    building-lab/index.html
+    building-lab/app.js
+    building-lab/floorPlan.js
+    building-lab/forms.js
+    building-lab/view3d.js
+    building-lab/acceptance-cases.json
+    building-lab/RESEARCH.md
+    building-lab/style.css
+
+CURRENT ROLE:
+    standalone procedural-building laboratory and visual acceptance surface.
+
+TARGET:
+    apps/proc_viewer building mode
+    reference fixtures
+
+MIGRATION:
+    11.x
+    20.5
+
+PARITY:
+    FEATURE
+    VISUAL
+    INVARIANT
+
+RETIREMENT:
+    KEEP or REFERENCE_ONLY.
+    acceptance-cases.json is NEVER_DELETE_FIXTURE unless converted losslessly.
+
+======================================================================
+10. VEGETATION / ROCKS / ENVIRONMENT
+======================================================================
+
+CURRENT FILES:
+    js/environment/plantCatalog.js
+    js/environment/plantGenerator.js
+    js/environment/rockGenerator.js
+    js/environment/environmentLab.js
+
+CURRENT FEATURES:
+    plant genomes/species
+    procedural plant geometry
+    LOD generation
+    async/cooperative generation
+    cache/ref-count memory handling
+    rocks
+    environment lab
+    world placement in battlefield
+
+TARGET:
+    modules/vegetation/
+    modules/terrain integration
+    engine/render GPU instance pages
+
+MIGRATION:
+    12.1-12.6
+
+PARITY:
+    EXACT selected genome/geometry buffers where practical
+    STRUCTURAL
+    VISUAL
+    PERFORMANCE
+    BEHAVIORAL for cache/lifetime
+
+EVIDENCE:
+    tests/environment_checks.js
+    tests/environment_gallery.js
+    tests/plant_async_smoke.cjs
+    tests/plant_buffer_smoke.cjs
+    tests/plant_cache_smoke.cjs
+    tests/rocks_checks.js
+    tests/rocks_smoke.cjs
+    tests/vegetation_variation.cjs
+    tests/tree_lod_hysteresis.cjs
+    docs/research/images/plants.*
+    docs/research/images/rocks.*
+
+RETIREMENT:
+    RETIRE_AFTER 12.6 for runtime.
+    research images remain NEVER_DELETE_FIXTURE until replaced by versioned
+    native baselines.
+
+======================================================================
+11. INFANTRY GENOME / UNIT DATA
+======================================================================
+
+CURRENT FILES:
+    js/units/unit.js
+    js/units/infantryGenome.js
+    js/units/infantryUnit.js
+
+CURRENT FEATURES:
+    base Unit abstraction
+    deterministic body/face genome
+    phenotype expression
+    unit lifecycle
+    animation snapshots/interpolation
+    equipment ownership
+    weapon controller integration
+    world movement
+    presentation cadence hooks
+    combat state hooks
+
+TARGET:
+    modules/infantry/
+    engine/simulation generic entity layer
+    modules/weapons integration
+
+MIGRATION:
+    15.x generic ECS first
+    18.1-18.11 infantry
+
+PARITY:
+    EXACT for selected genome seeds
+    NUMERIC phenotype dimensions
+    BEHAVIORAL unit state/lifecycle
+    STRUCTURAL module boundary
+
+EVIDENCE:
+    tests/numeric_math.cjs
+    tests/locomotion_smoke.cjs
+    tests/posture_smoke.cjs
+    tests/snapshot_interpolation.cjs
+    tests/infantry_lazy_physics.cjs
+
+RETIREMENT:
+    RETIRE_AFTER 18.11 and world parity.
+
+======================================================================
+12. INFANTRY RIG / SURFACE / FACE / APPEARANCE
+======================================================================
+
+CURRENT FILES:
+    js/rendering/faceAnatomy.js
+    js/rendering/infantryRig.js
+    js/rendering/surfaceBuilder.js
+    js/rendering/infantryHair.js
+    js/rendering/infantryFace.js
+    js/rendering/infantrySurface.js
+    js/rendering/infantryMaterials.js
+    js/rendering/appearanceCache.js
+    js/rendering/infantryFactory.js
+    js/rendering/unitDiagnostics.js
+
+CURRENT FEATURES:
+    anatomy-driven rig
+    procedural skinned surface
+    face geometry
+    hair
+    morph targets
+    materials
+    appearance cache
+    surface/gear integration
+    diagnostics
+    async build/interleave safety
+
+TARGET:
+    modules/infantry/appearance/
+    modules/infantry/rig/
+    generic render mesh/skeleton assets where reusable
+
+MIGRATION:
+    18.2-18.4
+    18.9
+    20.6
+
+PARITY:
+    EXACT selected geometry/metadata fixtures if practical
+    NUMERIC skeleton/anatomy dimensions
+    VISUAL
+    BEHAVIORAL cache/no-op/lifetime
+    PERFORMANCE
+
+EVIDENCE:
+    tests/appearance_cache_policy.cjs
+    tests/cache_checks.js
+    tests/debug_bounds_lazy.cjs
+    tests/infantry_surface_interleave.cjs
+    tests/unit_preview_async.cjs
+    docs/research/anatomy_rig_audit.md
+    docs/research/genome_distribution_audit.md
+    docs/research/images/bodies*
+    docs/research/images/faces*
+    docs/research/images/necks*
+
+RETIREMENT:
+    RETIRE_AFTER 18.11 / 20.6.
+    research baselines retained.
+
+======================================================================
+13. INFANTRY ANIMATION
+======================================================================
+
+CURRENT FILES:
+    js/animation/twoBoneIK.js
+    js/animation/gaitProfile.js
+    js/animation/groundContact.js
+    js/animation/postureProfile.js
+    js/animation/locomotionController.js
+    js/animation/bipedFeet.js
+    js/animation/infantryAnimator.js
+    js/animation/faceAnimator.js
+
+CURRENT FEATURES:
+    continuous posture/locomotion
+    walk/run/sprint transition
+    crouch
+    prone/crawl
+    sitting
+    foot contacts
+    two-bone IK
+    weapon hand integration
+    face expression
+    blink/gaze procedural animation
+    animation cadence optimizations
+
+TARGET:
+    modules/infantry/animation/
+    generic animation math/runtime only where truly reusable
+
+MIGRATION:
+    18.6-18.9
+
+PARITY:
+    NUMERIC
+    BEHAVIORAL
+    VISUAL
+    PERFORMANCE
+
+EVIDENCE:
+    tests/locomotion_smoke.cjs
+    tests/posture_smoke.cjs
+    tests/sprint_checks.js
+    tests/sprint_smoke.cjs
+    tests/infantry_face_cadence.cjs
+    tests/visual_cadence_scheduler.cjs
+    docs/15_*
+    docs/16_*
+    docs/17_*
+    docs/18_*
+    docs/research/face_expression_audit.md
+    docs/research/images/expressions*
+
+RETIREMENT:
+    RETIRE_AFTER 18.11.
+
+======================================================================
+14. EQUIPMENT
+======================================================================
+
+CURRENT FILES:
+    js/equipment/equipmentCatalog.js
+    js/equipment/infantryLoadouts.js
+    js/equipment/equipment.js
+    js/equipment/equipmentFit.js
+    js/equipment/gearGeometry.js
+    js/equipment/infantryGear.js
+
+CURRENT FEATURES:
+    equipment schema
+    20-slot infantry schema
+    loadouts
+    deterministic variants
+    fit to anatomy
+    procedural gear geometry
+    material/wear/palette data
+
+TARGET:
+    modules/infantry/equipment/
+    generic inventory/equipment data only if later vehicles require it
+
+MIGRATION:
+    18.5
+
+PARITY:
+    EXACT catalog/schema/loadout fixtures
+    NUMERIC fit
+    VISUAL gear geometry
+    BEHAVIORAL no-op/cache behavior
+
+EVIDENCE:
+    tests/equipment_smoke.cjs
+    docs/13_EKWIPUNEK_V10.txt
+    docs/14_KATALOG_EKWIPUNKU_V10.txt
+
+RETIREMENT:
+    RETIRE_AFTER 18.11.
+
+======================================================================
+15. WEAPONS / HANDLING
+======================================================================
+
+CURRENT FILES:
+    js/weapons/handRig.js
+    js/weapons/weaponCatalog.js
+    js/weapons/weaponGeometry.js
+    js/weapons/weaponHandlingProfiles.js
+    js/weapons/weaponController.js
+
+CURRENT FEATURES:
+    weapon catalog
+    procedural weapon geometry
+    one/two-handed handling profiles
+    hand targets/grips
+    draw/holster/readiness
+    fire callback/state
+    procedural handling integration
+
+TARGET:
+    modules/weapons/
+    modules/infantry/weapon-presentation adapter
+
+MIGRATION:
+    19.1-19.3
+    dependencies on 18.x animation
+
+PARITY:
+    EXACT catalog/profile data
+    NUMERIC grip/hand transforms
+    BEHAVIORAL controller state
+    VISUAL weapon models/poses
+
+EVIDENCE:
+    tests/weapon_profiles_smoke.cjs
+    tests/weapon_ui_checks.js
+    tests/weapons_smoke.cjs
+    docs/20_BRON_IMPLEMENTACJA_V13.txt
+    docs/22_PROFILE_1H_V15.txt
+    docs/23_MODELE_BRONI_V16.md
+    docs/research/images/weaponhands*
+    docs/research/images/weapons*
+
+RETIREMENT:
+    RETIRE_AFTER 19.x + 20.6.
+
+======================================================================
+16. GENERIC RAGDOLL SCHEMA / INFANTRY DAMAGE
+======================================================================
+
+CURRENT FILES:
+    js/physics/ragdollSchema.js
+    js/combat/infantryDamageRuntime.js
+
+CURRENT FEATURES:
+    current ragdoll data contract
+    body part damage integration
+    destruction material-model adapter
+    ragdoll event path
+
+TARGET:
+    engine/physics generic handles
+    modules/infantry/damage/
+    modules/infantry/ragdoll/
+
+MIGRATION:
+    13.x physics backend
+    18.10
+
+PARITY:
+    STRUCTURAL
+    BEHAVIORAL
+    NUMERIC where collider dimensions are tested
+
+EVIDENCE:
+    tests/infantry_damage_runtime.cjs
+    tests/infantry_lazy_physics.cjs
+    docs/04_RAGDOLL_KONTRAKT.txt
+
+RETIREMENT:
+    RETIRE_AFTER 18.10-18.11.
+
+======================================================================
+17. DESTRUCTION CORE
+======================================================================
+
+CURRENT FILES:
+    js/destruction/catalogs.js
+    js/destruction/solid.js
+    js/destruction/impactProfiles.js
+    js/destruction/materialImpact.js
+    js/destruction/materialModel.js
+    js/destruction/surfaceDamage.js
+    js/destruction/adapters.js
+
+CURRENT FEATURES:
+    material catalog
+    solid geometry operations
+    material-aware impact response
+    local damage fields
+    perforations/craters/bore/frustum cuts
+    structural support links
+    stress propagation
+    detach/fracture
+    static/moving spatial indexing
+    adapters for scene objects/buildings/plants/infantry
+
+TARGET:
+    modules/destruction/
+    engine/geometry
+    engine/spatial
+    physics integration behind generic interfaces
+
+MIGRATION:
+    16.1-16.8
+
+PARITY:
+    NUMERIC
+    BEHAVIORAL
+    STRUCTURAL
+    INVARIANT
+    PERFORMANCE
+
+EVIDENCE:
+    tests/destruction_core.cjs
+    tests/destruction_spatial.cjs
+    tests/building_destruction_quality.cjs
+    tests/building_destruction_v6.cjs
+    tests/clearance_broadphase.cjs
+    docs/destruction/contracts.md
+    docs/destruction/building-damage-research.md
+    docs/destruction/material-response-calibration.json
+
+RETIREMENT:
+    RETIRE_AFTER 16.8 plus ballistics integration parity.
+
+======================================================================
+18. DESTRUCTION PHYSICS / RUBBLE
+======================================================================
+
+CURRENT FILES:
+    js/destruction/physics.js
+    js/destruction/rubbleField.js
+
+CURRENT FEATURES:
+    Rapier physics integration
+    hero debris
+    cheap debris
+    cheap packet mesh
+    demotion
+    settled debris bake
+    persistent rubble field
+    material volume conservation
+    terrain-aware rubble surface
+    cover/movement hooks
+    rubble re-ejection
+    bounded tile representation
+
+TARGET:
+    modules/destruction/debris/
+    modules/destruction/rubble/
+    engine/physics/jolt backend adapter
+
+MIGRATION:
+    13.x
+    16.4-16.7
+
+PARITY:
+    BEHAVIORAL
+    INVARIANT
+    NUMERIC volume/material accounting
+    PERFORMANCE
+
+CRITICAL INVARIANTS:
+    no silent deletion of material volume
+    representation transition conservation
+    settled debris persists as rubble representation
+    replacement static collision exists before retiring required old collision
+    ballistic cover hooks remain
+
+EVIDENCE:
+    tests/destruction_rubble.cjs
+    tests/destruction_lifecycle.cjs
+    docs/destruction/rubble-field.md
+    docs/destruction/impact-effects-and-stability.md
+    docs/destruction/benchmark.json
+
+RETIREMENT:
+    RETIRE_AFTER 16.8.
+
+======================================================================
+19. BALLISTICS
+======================================================================
+
+CURRENT FILES:
+    js/destruction/ammunitionStrategy.js
+    js/destruction/calibers/caliber556.js
+    js/destruction/calibers/caliber762.js
+    js/destruction/calibers/caliber127.js
+    js/destruction/calibers/caliber20.js
+    js/destruction/calibers/caliber30.js
+    js/destruction/calibers/caliber40.js
+    js/destruction/calibers/caliber105.js
+    js/destruction/projectileMath.js
+    js/destruction/projectileState.js
+    js/destruction/impactSolver.js
+    js/destruction/ballistics.js
+    js/destruction/projectileTrace.js
+
+CURRENT FEATURES:
+    ammunition strategies
+    caliber strategy modules
+    persistent projectile state
+    adaptive flight
+    energy ledger
+    drag/degradation/stability
+    penetration
+    ricochet/glance
+    exit deflection
+    fragment breakup
+    HE contact/fuze behavior
+    projectile trace recording/compression/debug rendering
+
+TARGET:
+    modules/ballistics/
+    modules/destruction integration
+    renderer debug trace as separate presentation consumer
+
+MIGRATION:
+    17.1-17.6
+
+PARITY:
+    NUMERIC
+    BEHAVIORAL
+    EXACT selected deterministic event traces
+    PERFORMANCE
+
+EVIDENCE:
+    tests/destruction_projectile.cjs
+    tests/destruction_trace.cjs
+    tests/destruction_core.cjs
+    docs/destruction/ballistics-calibration.md
+    docs/destruction/energy-acceptance.md
+    docs/destruction/contracts.md
+
+RETIREMENT:
+    RETIRE_AFTER 17.6 and native combat integration.
+
+======================================================================
+20. DESTRUCTION EFFECTS / DEMO / TOOLING
+======================================================================
+
+CURRENT FILES:
+    js/destruction/effects.js
+    js/destruction/demo.js
+    tools/destruction/*
+    docs/destruction/artifacts/*
+
+CURRENT FEATURES:
+    pooled impact/explosion effects
+    destruction demo/test range
+    browser validation harness
+    effect/world benchmarks
+    building fixtures
+    screenshots/artifacts
+
+TARGET:
+    apps/proc_viewer destruction mode
+    apps/benchmark
+    engine/render debug/VFX
+    reference fixtures
+
+MIGRATION:
+    16.8
+    17.6
+    20.5
+    22.x
+
+PARITY:
+    VISUAL
+    BEHAVIORAL
+    PERFORMANCE
+
+EVIDENCE:
+    tests/destruction_effects.cjs
+    tests/destruction_lifecycle.cjs
+    docs/destruction/effects-benchmark.json
+    docs/destruction/artifacts/*
+
+RETIREMENT:
+    tools may remain REFERENCE_ONLY.
+    artifacts NEVER_DELETE_FIXTURE until native replacement baselines are
+    formally versioned.
+
+======================================================================
+21. BATTLEFIELD WORLD ASSEMBLY
+======================================================================
+
+CURRENT FILES:
+    js/world/battlefield.js
+    js/world/worldDestructionHost.js
+    js/world/worldBallisticsBridge.js
+    js/world/buildingSpatialIndex.js
+    js/world/lodHysteresis.js
+    js/world/unitPresentationScheduler.js
+    js/world/worldShadowPolicy.js
+    js/rendering/worldShadowPolicy.js
+
+CURRENT FEATURES:
+    terrain/world build
+    building integration
+    vegetation/rock placement
+    instancing
+    25v25 current scenario
+    AI registration
+    damage runtimes
+    ballistics bridge
+    destruction host
+    building representation manager integration
+    visual cadence
+    LOD hysteresis
+    world fixed-step orchestration
+
+TARGET:
+    engine/world/
+    engine/simulation/
+    native module assembly
+    apps/game/
+
+MIGRATION:
+    6.x world/regions
+    7.x render
+    15.x simulation
+    20.1-20.3 integration
+
+PARITY:
+    FEATURE
+    BEHAVIORAL
+    PERFORMANCE
+    STRUCTURAL
+
+EVIDENCE:
+    tests/battlefield_arrival_idle.cjs
+    tests/battlefield_bucket_keys.cjs
+    tests/battlefield_checks.js
+    tests/battlefield_combat_browser.cjs
+    tests/lazy_startup_smoke.cjs
+    tests/lod_async_smoke.cjs
+    tests/world_performance_telemetry.cjs
+    tests/world_render_budget.cjs
+
+RETIREMENT:
+    RETIRE_AFTER 20.2 and 20.7.
+
+======================================================================
+22. CURRENT AI
+======================================================================
+
+CURRENT FILES:
+    js/ai/aiModelRegistry.js
+    js/ai/simpleCombatModel.js
+    js/ai/battlefieldAIManager.js
+
+CURRENT FEATURES:
+    pluggable model registry
+    passive/simple combat model
+    observation memory
+    periodic perception (~0.2s)
+    FOV/distance filtering
+    terrain LOS samples
+    destruction trace LOS
+    weapon/look/movement intents
+    staggered accumulators
+
+KNOWN ARCHITECTURAL LIMIT:
+    visible() currently scans battlefield units and therefore does not scale to
+    large populations.
+
+TARGET:
+    modules/combat/ai/
+    engine/spatial dynamic grid
+    variable-cadence simulation systems
+
+MIGRATION:
+    15.6-15.7
+    19.4-19.8
+
+PARITY:
+    BEHAVIORAL for existing simple-combat scenario
+    PERFORMANCE for new broadphase/scheduling
+    STRUCTURAL for intent/model registry concepts where retained
+
+EVIDENCE:
+    tests/combat_ai.cjs
+    tests/battlefield_combat_browser.cjs
+
+RETIREMENT:
+    RETIRE_AFTER 19.8 and 20.2.
+
+======================================================================
+23. UI / LABS
+======================================================================
+
+CURRENT FILES:
+    js/ui/debugPanel.js
+    js/ui/equipmentEditor.js
+    js/ui/unitPreview.js
+    js/ui/weaponEditor.js
+    environment.html
+    building-lab/*
+    index.html debug UI
+
+CURRENT FEATURES:
+    unit generator editor
+    genome editor
+    equipment editor
+    weapon editor
+    animation/face diagnostics
+    environment gallery/lab
+    building lab
+    performance stats
+    visual acceptance surfaces
+
+TARGET:
+    apps/proc_viewer/
+    apps/editor/ later
+    debug rendering/services
+
+MIGRATION:
+    20.5 native proc viewer
+    specific module visualization in 9-19 stages
+
+PARITY:
+    FEATURE
+    VISUAL
+    BEHAVIORAL for editing/diagnostic operations
+
+EVIDENCE:
+    tests/unit_preview_async.cjs
+    tests/weapon_ui_checks.js
+    tests/environment_gallery.js
+    docs/research/index.html
+    research capture fixtures
+
+RETIREMENT:
+    KEEP browser labs as reference until native proc viewer has feature parity.
+    Later status may become REFERENCE_ONLY, not automatic deletion.
+
+======================================================================
+24. RENDERING / PERFORMANCE POLICIES
+======================================================================
+
+CURRENT SOURCES:
+    js/game.js
+    js/rendering/appearanceCache.js
+    js/world/lodHysteresis.js
+    js/world/unitPresentationScheduler.js
+    js/world/worldShadowPolicy.js
+    docs/26_CACHE_I_WYDAJNOSC.md
+    docs/27_AUDYT_WYDAJNOSCI_KODU.md
+
+CURRENT PRESERVED IDEAS:
+    geometry cache by exact semantic key
+    session memory limits
+    LOD hysteresis
+    visual cadence separation
+    instancing
+    chunk culling
+    lazy startup
+    async/cooperative generation
+    render pixel budgets
+    memory/scene telemetry
+
+TARGET:
+    engine/render/
+    engine/world/
+    engine/jobs/
+    engine/assets/cache
+
+MIGRATION:
+    3.x jobs
+    6.x world
+    7.x renderer
+    8.x compute
+    22.x hardening
+
+PARITY:
+    FEATURE
+    PERFORMANCE
+    BEHAVIORAL
+
+RETIREMENT:
+    Legacy implementations retire with owning modules, but the design
+    requirements survive.
+
+======================================================================
+25. TEST SUITE INVENTORY BY FUTURE OWNER
+======================================================================
+
+FOUNDATION / MATH:
+    tests/check_core.js
+    tests/numeric_math.cjs
+    tests/run_numeric.cjs
+    tests/snapshot_interpolation.cjs
+
+WORLD / TERRAIN / RENDER:
+    tests/battlefield_arrival_idle.cjs
+    tests/battlefield_bucket_keys.cjs
+    tests/battlefield_checks.js
+    tests/lazy_startup_smoke.cjs
+    tests/lod_async_smoke.cjs
+    tests/render_quality_smoke.cjs
+    tests/terrain_build_async.cjs
+    tests/terrain_worker_parity.cjs
+    tests/tree_lod_hysteresis.cjs
+    tests/visual_cadence_scheduler.cjs
+    tests/world_building_spatial_index.cjs
+    tests/world_performance_telemetry.cjs
+    tests/world_render_budget.cjs
+    tests/fence_generation.cjs
+
+BUILDINGS:
+    tests/building_collision_proxy.cjs
+    tests/building_damage_chunks.cjs
+    tests/building_destruction_quality.cjs
+    tests/building_destruction_v6.cjs
+    tests/building_fuzz_v6.cjs
+    tests/building_geometry_quality.cjs
+    tests/building_lazy_destruction.cjs
+    tests/building_roof_quality.cjs
+    tests/building_solver_quality.cjs
+    tests/building_v6.cjs
+    tests/building_world_representation.cjs
+    tests/clearance_broadphase.cjs
+
+DESTRUCTION / BALLISTICS:
+    tests/destruction_core.cjs
+    tests/destruction_effects.cjs
+    tests/destruction_lifecycle.cjs
+    tests/destruction_projectile.cjs
+    tests/destruction_rubble.cjs
+    tests/destruction_spatial.cjs
+    tests/destruction_trace.cjs
+
+INFANTRY / APPEARANCE / ANIMATION:
+    tests/appearance_cache_policy.cjs
+    tests/cache_checks.js
+    tests/debug_bounds_lazy.cjs
+    tests/infantry_damage_runtime.cjs
+    tests/infantry_face_cadence.cjs
+    tests/infantry_lazy_physics.cjs
+    tests/infantry_surface_interleave.cjs
+    tests/locomotion_smoke.cjs
+    tests/posture_smoke.cjs
+    tests/sprint_checks.js
+    tests/sprint_smoke.cjs
+    tests/unit_preview_async.cjs
+
+EQUIPMENT / WEAPONS:
+    tests/equipment_smoke.cjs
+    tests/weapon_profiles_smoke.cjs
+    tests/weapon_ui_checks.js
+    tests/weapons_smoke.cjs
+
+VEGETATION / ROCKS:
+    tests/environment_checks.js
+    tests/environment_gallery.js
+    tests/plant_async_smoke.cjs
+    tests/plant_buffer_smoke.cjs
+    tests/plant_cache_smoke.cjs
+    tests/rocks_checks.js
+    tests/rocks_smoke.cjs
+    tests/vegetation_variation.cjs
+
+AI / COMBAT:
+    tests/combat_ai.cjs
+    tests/battlefield_combat_browser.cjs
+
+GENERAL BROWSER ACCEPTANCE:
+    tests/acceptance.js
+    tests/index.html
+
+RULE:
+    No legacy test category may disappear from migration tracking.
+    A native test may replace its implementation language, but the acceptance
+    requirement is retained until explicitly superseded.
+
+======================================================================
+26. RESEARCH / GOLDEN EVIDENCE INVENTORY
+======================================================================
+
+KEEP AS MIGRATION EVIDENCE:
+
+    docs/research/anatomy_rig_audit.md
+    docs/research/face_expression_audit.md
+    docs/research/genome_distribution_audit.md
+    docs/research/building-generator.md
+    docs/research/building-interiors.md
+    docs/research/building-patterns.md
+    docs/research/building-roofs.md
+    docs/research/data/genome_distribution_summary.json
+
+    docs/research/images/battlefield.*
+    docs/research/images/bodies*
+    docs/research/images/cache.*
+    docs/research/images/environment.*
+    docs/research/images/experiment*
+    docs/research/images/expressions*
+    docs/research/images/faces*
+    docs/research/images/intensity.*
+    docs/research/images/lod.*
+    docs/research/images/necks*
+    docs/research/images/plants.*
+    docs/research/images/rocks.*
+    docs/research/images/weaponhands.*
+    docs/research/images/weapons.*
+    docs/research/images/weaponui.*
+
+    docs/destruction/artifacts/*
+    docs/destruction/benchmark.json
+    docs/destruction/effects-benchmark.json
+    docs/destruction/material-response-calibration.json
+
+RULE:
+    Native baselines are added alongside legacy evidence.
+    Do not overwrite historical baselines to make a new implementation "pass".
+
+======================================================================
+27. HISTORICAL DOCUMENTATION OWNERSHIP
+======================================================================
+
+Existing docs/00-32 and docs/destruction/research/history/reports are NOT the
+new execution manual but remain source material.
+
+Later chapter authoring must search them before claiming a feature has no
+specification.
+
+Examples:
+
+    docs/13_EKWIPUNEK_V10.txt
+        informs Chapter 18.5.
+
+    docs/16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt
+        informs Chapter 18.6.
+
+    docs/27_AUDYT_WYDAJNOSCI_KODU.md
+        informs performance rules across 3.x, 7.x, 15.x, 22.x.
+
+    docs/30_RESEARCH_PROCEDURALNYCH_BUDYNKOW.md
+    docs/31_ATLAS_ARCHITEKTURY_PROCEDURALNEJ.md
+        inform 11.x.
+
+    docs/destruction/*
+        inform 16.x and 17.x.
+
+======================================================================
+28. MIGRATION STATUS TABLE
+======================================================================
+
+At baseline:
+
+    Root/boot/config                  LEGACY ACTIVE
+    Core RNG/time                    LEGACY ACTIVE
+    Terrain                          LEGACY ACTIVE
+    Simple settlement                LEGACY ACTIVE
+    Procedural city prototype        REFERENCE PROTOTYPE
+    Road graph prototype             REFERENCE PROTOTYPE
+    Modular buildings                LEGACY ACTIVE
+    Mathematical building prototype  REFERENCE PROTOTYPE
+    Building Lab                     REFERENCE/ACTIVE LAB
+    Vegetation/rocks                 LEGACY ACTIVE
+    Infantry genome/unit             LEGACY ACTIVE
+    Infantry rendering               LEGACY ACTIVE
+    Infantry animation               LEGACY ACTIVE
+    Equipment                        LEGACY ACTIVE
+    Weapons                          LEGACY ACTIVE
+    Infantry damage/ragdoll schema   LEGACY ACTIVE/PARTIAL
+    Destruction core                 LEGACY ACTIVE
+    Rubble/physics                   LEGACY ACTIVE
+    Ballistics                       LEGACY ACTIVE
+    AI                               LEGACY ACTIVE/PROTOTYPE
+    Browser UI/labs                  LEGACY ACTIVE
+    Tests/research fixtures          AUTHORITATIVE MIGRATION EVIDENCE
+
+No native subsystem is yet allowed to claim parity solely because a directory
+exists.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+This chapter is documentation-only.
+
+For all later migration chapters:
+
+STEP 1
+    Locate the relevant inventory section.
+
+STEP 2
+    Read all current files and evidence named by that section.
+
+STEP 3
+    Preserve all listed requirements.
+
+STEP 4
+    Implement native equivalent/improvement.
+
+STEP 5
+    Export/construct parity fixtures before deleting legacy code.
+
+STEP 6
+    Run both legacy and native acceptance where feasible.
+
+STEP 7
+    Mark the subsystem migrated only after named parity classes pass.
+
+STEP 8
+    Update this inventory row status only in the parity chapter responsible for
+    the subsystem.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+MIGRATION GATE:
+
+    function mayRetireLegacy(subsystem):
+        row := MigrationInventory[subsystem]
+
+        require row.nativeOwnerImplemented
+        require row.requiredParityTestsExist
+        require all(row.requiredParityTests.pass)
+        require row.dependentsUseNativePath
+        require row.referenceArtifactsPreserved
+
+        if row.retirementRule == KEEP:
+            return false
+
+        if row.retirementRule == REFERENCE_ONLY:
+            markLegacyNonShipping()
+            keepReferenceFiles()
+            return true
+
+        if row.retirementRule == RETIRE_AFTER_PARITY:
+            return true
+
+        return false
+
+
+FEATURE LOSS CHECK:
+
+    for each row in MigrationInventory:
+        if row.currentRole is ACTIVE FEATURE:
+            assert row.targetOwner exists
+            assert row.targetChapter exists
+            assert row.parityClasses not empty
+            assert row.retirementRule exists
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+N/A for code in this chapter.
+
+Migration rule:
+    Do not preserve legacy single-thread ownership merely for parity if the
+    semantic result can be preserved under the target JobSystem.
+
+Thread scheduling is not a parity target.
+Semantic/deterministic behavior is.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+If a later chapter discovers an existing feature not represented here:
+
+    1. STOP retirement work for the affected subsystem.
+    2. Add the missing inventory row.
+    3. Assign target owner/chapter/parity class.
+    4. Continue migration only after inventory is corrected.
+
+Missing inventory is a documentation defect, not permission to drop the feature.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Legacy deterministic fixtures are valuable even where target algorithms are
+improved.
+
+Each migration chapter must explicitly say whether parity requires:
+
+    exact same seed -> exact same semantic result
+
+or:
+
+    same seed -> target-version deterministic result satisfying invariants.
+
+Do not blur these two contracts.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Legacy browser performance is a baseline, not a ceiling.
+
+A native migration must not intentionally reproduce inefficient architecture
+only to match timing/order behavior.
+
+Performance-sensitive rows require native benchmarks before legacy retirement.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Compatibility principle:
+
+    PRESERVE FEATURE
+    NOT IMPLEMENTATION ACCIDENT
+
+Examples:
+
+Preserve:
+    deterministic terrain output contract / query semantics.
+
+Do not preserve:
+    requestAnimationFrame cooperative yielding as the only scheduling method.
+
+Preserve:
+    hero -> cheap -> baked rubble representation concept and conservation.
+
+Do not preserve:
+    Rapier JS object ownership if Jolt native backend replaces it.
+
+Preserve:
+    BuildingPlan semantic relationships.
+
+Do not preserve:
+    Three.js BufferGeometry as semantic model.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+No native code tests in 0.2.
+
+Documentation completeness verification:
+
+    - all 114 js files are covered by a listed subsystem group or vendor/tool
+      category;
+    - all 65 tests are assigned to at least one future owner/category;
+    - all 3 prototypes are explicitly mapped;
+    - building-lab is mapped;
+    - tools/destruction and tools/buildings are mapped;
+    - research/destruction fixtures have preservation rules.
+
+Future optional tooling:
+    create a machine-readable migration manifest derived from this document only
+    after Chapter 2 serialization/schema foundation exists.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Documentation verification only:
+
+    inspect git tree
+    count js source/vendor files
+    count tests
+    confirm prototype count
+    confirm all top-level runtime groups are represented
+
+Expected inspected baseline:
+
+    js/*          114 files
+    tests/*        65 files
+    prototypes/*    3 files
+    building-lab/*  8 files
+    tools/*         17 files
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+0.2 is complete when:
+
+    [x] root/boot/config mapped
+    [x] core RNG/time mapped
+    [x] terrain mapped
+    [x] current simple settlement mapped
+    [x] procedural-city prototype mapped
+    [x] road-graph prototype mapped
+    [x] modular building runtime mapped
+    [x] mathematical building prototype mapped
+    [x] building lab mapped
+    [x] vegetation/rocks mapped
+    [x] infantry genome/unit mapped
+    [x] infantry render/appearance mapped
+    [x] infantry animation mapped
+    [x] equipment mapped
+    [x] weapons mapped
+    [x] ragdoll/infantry damage mapped
+    [x] destruction core mapped
+    [x] rubble/physics mapped
+    [x] ballistics mapped
+    [x] destruction demo/effects mapped
+    [x] battlefield assembly mapped
+    [x] AI mapped
+    [x] UI/labs mapped
+    [x] render/performance policies mapped
+    [x] all current test files assigned by category
+    [x] research/golden evidence preservation defined
+    [x] retirement gate defined
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    claim "full migration" while prototype-only systems remain unmapped;
+    delete a legacy file because a similarly named native class exists;
+    replace golden fixtures in-place to hide parity regressions;
+    treat visual parity as proof of semantic parity;
+    treat exact JS object layout as a product requirement;
+    forget browser labs because they are not main runtime;
+    forget tools/benchmarks because they are not shipping code;
+    drop old tests instead of porting their acceptance requirement;
+    mark a subsystem complete without its parity chapter.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[x] relevant TARGET/SOURCE repository groups inventoried
+[x] target owners assigned
+[x] target chapter ranges assigned
+[x] parity classes defined
+[x] evidence/test ownership assigned
+[x] retirement rules assigned
+[x] prototype/reference status explicit
+[x] no-reset migration rule enforced
+[x] performance migration principle explicit
+[x] missing-feature correction rule explicit
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next:
+
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+
+It defines the exact C++ boundary/style/ownership/include rules that all native
+chapters must follow.
+
+END OF CHAPTER 0.2
