@@ -1,0 +1,189 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.10 - CITY_REFERENCE_PARITY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create durable SOURCE-to-TARGET fixtures and parity gates for procedural-city and road-graph prototypes, separating exact reference values from improved invariant/structural behavior.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.9_CITY_PARALLEL_GENERATION.txt
+    TARGET::docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    reference/fixtures/city/
+    reference/schemas/city_fixture_v1.txt
+    tools/reference_export/city_export.*
+    tests/native/parity/city_parity_tests.cpp
+    docs/reports/CITY_PARITY_V1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Fixture matrix includes settlement scales, morphologies, terrain/plannedness extremes, hydrology none/adjacent/through, multiple seeds and at least one pathological SOURCE regression seed.
+
+2. Exact fixture fields: normalized input, seed hierarchy selected samples, core counts/IDs where legacy semantics intentionally preserved. Structural/invariant fields: graph connectivity, crossings, region counts/depth ranges, block/parcel containment, overlap metrics.
+
+3. Native improvements may intentionally differ in exact road geometry only if parity report marks expected divergence and all stronger invariants pass.
+
+4. Fixture provenance pins exact private SOURCE commit; fixture data contains no wholesale SOURCE code.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    TARGET::reference/FIXTURE_EXPORT_POLICY.txt
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Build SOURCE exporter using existing headless generation hook; add road-graph export hook in temporary/source tooling if needed without moving source to TARGET.
+
+STEP 2
+    Normalize graphs by stable canonical ordering and quantize comparison-only coordinates with declared tolerance, while retaining raw numeric fixture where needed.
+
+STEP 3
+    Export at least 50 deterministic seeds distributed across profiles plus targeted edge cases.
+
+STEP 4
+    Implement native parity loader/comparator by parity class.
+
+STEP 5
+    Generate report listing Pass/ExpectedDivergence/Regression per fixture metric.
+
+STEP 6
+    Block legacy city/road retirement if any unapproved regression remains.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR fixture:
+    legacy := load expected
+    native := generate(fixture.input)
+
+    compare exact fields
+    run native validators
+    compare structural metrics/tolerances
+
+    if exact geometry differs:
+        require divergence rule documented
+        require all hard invariants pass
+
+    report.add result
+
+require zero Regression
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Parity cases run in parallel only if each is isolated; report sorted by fixture ID.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixture export and native comparison stable by exact SOURCE/TARGET commits.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Parity suite correctness-first; separate city benchmark owns timing.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+After pass, SOURCE prototypes become REFERENCE_ONLY but remain valuable labs until native proc viewer supersedes them.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    fixture schema
+    provenance
+    50+ matrix
+    regression detection
+    expected divergence classification
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] SOURCE fixtures pinned
+    [ ] broad profile matrix
+    [ ] native parity comparator
+    [ ] report generated
+    [ ] zero unapproved regressions
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    updating golden files to hide failure
+    requiring visual mesh equality
+    publishing SOURCE code wholesale
+    retiring prototypes before report
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] SOURCE fixtures pinned
+    [ ] broad profile matrix
+    [ ] native parity comparator
+    [ ] report generated
+    [ ] zero unapproved regressions
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.10
