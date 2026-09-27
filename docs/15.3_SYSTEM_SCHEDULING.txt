@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.3 - SYSTEM_SCHEDULING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Build simulation SystemGraph that derives JobSystem dependencies from declared component/resource read-write sets and fixed phase ordering.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.2_CUSTOM_ARCHETYPE_ECS.txt
+    TARGET::docs/3.2_WORK_STEALING_AND_DEPENDENCIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/System.hpp
+    engine/simulation/include/genomes/simulation/SystemGraph.hpp
+    engine/simulation/src/SystemGraph.cpp
+    tests/native/simulation/system_scheduler_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SystemDescriptor declares stable SystemId, phase, required query, component Reads/Writes, external resource Reads/Writes, cadence policy and explicit before/after only when data declaration cannot express relation.
+
+2. Phases baseline: InputCommands, Sense, Decide, Navigate, MoveIntent, PhysicsCommands, PhysicsStep, Combat/Ballistics, Damage/Destruction, Commit, PresentationExtract. Domain systems register into appropriate phase later.
+
+3. Scheduler creates edge when write/read or write/write hazard exists on overlapping resource/component plus phase order; independent systems/chunks can run parallel.
+
+4. System callback receives SystemContext with tick, fixed dt, ECS read snapshot/chunk task, command/event writers and services explicitly declared.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define resource access keys and SystemDescriptor validation.
+
+STEP 2
+    Build dependency DAG at bootstrap/freeze; reject cycles with readable chain.
+
+STEP 3
+    Within system, partition matching ECS chunks into jobs when estimated rows > grain; system completion handle satisfies outgoing dependencies.
+
+STEP 4
+    Allow explicit serial/main-thread systems only by flag with documented reason.
+
+STEP 5
+    Add graph dump and runtime timing metrics by SystemId.
+
+STEP 6
+    Test artificial read/write graphs and parallel independent systems.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BUILD GRAPH:
+    for systems A,B:
+        if phase(A)<phase(B): possible ordered edge by phase barrier policy
+        if overlap and (A writes resource read/written by B):
+            edge according stable phase/system order
+    add explicit before/after
+    topo sort/reject cycle
+
+RUN TICK:
+    for ready systems:
+        schedule chunk jobs
+        systemHandle := whenAll(chunkJobs)
+        release dependent systems on complete
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Scheduler owns system DAG. Systems never spawn unmanaged threads. Chunk write exclusivity derived from access declaration.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+System dependency order stable. Parallel independent systems must use command buffers/stable commit for cross-entity effects.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Avoid global barrier between every system if DAG permits overlap; coarse phases only where external backend requires it.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    read/read parallel
+    write/read edge
+    write/write edge
+    cycle rejection
+    chunk parallel
+    phase dump
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] declarative access
+    [ ] DAG scheduling
+    [ ] cycle diagnostics
+    [ ] chunk parallelism
+    [ ] profiling
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    manual thread creation per system
+    undeclared shared mutation
+    one giant sequential update loop
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] declarative access
+    [ ] DAG scheduling
+    [ ] cycle diagnostics
+    [ ] chunk parallelism
+    [ ] profiling
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.3
