@@ -1,0 +1,196 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.7 - TRANSACTIONAL_GENERATION_COMMIT
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement candidate-build/validate/commit transactions so failed or cancelled generation never corrupts the active world/artifact set and old state remains usable.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.4_GENERATION_DAG.txt
+    TARGET::docs/5.5_ARTIFACT_CACHE.txt
+    TARGET::docs/5.6_VALIDATION_REPORTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/GenerationTransaction.hpp
+    engine/proc/src/GenerationTransaction.cpp
+    tests/native/proc/generation_transaction_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Transaction states: Building, ReadyToCommit, Committed, RolledBack, Failed, Cancelled. Commit is one-way and idempotence errors are explicit.
+
+2. Candidate artifacts live in transaction-local store/handles until commit. Active ArtifactStore/World sees none of them before commit.
+
+3. Commit acquires owning service mutation boundary once, validates dependency revision/generation, publishes artifacts in stable order, then swaps root references.
+
+4. Rollback releases candidate references and temp files; cached immutable reusable artifacts may remain in global cache because they are content-addressed and valid.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement transaction-local publication list and validation summary.
+
+STEP 2
+    Capture base world/artifact revision at transaction begin.
+
+STEP 3
+    Before commit, verify active revision still matches or use explicit merge/retry policy; initial policy = Conflict error.
+
+STEP 4
+    Commit artifacts sorted by stable ArtifactId, then update root package pointer/revision last.
+
+STEP 5
+    Implement rollback on destructor only as safety; code must call explicit rollback/commit and destructor logs unclosed transaction in development.
+
+STEP 6
+    Test injected failure at every commit stage using fake store.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BEGIN:
+    tx.baseRevision := world.revision
+
+BUILD:
+    tx.local.publish(candidate...)
+
+PREPARE:
+    if any validation error: Failed
+    state := ReadyToCommit
+
+COMMIT:
+    lock worldCommitMutex
+    if world.revision != baseRevision: return Conflict
+    for artifact sorted by id:
+        globalStore.publish(artifact)
+    world.rootPackage := tx.newRoot
+    world.revision += 1
+    state := Committed
+
+ROLLBACK:
+    release local candidate ownership
+    delete temp transaction files
+    state := RolledBack
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    successful commit
+    validation failure leaves active unchanged
+    cancel rollback
+    revision conflict
+    injected failure
+    double commit rejected
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] active state isolated
+    [ ] revision conflict detected
+    [ ] stable publish order
+    [ ] rollback complete
+    [ ] old world usable after failure
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mutating active world while building candidate
+    deleting valid shared cache entries on rollback
+    commit in destructor
+    partial root swap before artifact publish
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] active state isolated
+    [ ] revision conflict detected
+    [ ] stable publish order
+    [ ] rollback complete
+    [ ] old world usable after failure
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.7
