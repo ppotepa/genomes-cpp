@@ -1,0 +1,191 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.3 - ROAD_GROWTH_AND_TOPOLOGY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port recursive/local road growth with tensor/region guidance, intersection splitting, snapping and loop closure while enforcing planar topology and bounded candidate budgets.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.2_ROAD_COST_FIELDS_AND_ROUTING.txt
+    TARGET::docs/5.8_GENERATION_TRACE_AND_DEBUG_CHANNELS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/roads/include/genomes/roads/RoadGrowth.hpp
+    modules/roads/src/RoadGrowth.cpp
+    tests/native/roads/road_growth_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Growth work item/Bud has stable ID, origin node, direction, class, energy/depth, parent road, generation epoch and SeedPath.
+
+2. Candidate segment undergoes hard checks in fixed order: world/region bounds, water/class, length/slope, nearest snap, crossing broadphase+robust intersection, duplicate/angle constraints.
+
+3. Proper intersection splits existing edge before connecting. Endpoint snap uses explicit snap radius and deterministic nearest tie by distance then stable ID.
+
+4. Growth queue ordering is semantic/stable priority, not worker completion; candidates may be evaluated parallel against immutable graph snapshot then committed in deterministic phase.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-GEO-ORIENT2D-001
+    MATH-VEC-PERP2-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GEO-SEGMENT-INTERSECTION-001
+    ALG-BUILD-CANDIDATE-SOLVER-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-city/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define GrowthSpec budgets/length ranges/turn distributions per RoadClass/morphology.
+
+STEP 2
+    Port tensorDirection/organic/grid/radial blending as pure field function with stable RNG substream.
+
+STEP 3
+    Implement candidate evaluation against RoadSpatialIndex and immutable graph snapshot.
+
+STEP 4
+    Commit accepted proposals one-by-one in stable ProposalKey order, revalidating local conflicts after earlier commits.
+
+STEP 5
+    Implement loop closure by nearest eligible node/edge proposals under angle/length rules.
+
+STEP 6
+    Emit rejected proposal traces with stable reason codes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+EVALUATE BUD:
+    dir := growthField.direction(bud.position,bud.seed)
+    endpoint := propose length/turn
+    candidate := Segment(start,endpoint)
+    if hard constraint fails: reject(reason)
+    snap := nearest eligible node/edge
+    crossings := roadIndex.query(candidate.bounds)
+    classify robust intersections
+    return Proposal(budId,candidate,snap,crossings,score)
+
+COMMIT BATCH:
+    stableSort proposals by ProposalKey
+    for p:
+        revalidate against current graph
+        if proper crossing: split target edge
+        add/snap edge
+        spawn child buds with semantic child seeds
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    intersection split
+    snap tie
+    no overlapping duplicate edge
+    grid/organic seed stability
+    parallel evaluate serial commit parity
+    bounded growth
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] planar commits
+    [ ] stable proposal order
+    [ ] revalidation
+    [ ] trace rejection codes
+    [ ] morphologies preserved
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mutating graph concurrently from worker proposals
+    epsilon-only intersection
+    recursive unbounded growth
+    shared RNG queue
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] planar commits
+    [ ] stable proposal order
+    [ ] revalidation
+    [ ] trace rejection codes
+    [ ] morphologies preserved
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.3
