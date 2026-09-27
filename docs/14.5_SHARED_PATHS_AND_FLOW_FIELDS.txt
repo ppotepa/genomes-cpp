@@ -1,0 +1,192 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 14.5 - SHARED_PATHS_AND_FLOW_FIELDS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement squad/group shared route/corridor reuse and local flow-field option for dense movement so dozens/hundreds of agents do not independently solve identical paths.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/14.4_STRATEGIC_REGION_AND_ROAD_ROUTING.txt
+    TARGET::docs/8.1_COMPUTE_SERVICE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Navigation remains a service over semantic world data; it does not own gameplay
+orders or Infantry logic.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Infantry tactical behaviors and formation policy implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/navigation/core/include/genomes/navigation/SharedPath.hpp
+    engine/navigation/core/include/genomes/navigation/FlowField.hpp
+    engine/navigation/core/src/SharedPathCache.cpp
+    engine/navigation/core/src/CpuFlowField.cpp
+    tests/native/navigation/shared_path_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. SharedPath key includes destination/corridor/capability/nav revision and optional formation/task route ID. Agents hold handle/reference plus local offset/progress, not copy full path.
+
+2. FlowField is local grid over tactical area with integration cost + direction; CPU canonical implementation uses Dijkstra/wavefront from destination over nonnegative costs.
+
+3. GPU backend is optional later/Stage21; CPU flow field always available.
+
+4. Individual local avoidance/door decisions may diverge from shared path without invalidating high-level route.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public nav handles/paths are Genomes types. Recast/Detour pointers and poly refs remain backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRAPH-DIJKSTRA-001
+    ALG-NAV-HIERARCHICAL-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement SharedPathCache with reference counts/TTL/revision invalidation.
+
+STEP 2
+    Build path once per group request then agents attach and project to nearest corridor progress.
+
+STEP 3
+    Implement local FlowField grid generation from movement cost/obstacle field and destination cells.
+
+STEP 4
+    Derive direction from lowest integration neighbor/gradient with stable tie order.
+
+STEP 5
+    Define replan triggers: destination revision, corridor invalidation, agent separated beyond threshold—not every frame.
+
+STEP 6
+    Benchmark 1/10/100/1000 agents same destination vs independent path requests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SHARED:
+    key := {goal,corridorId,profile,navRevision}
+    path := cache.getOrBuild(key)
+    agent.sharedPath := handle(path)
+
+FLOW:
+    cost[goal]=0
+    priorityQueue.push(goal)
+    while queue:
+        c := popMin
+        for n stable neighbors:
+            new := cost[c]+moveCost(n)
+            if new < cost[n]:
+                cost[n]=new; push n
+    for cell:
+        direction := vector to valid neighbor with min cost
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+SharedPath immutable. Cache mutations synchronized/cold. Flow tiles built jobs by tactical area.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Path requests return typed status Success/Partial/NoPath/Unloaded/Cancelled/Invalid and never fabricate a route through unknown regions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Flow tie ordering stable; costs nonnegative; group sharing key explicit.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Path sharing amortizes expensive queries; flow field build benchmarked against repeated A*.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native navigation is largely new capability; SOURCE movement/reference behavior is
+preserved where tests exist but inefficient absence of global nav is not parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    100 agents share one path
+    revision invalidation
+    agent local detach/rejoin
+    flow obstacle
+    flow unreachable
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] shared cache
+    [ ] local flow field CPU
+    [ ] replan triggers
+    [ ] benchmark improvement
+    [ ] revision safety
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    full copy path per agent
+    replanning every tick
+    GPU-only flow field
+    using flow through unreachable cells
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] shared cache
+    [ ] local flow field CPU
+    [ ] replan triggers
+    [ ] benchmark improvement
+    [ ] revision safety
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next navigation chapter.
+
+END OF CHAPTER 14.5
