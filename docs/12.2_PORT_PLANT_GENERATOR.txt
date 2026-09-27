@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.2 - PORT_PLANT_GENERATOR
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port the SOURCE procedural branch/foliage generator into native pure-data stages with cancellable parallel prototype generation and exact/structural parity fixtures.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/12.1_PLANT_GENOME_AND_PROTOTYPE_MODEL.txt
+    TARGET::docs/3.4_CANCELLATION_AND_JOB_GROUPS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE procedural tree/shrub diversity, async generation semantics, shared geometry identity and cache correctness.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/vegetation/include/genomes/vegetation/PlantGenerator.hpp
+    modules/vegetation/src/PlantGenerator.cpp
+    reference/fixtures/vegetation/
+    tests/native/vegetation/plant_generator_parity_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. PlantGenerator stages: genome normalization -> recursive/iterative skeleton -> wood geometry recipe -> foliage cluster recipe -> bounds/metadata -> LOD recipes.
+
+2. Recursive branch growth must be bounded by species depth/segment/node budgets and be cancellable every bounded segment count.
+
+3. Serial/parallel/asynchronous execution produces same semantic skeleton/buffers for same version.
+
+4. Shared trunk/wood/foliage prototype cache ownership uses artifact cache, not hidden static maps.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::js/environment/plantGenerator.js
+    SOURCE::tests/plant_async_smoke.cjs
+    SOURCE::tests/plant_buffer_smoke.cjs
+    SOURCE::tests/plant_cache_smoke.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Export SOURCE fixtures for species x LOD x season/age matrix used by current tests.
+
+STEP 2
+    Port skeleton growth with stable per-branch child seeds; eliminate shared mutable generator context.
+
+STEP 3
+    Compile wood/foliage GeometryRecipe/MeshData separately and preserve SOURCE-relevant geometry metrics/buffer fixtures where exact parity intended.
+
+STEP 4
+    Add cancellation points at branch/segment batches.
+
+STEP 5
+    Integrate ArtifactCache and memory high-water metrics.
+
+STEP 6
+    Run SOURCE equivalent of plant_async_smoke/plant_buffer/cache expectations.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+GROW branch(node, depth):
+    if depth>=limit or budget exhausted: return
+    childCount := sample node child stream
+    for childOrdinal stable:
+        childSeed := node.seed.child("branch",ordinal)
+        segment := derive direction/length/radius
+        skeleton.append(segment)
+        enqueue/grow child
+
+COMPILE LOD:
+    recipe := simplify skeleton based on lod
+    foliage := cluster from same semantic crown
+    return prototype artifact
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Different prototypes/species can build in parallel; a single skeleton build owns its arrays. No static mutable temporary state.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Exact semantic skeleton stable across worker scheduling; async yields/cancellation do not consume RNG differently.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Cache prototypes, reuse shared topology/materials, benchmark build throughput and retained bytes.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Port SOURCE algorithms first, then versioned improvements; fixtures pin exact SOURCE commit.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    species fixture matrix
+    sync vs parallel
+    cancel cleanup
+    cache refcount
+    buffer/bounds parity
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] pure-data generator
+    [ ] bounded/cancellable
+    [ ] parallel safe
+    [ ] cache metrics
+    [ ] parity matrix
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    global generator scratch
+    branch recursion without node budget
+    disposing shared geometry while refs exist
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] pure-data generator
+    [ ] bounded/cancellable
+    [ ] parallel safe
+    [ ] cache metrics
+    [ ] parity matrix
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.2
