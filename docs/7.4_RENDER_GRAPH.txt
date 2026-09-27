@@ -1,0 +1,194 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 7.4 - RENDER_GRAPH
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement frame-local render/compute DAG with explicit resource read/write usage, automatic dependency ordering, lifetime analysis and backend barriers.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/7.2_RENDER_DEVICE_HANDLES_AND_CAPABILITIES.txt
+    TARGET::docs/7.3_SHADER_AND_PIPELINE_ASSETS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Renderer remains a presentation consumer; semantic/procedural/simulation state stays backend-independent.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later domain rendering passes and visual polish.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/render/graph/include/genomes/render/graph/RenderGraph.hpp
+    engine/render/graph/include/genomes/render/graph/GraphResource.hpp
+    engine/render/graph/src/RenderGraph.cpp
+    engine/render/diligent/DiligentGraphExecutor.cpp
+    tests/native/render/render_graph_tests.cpp
+    benchmarks/render/render_graph_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Pass declares reads/writes/attachments/queue preference before execution. Hidden resource access is forbidden.
+
+2. Graph compiler detects write-write/read-write dependencies, topologically sorts, culls unused passes, computes transient resource lifetime and aliases only compatible non-overlapping resources.
+
+3. Backend executor translates logical states/transitions to Diligent resource barriers and queue synchronization.
+
+4. Imported persistent resources (swapchain/GPUScene) are never transient-aliased.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public renderer-facing handles are compact generational values. Backend objects are private implementation data.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define GraphTexture/GraphBuffer logical handles valid only within graph build.
+
+STEP 2
+    Implement pass builder resource usage declaration and execute callback with resolved physical handles.
+
+STEP 3
+    Compile dependency graph; reject cycles and conflicting undeclared access.
+
+STEP 4
+    Implement lifetime firstUse/lastUse and simple transient pool reuse before true memory aliasing optimization.
+
+STEP 5
+    Emit state transitions/barriers per logical usage and verify debug validation.
+
+STEP 6
+    Add graph visualization dump DOT/JSON for proc/debug tooling.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMPILE:
+    for pass:
+        for resource access:
+            connect dependency from lastWriter/readers as needed
+    topo := topologicalSort()
+    cull passes not contributing to exported outputs unless sideEffect
+    for resource:
+        lifetime := [firstUse,lastUse]
+        physical := transientPool.acquireCompatible(lifetime,desc)
+    derive barriers between consecutive usages
+
+EXECUTE:
+    for pass in topo:
+        apply barriers
+        pass.callback(resolvedResources)
+
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Render backend owns GPU objects. Simulation never touches Diligent objects. Render extraction consumes immutable snapshots and stages uploads.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Device/shader/resource failures return typed errors with diagnostics; no silent fallback that changes correctness or feature policy.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presentation may be frame-order nondeterministic, but stable semantic IDs map to persistent GPU records; no render result feeds authoritative gameplay unless explicitly specified.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Minimize CPU submission, resource churn, state changes and readbacks. All GPU features are capability/benchmark driven.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Three.js SOURCE remains visual/reference evidence; native renderer does not attempt API parity with Three.js.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    linear passes
+    branch/merge
+    cycle rejection
+    unused pass cull
+    transient reuse nonoverlap
+    no alias overlap
+    imported resource lifetime
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] declared access
+    [ ] cycle detection
+    [ ] pass culling
+    [ ] transient lifetime
+    [ ] barriers generated
+    [ ] graph dump
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    pass reaching global texture by hidden pointer
+    manual barriers scattered in domain passes
+    aliasing overlapping lifetimes
+    side effects without declaration
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] declared access
+    [ ] cycle detection
+    [ ] pass culling
+    [ ] transient lifetime
+    [ ] barriers generated
+    [ ] graph dump
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next renderer chapter.
+
+END OF CHAPTER 7.4
