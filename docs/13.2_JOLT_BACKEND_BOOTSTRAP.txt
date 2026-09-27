@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.2 - JOLT_BACKEND_BOOTSTRAP
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Initialize Jolt, map Genomes coordinate/units/layers/shapes, create PhysicsSystem/temp allocator and validate fixed-step world operation without domain gameplay.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/13.1_PHYSICS_ABSTRACTION.txt
+    TARGET::docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+    TARGET::docs/2.2_TIME_CLOCKS_AND_FIXED_TICKS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/jolt/JoltBackend.hpp
+    engine/physics/jolt/JoltBackend.cpp
+    engine/physics/jolt/JoltLayers.hpp
+    tests/native/physics/jolt_smoke_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Jolt lifecycle RegisterDefaultAllocator/Factory/RegisterTypes is process-level backend bootstrap owned by PhysicsService, not arbitrary modules.
+
+2. Genomes uses SI units, right-handed Y-up matching engine semantic convention; transform conversion is explicit tested wrapper.
+
+3. Broadphase/object layers separate StaticWorld, Dynamic, Character, Debris, Sensor and optional ProjectileQuery according interaction matrix.
+
+4. PhysicsSystem Update uses fixed 1/60 simulation step from SimulationClock; render frame delta is never passed directly.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Jolt official Architecture/PhysicsSystem documentation
+    Jolt HelloWorld reference
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Configure Jolt compile flags per 1.2 and initialize backend once with controlled shutdown.
+
+STEP 2
+    Implement math conversion Vec3/Quat/Transform with static/unit tests.
+
+STEP 3
+    Implement ObjectLayerPairFilter/BroadPhaseLayerInterface tables from Genomes collision matrix.
+
+STEP 4
+    Create PhysicsSystem limits from config (max bodies, mutex count, pairs/constraints) with metrics and safe failure.
+
+STEP 5
+    Create temp allocator sized/configured explicitly; report high-water if Jolt supports/Genomes wrapper tracks.
+
+STEP 6
+    Run smoke: static floor + dynamic box under gravity for fixed ticks, validate plausible final state and no leaks.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+BOOT:
+    initialize Jolt allocator/factory/types
+    create broadphase interfaces
+    physics.Init(maxBodies, bodyMutexes, maxPairs, maxConstraints,...)
+    set gravity(0,-9.80665,0)
+
+SMOKE:
+    create static floor
+    create dynamic box
+    repeat 120:
+        physics.Update(1/60, collisionSteps, tempAllocator, jobSystem)
+    assert box.y decreased/settled
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Until 13.3, smoke may use Jolt JobSystemThreadPool only as temporary backend test path if adapter not available; production integration switches to Genomes adapter in 13.3.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Fixed dt required. Broadphase/query ordering not considered semantic order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Layer filtering configured before large-world use; no one-layer-all-collides default.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Replaces Rapier backend only after domain parity; Jolt smoke is not proof of destruction parity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    math conversion
+    layer matrix
+    falling body
+    create/destroy handle mapping
+    fixed tick
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] Jolt boot/shutdown
+    [ ] SI/Y-up conversion
+    [ ] layer filters
+    [ ] fixed step
+    [ ] smoke passes
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    frame-delta physics
+    Jolt globals initialized by random module
+    single collision layer for everything
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] Jolt boot/shutdown
+    [ ] SI/Y-up conversion
+    [ ] layer filters
+    [ ] fixed step
+    [ ] smoke passes
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.2
