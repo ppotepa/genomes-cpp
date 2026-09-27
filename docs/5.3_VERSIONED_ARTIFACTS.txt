@@ -1,0 +1,184 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.3 - VERSIONED_ARTIFACTS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define immutable versioned procedural artifacts with provenance/dependency hashes so generated semantic data can be cached, validated and compiled into multiple representations.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.5_SERIALIZATION_SCHEMA_FOUNDATION.txt
+    TARGET::docs/5.2_GENERATOR_DESCRIPTOR_AND_CONTEXT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Consumers implemented by later chapters.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/ArtifactId.hpp
+    engine/proc/include/genomes/proc/ArtifactHeader.hpp
+    engine/proc/include/genomes/proc/Artifact.hpp
+    engine/proc/include/genomes/proc/ArtifactStore.hpp
+    tests/native/proc/artifact_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ArtifactHeader contains artifact type ID, schema version, generator ID/version, root/seed identity, input fingerprint, dependency fingerprints, artifact content fingerprint, bounds/optional metadata refs.
+
+2. Artifact payload is immutable after publication. Mutable build object is separate and converted/frozen.
+
+3. ArtifactId is semantic/content-derived identity, not memory address.
+
+4. ArtifactStore exposes read-only handles/views and reference-count/lifetime policy independent of renderer.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Prefer compact value types, contiguous hot data and explicit ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define ArtifactTypeId strong ID and header schema.
+
+STEP 2
+    Define ArtifactFingerprint using separately named 128/256-bit content hash placeholder; do not misuse StableHash64 for large artifact collision assumptions. Select BLAKE3/XXH3 in 5.5 with dependency policy.
+
+STEP 3
+    Implement in-memory ArtifactStore keyed by ArtifactId/fingerprint with immutable shared ownership using intrusive/ref-count or shared_ptr only at cold artifact level where justified.
+
+STEP 4
+    Store dependency list sorted by ArtifactId for canonical serialization.
+
+STEP 5
+    Implement provenance serialization metadata to support reference fixtures.
+
+STEP 6
+    Add immutability/concurrency read tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FREEZE:
+    validate builder
+    canonicalPayload := serializeCanonical(builder.payload)
+    fingerprint := contentHash(canonicalPayload)
+    header := provenance + fingerprint
+    artifact := immutable(header, move(payload))
+    store.publish(artifact)
+
+LOOKUP:
+    handle := store.find(artifactId)
+    return immutable view
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Types are thread-safe by value unless explicitly mutable; shared mutation requires an owning service/job boundary.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected invalid input returns Result/typed errors; programmer invariants use diagnostics/assertions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Output order and IDs are stable and never depend on pointer values, unordered iteration or thread completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden heap churn in hot loops; benchmark performance-sensitive primitives under 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET implementation is additive; SOURCE remains parity/reference evidence until owning migration gate.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    header roundtrip
+    dependency order canonical
+    publish duplicate same fingerprint
+    reject ID collision different content
+    concurrent reads
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] immutable published artifacts
+    [ ] provenance complete
+    [ ] no pointer identity
+    [ ] dependency hashes recorded
+    [ ] store read thread safe
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    mutating artifact after publication
+    using seed alone as cache key
+    using raw memory hash
+    renderer resources inside semantic artifact
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] immutable published artifacts
+    [ ] provenance complete
+    [ ] no pointer identity
+    [ ] dependency hashes recorded
+    [ ] store read thread safe
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.3
