@@ -55,7 +55,25 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Species catalog:
+    contiguous/versioned PlantSpeciesDefinition records keyed by stable SpeciesId.
+
+PlantGenome:
+    version
+    SpeciesId
+    uint32/64 seed
+    compact fixed-order gene values
+    identity hash
+
+PlantPrototypeArtifact:
+    BranchNode/BranchSegment contiguous arrays
+    foliage cluster arrays
+    prototype bounds/collision metadata
+    LOD recipe descriptors referencing the same semantic skeleton
+
+Age/season/runtime damage that affects geometry is represented explicitly in
+prototype/artifact keys; transient display-only state is not folded into
+biological genome identity.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

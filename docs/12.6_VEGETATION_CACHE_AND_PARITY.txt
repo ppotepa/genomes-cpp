@@ -55,7 +55,24 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Cache keys are explicit tuples:
+    generator version
+    species/prototype definition version
+    genome/seed hash
+    geometry-affecting age/season/detail parameters
+
+Cache entries hold immutable PlantPrototypeArtifact plus byte size/refcount and
+derived representation handles owned by the corresponding renderer cache.
+
+Parity fixtures store:
+    SOURCE commit/generator version
+    species/seed/state/detail
+    semantic genome
+    branch/skeleton metrics
+    bounds/counts/buffer hashes where exact
+    parity policy/tolerances
+
+World instance identity and prototype-cache identity are separate.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

@@ -55,7 +55,22 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+CPU instance page:
+    page ID / region / prototype ID
+    contiguous transforms
+    compact per-instance variation values
+    world bounds
+    semantic revision
+    resident/dirty ranges
+
+GPU representation:
+    instance buffer handles
+    visibility/LOD compacted buffers
+    indirect command ranges
+    page generation/revision
+
+GPU buffers are renderer-owned derivatives. Semantic VegetationInstance pages
+remain CPU/world data and can be recompiled without changing instance identity.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

@@ -56,7 +56,23 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Scatter input fields:
+    terrain/biome suitability grids
+    road/building/water reserved masks
+    density/spacing parameters
+    stable region seed
+
+Output uses paged contiguous instance records:
+    VegetationInstance {
+        stable InstanceId
+        PrototypeId
+        position/rotation/scale
+        semantic variation/age state where required
+    }
+
+Pages are grouped by RegionId + prototype/material/LOD family. Temporary Poisson
+or candidate grids live in GenerationArena and are not serialized as world
+entities.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

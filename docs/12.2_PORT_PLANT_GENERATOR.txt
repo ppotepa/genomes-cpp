@@ -54,7 +54,19 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Generator scratch:
+    append-only BranchNode/Segment arrays
+    generation stack/queue
+    local RNG streams by semantic branch ID
+    temporary foliage anchors
+    GeometryRecipe builders
+
+Published output:
+    immutable PlantPrototypeArtifact from 12.1.
+
+Wood and foliage compiler buffers are contiguous numeric arrays. Scratch is owned
+by one generation job/GenerationArena and discarded after artifact finalization.
+No THREE.Vector3/material/geometry objects remain in semantic output.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

@@ -51,7 +51,20 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+RockGenome/Spec:
+    stable rock/prototype ID
+    seed
+    scale/aspect/angularity/weathering/fracture-like art parameters
+    material ID
+
+RockPrototypeArtifact:
+    compact vertex/index MeshData or GeometryRecipe
+    collision recipe/bounds
+    LOD descriptors
+    material-region metadata
+
+World rock instances store only prototype handle/ID, transform and small
+variation state. They do not duplicate full geometry per instance.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
