@@ -1,0 +1,194 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.5 - CIRCULATION_AND_ROOM_SOLVER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Build entrances, circulation backbone and room/space subdivision around fixed cores using low-bend A* paths, program constraints and deterministic bounded optimization.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.4_STAIR_CORE_SOLVER.txt
+    TARGET::docs/10.8_PARCELS_AND_BUILDABLE_AREAS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/infantry gameplay integration unless explicitly named.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/include/genomes/buildings/CirculationSolver.hpp
+    modules/buildings/include/genomes/buildings/RoomSolver.hpp
+    modules/buildings/src/CirculationSolver.cpp
+    modules/buildings/src/RoomSolver.cpp
+    tests/native/buildings/room_solver_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Entrance candidates come from exposed exterior segments and road/front metadata. Main/service/secondary entrances are stable semantic objects.
+
+2. Circulation cells/polylines connect required terminals (entrances, cores, major program anchors) and are reserved before room subdivision.
+
+3. Room program defines target/min/max area, adjacency preferences/requirements, exterior daylight/frontage preference, service/core proximity and count.
+
+4. Hard constraints (connectivity, minimum dimensions, access) are never converted to soft score penalties. Solver has explicit iteration/branch budget and fallback.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Building semantic data uses stable IDs, compact arrays and polygons/cells. Render/physics/nav representations are separate compiler outputs.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRAPH-ASTAR-001
+    ALG-BUILD-CANDIDATE-SOLVER-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::building-lab/floorPlan.js
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Find entrance candidates from exterior boundary and road-facing metadata; select main then diversity/separation-based secondary/service.
+
+STEP 2
+    Create walkable/reservable solver grid excluding core cells; choose circulation hub and connect required terminals with A* cost favoring low bends/centrality and away from exterior where appropriate.
+
+STEP 3
+    Widen centerlines to corridor band based on program profile while preserving room area.
+
+STEP 4
+    Build initial free-space regions and recursively split/assign RoomProgram slots using macro axes and frontage.
+
+STEP 5
+    Construct room adjacency graph from shared boundaries and corridor contacts.
+
+STEP 6
+    Run repair passes bounded: merge undersized spaces, adjust cuts, reassign program; validate all occupied spaces reachable from entrance/core network.
+
+STEP 7
+    Emit failure trace with unsatisfied constraints.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CIRCULATION:
+    terminals := entrances + core landings + anchors
+    hub := choose central accessible cell
+    for t in stable terminal order:
+        path := A*(freeCells,t,hub,cost=bends+axis+edge)
+        reserve widen(path)
+
+ROOMS:
+    free := footprint - cores - circulation
+    candidateSpaces := recursiveSplit(free, macro priors)
+    assignment := solveProgram(candidateSpaces, requirements)
+    for bounded repair:
+        fix undersize/disconnected/adjacency
+    validate reachability + areas + access
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+One BuildingPlan candidate is owned by one job until frozen. Batch jobs are independent by BuildingId/SeedPath and merge in stable ID order.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Bounded solvers return typed failure/fallback reasons and ValidationReport. Invalid building candidates are never partially committed.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate order, tie-breaking and RNG streams are stable by semantic IDs. Worker count and hash-map iteration do not affect the plan.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unbounded backtracking. Batch independent buildings over JobSystem.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    small house without corridor where allowed
+    multi-core circulation
+    every room access
+    required adjacency
+    undersize repair
+    solver budget exhaustion
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] entrances semantic
+    [ ] circulation connects terminals
+    [ ] room graph
+    [ ] hard constraints
+    [ ] bounded repair
+    [ ] trace
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    maze corridors
+    rooms with no door/access path
+    unbounded simulated annealing/search
+    program assignment after geometry without repair
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] entrances semantic
+    [ ] circulation connects terminals
+    [ ] room graph
+    [ ] hard constraints
+    [ ] bounded repair
+    [ ] trace
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.5
