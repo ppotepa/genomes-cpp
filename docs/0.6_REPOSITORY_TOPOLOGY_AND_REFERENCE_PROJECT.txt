@@ -1,0 +1,564 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+CHAPTER 0.6 - REPOSITORY TOPOLOGY AND REFERENCE PROJECT
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Freeze the two-repository migration model.
+
+SOURCE:
+    ppotepa/genomes
+
+TARGET:
+    ppotepa/genomes-cpp
+
+SOURCE contains the current legacy implementation, prototypes, research,
+browser labs and legacy tests.
+
+TARGET contains:
+    native C++ implementation,
+    executable migration manual,
+    minimal exported parity/reference artifacts,
+    native tests,
+    native benchmarks,
+    native CI.
+
+The two repositories have different responsibilities and MUST NOT gradually
+collapse into an accidental duplicate codebase.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+    TARGET::reference/README.txt
+    TARGET::reference/FIXTURE_EXPORT_POLICY.txt
+    TARGET::reference/source/BASELINE.txt
+    TARGET::reference/manifests/SOURCE_SUBSYSTEMS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+
+SOURCE remains the authoritative legacy implementation until individual parity
+chapters supersede specific systems.
+
+No SOURCE runtime/prototype is deleted as part of repository separation.
+
+TARGET remains cleanly native-oriented.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No C++ implementation.
+No fixture export yet.
+No code synchronization automation.
+No subtree/submodule embedding of SOURCE.
+No public mirror of private SOURCE code.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+TARGET repository baseline:
+
+    README.md
+
+    docs/
+        0.0_NATIVE_MANUAL_INDEX.txt
+        0.1_TARGET_ARCHITECTURE.txt
+        ...
+        X.Y_*.txt
+
+    reference/
+        README.txt
+        FIXTURE_EXPORT_POLICY.txt
+
+        source/
+            BASELINE.txt
+
+        manifests/
+            SOURCE_SUBSYSTEMS.txt
+
+        fixtures/
+            README.txt
+            <domain>/...
+
+        golden/
+            README.txt
+            <domain>/...
+
+        schemas/
+            README.txt
+            <domain>/...
+
+    engine/
+    modules/
+    apps/
+    tests/
+    benchmarks/
+    external/
+    cmake/
+
+SOURCE repository remains structurally independent.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+1. PATH PREFIXES
+
+All manual chapters use:
+
+    TARGET::<path>
+    SOURCE::<path>
+
+Unprefixed paths inside implementation sections mean TARGET unless explicitly
+stated otherwise.
+
+
+2. SOURCE REVISION
+
+Every exported fixture/golden/schema must pin exact SOURCE commit SHA.
+
+Never use only:
+
+    SOURCE main
+
+as persistent provenance.
+
+
+3. TARGET REVISION
+
+Native implementation is versioned normally by TARGET Git history.
+
+A parity report should record:
+
+    sourceCommit
+    targetCommit
+    fixture/schema version
+
+
+4. SOURCE ACCESS
+
+An implementation agent may read SOURCE using:
+
+    GitHub connector,
+    local separate checkout,
+    CI credential with read access,
+    explicit export tooling.
+
+TARGET build MUST NOT require SOURCE checkout for normal native compilation.
+
+
+5. TARGET BUILD INDEPENDENCE
+
+After fixtures required by a chapter have been exported, normal TARGET:
+
+    configure
+    build
+    unit tests
+    deterministic tests
+
+must work without access to the private SOURCE repository.
+
+Only parity regeneration/comparison workflows may require SOURCE access.
+
+
+6. REFERENCE PROJECT
+
+TARGET::reference is a DATA PROJECT, not legacy source mirror.
+
+Allowed:
+    compact inputs
+    compact semantic outputs
+    golden hashes
+    selected geometry buffers
+    screenshots when explicitly required
+    schemas
+    provenance
+    manifest metadata
+
+Forbidden:
+    entire SOURCE js/
+    node_modules/
+    vendor bundles
+    whole research directories copied without purpose
+    secret/private operational data
+
+
+7. SOURCE CHANGES DURING MIGRATION
+
+SOURCE may continue evolving.
+
+A migration chapter must:
+
+    inspect current SOURCE HEAD,
+    compare it to its fixture baseline,
+    decide whether new SOURCE changes affect that subsystem,
+    update fixtures only deliberately.
+
+Do not assume the baseline SHA freezes all future product requirements.
+
+
+8. REFERENCE BASELINE VS PARITY BASELINE
+
+reference/source/BASELINE.txt:
+    initial whole-project migration baseline.
+
+Individual domain fixtures:
+    may pin newer exact SOURCE commits.
+
+Example:
+
+    terrain fixture set:
+        SOURCE commit A
+
+    building fixture set:
+        SOURCE commit B
+
+This is valid if metadata is explicit.
+
+
+9. PRIVATE SOURCE / PUBLIC TARGET
+
+SOURCE is private at current baseline.
+TARGET is public at current baseline.
+
+Therefore:
+
+    never publish SOURCE source files wholesale,
+    inspect fixture contents before export,
+    export only data intended for public native implementation,
+    do not export secrets/user data,
+    do not copy private attachments/logs blindly.
+
+
+10. MANUAL OWNERSHIP
+
+All new native manual chapters live only in TARGET::docs.
+
+Do not author new 1.x/2.x/... native chapters in SOURCE.
+
+If a legacy research document needs correction:
+    edit SOURCE legacy doc if it belongs to legacy project.
+
+If a migration instruction changes:
+    edit TARGET manual.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+Fixture metadata conceptual schema:
+
+    ReferenceProvenance
+    {
+        fixtureId
+        domain
+        sourceRepository
+        sourceCommit
+        sourcePath
+        sourceSymbol
+        sourceGeneratorVersion
+        parityClass
+        schemaVersion
+        exporterVersion
+    }
+
+Later serialization chapter defines actual machine-readable schema.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+ALG-PAR-STABLE-COMMIT-001
+    exported ordered data must be normalized deterministically where ordering
+    is semantic.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+    TARGET::reference/README.txt
+    TARGET::reference/FIXTURE_EXPORT_POLICY.txt
+    TARGET::reference/manifests/SOURCE_SUBSYSTEMS.txt
+
+    SOURCE::docs/*
+    SOURCE::tests/*
+    SOURCE::prototypes/*
+    SOURCE::js/*
+
+as referenced by owning migration chapters.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+For every future domain migration:
+
+STEP 1
+    identify SOURCE files/symbols from 0.2 / SOURCE_SUBSYSTEMS manifest.
+
+STEP 2
+    record exact SOURCE commit.
+
+STEP 3
+    determine parity class.
+
+STEP 4
+    determine whether live SOURCE read is sufficient or persistent fixture is
+    required.
+
+STEP 5
+    if fixture required:
+        export minimal normalized data.
+
+STEP 6
+    place in:
+        TARGET::reference/fixtures/<domain>/
+    or:
+        golden/
+        schemas/
+
+STEP 7
+    add provenance.
+
+STEP 8
+    implement C++ in TARGET.
+
+STEP 9
+    run native tests without SOURCE dependency.
+
+STEP 10
+    run parity comparison with SOURCE where applicable.
+
+STEP 11
+    record sourceCommit + targetCommit in parity result.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+EXPORT FIXTURE:
+
+    function exportFixture(domain, sourceRef, case):
+        sourceCommit := resolveExactCommit(sourceRef)
+
+        legacyResult := runLegacyCase(
+            repository = SOURCE,
+            commit = sourceCommit,
+            case = case
+        )
+
+        normalized := normalizeSemanticOutput(
+            legacyResult
+        )
+
+        metadata := {
+            sourceRepository: "ppotepa/genomes",
+            sourceCommit: sourceCommit,
+            domain: domain,
+            parityClass: case.parityClass,
+            schemaVersion: case.schemaVersion
+        }
+
+        write TARGET/reference/fixtures/domain/case.json
+        write TARGET/reference/fixtures/domain/case.meta.json
+
+
+NATIVE PARITY:
+
+    function compareNativeFixture(fixture):
+        nativeResult := runNative(fixture.input)
+
+        return compare(
+            nativeResult,
+            fixture.expected,
+            fixture.parityPolicy
+        )
+
+
+SOURCE EVOLUTION CHECK:
+
+    function checkSourceEvolution(domain):
+        baseline := latestFixtureSourceCommit(domain)
+        head := SOURCE.head
+
+        changedPaths := gitDiff(
+            baseline,
+            head,
+            domain.sourcePaths
+        )
+
+        if changedPaths empty:
+            return NoAction
+
+        return RequiresMigrationReview(changedPaths)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+Repository topology does not imply runtime ownership.
+
+Reference export tools may execute SOURCE deterministically in one or many
+threads according to owning chapter, but exported order must be normalized.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+SOURCE unavailable during normal TARGET build:
+    not an error.
+
+SOURCE unavailable during parity regeneration:
+    parity job reports BLOCKED / source unavailable.
+
+Fixture missing provenance:
+    invalid reference artifact; test/configuration failure.
+
+Fixture references non-existent SOURCE commit:
+    invalid reference artifact.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Every persistent fixture must be reproducible from:
+    exact SOURCE commit,
+    exact input,
+    exporter version,
+    generator/schema version where applicable.
+
+No fixture may depend on current wall time or unordered output serialization.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Do not copy SOURCE into TARGET merely to make parity faster.
+
+Large fixtures require explicit justification.
+
+Prefer:
+    compact semantic data
+over:
+    full generated meshes
+when invariants are sufficient.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+SOURCE and TARGET can coexist throughout the migration.
+
+SOURCE retirement is outside this manual's automatic behavior.
+
+TARGET may become the shipping product while SOURCE remains:
+    reference,
+    historical lab,
+    fixture generator.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+No C++ test in Chapter 0.6.
+
+Documentation/reference checks:
+
+    every fixture directory has provenance policy,
+    BASELINE contains exact SHA,
+    source manifest covers all major subsystem groups,
+    no full legacy source mirror exists in TARGET.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Documentation/reference verification only.
+
+Inspect:
+    TARGET::reference/
+    TARGET::docs/
+    SOURCE baseline commit existence
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+    [x] SOURCE and TARGET responsibilities explicit
+    [x] path prefixes explicit
+    [x] exact source revision rule
+    [x] target build independence rule
+    [x] reference project structure defined
+    [x] fixture provenance defined
+    [x] source evolution policy defined
+    [x] private-source/public-target rule defined
+    [x] native manual ownership moved to TARGET
+    [x] no source mirror required
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    make TARGET normal build clone SOURCE,
+    publish whole private SOURCE tree in reference/,
+    use SOURCE main without exact fixture commit,
+    regenerate golden fixtures silently,
+    overwrite old fixture provenance,
+    author new native manual chapters in SOURCE,
+    mix legacy JS implementation into engine/ merely for easier porting,
+    require GitHub access to run ordinary native unit tests.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[x] repository roles
+[x] path notation
+[x] source pinning
+[x] reference folder
+[x] fixture policy
+[x] source manifest
+[x] public/private rule
+[x] build independence
+[x] parity workflow
+[x] source evolution workflow
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+All later chapters inherit this repository topology.
+
+Native manual continuation happens only in:
+    ppotepa/genomes-cpp
+
+END OF CHAPTER 0.6
