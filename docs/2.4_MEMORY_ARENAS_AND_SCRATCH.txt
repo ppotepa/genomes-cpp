@@ -1,0 +1,213 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 2.4 - MEMORY ARENAS AND SCRATCH
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Introduce explicit transient-memory lifetimes for frame, job and procedural
+work so later generators and systems can avoid allocator churn without creating
+a custom general-purpose heap.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+    TARGET::docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/memory/CMakeLists.txt
+    engine/memory/include/genomes/memory/Arena.hpp
+    engine/memory/include/genomes/memory/LinearArena.hpp
+    engine/memory/include/genomes/memory/Scratch.hpp
+    engine/memory/src/LinearArena.cpp
+    tests/native/memory/linear_arena_tests.cpp
+    benchmarks/memory/linear_arena_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. LinearArena owns one or more aligned blocks and supports allocate(size, alignment), reset(), bytesUsed(), capacity(). Individual frees do not exist.
+
+2. ArenaMarker captures an offset/generation and ArenaScope rewinds to the marker on destruction only when LIFO safety is satisfied.
+
+3. ScratchContext is passed explicitly to jobs/generators. It may wrap a worker-local LinearArena but callers never assume a specific worker index.
+
+4. Large allocations above configurable threshold may use dedicated blocks tracked by arena and released on reset/destruction.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Arena block header is cold metadata. Allocation cursor is a size_t/byte pointer local to the arena. Default alignment >= alignof(max_align_t); custom power-of-two alignment required. No shared_ptr ownership.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Create engine/memory library and public include boundary.
+
+STEP 2
+    Implement aligned bump allocation with overflow checks and Result/diagnostic failure policy; zero-size returns a unique policy-defined pointer or nullptr consistently.
+
+STEP 3
+    Implement reset retaining first blocks for reuse and releaseExcess() for high-water control.
+
+STEP 4
+    Implement ArenaMarker/ArenaScope with generation counter so stale markers assert in development.
+
+STEP 5
+    Implement ScratchContext containing memory_resource-like allocate API plus typed makeArray<T>(count) for trivially destructible scratch data.
+
+STEP 6
+    Add high-water telemetry counters but no automatic logging per allocation.
+
+STEP 7
+    Benchmark arena allocation against repeated operator new for representative small temporary arrays; benchmark is informative only.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+ALLOCATE:
+    aligned := alignUp(cursor, alignment)
+    end := aligned + size
+    if end <= block.end:
+        cursor := end
+        highWater := max(highWater, used())
+        return aligned
+    block := acquireBlock(max(defaultBlock, size + alignment))
+    cursor := block.begin
+    retry
+
+RESET:
+    generation += 1
+    cursor := firstBlock.begin
+    mark all later blocks reusable/releasable
+
+SCOPE:
+    marker := arena.mark()
+    defer arena.rewind(marker)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    alignment 1..64
+    overflow/failure
+    reset reuse
+    scope rewind
+    stale marker detection helper
+    large block path
+    zero-length policy
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] no individual free API
+    [ ] aligned allocation correct
+    [ ] reset reuses memory
+    [ ] stale markers detected
+    [ ] ScratchContext explicit
+    [ ] high-water measurable
+    [ ] benchmark builds
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    replacing system allocator globally
+    arena shared concurrently without synchronization contract
+    running destructors implicitly for arbitrary complex objects on reset
+    using arena pointer after reset
+    hiding arena in global singleton
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] no individual free API
+    [ ] aligned allocation correct
+    [ ] reset reuses memory
+    [ ] stale markers detected
+    [ ] ScratchContext explicit
+    [ ] high-water measurable
+    [ ] benchmark builds
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 2.4
