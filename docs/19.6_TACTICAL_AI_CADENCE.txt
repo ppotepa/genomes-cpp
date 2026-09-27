@@ -52,11 +52,19 @@ PUBLIC CONTRACTS
 ======================================================================
 1. AI model operates on immutable Observation and returns Intent; it never mutates unit/world/weapon directly.
 
-2. Perception Observation contains self state, sorted visible enemies, remembered target/last known position, task context and tick/time derived from SimulationTick.
+2. Perception Observation contains self state, sorted visible enemies, remembered
+target/last known position, task context and tick/time derived from SimulationTick.
+
+Pinned SOURCE simple-combat compatibility values:
+    observation period:       0.2 s = 12 ticks at 60 Hz
+    target memory:            2.5 s = 150 ticks at 60 Hz
+    target-switch ratio:      0.85
+    fire direction tolerance: 4 degrees
 
 3. Cadence uses integer tick periods/stable phase staggering, not per-agent floating accumulator. SOURCE 0.2s at 60Hz => compatibility period 12 ticks.
 
-4. Target memory compatibility duration 2.5s => tick count profile. Memory updates when visible; expires deterministically by SimulationTick.
+4. Target memory compatibility duration 2.5s => 150-tick profile at 60 Hz.
+Memory updates when visible; expires deterministically by SimulationTick.
 
 5. Model exceptions/failures become diagnostic and switch entity to passive safe model/intent without corrupting system. Native C++ uses Result/error boundary, not exception as normal path.
 
@@ -163,7 +171,10 @@ Preserve simple-combat behavior as baseline, not limitation. More capable models
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    12-tick cadence
+    SOURCE 12-tick cadence
+    SOURCE 150-tick memory
+    SOURCE 0.85 target-switch ratio
+    SOURCE 4-degree fire alignment
     stagger phases
     memory expiry
     target hysteresis

@@ -428,3 +428,34 @@ Tile overflow policy:
     - per-material/total volume accounting remains observable.
 
 These are parity-profile facts, not engine-wide hard limits.
+
+
+======================================================================
+15. SIMPLE COMBAT AI BASELINE
+======================================================================
+
+SOURCE::js/ai/battlefieldAIManager.js
+
+    observation PERIOD = 0.2 s
+    target MEMORY      = 2.5 s
+    perception RANGE   = 100 m
+    FOV half-angle     = 70 degrees
+    FOV dot threshold  = cos(70 degrees)
+
+Target switch:
+    a visible candidate replaces current/chosen target when:
+        candidate.distance < chosen.distance * 0.85
+
+SOURCE::js/ai/simpleCombatModel.js
+
+Fire condition includes:
+    target.visible
+    target.lineOfSight
+    abs(directionError) < 4 degrees
+
+At native 60 Hz compatibility:
+    observation period = 12 ticks
+    memory duration     = 150 ticks
+
+These are SimpleCombat compatibility profile values, not generic AI engine
+limits.

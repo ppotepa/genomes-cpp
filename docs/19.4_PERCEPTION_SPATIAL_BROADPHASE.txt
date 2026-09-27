@@ -90,6 +90,13 @@ IMPLEMENTATION STEPS
 STEP 1
     Define PerceptionProfile range/FOV/category/team masks.
 
+Pinned SOURCE SimpleCombat compatibility profile:
+    range:             100 m
+    horizontal half-FOV: 70 degrees
+    dot threshold:     cos(70 degrees)
+
+These values are profile data, not engine-wide constants.
+
 STEP 2
     Query DynamicGrid AABB/circle cells per observer batch using squared distance.
 
@@ -157,6 +164,8 @@ TESTS TO ADD
 ======================================================================
     small scene vs naive
     team/alive filters
+    SOURCE 100 m range boundary
+    SOURCE 70-degree half-FOV boundary
     FOV boundary
     multi-cell dedupe
     stable order
