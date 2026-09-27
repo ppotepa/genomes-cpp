@@ -1,0 +1,74 @@
+GENOMES SOURCE SUBSYSTEM MANIFEST
+================================
+
+SOURCE REPOSITORY:
+    ppotepa/genomes
+
+INITIAL BASELINE:
+    2308391c7ff75eacd38a7ebff4dfbb0c30134803
+
+This is a compact routing manifest. The detailed preservation/parity matrix is:
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+
+SOURCE::js/core/*
+    -> TARGET engine/foundation, engine/simulation, engine/proc
+    -> chapters 2.x / 5.x
+
+SOURCE::js/terrain.js
+SOURCE::js/workers/terrainHeightWorker.js
+SOURCE::js/noise.js
+    -> TARGET modules/terrain
+    -> chapters 9.x
+
+SOURCE::prototypes/procedural-city/index.html
+    -> TARGET modules/hydrology, modules/roads, modules/city
+    -> chapters 9.6 / 10.x
+
+SOURCE::prototypes/procedural-road-graph-lab/index.html
+    -> TARGET modules/roads, modules/city
+    -> chapters 10.x
+
+SOURCE::prototypes/procedural-building-generator/index.html
+SOURCE::building-lab/*
+SOURCE::js/buildings/*
+    -> TARGET modules/buildings
+    -> chapters 11.x
+
+SOURCE::js/environment/*
+    -> TARGET modules/vegetation
+    -> chapters 12.x
+
+SOURCE::js/destruction/*
+SOURCE::docs/destruction/*
+    -> TARGET modules/destruction, modules/ballistics
+    -> chapters 16.x / 17.x
+
+SOURCE::js/units/*
+SOURCE::js/rendering/infantry*
+SOURCE::js/animation/*
+SOURCE::js/equipment/*
+SOURCE::js/physics/ragdollSchema.js
+    -> TARGET modules/infantry
+    -> chapters 18.x
+
+SOURCE::js/weapons/*
+    -> TARGET modules/weapons
+    -> chapters 19.1-19.3
+
+SOURCE::js/ai/*
+SOURCE::js/combat/*
+    -> TARGET modules/combat / AI domain
+    -> chapters 19.x
+
+SOURCE::js/world/*
+SOURCE::js/game.js
+    -> TARGET engine/world, engine/simulation, apps/game
+    -> chapters 6.x / 15.x / 20.x
+
+SOURCE::tests/*
+    -> parity/acceptance evidence
+    -> exported selectively into TARGET::reference/fixtures or translated native tests
+
+SOURCE::docs/*
+    -> research/history/calibration evidence
+    -> NOT copied wholesale; referenced by SOURCE::<path>
