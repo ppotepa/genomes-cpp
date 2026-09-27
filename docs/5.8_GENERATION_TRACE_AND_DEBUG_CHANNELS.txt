@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 5.8 - GENERATION_TRACE_AND_DEBUG_CHANNELS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement opt-in bounded generation traces for rejected candidates, scores, stage timings and intermediate debug geometry without polluting production artifacts or changing deterministic outcomes.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/5.4_GENERATION_DAG.txt
+    TARGET::docs/5.6_VALIDATION_REPORTS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/proc/include/genomes/proc/GenerationTrace.hpp
+    engine/proc/include/genomes/proc/TraceChannel.hpp
+    engine/proc/src/GenerationTrace.cpp
+    tests/native/proc/generation_trace_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Trace disabled path must be near-zero overhead and may compile out payload capture while preserving counters if configured.
+
+2. Channels are stable IDs: Candidates, Rejections, Scores, Geometry, Timing, RNG, Validation. Domain modules may add namespaced channel IDs.
+
+3. Trace buffer has byte/event budget and overflow policy DropOldest/DropNewest/SummaryOnly selected by caller; production default disabled.
+
+4. Trace events carry stable semantic object/node IDs and deterministic logical sequence assigned by producer stage, not wall-clock ordering.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define compact TraceEvent header + tagged payload references stored in transaction trace arena.
+
+STEP 2
+    Implement isEnabled(channel) fast branch and emit APIs.
+
+STEP 3
+    Implement per-job trace buffers merged by stable node/batch/event sequence after jobs finish.
+
+STEP 4
+    Add debug geometry primitives Line/Polyline/Polygon/Point with semantic coordinates only, no renderer objects.
+
+STEP 5
+    Serialize traces to canonical JSON/binary for proc viewer.
+
+STEP 6
+    Benchmark disabled path and bounded 100k event capture.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+EMIT:
+    if !config.enabled(channel): return
+    event.logicalKey := {nodeId,batchIndex,localSequence}
+    localBuffer.push(event) or apply overflow policy
+
+MERGE:
+    gather job-local buffers
+    stableSort by logicalKey
+    enforce global byte budget
+    publish immutable GenerationTrace
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    disabled no events
+    budget overflow policies
+    parallel merge stable
+    debug geometry serialization
+    trace does not alter generator artifact hash
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] bounded trace
+    [ ] disabled fast path
+    [ ] stable parallel merge
+    [ ] renderer-independent debug geometry
+    [ ] artifact result unchanged
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    wall-clock timestamp as semantic event order
+    unbounded vector trace in production
+    Three/Diligent objects in trace
+    trace RNG consuming generator RNG
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] bounded trace
+    [ ] disabled fast path
+    [ ] stable parallel merge
+    [ ] renderer-independent debug geometry
+    [ ] artifact result unchanged
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 5.8
