@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 8.5 - COMPUTE_BENCHMARK_HARNESS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Create standardized CPU-vs-GPU compute benchmark harness measuring kernel execution, upload, readback and end-to-end latency separately across workload sizes.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.4_READBACK_UPLOAD_AND_STAGING.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+
+======================================================================
+PRESERVES
+======================================================================
+GPU compute is an acceleration/backend service. Authoritative gameplay remains
+correct with CPU fallback unless a later chapter explicitly changes that rule.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+CUDA fast paths and domain-specific kernels introduced by later stages.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    benchmarks/compute/compute_benchmark_harness.hpp
+    benchmarks/compute/reference_kernels.cpp
+    tools/benchmark_report/compute_report.*
+    tests/native/compute/benchmark_metadata_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Every benchmark reports backend, GPU adapter/driver/API, CPU, kernel version, element count, bytes, workgroup, queue, repetitions.
+
+2. Metrics separate CPU reference time, GPU dispatch/kernel timestamp, upload, readback and end-to-end wall time.
+
+3. Correctness comparison occurs before timing and after representative runs; benchmark never times invalid output.
+
+4. Sizes use logarithmic/relevant sets and include crossover region where GPU overhead loses to CPU.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compute inputs/outputs are explicit buffer/view descriptors with versioned kernel parameter blocks; no backend-native pointer leakage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement harness registering same semantic KernelId on CPU and Diligent backends.
+
+STEP 2
+    Warm pipeline/shader/resource setup outside timed region unless benchmark explicitly measures setup.
+
+STEP 3
+    Generate deterministic input once per case.
+
+STEP 4
+    Run correctness compare with absolute/relative tolerance declared per kernel.
+
+STEP 5
+    Measure CPU, GPU-resident chain, upload+kernel and upload+kernel+readback separately.
+
+STEP 6
+    Emit JSON/CSV summary and crossover estimate; no shared-runner regression gate.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+CASE(size):
+    input := deterministicData(size)
+    cpuExpected := runCpu(input)
+    gpuActual := runGpuAndReadback(input)
+    assert compare(cpuExpected,gpuActual)
+
+    measure cpuKernel
+    measure gpuResidentKernel
+    measure uploadPlusKernel
+    measure fullRoundTrip
+
+REPORT:
+    include metadata + p50/p95 + bytes + backend
+    find smallest size where gpuResident < cpu
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU prepares immutable dispatch inputs; backend owns GPU resources and synchronization. Readbacks become visible only after completion tokens/fences.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported GPU feature selects explicit CPU/fallback path where allowed; shader/dispatch failures return typed errors and diagnostics.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+GPU-derived advisory fields may be numerically non-bitwise-identical across hardware; authoritative CPU state cannot depend on undocumented nondeterministic reductions.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch dispatches, avoid CPU/GPU ping-pong, measure transfer cost separately from kernel cost and prefer GPU-resident pipelines.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET compute service is new infrastructure; SOURCE has no equivalent general
+compute layer and remains reference for domain outputs only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    metadata completeness
+    incorrect kernel rejected before benchmark
+    timed region excludes setup by default
+    JSON parseable
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CPU/GPU separation
+    [ ] transfer costs separate
+    [ ] correctness first
+    [ ] metadata complete
+    [ ] crossover report
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    quoting only kernel time for CPU roundtrip use case
+    benchmarking first shader compilation as steady-state kernel
+    hard CI threshold on shared runner
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CPU/GPU separation
+    [ ] transfer costs separate
+    [ ] correctness first
+    [ ] metadata complete
+    [ ] crossover report
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next compute chapter.
+
+END OF CHAPTER 8.5
