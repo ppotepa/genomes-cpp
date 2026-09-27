@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 8.2 - DILIGENT_COMPUTE_BACKEND
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement Diligent compute backend using versioned compute pipeline assets, resource binding and dispatch through RenderGraph/queue infrastructure.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/8.1_COMPUTE_SERVICE.txt
+    TARGET::docs/7.3_SHADER_AND_PIPELINE_ASSETS.txt
+    TARGET::docs/7.4_RENDER_GRAPH.txt
+
+======================================================================
+PRESERVES
+======================================================================
+GPU compute is an acceleration/backend service. Authoritative gameplay remains
+correct with CPU fallback unless a later chapter explicitly changes that rule.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+CUDA fast paths and domain-specific kernels introduced by later stages.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/compute/diligent/DiligentComputeBackend.hpp
+    engine/compute/diligent/DiligentComputeBackend.cpp
+    shaders/compute/reference_vector.hlsl
+    tests/native/compute/diligent_compute_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Diligent backend maps kernel descriptors to compute PipelineAsset and resource signature. Static/mutable/dynamic bindings follow 7.3 policy; no resource-name lookup per dispatch after pipeline creation.
+
+2. Dispatch can execute through RenderGraph pass or explicit compute batch executor; resource transitions are declared.
+
+3. GPU output remains GPU-resident unless caller explicitly requests readback.
+
+4. Backend reports limits: workgroup sizes, dispatch dimensions, storage buffer alignment and queue availability.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compute inputs/outputs are explicit buffer/view descriptors with versioned kernel parameter blocks; no backend-native pointer leakage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    Diligent Tutorial 14 compute shader
+    Diligent resource binding documentation
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement reference vector kernel on GPU with same semantic layout as CPU backend.
+
+STEP 2
+    Create compute pipeline cache keyed by kernel/version/defines/backend.
+
+STEP 3
+    Pre-resolve resource binding slots/signature to compact binding IDs.
+
+STEP 4
+    Add graph pass builder for compute reads/writes and dispatch dimensions.
+
+STEP 5
+    Implement completion fence/token integration with render backend.
+
+STEP 6
+    Run CPU vs GPU numerical parity for deterministic simple kernels on supported CI/dev GPU.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+PREPARE KERNEL:
+    shader := shaderAssets.load(kernel.shaderKey)
+    pipeline := pipelineCache.getOrCreate(computeDesc)
+    bindings := reflection.resolve(kernel.bindingSchema)
+
+DISPATCH:
+    graph.addComputePass:
+        declare inputs SRV
+        declare outputs UAV
+        bind pipeline/resources by resolved slots
+        DispatchCompute(groupsX,groupsY,groupsZ)
+    return graphCompletionToken
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU prepares immutable dispatch inputs; backend owns GPU resources and synchronization. Readbacks become visible only after completion tokens/fences.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported GPU feature selects explicit CPU/fallback path where allowed; shader/dispatch failures return typed errors and diagnostics.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+GPU-derived advisory fields may be numerically non-bitwise-identical across hardware; authoritative CPU state cannot depend on undocumented nondeterministic reductions.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch dispatches, avoid CPU/GPU ping-pong, measure transfer cost separately from kernel cost and prefer GPU-resident pipelines.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET compute service is new infrastructure; SOURCE has no equivalent general
+compute layer and remains reference for domain outputs only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    CPU/GPU vector parity
+    zero work
+    non-multiple workgroup bounds guard
+    resource binding validation
+    unsupported GPU skip/fallback
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] reference GPU kernel
+    [ ] no per-dispatch string binding lookup
+    [ ] graph-declared resources
+    [ ] GPU-resident output by default
+    [ ] parity tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    automatic readback after every dispatch
+    manual state barriers outside graph
+    dynamic resource reflection every frame
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] reference GPU kernel
+    [ ] no per-dispatch string binding lookup
+    [ ] graph-declared resources
+    [ ] GPU-resident output by default
+    [ ] parity tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next compute chapter.
+
+END OF CHAPTER 8.2
