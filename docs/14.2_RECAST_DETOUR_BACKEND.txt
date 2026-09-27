@@ -47,9 +47,21 @@ PUBLIC CONTRACTS
 ======================================================================
 1. NavBuildConfig explicitly records cellSize, cellHeight, tileSize, agent profile dimensions, region/contour/poly detail parameters and partition mode; config fingerprint is part of tile artifact key.
 
-2. Recast pipeline: rasterize source geometry -> filter -> compact heightfield -> regions -> contours -> poly mesh -> detail -> Detour tile data.
+2. Recast pipeline: rasterize source geometry -> filter -> compact heightfield
+-> regions -> contours -> poly mesh -> detail -> Detour tile data.
 
-3. Detour runtime is tiled; dtNavMesh/dtNavMeshQuery remain backend-private. Query objects are pooled/per-thread because mutable query scratch is not shared blindly.
+At the audited upstream baseline the root project reports LIB_VERSION 1.6.0
+and CMake options RECASTNAVIGATION_DEMO/TESTS/EXAMPLES. The exact Git SHA
+remains authoritative; do not code against an assumed package-manager version.
+
+3. Detour runtime is tiled; dtNavMesh/dtNavMeshQuery remain backend-private.
+Query objects are pooled/per-thread because mutable query scratch is not shared
+blindly.
+
+The 32-bit vs 64-bit dtPolyRef choice
+(RECASTNAVIGATION_DT_POLYREF64 in the current upstream CMake) must be decided
+before native save/nav artifact schemas are frozen. Public Genomes NavPolyHandle
+must not expose dtPolyRef width.
 
 4. World global double coordinates convert to local nav origin float coordinates per region/nav world to maintain precision.
 

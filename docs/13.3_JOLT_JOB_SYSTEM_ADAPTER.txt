@@ -44,11 +44,18 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Adapter implements JPH::JobSystem CreateJob/QueueJob(s)/FreeJob/GetMaxConcurrency and barrier behavior required by pinned Jolt version.
+1. Adapter derives from/implements the pinned Jolt JobSystem contract and maps
+CreateJob/QueueJob(s)/FreeJob/GetMaxConcurrency plus barrier behavior required
+by that exact revision.
+
+Current official Jolt JobSystem is dependency-graph based; JobSystemThreadPool
+is only one implementation. Genomes adapter must compile-test against the
+PINNED header rather than assuming signatures from a newer master.
 
 2. Jolt dependency tracking remains Jolt-owned. QueueJob maps ready Jolt job into Genomes JobSystem runnable without duplicating dependency logic.
 
-3. WaitForJobs/barrier must follow Jolt semantics; while PhysicsSystem::Update owns update, no unrelated gameplay job may call into/mutate PhysicsSystem and deadlock on body locks.
+3. Barrier/wait behavior must follow the pinned Jolt JobSystem/JobSystemWithBarrier
+semantics; while PhysicsSystem::Update owns update, no unrelated gameplay job may call into/mutate PhysicsSystem and deadlock on body locks.
 
 4. Jolt job wrapper lifetime extends until Jolt releases job; allocation uses dedicated bounded pool/arena suitable for max job count.
 

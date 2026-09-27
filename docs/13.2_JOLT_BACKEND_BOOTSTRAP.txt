@@ -51,7 +51,18 @@ PUBLIC CONTRACTS
 
 3. Broadphase/object layers separate StaticWorld, Dynamic, Character, Debris, Sensor and optional ProjectileQuery according interaction matrix.
 
-4. PhysicsSystem Update uses fixed 1/60 simulation step from SimulationClock; render frame delta is never passed directly.
+4. PhysicsSystem Update uses fixed 1/60 simulation step from SimulationClock;
+render frame delta is never passed directly.
+
+5. Genomes does not depend on Jolt's optional GPU-compute interface for physics
+bootstrap. Generic compute is owned by engine/compute + Diligent. If a future
+Jolt GPU compute path is benchmarked, it is a separate versioned backend choice
+and must not leak into PhysicsWorld public APIs.
+
+6. Do not bind Genomes architecture to a mutable Jolt determinism toggle.
+Current Jolt development after v5.6 removed PhysicsSettings::mDeterministicSimulation
+and made simulation deterministic by design. The pinned dependency API must be
+wrapped so dependency upgrades cannot break Genomes public contracts.
 
 ======================================================================
 DATA LAYOUT

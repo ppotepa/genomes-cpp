@@ -247,11 +247,28 @@ Initial Diligent acquisition:
 Initial target intention:
     Core required by renderer.
 
-Tools/FX:
-    disabled until a chapter explicitly demonstrates need.
+Initial exact upstream options:
+    DILIGENT_BUILD_TOOLS   OFF
+    DILIGENT_BUILD_FX      OFF
+    DILIGENT_BUILD_SAMPLES OFF
+    DILIGENT_BUILD_DOCS    OFF
+    DILIGENT_BUILD_TESTS   OFF
 
-Samples:
-    disabled in Genomes build.
+Enable Tools/FX later only if a concrete renderer/tool chapter requires them.
+The pinned Diligent revision remains authoritative if option names change.
+
+Backend pruning is explicit per platform using current upstream options such as:
+    DILIGENT_NO_DIRECT3D11
+    DILIGENT_NO_DIRECT3D12
+    DILIGENT_NO_OPENGL
+    DILIGENT_NO_VULKAN
+    DILIGENT_NO_METAL
+    DILIGENT_NO_WEBGPU
+
+For the initial desktop Genomes target:
+    Windows keeps D3D12 + Vulkan.
+    Linux keeps Vulkan.
+Other backends are not built merely because upstream can build them.
 
 Official Diligent documentation currently describes:
     CMake integration via add_subdirectory,
@@ -279,6 +296,21 @@ Initial Genomes use:
 Samples/viewer:
     OFF.
 
+Jolt v5.6.0 also contains its own optional GPU compute interfaces for DX12,
+Vulkan and Metal. Genomes does NOT adopt those as a second generic compute
+architecture. For initial integration disable Jolt GPU/CPU compute modules when
+the pinned upstream CMake supports:
+    JPH_USE_DX12=OFF
+    JPH_USE_VK=OFF
+    JPH_USE_MTL=OFF
+    JPH_USE_CPU_COMPUTE=OFF
+
+unless a later measured physics-specific chapter explicitly requires them.
+
+Reason:
+    generic GPU workloads belong to Genomes ComputeService/Diligent;
+    physics must not silently create a second device/queue/resource ecosystem.
+
 Jolt's own release history documents custom job-system integration facilities;
 actual adapter is Chapter 13.3.
 
@@ -294,8 +326,16 @@ Build target intent:
     DetourCrowd only if later chapter explicitly needs it
     DetourTileCache if Chapter 14 requires it
 
-Demo/debug applications:
-    OFF.
+Current upstream CMake option names at audit baseline:
+    RECASTNAVIGATION_DEMO     OFF
+    RECASTNAVIGATION_TESTS    OFF
+    RECASTNAVIGATION_EXAMPLES OFF
+
+Optional:
+    RECASTNAVIGATION_DT_POLYREF64
+must be decided by large-world/nav reference requirements, not enabled blindly.
+
+Pinned upstream revision is authoritative if names change.
 
 Tiled navigation is a target requirement, but backend-specific usage starts in
 Stage 14.
@@ -450,13 +490,19 @@ Then configure upstream options BEFORE add_subdirectory.
 
 STEP 7 - DILIGENT CONFIGURATION
 
-Before add_subdirectory:
+Before add_subdirectory, for the audited upstream option set:
 
+    DILIGENT_BUILD_TOOLS   = OFF
+    DILIGENT_BUILD_FX      = OFF
     DILIGENT_BUILD_SAMPLES = OFF
     DILIGENT_BUILD_DOCS    = OFF
+    DILIGENT_BUILD_TESTS   = OFF
 
-Tools/FX:
-    prefer OFF until renderer chapter requires them.
+Disable unused graphics backends per target platform rather than compiling
+every backend by default.
+
+Tools/FX may be enabled later only when an owning chapter demonstrates the
+dependency and updates THIRD_PARTY_NATIVE.
 
 If official Diligent option dependency forces Tools/FX state:
     follow upstream option contracts,
@@ -472,6 +518,15 @@ STEP 8 - JOLT CONFIGURATION
 
 Disable upstream sample/viewer/test extras not required by Genomes normal build.
 
+For pinned Jolt 5.6.0 compatibility, disable Jolt's optional GPU/CPU compute
+interfaces initially where CMake options exist:
+    JPH_USE_DX12
+    JPH_USE_VK
+    JPH_USE_MTL
+    JPH_USE_CPU_COMPUTE
+
+Genomes ComputeService remains the sole generic compute abstraction.
+
 Add Jolt source tree in the supported upstream manner.
 
 Do not link Jolt into foundation.
@@ -479,7 +534,13 @@ Do not link Jolt into foundation.
 
 STEP 9 - RECAST CONFIGURATION
 
-Disable demos/examples/tests unless explicitly desired.
+At current upstream baseline configure:
+    RECASTNAVIGATION_DEMO=OFF
+    RECASTNAVIGATION_TESTS=OFF
+    RECASTNAVIGATION_EXAMPLES=OFF
+
+If the pinned revision differs, inspect its root CMakeLists and record exact
+equivalent option names.
 
 Enable core libraries needed later.
 
