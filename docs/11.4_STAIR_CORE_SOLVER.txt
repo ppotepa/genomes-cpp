@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.4 - STAIR_CORE_SOLVER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement bounded vertical-core solver placing stairs/optional service cores across storeys using footprint containment, accessibility, symmetry and separation objectives.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.3_MACRO_DECOMPOSITION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/infantry gameplay integration unless explicitly named.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/include/genomes/buildings/CoreSolver.hpp
+    modules/buildings/include/genomes/buildings/StairGeometry.hpp
+    modules/buildings/src/CoreSolver.cpp
+    tests/native/buildings/core_solver_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Core count policy depends on floors, gross area, use/program and egress requirements; zero allowed for single-storey.
+
+2. CoreCandidate is axis-aligned/local-grid rectangle or oriented rectangle fully contained on all served storeys, with dimensions sufficient for selected stair layout.
+
+3. Hard constraints include containment, overlap, minimum clearance/headroom recipe, vertical alignment and no conflict with reserved structural/exterior zones.
+
+4. Objectives include average path distance proxy, center/edge preference by program, symmetry, long-axis distribution and separation among multiple cores.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Building semantic data uses stable IDs, compact arrays and polygons/cells. Render/physics/nav representations are separate compiler outputs.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-BUILD-STAIR-COSINE-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-BUILD-CANDIDATE-SOLVER-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-building-generator/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define StairProfile with minWidth, landingDepth, maxRiser, minTread, headroom, flight model; values are data and building-code profile specific, not universal constants.
+
+STEP 2
+    Enumerate candidate rectangles efficiently using 2D prefix occupancy from footprint.
+
+STEP 3
+    Score one-core candidates using sampled footprint graph-median proxy and symmetry/edge penalties.
+
+STEP 4
+    For multiple cores derive target fractions along long axis and choose non-overlapping candidates with separation objective.
+
+STEP 5
+    Generate StairRecipe from floor-to-floor height: select integer riser count satisfying max riser and tread/run envelope; fail/fallback if impossible.
+
+STEP 6
+    Validate every served floor opening/landing alignment.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+STAIR DIMENSIONS:
+    for riserCount in feasible integer range:
+        riser := floorHeight / riserCount
+        if riser > profile.maxRiser: continue
+        tread := choose >= minTread fitting available run
+        score comfort/run/landing
+    choose best deterministic
+
+CORE:
+    candidates := contained rectangles prefix-summed
+    if count==1: choose min objective
+    else:
+        targets := fractions along long axis
+        sequential bounded selection with nonoverlap + separation
+    return cores + stair recipes
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+One BuildingPlan candidate is owned by one job until frozen. Batch jobs are independent by BuildingId/SeedPath and merge in stable ID order.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Bounded solvers return typed failure/fallback reasons and ValidationReport. Invalid building candidates are never partially committed.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate order, tie-breaking and RNG streams are stable by semantic IDs. Worker count and hash-map iteration do not affect the plan.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unbounded backtracking. Batch independent buildings over JobSystem.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    single storey zero core
+    compact 2 storey
+    multiple cores large building
+    impossible stair typed failure
+    riser/tread constraints
+    symmetry
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] bounded candidate enumeration
+    [ ] profile-driven dimensions
+    [ ] vertical alignment
+    [ ] multi-core separation
+    [ ] impossible case handled
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    decorative stairs not connected floors
+    hardcoded stair dimensions for all uses
+    placing core after rooms without reserving space
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] bounded candidate enumeration
+    [ ] profile-driven dimensions
+    [ ] vertical alignment
+    [ ] multi-core separation
+    [ ] impossible case handled
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.4
