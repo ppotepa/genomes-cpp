@@ -1,0 +1,205 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.6 - DESTRUCTION_PHYSICS_INTEGRATION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Integrate structural detachment, hero/cheap/baked debris and rubble collision with
+Jolt/PhysicsWorld using command buffers, preserving semantic state and avoiding
+duplicate impact impulses or unsafe callback mutation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.5_RUBBLE_FIELD.txt
+    TARGET::docs/13.5_DYNAMIC_BODY_COMMAND_BUFFERS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE destruction physics intent: detached important chunks get dynamic
+physics, sleeping debris can wake, settled material bakes to rubble, logical
+model/physics/visual representations retire coherently, and target impulse is
+not applied twice.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/physics/DestructionPhysicsBridge.hpp
+    modules/destruction/physics/DestructionPhysicsBridge.cpp
+    modules/destruction/physics/DebrisShapeCompiler.hpp
+    tests/native/destruction/destruction_physics_tests.cpp
+    benchmarks/destruction/destruction_physics_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Destruction semantic commit decides Detach/Demote/Bake/Remove. Physics bridge converts those decisions into PhysicsCommandBuffer operations and returns handles/results; physics callbacks never decide semantic damage.
+
+2. Hero debris collision shape uses convex/compound recipes; dynamic triangle mesh is forbidden unless Jolt specifically supports chosen mode and benchmark/robustness proves it. Shape compile failure triggers cheap/baked fallback.
+
+3. Impulse from ImpactResult is applied exactly once to target/debris through physics command path. Structural damage deposition does not add heuristic duplicate impulse.
+
+4. Semantic debris transform can be synchronized from PhysicsSnapshot after step; mapping is DebrisId <-> PhysicsBodyHandle, no raw backend pointer.
+
+5. Settled bake transaction follows 16.4 ordering. Rubble collision swap is static-region/local body update; only after replacement field/collision valid are hero bodies removed.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement semantic->physics command bridge for detach spawn, impulse, demote/removal and collision recipe rebuild.
+
+STEP 2
+    Implement convex/compound shape compiler from detached structural geometry with size/complexity thresholds.
+
+STEP 3
+    Copy Jolt contact/sleep/activation events into DebrisLifecycle observations without mutating destruction state in callback.
+
+STEP 4
+    After physics step update hero debris transforms/velocities, evaluate settle/demotion policy and emit next commit commands.
+
+STEP 5
+    Integrate RubbleField dirty collision recipes into physics static command phase.
+
+STEP 6
+    Stress collapsing full building and ensure body counts decline as rubble bakes.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DETACH COMMIT:
+    debris := semantic create
+    shape := compileHeroShape(debris.geometry)
+    if hero policy + shape success:
+        physicsCommands.createDynamic(debrisId,shape,transform,mass)
+        physicsCommands.applyImpulse(debrisId, impactImpulseOnce)
+    else:
+        debrisLifecycle.spawnCheapOrBake(...)
+
+AFTER PHYSICS:
+    snapshot := changed hero bodies
+    for body:
+        update semantic debris kinematics
+        if sleeping/settle criteria:
+            settleCommands.push(debrisId)
+
+BAKE:
+    semantic/rubble transaction deposit+collision replacement
+    after safe commit -> physics destroy hero
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+All Jolt mutation follows PhysicsWorld command phases. Destruction jobs never call BodyInterface directly. Bridge owns mapping table on physics/destruction commit thread.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Shape build/body creation failure increments diagnostic and falls back representation. Mapping inconsistency is assertion in development plus safe semantic fallback in release.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Physics trajectories may not be bit-identical across platforms; semantic tier transitions use bounded thresholds/tick counts and source IDs. Material conservation remains deterministic independent of exact body path within tolerance.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound hero body counts, pooled shape recipes, batch create/remove, cheap/baked decay. Benchmark collapse peak/p95 and active body decay.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Native Jolt replaces Rapier implementation but SOURCE building-destruction acceptance/conservation remains parity evidence.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    detach->hero
+    shape fail->cheap
+    single impulse
+    sleep remains dynamic
+    bake removes after replacement
+    body/debris mapping cleanup
+    collapse stress
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] command-buffer physics integration
+    [ ] single impulse
+    [ ] fallback tiers
+    [ ] sleep/wake behavior
+    [ ] safe bake ordering
+    [ ] stress body decay
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    direct Jolt calls from impact solver
+    duplicate impulse in damage adapter
+    dynamic trimesh for every fragment
+    removing semantic debris before representation transition complete
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] command-buffer physics integration
+    [ ] single impulse
+    [ ] fallback tiers
+    [ ] sleep/wake behavior
+    [ ] safe bake ordering
+    [ ] stress body decay
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.6
