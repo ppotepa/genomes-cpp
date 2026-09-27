@@ -1,0 +1,178 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.3 - MACRO_DECOMPOSITION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Decompose validated footprints into deterministic rectangular/convex macro cells used as soft alignment priors for cores, rooms, structure and roof generation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.2_FOOTPRINT_SOLVER.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current modular building runtime and advanced SOURCE building prototype remain reference requirements until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/infantry gameplay integration unless explicitly named.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/include/genomes/buildings/MacroDecomposition.hpp
+    modules/buildings/src/MacroDecomposition.cpp
+    tests/native/buildings/macro_decomposition_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Decomposition exactly covers footprint solver cells/polygon within tolerance, without overlap/gaps.
+
+2. For orthogonal grid footprints v1 uses greedy maximal rectangles with deterministic seed-independent scan/tie rule; future optimal decomposition can be versioned.
+
+3. MacroCell has stable ID from building + canonical cell bounds, area, local axes and adjacency.
+
+4. Decomposition is a prior, not mandatory wall layout: room solver may cross macro boundaries when constraints require.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Building semantic data uses stable IDs, compact arrays and polygons/cells. Render/physics/nav representations are separate compiler outputs.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-GRID-CONNECTIVITY-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement row/column prefix or occupancy access for O(1) rectangle fullness checks.
+
+STEP 2
+    Scan remaining cells in canonical z,x order; evaluate width-first and depth-first maximal rectangles, choose larger then deterministic tie.
+
+STEP 3
+    Remove chosen rectangle and repeat until no cells remain.
+
+STEP 4
+    Build macro-cell adjacency by shared boundary length.
+
+STEP 5
+    Validate coverage count/area and no overlap.
+
+STEP 6
+    Add decomposition quality metrics count/aspect/fragmentation.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+remaining := footprint.cells
+while remaining not empty:
+    start := lexicographically smallest remaining cell
+    r1 := maximal width then depth rectangle from start
+    r2 := maximal depth then width rectangle from start
+    r := choose larger area, then stable dimensions tie
+    emit MacroCell(r)
+    remove r cells from remaining
+build adjacency from exposed/shared segments
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+One BuildingPlan candidate is owned by one job until frozen. Batch jobs are independent by BuildingId/SeedPath and merge in stable ID order.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Bounded solvers return typed failure/fallback reasons and ValidationReport. Invalid building candidates are never partially committed.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Candidate order, tie-breaking and RNG streams are stable by semantic IDs. Worker count and hash-map iteration do not affect the plan.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use bounded candidate sets, spatial/prefix structures and scratch arenas. No unbounded backtracking. Batch independent buildings over JobSystem.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE building systems remain parity/reference. TARGET may improve algorithms if hard invariants and declared parity gates pass.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    rectangle->1 block
+    L shape
+    U shape
+    coverage exact
+    deterministic scan
+    adjacency
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] exact coverage
+    [ ] stable IDs
+    [ ] no overlap
+    [ ] adjacency
+    [ ] quality metrics
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    random decomposition
+    assuming macro cells are final rooms
+    quadratic cell scans where prefix optimization straightforward
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] exact coverage
+    [ ] stable IDs
+    [ ] no overlap
+    [ ] adjacency
+    [ ] quality metrics
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.3
