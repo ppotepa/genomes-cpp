@@ -48,7 +48,14 @@ PUBLIC CONTRACTS
 
 2. Far representation may be simple envelope/roof proxy; World/detail representation contains openings/interiors according render profile. LOD changes representation only, not BuildingPlan identity.
 
-3. Windows/doors can be geometry or material/instance submeshes but openings in wall geometry must match semantic openings.
+3. Windows/doors can be geometry or material/instance submeshes but openings in
+wall geometry must match semantic openings. The same semantic opening state
+must drive the collision compiler; a visually open door/window with a solid
+collision wall, or vice versa, is a correctness failure.
+
+SOURCE BuildingWorldRepresentation and BuildingCollisionProxy both derive their
+wall solids from BuildingPlan openings; TARGET preserves this single-source
+relationship.
 
 4. Normals/tangents/UVs generated deterministically with seam policy; no duplicate micro-object per brick/window frame by default.
 
@@ -70,7 +77,12 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/buildings/buildingGeometry.js
+    SOURCE::js/buildings/buildingWorldRepresentation.js
+    SOURCE::js/buildings/buildingCollisionProxy.js
+    SOURCE::tests/building_geometry_quality.cjs
+    SOURCE::tests/building_roof_quality.cjs
+    SOURCE::tests/building_world_representation.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS

@@ -69,7 +69,11 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/buildings/buildingCollisionProxy.js
+    SOURCE::js/buildings/buildingPlan.js
+    SOURCE::tests/building_collision_proxy.cjs
+    SOURCE::tests/building_world_representation.cjs
+    SOURCE::tests/clearance_broadphase.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS

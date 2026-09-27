@@ -86,7 +86,10 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/terrain.js
+    SOURCE::tests/terrain_worker_parity.cjs
+    SOURCE::tests/terrain_build_async.cjs
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
 
 ======================================================================
 IMPLEMENTATION STEPS
@@ -104,7 +107,22 @@ STEP 4
     Emit representation invalidation events for physics/nav compilers.
 
 STEP 5
-    Test query/physics recipe heights align at sampled points.
+    Reproduce SOURCE triangle-diagonal sampling convention explicitly.
+    SOURCE getHeightAt()/sample() uses the same cell diagonal:
+        if u+v <= 1:
+            triangle (a,d,b)
+        else:
+            triangle (c,b,d)
+
+    Native HeightQueryGrid and any collision-heightfield interpolation tests
+    must document whether the backend physics heightfield produces the same
+    surface. If Jolt's interpolation/triangulation differs at sub-cell points,
+    WorldQuery height remains authoritative for gameplay ground sampling and
+    parity fixtures test the discrepancy/tolerance.
+
+STEP 6
+    Test query/physics recipe heights align at grid samples and representative
+    sub-cell points, including after flattenRoads/flattenPads-equivalent patches.
 
 ======================================================================
 PSEUDOCODE
@@ -148,6 +166,8 @@ TESTS TO ADD
     dirty bounds
     patch revision
     physics recipe sample parity
+    exact SOURCE cell-diagonal query interpolation
+    graded road/pad authoritative-field consistency
 
 ======================================================================
 COMMANDS TO RUN

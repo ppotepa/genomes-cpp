@@ -69,7 +69,11 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/buildings/buildingPlan.js
+    SOURCE::js/buildings/buildingCollisionProxy.js
+    SOURCE::tests/building_world_representation.cjs
+    SOURCE::tests/building_solver_quality.cjs
+    SOURCE::docs/research/building-interiors.md
 
 ======================================================================
 IMPLEMENTATION STEPS
