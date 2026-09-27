@@ -86,15 +86,15 @@ REQUIRES
 
 Existing algorithm references to inspect when relevant:
 
-    prototypes/procedural-city/index.html
-    prototypes/procedural-road-graph-lab/index.html
-    prototypes/procedural-building-generator/index.html
-    js/terrain.js
-    js/noise.js
-    js/animation/twoBoneIK.js
-    js/destruction/projectileMath.js
-    js/destruction/impactSolver.js
-    js/destruction/rubbleField.js
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-building-generator/index.html
+    SOURCE::js/terrain.js
+    SOURCE::js/noise.js
+    SOURCE::js/animation/twoBoneIK.js
+    SOURCE::js/destruction/projectileMath.js
+    SOURCE::js/destruction/impactSolver.js
+    SOURCE::js/destruction/rubbleField.js
 
 ======================================================================
 PRESERVES
@@ -1332,7 +1332,7 @@ must be defined in the Infantry animation migration chapter.
 
 Reference implementation:
 
-    js/animation/twoBoneIK.js
+    SOURCE::js/animation/twoBoneIK.js
 
 ======================================================================
 17. BASIC PHYSICS DEFINITIONS
@@ -1555,8 +1555,8 @@ serial. The native GenerationGraph should parallelize independent branches.
 
 Primary repository references:
 
-    prototypes/procedural-city/index.html
-    prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
 
 ======================================================================
 21. PROCEDURAL BUILDING REFERENCE PIPELINE
@@ -1584,7 +1584,7 @@ Canonical semantic ordering derived from current prototype:
 
 Primary repository reference:
 
-    prototypes/procedural-building-generator/index.html
+    SOURCE::prototypes/procedural-building-generator/index.html
 
 
 ALG-BUILD-CANDIDATE-SOLVER-001
@@ -1872,8 +1872,8 @@ REF-DEBERG-CG
 
 REF-REPO-CITY
     Repository:
-        prototypes/procedural-city/index.html
-        prototypes/procedural-road-graph-lab/index.html
+        SOURCE::prototypes/procedural-city/index.html
+        SOURCE::prototypes/procedural-road-graph-lab/index.html
 
     Use for:
         existing Genomes semantic behavior,
@@ -1883,7 +1883,7 @@ REF-REPO-CITY
 
 REF-REPO-BUILDING
     Repository:
-        prototypes/procedural-building-generator/index.html
+        SOURCE::prototypes/procedural-building-generator/index.html
         js/buildings/*
 
     Use for:
