@@ -1,0 +1,188 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 8.1 - COMPUTE_SERVICE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define backend-neutral batch compute API, kernel registry and CPU reference backend used by terrain/fields/visibility/flow workloads.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.3_PARALLEL_FOR_BATCHING.txt
+    TARGET::docs/7.2_RENDER_DEVICE_HANDLES_AND_CAPABILITIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+GPU compute is an acceleration/backend service. Authoritative gameplay remains
+correct with CPU fallback unless a later chapter explicitly changes that rule.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+CUDA fast paths and domain-specific kernels introduced by later stages.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/compute/CMakeLists.txt
+    engine/compute/include/genomes/compute/ComputeService.hpp
+    engine/compute/include/genomes/compute/KernelId.hpp
+    engine/compute/include/genomes/compute/Dispatch.hpp
+    engine/compute/cpu/CpuComputeBackend.cpp
+    tests/native/compute/compute_service_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. KernelId/version uniquely identifies semantic kernel contract. Dispatch contains kernel ID, dimensions, typed parameter block version, input/output buffer views and completion policy.
+
+2. ComputeBackend interface supports capabilities(kernel), dispatch(batch), completion token, optional timeline/fence. CPU backend is mandatory and uses JobSystem.
+
+3. Kernel semantic contract includes exact input/output layout, bounds behavior and determinism class. Backends may differ internally but must satisfy tests.
+
+4. ComputeService chooses requested/preferred backend per kernel based on capability and policy; fallback choice is observable in diagnostics.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Compute inputs/outputs are explicit buffer/view descriptors with versioned kernel parameter blocks; no backend-native pointer leakage.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define KernelDescriptor/registry immutable after bootstrap.
+
+STEP 2
+    Define BufferView abstraction for CPU memory and GPU resource handles without pretending same pointer address.
+
+STEP 3
+    Implement CPU backend dispatch using parallelFor for one simple reference kernel (vector add/copy).
+
+STEP 4
+    Implement completion token wait/poll interface.
+
+STEP 5
+    Add backend selection policy PreferGpu/PreferCpu/RequireBackend and failure behavior.
+
+STEP 6
+    Add cross-backend test harness interface used by future kernels.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+DISPATCH:
+    descriptor := registry.find(kernelId)
+    backend := policy.choose(descriptor, availableBackends)
+    validate layouts/dimensions
+    token := backend.dispatch(batch)
+    diagnostics.record(backend,kernel,dims)
+    return token
+
+CPU BACKEND:
+    parallelFor work items:
+        kernel.reference(item,params,inputs,outputs)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU prepares immutable dispatch inputs; backend owns GPU resources and synchronization. Readbacks become visible only after completion tokens/fences.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unsupported GPU feature selects explicit CPU/fallback path where allowed; shader/dispatch failures return typed errors and diagnostics.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+GPU-derived advisory fields may be numerically non-bitwise-identical across hardware; authoritative CPU state cannot depend on undocumented nondeterministic reductions.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch dispatches, avoid CPU/GPU ping-pong, measure transfer cost separately from kernel cost and prefer GPU-resident pipelines.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET compute service is new infrastructure; SOURCE has no equivalent general
+compute layer and remains reference for domain outputs only.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    registry duplicate
+    CPU vector kernel
+    backend fallback
+    RequireBackend failure
+    invalid buffer layout
+    completion poll/wait
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] CPU backend mandatory
+    [ ] backend selection explicit
+    [ ] kernel versions
+    [ ] completion tokens
+    [ ] cross-backend harness
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    shader name strings as public semantic API
+    CUDA required
+    reinterpret CPU pointer as GPU buffer
+    hidden synchronous wait in dispatch
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] CPU backend mandatory
+    [ ] backend selection explicit
+    [ ] kernel versions
+    [ ] completion tokens
+    [ ] cross-backend harness
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next compute chapter.
+
+END OF CHAPTER 8.1
