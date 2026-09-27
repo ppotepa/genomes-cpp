@@ -1,0 +1,187 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 15.2 - CUSTOM_ARCHETYPE_ECS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement and select the custom Genomes archetype ECS as the authoritative dynamic storage, with queries compiled to archetype/chunk lists and explicit hot/cold component patterns.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/15.1_ENTITY_IDS_AND_COMPONENT_STORAGE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Authoritative simulation remains independent of render objects and domain modules such as Infantry.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Specific Infantry/weapon/AI behavior implemented later.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/simulation/include/genomes/simulation/WorldEcs.hpp
+    engine/simulation/include/genomes/simulation/Archetype.hpp
+    engine/simulation/include/genomes/simulation/Query.hpp
+    engine/simulation/src/WorldEcs.cpp
+    tests/native/simulation/archetype_ecs_tests.cpp
+    benchmarks/simulation/ecs_iteration_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Genomes uses custom archetype/chunk ECS; Flecs is not a runtime dependency. This decision prioritizes controllable memory layout, scheduler integration and no external semantic leakage.
+
+2. Archetype key = sorted component type IDs; WorldEcs map lookup is cold/structural, hot iteration stores cached matching archetype list.
+
+3. Query declares Required, Optional, Excluded and read/write access per component. Query compilation validates component types and builds chunk iterators.
+
+4. Cold/large variable data is referenced by handles into domain stores, not stuffed into every hot entity component.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement Archetype create/get by canonical signature and chunk allocation.
+
+STEP 2
+    Implement entity creation in archetype and structural move add/remove component copying common columns and constructing/destroying delta.
+
+STEP 3
+    Implement typed Query builder and compiled QueryPlan list of matching archetypes.
+
+STEP 4
+    Implement ChunkView spans for components, entity IDs and count; no virtual per-entity callback required.
+
+STEP 5
+    Add canonical generic components only where engine-wide: Transform, Velocity may live simulation; Infantry-specific data later.
+
+STEP 6
+    Benchmark 1M position/velocity iteration vs AoS reference and document chunk size.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+QUERY ITERATION:
+    plan := queryCache.get(signature/readWrite)
+    for archetype in plan.matches:
+        for chunk in archetype.chunks:
+            pos := chunk.span<Position>()
+            vel := chunk.span<Velocity>()
+            for i in [0,count):
+                pos[i] += vel[i]*dt
+
+ADD COMPONENT:
+    targetSig := sourceSig + type
+    target := getOrCreateArchetype(targetSig)
+    move common components sourceRow -> targetRow
+    construct new component
+    remove source row/update location
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Structural changes commit outside system iteration. Parallel system jobs split chunks; no two jobs write same component column/chunk unless explicitly partitioned.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid/stale entity handles and illegal structural mutation return typed errors or development assertions; expected gameplay failures are not exceptions.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Chunk/archetype storage order is not gameplay semantic order. Stable reductions/commands use EntityId/PersistentId.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Compiled query cache, contiguous spans, chunk granularity, no virtual Update. Benchmark bandwidth and cache misses later.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE object model remains reference behavior only; TARGET does not preserve object hierarchy when data-oriented behavior is equivalent.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    query required/excluded
+    add/remove component
+    1M iteration
+    query cache
+    hot/cold reference
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] custom ECS selected
+    [ ] archetypes
+    [ ] compiled queries
+    [ ] structural moves
+    [ ] 1M benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Flecs hidden dependency
+    virtual Update() entities
+    semantic logic depending on chunk row order
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] custom ECS selected
+    [ ] archetypes
+    [ ] compiled queries
+    [ ] structural moves
+    [ ] 1M benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next simulation chapter.
+
+END OF CHAPTER 15.2
