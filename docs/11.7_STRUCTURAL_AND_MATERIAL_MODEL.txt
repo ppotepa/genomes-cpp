@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.7 - STRUCTURAL_AND_MATERIAL_MODEL
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Derive generic structural/material topology from BuildingPlan so destruction, collision and rendering share semantic wall/slab/roof/foundation elements without making any one representation authoritative.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.6_OPENINGS_STAIRS_ROOFS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/AI/Infantry integration except defined compiler contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/include/genomes/buildings/StructuralModel.hpp
+    modules/buildings/include/genomes/buildings/BuildingMaterial.hpp
+    modules/buildings/src/StructuralCompiler.cpp
+    tests/native/buildings/structural_model_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. StructuralElement types include Foundation, Slab, ExteriorWall, InteriorWall, PartyWall, Column/Beam optional, RoofSurface/Support. Every element has stable StructuralElementId, geometry span/profile, material class, thickness, storey, openings and connectivity/support references.
+
+2. Material is semantic construction material/profile (wood, brick, masonry, concrete, steel, glass, roof covering etc.) with physical/destruction parameters referenced by MaterialId; final calibrated values owned by destruction/material chapter.
+
+3. Structural graph records support/load-path adjacency sufficient for later damage propagation; this chapter does not implement finite element analysis.
+
+4. Wall elements are segmented by meaningful topology/opening boundaries, not every render triangle.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Semantic plan arrays remain renderer/physics/nav independent. Compiler products are versioned artifacts keyed by BuildingPlan fingerprint.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Convert room/exterior wall topology to centerline/plane wall elements and apply thickness/profile.
+
+STEP 2
+    Subtract semantic openings from panel records as hole intervals/polygons rather than destructively triangulating plan.
+
+STEP 3
+    Create slabs with stair/core openings and roof support surfaces.
+
+STEP 4
+    Create support graph: slab->walls/columns/foundation, roof->supports, wall vertical alignment across storeys where applicable.
+
+STEP 5
+    Assign material profiles from BuildingSpec/program/seed using deterministic substreams.
+
+STEP 6
+    Validate no orphan load-bearing element, thickness positive, opening contained.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FOR wall run:
+    segments := split at corners, T junctions, material/storey changes
+    for segment:
+        element := StructuralWall(id, plane, thickness, material)
+        element.openings := openings intersecting run
+        graph.add(element)
+
+SUPPORT GRAPH:
+    for element:
+        candidates := spatial/support relation below
+        add directed support edges
+    validate each load-bearing nonfoundation has path to foundation
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Building plan is immutable. Compilers can run independently/parallel from the same plan revision and publish separate representation artifacts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Compiler failure never mutates BuildingPlan. Return typed errors/ValidationReport and keep prior valid representation if rebuilding.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Compiler output identity derives from plan fingerprint + compiler version/options. Job completion order never changes content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch/merge geometry and queries; cache compiler products by plan hash; avoid one object per architectural micro-feature.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    wall segmentation
+    opening containment
+    slab stair hole
+    support path
+    material deterministic
+    multi-storey alignment
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] semantic structure
+    [ ] support graph
+    [ ] material IDs
+    [ ] openings preserved
+    [ ] validator
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    triangles as structural elements
+    hardcoding destruction energy into render material
+    orphan load-bearing panels
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] semantic structure
+    [ ] support graph
+    [ ] material IDs
+    [ ] openings preserved
+    [ ] validator
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.7
