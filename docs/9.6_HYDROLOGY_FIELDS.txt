@@ -1,0 +1,186 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 9.6 - HYDROLOGY_FIELDS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement deterministic hydrology semantic artifacts used by city generation: optional rivers, drainage/floodplain fields and water constraints derived from terrain/seed.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/9.3_TERRAIN_MULTICORE_GENERATION.txt
+    TARGET::docs/5.4_GENERATION_DAG.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Procedural-city SOURCE behavior that hydrology may be absent, adjacent to city, or cross it; bridges/roads later consume explicit water semantics.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later city/road/building integration not explicitly named here.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/hydrology/CMakeLists.txt
+    modules/hydrology/include/genomes/hydrology/HydrologySpec.hpp
+    modules/hydrology/include/genomes/hydrology/HydrologyArtifact.hpp
+    modules/hydrology/src/HydrologyGenerator.cpp
+    tests/native/hydrology/hydrology_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. HydrologyArtifact contains water mask/field, river centerlines or graph, width/depth metadata, floodplain distance/mask and drainage/flow field where generated.
+
+2. Hydrology mode: Off, SeededOptional, Forced. SeededOptional probability/placement derives from semantic seed path, not city generation attempt order.
+
+3. Water distance query is accelerated by raster distance field and/or spatial centerline index; road/building code does not rescan all river segments.
+
+4. Terrain carving/modification policy explicit: semantic hydrology can either provide terrain patch to generation DAG or overlay water; v1 must match chosen city pipeline order.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-NOISE-FBM-001
+    MATH-SPATIAL-GRID-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Port simple seeded river path relation from procedural-city as compatibility baseline fixture.
+
+STEP 2
+    Define raster water/flood fields aligned to terrain/city field grid with explicit cell size.
+
+STEP 3
+    Implement deterministic river centerline sampling/smoothing and widths; validate self-intersection/terrain bounds.
+
+STEP 4
+    Generate TerrainPatch for channel carve if enabled before downstream city cost fields.
+
+STEP 5
+    Build distance transform/spatial index for waterDistance(x,z).
+
+STEP 6
+    Export selected SOURCE city hydrology seeds for none/through/adjacent cases.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+GENERATE:
+    mode := spec.mode
+    if SeededOptional and seed.child("river-present").uniform01 > probability:
+        return emptyHydrology
+    relation := choose relation from seed
+    centerline := generate/smooth path across world bounds
+    widths := per-node deterministic samples
+    rasterize water mask
+    compute flood distance/field
+    optional terrainPatch := carve(centerline,widths)
+    validate
+    publish
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Raster rows and distance-field stages parallelize after centerline freeze; each stage is deterministic by cell index.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return ValidationReport/Result. Active world is changed only through generation transaction commit.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Presence/relation/path stable per seed/version and independent of thread count.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Field/raster queries O(1); centerline geometry stored compactly; distance transform benchmarked.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE::prototypes/procedural-city/index.html hydrology is reference, not exact final geometry requirement except exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    off mode
+    forced
+    seeded none/through/adjacent fixtures
+    waterDistance
+    flood mask
+    parallel parity
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] optional hydrology
+    [ ] explicit artifact
+    [ ] O(1) field query
+    [ ] terrain patch ordering
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    river always through origin
+    road system inventing its own water logic
+    O(number of river segments) query in every placement test
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] optional hydrology
+    [ ] explicit artifact
+    [ ] O(1) field query
+    [ ] terrain patch ordering
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter.
+
+END OF CHAPTER 9.6
