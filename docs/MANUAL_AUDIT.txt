@@ -1,5 +1,5 @@
-GENOMES NATIVE MANUAL - COMPLETENESS AUDIT
-===========================================
+GENOMES NATIVE MANUAL - COMPLETENESS AND SOURCE CONSISTENCY AUDIT
+=================================================================
 
 AUDIT DATE:
     2026-09-27
@@ -10,181 +10,258 @@ TARGET:
 SOURCE:
     ppotepa/genomes
 
+AUDITED SOURCE COMMIT:
+    16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
 RESULT:
-    PASS - roadmap structurally complete
+    PASS - roadmap structurally complete and audited against current SOURCE
+    prototype/runtime baseline.
 
 ======================================================================
 1. ROADMAP CONSISTENCY
 ======================================================================
 
-Parsed executable chapter identifiers/names from:
-    docs/0.0_NATIVE_MANUAL_INDEX.txt
+Roadmap chapters:
+    160 / 160 present
 
-Compared against:
-    docs/<X.Y_NAME>.txt
+Stage 0 normative/meta:
+    6 / 6 READY
 
-Expected:
-    160
+Stage 1-22 executable implementation chapters:
+    154 / 154 READY
 
-Present:
-    160
-
-Missing:
+Missing roadmap files:
     none
 
-Extra:
+Extra numbered roadmap files:
     none
 
-Three historical naming mismatches in the index were reconciled to the actual
-final chapter names:
-
+Finalized historical naming:
     2.5 SERIALIZATION_AND_SCHEMA_FOUNDATION
     3.3 PARALLEL_FOR_AND_BATCHING
     15.2 CUSTOM_ARCHETYPE_ECS
 
+Stale old-name references found during this audit were corrected.
 
 ======================================================================
-2. PLACEHOLDER / STATUS AUDIT
+2. SOURCE COVERAGE
 ======================================================================
 
-Repository search found no executable chapter occurrences of:
+Current SOURCE tree counts:
+    js/* files:           114
+    tests/* files:         65
+    prototypes/* files:     3
+    building-lab/* files:   8
+    tools/* files:         17
 
-    STATUS: DRAFT
-    STATUS: PLANNED
-    undefined
-    TODO
-    TBD
-    FIXME
-
-All planned executable chapters are intended to be STATUS: READY.
-
-
-======================================================================
-3. SIZE SANITY
-======================================================================
-
-Recursive Git tree inspection found 161 X.Y documents including the 0.0 master
-index.
-
-Executable chapters excluding 0.0:
-    160
-
-The smallest executable chapter is approximately 6.9 KiB.
-
-This size check is NOT proof of semantic quality, but it catches accidental
-empty files/stubs. None were detected.
-
-
-======================================================================
-4. REQUIRED CENTRAL REFERENCES
-======================================================================
-
-Present:
-
-    docs/0.0_NATIVE_MANUAL_INDEX.txt
-    docs/0.1_TARGET_ARCHITECTURE.txt
+All current js/* top-level subsystem families are covered by:
     docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
-    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
-    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
-    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
-    docs/0.6_REPOSITORY_TOPOLOGY_AND_REFERENCE_PROJECT.txt
-
-0.5 includes primary references for:
-    robust predicates
-    A*
-    Poisson sampling
-    Perlin noise
-    ray/triangle
-    collision geometry
-    work stealing
-    Recast/Detour
-    Diligent Engine
-    Vulkan queues/synchronization
-    CUDA external-memory/semaphore interoperability
-    D3D12 ExecuteIndirect
-
-
-======================================================================
-5. REFERENCE PROJECT AUDIT
-======================================================================
-
-Present:
-
-    reference/README.txt
-    reference/FIXTURE_EXPORT_POLICY.txt
-    reference/source/BASELINE.txt
+or:
     reference/manifests/SOURCE_SUBSYSTEMS.txt
-    reference/fixtures/README.txt
-    reference/golden/README.txt
-    reference/schemas/README.txt
 
-The TARGET does not contain a wholesale copy of the private SOURCE repository.
+SOURCE tests:
+    65 total
+    65 represented in 0.2
+    0 missing
 
-Reference policy requires exact SOURCE commit provenance for exported fixtures.
+Reference baseline:
+    reference/source/BASELINE.txt
 
-
-======================================================================
-6. COVERAGE AUDIT
-======================================================================
-
-The manual contains dedicated stages for:
-
-    native build/CMake/CI/dependencies
-    foundation IDs/result/hash/time/logging/memory/serialization
-    multicore JobSystem/work stealing/batching/cancellation/profiling
-    math/geometry/spatial
-    procedural generation DAG/artifacts/cache/validation/transactions/traces
-    world/regions/streaming/query/packages
-    Diligent renderer/RenderGraph/GPUScene/culling/profiling
-    compute service/async compute/readback/benchmarking
-    terrain/hydrology
-    roads/city/regions/zoning/blocks/parcels/parity
-    procedural buildings/interiors/structure/render/collision/nav/parity
-    vegetation/rocks/instance pages/cache
-    physics/Jolt
-    navigation/Recast/Detour/hierarchical routing/flow/nav invalidation
-    simulation/custom archetype ECS/scheduling/commands/snapshots/cadence
-    destruction/materials/impact/damage/debris/rubble/physics/invalidation/parity
-    ballistics/projectiles/trace/penetration/ricochet/HE/SIMD/parity
-    Infantry genome/phenotype/rig/surface/equipment/locomotion/IK/face/LOD/damage/parity
-    weapons/combat/perception/LOS/AI/squad sharing/multicore
-    full native world assembly/parity/streaming/save/proc viewer/presentation/legacy retirement
-    GPU field atlas/threat/LOS/flow/CUDA/interop/backend selection
-    production stress/memory/thread/GPU/recovery/packaging
-
+Audited hard facts:
+    reference/source/SOURCE_FACTS.txt
 
 ======================================================================
-7. KNOWN LIMIT OF THIS AUDIT
+3. DEFECTS FOUND AND CORRECTED
 ======================================================================
 
-This is a documentation-structure/completeness audit, not code implementation
-verification.
+The first structural audit was insufficiently deep. The SOURCE consistency audit
+found real defects and corrected them.
 
-A chapter marked READY can still reveal a defect or insufficient local detail
-when an implementation agent executes it against real dependency APIs or
-current SOURCE behavior.
+A. TIME
+    - removed rounded-nanosecond 1/60 authority;
+    - fixed rational 60 Hz phase accumulator contract;
+    - corrected SOURCE first advance alpha from 0 to 1.
 
-The required response to such a discovery is:
-    update the responsible manual chapter,
-    preserve architecture/reference contracts,
-    then continue implementation.
+B. RNG / DETERMINISM
+    - SOURCE has multiple historical seed-derivation families;
+    - added Building, City, Plant, Infantry, Equipment, FaceAnimator and
+      Settlement compatibility algorithms;
+    - distinguished Core/Building/City Mulberry state semantics.
 
-Do not weaken acceptance criteria merely because implementation is difficult.
+C. BUILDINGS
+    - identified conflicting RURAL_SHED definitions:
+        buildingCatalog: 2..3 m
+        buildingSpec:    2.5..7 / 2.5..6 m
+    - added explicit conflict/version resolution and parity fixtures;
+    - recorded SOURCE schemas building-spec/6, building-plan/4,
+      room-graph-set/1.
 
+D. ROAD / CITY
+    - canonical class is a superset of both prototypes;
+    - corrected "track" to surface/kind, not RoadClass;
+    - froze road-lab and city compatibility profiles;
+    - added Straight/Polyline/CubicBezier RoadCenterline contract;
+    - snapping/splitting must preserve exact canonical node endpoints.
+
+E. PARCEL ACCESS / FENCES
+    - assigned GateSpec, DrivewaySpec and FenceLayout ownership;
+    - preserved SOURCE FenceGenerator.plan behavior;
+    - presentation separated from semantic fence planning.
+
+F. TERRAIN
+    - preserved one authoritative graded height field;
+    - recorded exact SOURCE cell diagonal interpolation convention.
+
+G. VEGETATION
+    - corrected literal DATA LAYOUT placeholders;
+    - recorded 20 SOURCE species and exact plants-1.0.0 genes;
+    - corrected SOURCE global-building-version leakage by defining explicit
+      vegetation version domains.
+
+H. SIMULATION / ECS
+    - replaced literal DATA LAYOUT placeholders in 15.2-15.7 with explicit
+      archetype/chunk/scheduler/command/snapshot/spatial/cadence layouts.
+
+I. INFANTRY / EQUIPMENT / FACE
+    - verified height 1.60..1.95 m and 39-element rig/control baseline;
+    - preserved exact Infantry base/body/face seed streams;
+    - corrected Equipment inventory facts to 22 slots / 61 items / 10 loadouts;
+    - preserved SOURCE Equipment hash formula;
+    - separated SOURCE sequential face RNG from future event-indexed native
+      version.
+
+J. WEAPONS
+    - verified 8 SOURCE entries;
+    - explicitly preserved knife and grenade as non-firearm one-handed items.
+
+K. DESTRUCTION / RUBBLE
+    - froze SOURCE compatibility budgets:
+        maxDebris 512
+        maxActiveDebris 128
+        maxCheapDebris 1024
+        settleGraceTicks 60
+        rubble 0.5m cells / 4m tiles / 256 tile cap.
+
+L. BALLISTICS
+    - froze 256 projectile / 2048 fragment capacity profile;
+    - 15s/120s tracking;
+    - adaptive 12m/6m travel cap and sagitta formula;
+    - trace compression baseline.
+
+M. AI
+    - verified 0.2s observation, 2.5s memory, 100m range,
+      70-degree half-FOV, 0.85 target-switch ratio and 4-degree fire condition;
+    - native broadphase/LOS improves complexity without discarding behavior.
+
+N. CROSS-REPO / REFERENCES
+    - updated SOURCE baseline to clean current HEAD;
+    - fixed incorrect TARGET/SOURCE references in 20.7;
+    - repaired stale 2.5/3.3 chapter-name references;
+    - repaired invalid MATH reference in Infantry appearance chapter.
+
+======================================================================
+4. FINAL PLACEHOLDER / DANGLING REFERENCE CHECK
+======================================================================
+
+Previously affected DATA LAYOUT chapters checked:
+    Stage 9:  9.2-9.7
+    Stage 12: 12.1-12.6
+    Stage 15: 15.2-15.7
+
+Remaining literal "DATA LAYOUT = undefined":
+    0
+
+Known stale chapter refs checked:
+    2.5_SERIALIZATION_SCHEMA_FOUNDATION.txt
+    3.3_PARALLEL_FOR_BATCHING.txt
+
+Remaining:
+    0
+
+Known stale fixed-clock REF-REPO reference:
+    0
+
+======================================================================
+5. SOURCE HARD-FACT BASELINE
+======================================================================
+
+See:
+    reference/source/SOURCE_FACTS.txt
+
+Includes verified:
+    versions
+    fixed tick
+    Infantry dimensions/speeds
+    tree/test/prototype counts
+    building schemas/conflict
+    plant species/genes
+    39-element rig
+    equipment counts
+    weapon catalog
+    fence/access semantics
+    road compatibility profiles
+    terrain interpolation
+    destruction budgets
+    ballistics profile
+    simple combat AI profile
+
+These facts are parity inputs, NOT generic engine hard limits.
+
+======================================================================
+6. ARCHITECTURAL VERDICT
+======================================================================
+
+The target architecture is consistent with SOURCE at the subsystem level:
+
+    SOURCE semantic/procedural behavior
+        -> TARGET semantic artifacts/world databases
+        -> TARGET authoritative simulation
+        -> TARGET presentation/GPU/physics/nav derivatives
+
+The important intentional improvements are compatible with migration:
+
+    shared JobSystem instead of browser cooperative work
+    spatial broadphases instead of O(N^2) AI scans
+    semantic BuildingPlan instead of renderer-owned building truth
+    exact/versioned RNG adapters plus future native SeedTree
+    Jolt/Recast/Diligent behind Genomes abstractions
+    GPU/CUDA optional derived accelerators
+    region streaming and custom archetype ECS
+
+No audited improvement requires silently removing a current SOURCE feature.
+
+======================================================================
+7. REMAINING LIMITATION
+======================================================================
+
+This is still a documentation/source-consistency audit.
+
+It cannot prove that future C++ implementation matches SOURCE until parity
+fixtures/exporters and native tests are actually implemented and run.
+
+Therefore:
+    READY means documentation is implementation-ready.
+    IMPLEMENTED requires source code + tests + acceptance gates.
+
+Any discrepancy discovered during implementation updates the owning chapter and
+fixture/version policy; expected values are not silently rewritten.
 
 ======================================================================
 8. FINAL STATUS
 ======================================================================
 
-MANUAL AUTHORING:
-    COMPLETE - 160 / 160 READY
+MANUAL / ROADMAP AUTHORING:
+    160 / 160 READY
+    100%
+
+IMPLEMENTATION-EXECUTABLE CHAPTERS:
+    154 / 154 authored READY
+
+SOURCE CONSISTENCY AUDIT:
+    PASS after corrections
 
 NATIVE C++ IMPLEMENTATION:
-    NOT COMPLETE - implementation chapters still need execution.
+    not yet complete
 
-The next action is no longer "write the roadmap".
-The next action is:
-
+Next executable action:
     implement docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
-
-and proceed chapter-by-chapter with verification.

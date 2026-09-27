@@ -11,7 +11,7 @@ SOURCE:
     ppotepa/genomes
 
 STATUS:
-    IN PROGRESS / CORRECTIONS APPLIED
+    PASS - CORRECTIONS APPLIED AND REVALIDATED
 
 ======================================================================
 1. CONFIRMED HIGH-SEVERITY FINDINGS
@@ -571,3 +571,35 @@ Final correction:
     Simple-settlement driveway maps to:
         class = Service or Local according native access profile
         surface/kind = Track for SOURCE compatibility.
+
+
+======================================================================
+13. FINAL REVALIDATION
+======================================================================
+
+Final checks after corrections:
+
+    previously affected DATA LAYOUT chapters checked: 18
+    remaining literal DATA LAYOUT undefined: 0
+
+    stale 2.5 old chapter references: 0
+    stale 3.3 old chapter references: 0
+    stale fixed-clock REF-REPO reference: 0
+
+    SOURCE tests: 65
+    tests represented in 0.2: 65
+    missing: 0
+
+    SOURCE baseline pin:
+        16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
+    SOURCE top-level js subsystem families uncovered:
+        0
+
+VERDICT:
+    TARGET manual is coherent with the audited SOURCE baseline after the
+    corrections documented above.
+
+    Remaining proof is implementation-time parity: exporters/fixtures/native
+    tests must still execute the contracts; documentation alone cannot prove
+    numeric/runtime equivalence.

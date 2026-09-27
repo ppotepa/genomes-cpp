@@ -39,12 +39,22 @@ Branch policy: implementation chapters target main unless explicitly stated othe
 ======================================================================
 
 Historical design, research and implementation documentation remains in
-SOURCE::docs/. The TARGET::docs/ directory contains the executable C++ migration
-manual. Historical SOURCE documentation is referenced, not copied wholesale.
+SOURCE::docs/. The TARGET::docs/ directory contains the normative migration contract plus
+the executable C++ implementation manual. Historical SOURCE documentation is referenced, not copied wholesale.
 
-The new numbered X.Y_*.txt files form an EXECUTABLE IMPLEMENTATION MANUAL for
-migrating and improving Genomes while preserving the functionality already
-present in the repository.
+The numbered X.Y_*.txt files form one roadmap with two chapter classes:
+
+    STAGE 0 (0.1-0.6)
+        normative/meta/reference chapters.
+        They constrain implementation but are not source-code tasks by
+        themselves.
+
+    STAGES 1-22
+        executable implementation chapters that an agent can implement
+        chapter-by-chapter.
+
+Together they define the complete migration/implementation manual while
+preserving SOURCE functionality.
 
 The intended usage is:
 
@@ -88,13 +98,16 @@ port.
 2. FILE NAMING
 ======================================================================
 
-Executable chapter:
+Roadmap chapter:
 
     docs/X.Y_SHORT_NAME.txt
 
+Implementation-executable chapters begin at Stage 1.
+
 Examples:
 
-    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt   # normative/meta
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt  # executable
     docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
     docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
     docs/2.1_STRONG_IDS_RESULT_HASH.txt
@@ -108,7 +121,8 @@ A chapter may only assume files listed in its REQUIRES section are complete.
 3. REQUIRED CHAPTER FORMAT
 ======================================================================
 
-Every executable chapter MUST contain these sections in this order:
+Every Stage 1+ executable implementation chapter MUST contain these sections
+in this order:
 
     CHAPTER
     STATUS
@@ -137,6 +151,19 @@ Every executable chapter MUST contain these sections in this order:
     OUTPUT / HANDOFF TO NEXT CHAPTER
 
 If a section is not applicable, the chapter says "N/A" and explains why.
+
+STAGE 0 FORMAT EXCEPTION
+------------------------
+
+0.1-0.6 are normative/meta/reference chapters. Their structure may be
+specialized to their purpose (for example 0.5 is a mathematical reference
+registry) and they do not need artificial implementation-only sections merely
+to satisfy formatting.
+
+They MUST still be internally complete, versioned, STATUS-tracked and provide
+the contracts/references/acceptance information appropriate to their role.
+
+No Stage 1+ implementation chapter gets this exception.
 
 ======================================================================
 4. AGENT EXECUTION CONTRACT
@@ -543,11 +570,15 @@ commit or immediately following documentation commit.
 10. MANUAL ROADMAP COMPLETION
 ======================================================================
 
-The executable roadmap contains 160 chapters (0.1 through 22.6).
+The roadmap contains 160 numbered chapters (0.1 through 22.6):
+
+    6 normative/meta chapters in Stage 0
+    154 executable implementation chapters in Stages 1-22
 
 Current documentation state:
-    160 / 160 chapters authored
-    every executable chapter STATUS: READY
+    160 / 160 roadmap chapters authored
+    154 / 154 implementation chapters authored
+    every roadmap chapter STATUS: READY
 
 This means the IMPLEMENTATION MANUAL is complete as a planned execution graph.
 It does NOT mean native C++ implementation is complete.

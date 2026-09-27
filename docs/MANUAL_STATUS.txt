@@ -17,7 +17,7 @@ STATUS BASELINE:
 A. IMPLEMENTATION MANUAL AUTHORING
 
 COMPLETE:
-    160 / 160 executable chapters READY
+    160 / 160 roadmap chapters READY
 
 AUTHORING COMPLETION:
     100%
@@ -25,8 +25,12 @@ AUTHORING COMPLETION:
 AUTHORING REMAINING:
     0% of the currently defined roadmap
 
-This means the full planned implementation path from architecture through
-production hardening exists as executable chapter documentation.
+This means the full planned path from normative architecture through production
+hardening is documented.
+
+Breakdown:
+    6 Stage-0 normative/meta chapters
+    154 Stage-1..22 executable implementation chapters
 
 It does NOT mean the native engine has been implemented.
 
@@ -84,18 +88,24 @@ TOTAL:
 ======================================================================
 
 Master-roadmap filename audit:
-    expected executable chapters: 160
-    existing executable chapters: 160
+    expected roadmap chapters: 160
+    existing roadmap chapters: 160
+
+Implementation-executable chapters:
+    154 / 154
     missing: 0
     extra: 0
 
-Placeholder search:
-    STATUS: DRAFT   0
-    STATUS: PLANNED 0
-    undefined       0
-    TODO            0
-    TBD             0
-    FIXME           0
+Final placeholder/reference revalidation after SOURCE consistency audit:
+    known DATA LAYOUT "undefined" placeholders: 0
+    stale 2.5_SERIALIZATION_SCHEMA_FOUNDATION refs: 0
+    stale 3.3_PARALLEL_FOR_BATCHING refs: 0
+    stale REF-REPO fixed-clock ref: 0
+
+SOURCE coverage:
+    current SOURCE tests: 65
+    mapped in 0.2:       65
+    missing:              0
 
 Chapter file-size sanity:
     smallest executable chapter is > 6 KiB.
@@ -192,3 +202,26 @@ When implementation reveals a documentation defect:
     fix the responsible chapter,
     preserve old semantic/reference IDs where already depended upon,
     update this audit if roadmap count changes.
+
+
+======================================================================
+7. PROTOTYPE CONSISTENCY AUDIT
+======================================================================
+
+Detailed audit:
+    docs/PROTOTYPE_CONSISTENCY_AUDIT.txt
+
+Result:
+    PASS after corrections.
+
+Major corrected issues included:
+    rational fixed-clock semantics / first-frame alpha
+    multiple legacy RNG derivation families
+    buildingCatalog vs buildingSpec RURAL_SHED conflict
+    vegetation/Infantry version-domain leaks in SOURCE
+    Stage 9/12/15 DATA LAYOUT placeholders
+    road class/profile and curved exact-junction contracts
+    parcel driveway/fence/gate ownership
+    equipment/weapon inventory counts
+    destruction and ballistics compatibility budgets
+    stale cross-chapter/cross-repo references
