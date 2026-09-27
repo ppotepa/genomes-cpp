@@ -1,0 +1,625 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 2.2 - TIME, CLOCKS, AND FIXED TICKS
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Implement canonical native time primitives and fixed-timestep scheduling while
+preserving the useful semantics of the current JS FixedClock.
+
+Required separation:
+
+    WallClock
+    FrameTime
+    SimulationTick
+    SimulationTime
+    FixedStepAccumulator
+
+Rendering, UI and wall-clock time must never become authoritative simulation
+time.
+
+Current legacy baseline:
+
+    FIXED_DT     = 1 / 60 s
+    MAX_STEPS    = 8
+    MAX_FRAME_DT = 0.25 s
+
+from js/config.js.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+Legacy references:
+
+    js/core/fixedClock.js
+    js/config.js
+    tests/check_core.js
+    tests/snapshot_interpolation.cjs
+
+======================================================================
+PRESERVES
+======================================================================
+
+Preserve current useful behavior:
+
+    fixed simulation dt
+    frame delta clamp
+    bounded catch-up steps
+    dropped-time accounting
+    interpolation alpha
+    reset behavior after visibility/pause transitions
+
+Do not require identical JS class layout.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No system scheduler.
+No JobSystem.
+No render loop.
+No sleep/timer thread.
+No networking clock.
+No replay format.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+    engine/foundation/include/genomes/foundation/
+        Time.hpp
+        WallClock.hpp
+
+    engine/foundation/src/
+        WallClock.cpp
+
+    engine/simulation/
+        CMakeLists.txt
+        include/genomes/simulation/
+            FixedStepClock.hpp
+        src/
+            FixedStepClock.cpp
+
+    tests/native/foundation/
+        time_tests.cpp
+
+    tests/native/simulation/
+        fixed_step_clock_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+1. Duration
+
+Use std::chrono-based internal representation.
+
+Canonical high precision type:
+
+    using Nanoseconds = std::chrono::nanoseconds;
+
+Conversions to floating seconds happen only at explicit boundaries.
+
+
+2. SimulationTick
+
+Strong integer tick counter:
+
+    using SimulationTick = StrongId<SimulationTickTag, uint64_t>;
+
+IMPORTANT:
+    StrongId validity semantics make 0 invalid for many IDs, but simulation tick
+    zero IS meaningful.
+
+Therefore DO NOT use StrongId directly if its zero-invalid semantics conflict.
+
+Preferred dedicated value type:
+
+    struct SimulationTick
+    {
+        uint64_t value = 0;
+    };
+
+Tick zero = initial simulation state.
+
+
+3. FixedStepConfig
+
+    fixedStep      = 1/60 s
+    maxSteps       = 8
+    maxFrameDelta  = 250 ms
+
+Use integer duration representation for fixedStep.
+
+Preferred exact rational construction:
+
+    fixedStepNs := round(1e9 / 60)
+
+But note 1/60 cannot be represented exactly in integer nanoseconds.
+
+Therefore simulation logic MUST define one canonical discrete step duration:
+
+    FixedStepNumerator   = 1
+    FixedStepDenominator = 60
+
+Tick-based systems should use tick count where exact long-term identity matters.
+
+Floating seconds for physics may be derived as:
+
+    1.0 / 60.0
+
+
+4. FixedStepAdvanceResult
+
+    stepsExecuted
+    interpolationAlpha
+    droppedTime
+    consumedFrameTime
+
+
+5. WallClock
+
+Monotonic source only:
+
+    std::chrono::steady_clock
+
+Never system_clock for frame delta.
+
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+FixedStepClock target state:
+
+    optional<steady_clock::time_point> lastWallTime
+    nanoseconds accumulator
+    nanoseconds droppedTimeTotal
+    uint64_t totalSteps
+
+No heap allocation per frame.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+Interpolation alpha:
+
+    alpha = accumulator / fixedStep
+
+with:
+
+    0 <= alpha < 1
+
+after catch-up/drop handling.
+
+Frame clamp:
+
+    frame = min(rawFrameDelta, maxFrameDelta)
+
+Dropped due to frame clamp:
+
+    dropped += rawFrameDelta - frame
+
+Catch-up cap:
+
+    execute at most maxSteps fixed steps.
+
+Remaining whole fixed steps beyond cap are dropped and counted.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+No external named algorithm.
+
+Legacy semantic reference:
+    js/core/fixedClock.js
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+C++ std::chrono.
+REF-REPO current fixed-clock implementation.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1 - Time.hpp
+
+Define explicit conversion helpers:
+
+    secondsToDuration(double)
+    durationToSeconds(Duration)
+
+Avoid implicit double <-> duration conversion in public APIs.
+
+
+STEP 2 - WallClock
+
+API:
+
+    class WallClock
+    {
+    public:
+        using TimePoint = std::chrono::steady_clock::time_point;
+
+        [[nodiscard]]
+        static TimePoint now() noexcept;
+    };
+
+No state.
+
+
+STEP 3 - SimulationTick
+
+Implement zero-valid value type.
+
+Operations:
+
+    value()
+    increment
+    equality/order
+    difference only where semantically safe
+
+
+STEP 4 - FixedStepConfig
+
+Default native compatibility config:
+
+    60 Hz
+    max 8 steps
+    250 ms max frame delta
+
+Validate:
+    denominator > 0
+    maxSteps > 0
+    maxFrameDelta > 0
+
+
+STEP 5 - FixedStepClock
+
+Methods:
+
+    reset()
+    advance(now, callback)
+
+advance:
+    calculates wall delta
+    clamps
+    accumulates
+    invokes callback once per fixed step
+    increments tick/step counters
+    drops excess backlog after maxSteps
+    returns interpolation alpha + accounting
+
+
+STEP 6 - FIRST ADVANCE SEMANTICS
+
+Preserve current conceptual behavior:
+
+    first advance sets last wall time
+    executes zero simulation catch-up steps
+    returns alpha = 0
+
+Do not invent one fake simulation step on first timestamp.
+
+
+STEP 7 - RESET
+
+reset:
+    clears accumulator
+    clears last wall timestamp
+
+Policy:
+    total lifetime step count may either remain or reset only through explicit
+    fullReset() API.
+
+Preferred:
+    resetTiming() preserves SimulationTick.
+    resetAll() resets tick/accounting.
+
+Avoid ambiguous reset semantics.
+
+
+STEP 8 - DETERMINISTIC MANUAL DELTA PATH
+
+Tests and headless simulation need no real wall clock.
+
+Provide:
+
+    advanceBy(Duration frameDelta, callback)
+
+This path performs exactly the same accumulator/clamp logic without querying
+steady_clock.
+
+Wall-time overload should call into advanceBy.
+
+
+STEP 9 - TEST LEGACY CASES
+
+Cases:
+
+    first advance
+    exact one step
+    half step -> alpha 0.5
+    two steps
+    large frame clamped at 250 ms
+    max 8 steps catch-up
+    excess full-step backlog dropped
+    dropped-time accounting
+    reset timing
+    repeated accumulation
+    no negative frame delta accepted
+
+
+STEP 10 - LONG RUN TEST
+
+Run 60 * 60 * 10 ticks = ten simulated minutes.
+
+Assert:
+    tick count exact.
+    tick-derived simulation time exact as rational ticks/60.
+    no cumulative dependence on wall-clock floating addition.
+
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+ADVANCE BY:
+
+    function advanceBy(rawFrame):
+        require rawFrame >= 0
+
+        frame := min(rawFrame, config.maxFrameDelta)
+
+        droppedTotal += rawFrame - frame
+        accumulator += frame
+
+        steps := 0
+
+        while accumulator >= fixedStep
+              and steps < config.maxSteps:
+
+            callback(fixedDtSeconds, currentTick)
+
+            accumulator -= fixedStep
+            currentTick += 1
+            totalSteps += 1
+            steps += 1
+
+        if accumulator >= fixedStep:
+            wholeExcess :=
+                floor(accumulator / fixedStep) * fixedStep
+
+            accumulator -= wholeExcess
+            droppedTotal += wholeExcess
+
+        alpha :=
+            accumulator / fixedStep
+
+        return {
+            stepsExecuted: steps,
+            interpolationAlpha: alpha,
+            droppedTime: droppedThisAdvance
+        }
+
+
+WALL ADVANCE:
+
+    function advance(now):
+        if lastWallTime is None:
+            lastWallTime := now
+            return zero-step-result
+
+        raw := max(now - lastWallTime, 0)
+        lastWallTime := now
+
+        return advanceBy(raw)
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+FixedStepClock has one owner.
+
+Do not mutate one clock concurrently.
+
+SimulationTick is copied by value.
+
+WallClock::now is thread-safe through standard steady_clock.
+
+Later simulation scheduler owns authoritative clock.
+
+Renderer receives snapshots/timestamps, not mutable simulation clock ownership.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Invalid configuration:
+    Result/typed error or constructor validation according to coding policy.
+
+Negative manual delta:
+    InvalidArgument.
+
+steady_clock backwards anomaly:
+    clamp raw delta to zero and diagnostic later through logging system.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Authoritative semantic time:
+
+    tick count
+
+NOT:
+    wall-clock timestamp
+    renderer frame index
+    accumulated double seconds
+
+Simulation systems requiring elapsed time should prefer:
+
+    ticks
+or:
+    explicit conversion from tick count/fixed rate.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+advanceBy:
+    O(number of executed fixed steps)
+    max bounded by maxSteps.
+
+No allocation.
+No lock.
+No virtual dispatch required.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy FixedClock remains.
+
+Native tests should include parity fixtures matching:
+
+    FIXED_DT=1/60
+    MAX_STEPS=8
+    MAX_FRAME_DT=.25
+
+Exact interpolation semantics differences must be documented before retirement.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+    time_tests.cpp
+    fixed_step_clock_tests.cpp
+
+Labels:
+
+    unit
+    foundation
+    simulation
+    determinism
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+Legacy reference:
+
+    node tests/check_core.js
+    node tests/snapshot_interpolation.cjs
+
+where supported.
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+    [ ] steady_clock wall source
+    [ ] explicit Duration conversions
+    [ ] SimulationTick zero valid
+    [ ] fixed 60 Hz compatibility config
+    [ ] max steps 8
+    [ ] max frame delta 250 ms
+    [ ] advanceBy deterministic path
+    [ ] clamp/drop accounting
+    [ ] interpolation alpha bounded
+    [ ] no long-run double-time authority
+    [ ] reset semantics explicit
+    [ ] all native tests pass
+    [ ] legacy reference tests still pass where runnable
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    use system_clock for frame delta,
+    make render frame number the simulation tick,
+    store authoritative simulation time only as double seconds,
+    allow unbounded catch-up loop,
+    silently discard backlog without accounting,
+    execute a fake step on first wall timestamp,
+    query wall time inside individual gameplay systems,
+    share mutable FixedStepClock across worker jobs.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] Time.hpp
+[ ] WallClock
+[ ] SimulationTick
+[ ] FixedStepConfig
+[ ] FixedStepClock
+[ ] advanceBy
+[ ] wall advance
+[ ] drop accounting
+[ ] reset timing/full reset
+[ ] unit tests
+[ ] long-run deterministic test
+[ ] legacy parity checks
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next:
+
+    docs/2.3_LOGGING_ASSERTS_AND_DIAGNOSTICS.txt
+
+END OF CHAPTER 2.2
