@@ -1,0 +1,192 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 13.1 - PHYSICS_ABSTRACTION
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Define backend-neutral physics world, shapes, bodies, layers, queries, command buffers and contact events before Jolt types enter the implementation.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/2.1_STRONG_IDS_RESULT_HASH.txt
+    TARGET::docs/3.1_JOB_SYSTEM_CORE.txt
+    TARGET::docs/4.1_MATH_TYPES_AND_COORDINATE_CONVENTIONS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE Rapier/destruction behavior remains reference; physics backend implementation changes to Jolt behind Genomes-owned interfaces.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Domain destruction/ragdoll/vehicle logic beyond generic backend contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/physics/CMakeLists.txt
+    engine/physics/core/include/genomes/physics/PhysicsWorld.hpp
+    engine/physics/core/include/genomes/physics/PhysicsHandles.hpp
+    engine/physics/core/include/genomes/physics/PhysicsShapes.hpp
+    engine/physics/core/include/genomes/physics/PhysicsCommands.hpp
+    engine/physics/core/include/genomes/physics/PhysicsEvents.hpp
+    tests/native/physics/physics_contract_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. PhysicsBodyHandle/ShapeHandle are generational Genomes handles. Public BodyDesc contains motion type Static/Kinematic/Dynamic, transform, mass/density policy, damping, gravity factor, collision layer, motion quality and user semantic ID.
+
+2. ShapeRecipe variants: Sphere, Box, Capsule, Cylinder, ConvexHull, TriangleMesh, HeightField, Compound. Backend unsupported recipes return typed Unsupported or are precompiled into supported form by owning compiler.
+
+3. PhysicsWorld mutations are command-buffered. Public API does not permit arbitrary body mutation while backend step is running.
+
+4. ContactEvent is copied into Genomes event buffer with body handles/semantic IDs, point, normal, relative velocity/impulse metadata; domain code never holds backend contact pointers.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Public physics handles/recipes are Genomes-owned. Jolt BodyID/ShapeRef are backend-private mappings.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    DATA-UNIT-001
+    DATA-COORD-001
+    MATH-PHYS-MOMENTUM-001
+    MATH-PHYS-IMPULSE-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define handles/descriptors/layers/filter masks and query structs.
+
+STEP 2
+    Define PhysicsCommandBuffer commands Create/Destroy/SetTransform/SetVelocity/Impulse/Activate/SetShape/SetLayer.
+
+STEP 3
+    Define step lifecycle applyPreStepCommands -> backend update -> collect events -> apply safe post-step commands -> publish snapshot.
+
+STEP 4
+    Define PhysicsSnapshot for transform/velocity state extraction keyed by handle/semantic ID.
+
+STEP 5
+    Define query API RayCast/ShapeCast/Overlap against explicit query filter and caller output collector.
+
+STEP 6
+    Add null/mock backend contract tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+STEP:
+    applyCommands(preStep)
+    backend.beginStep()
+    backend.update(fixedDt)
+    events := drainBackendCallbacks()
+    backend.endStep()
+    applyCommands(postStepAllowed)
+    snapshot := extractChangedBodies()
+    publish events + snapshot
+
+COMMAND:
+    producer threads -> local command buffers
+    merge stable by phase/sequence where semantic ordering matters
+    physics owner applies
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+PhysicsWorld has one stepping owner. Producers can build command buffers in jobs. Queries during step follow backend-supported read rules; default Genomes policy schedules gameplay queries outside active Update.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Backend errors map to typed PhysicsError/diagnostics. Failed body creation or step does not leave half-registered public handles.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Command semantic order is stable for conflicting operations on same body; independent operations may execute backend-defined order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Commands batched; shape recipes cached; query collectors caller-owned scratch.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Provides contracts later adapters map from SOURCE destruction/ragdoll behavior.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    handle lifetime
+    command ordering
+    query filter
+    event copy lifetime
+    mock step lifecycle
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] backend-neutral API
+    [ ] command-buffer mutation
+    [ ] copied contact events
+    [ ] query contracts
+    [ ] no backend types
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    Jolt BodyID in public module APIs
+    domain mutating backend during step
+    callback pointer lifetime escaping
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] backend-neutral API
+    [ ] command-buffer mutation
+    [ ] copied contact events
+    [ ] query contracts
+    [ ] no backend types
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next physics chapter.
+
+END OF CHAPTER 13.1
