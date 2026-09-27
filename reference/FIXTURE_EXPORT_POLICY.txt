@@ -1,0 +1,71 @@
+GENOMES REFERENCE FIXTURE EXPORT POLICY
+=======================================
+
+GOAL
+----
+
+Export enough data for deterministic native parity without turning
+ppotepa/genomes-cpp into a duplicate of ppotepa/genomes.
+
+EVERY EXPORTED FIXTURE MUST HAVE
+--------------------------------
+
+    id
+    sourceRepository
+    sourceCommit
+    sourcePath
+    sourceSymbolOrEntryPoint
+    sourceGeneratorVersion if applicable
+    input
+    expected output/invariants
+    parityClass
+    numericTolerance if applicable
+    exportTool/version
+
+PREFERRED FORMAT
+----------------
+
+Small semantic fixtures:
+    JSON
+
+Binary geometry/reference buffers:
+    versioned binary + adjacent JSON metadata
+
+Large visual baselines:
+    only where needed and with explicit reason
+
+DO NOT EXPORT
+-------------
+
+    entire JS source modules
+    node_modules
+    browser vendor bundles
+    large duplicate research trees
+    transient debug dumps
+    user-specific data
+    secrets/credentials
+
+PARITY CLASSES
+--------------
+
+Use definitions from:
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+
+Examples:
+    exact RNG stream             -> EXACT
+    terrain height tolerance     -> NUMERIC
+    road topology validity       -> STRUCTURAL / INVARIANT
+    animation transition         -> BEHAVIORAL
+    selected appearance baseline -> VISUAL
+
+EXPORT WORKFLOW
+---------------
+
+1. Pin SOURCE commit.
+2. Run a dedicated exporter in SOURCE or a temporary local checkout.
+3. Normalize ordering.
+4. Remove non-semantic timestamps/paths.
+5. Write fixture to TARGET::reference/fixtures/<domain>/.
+6. Write provenance metadata.
+7. Add native parity test using fixture.
+8. Never regenerate a fixture silently after a native regression.
