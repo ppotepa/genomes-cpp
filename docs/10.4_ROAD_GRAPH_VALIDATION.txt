@@ -42,13 +42,28 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Validation checks graph components among required network, duplicate/zero edges, node degree, unregistered level-0 crossings, invalid edge self/intersections, water crossings, bridge annotations and out-of-bound nodes.
+1. Validation checks graph components among required network, duplicate/zero
+edges, node degree, unregistered level-0 crossings, invalid centerline
+self/intersections, water crossings, bridge annotations, out-of-bound nodes,
+class validity and exact edge-node endpoint agreement.
 
-2. Crossing validation uses RoadSpatialIndex broadphase, robust segment predicate narrow phase; shared endpoints are not errors.
+2. Crossing validation uses RoadSpatialIndex broadphase and an adaptive
+piecewise-linear representation of each RoadCenterline for robust-predicate
+narrow phase. Shared topological endpoints are not errors.
 
-3. Connectivity policy differentiates required major skeleton from optional dead-end local roads.
+The adaptive representation is for query/validation only; it does not become
+the authoritative curve.
 
-4. Validator reports metrics: nodes/edges, components, road length by class, degree distribution, dead-end %, bridge count, invalid crossings.
+3. Junction geometry validation requires:
+    edge.centerline.start == node[a].position
+    edge.centerline.end   == node[b].position
+
+and for split children the shared split endpoint is exactly the same canonical
+node coordinate.
+
+4. Connectivity policy differentiates required major skeleton from optional dead-end local roads.
+
+5. Validator reports metrics: nodes/edges, components, road length by class, degree distribution, dead-end %, bridge count, invalid crossings.
 
 ======================================================================
 DATA LAYOUT
@@ -58,17 +73,20 @@ Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fie
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    N/A
+    MATH-GEO-ORIENT2D-001
+    MATH-BEZIER-CUBIC-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-GEO-SEGMENT-INTERSECTION-001
+    ALG-CURVE-ADAPTIVE-SAMPLE-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::prototypes/procedural-city/index.html
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
 
 ======================================================================
 IMPLEMENTATION STEPS
@@ -141,6 +159,10 @@ TESTS TO ADD
     bridge crossing
     two components
     duplicate edge
+    curved self-intersection
+    exact endpoint/node equality
+    split child exact join
+    all SOURCE road classes map
     random fuzz
 
 ======================================================================
@@ -156,6 +178,9 @@ ACCEPTANCE CRITERIA
     [ ] connectivity policy
     [ ] spatial crossing validation
     [ ] hydrology validation
+    [ ] curved centerline validation
+    [ ] exact junction geometry validation
+    [ ] class mapping validation
     [ ] metrics
     [ ] fuzz stable
 

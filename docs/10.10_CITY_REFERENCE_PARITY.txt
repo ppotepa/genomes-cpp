@@ -44,7 +44,16 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. Fixture matrix includes settlement scales, morphologies, terrain/plannedness extremes, hydrology none/adjacent/through, multiple seeds and at least one pathological SOURCE regression seed.
+1. Fixture matrix includes settlement scales, morphologies, terrain/plannedness
+extremes, hydrology none/adjacent/through, multiple seeds and at least one
+pathological SOURCE regression seed.
+
+Road fixtures additionally cover:
+    SOURCE road-graph-lab MOTORWAY/TRUNK/ARTERIAL/COLLECTOR/LOCAL/SERVICE/PATH
+    SOURCE city trunk/arterial/collector/local/alley mapping
+    routed curved/smoothed centerlines
+    edge splits on curved/polyline roads
+    exact shared-node endpoint equality.
 
 2. Exact fixture fields: normalized input, seed hierarchy selected samples, core counts/IDs where legacy semantics intentionally preserved. Structural/invariant fields: graph connectivity, crossings, region counts/depth ranges, block/parcel containment, overlap metrics.
 

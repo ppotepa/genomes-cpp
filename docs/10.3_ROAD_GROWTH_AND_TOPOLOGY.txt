@@ -44,9 +44,23 @@ PUBLIC CONTRACTS
 ======================================================================
 1. Growth work item/Bud has stable ID, origin node, direction, class, energy/depth, parent road, generation epoch and SeedPath.
 
-2. Candidate segment undergoes hard checks in fixed order: world/region bounds, water/class, length/slope, nearest snap, crossing broadphase+robust intersection, duplicate/angle constraints.
+2. Candidate road centerline undergoes hard checks in fixed order: world/region
+bounds, water/class, arc length/slope, nearest snap, crossing broadphase +
+robust intersection over its adaptive segment representation, duplicate/angle
+constraints.
 
-3. Proper intersection splits existing edge before connecting. Endpoint snap uses explicit snap radius and deterministic nearest tie by distance then stable ID.
+A growth proposal may begin as a straight segment for topology search, but if a
+curved centerline is generated before commit the CURVED geometry is what must
+be revalidated and committed.
+
+3. Proper intersection splits existing edge before connecting. Intersection is
+mapped back to the existing edge centerline parameter and to the candidate
+centerline parameter. One canonical world point is created and used by all child
+centerlines.
+
+Endpoint snap uses explicit snap radius and deterministic nearest tie by distance
+then stable ID. Snapping REWRITES the candidate centerline endpoint to the exact
+canonical RoadNode coordinate; it does not leave an epsilon-separated endpoint.
 
 4. Growth queue ordering is semantic/stable priority, not worker completion; candidates may be evaluated parallel against immutable graph snapshot then committed in deterministic phase.
 
@@ -100,7 +114,8 @@ PSEUDOCODE
 EVALUATE BUD:
     dir := growthField.direction(bud.position,bud.seed)
     endpoint := propose length/turn
-    candidate := Segment(start,endpoint)
+    candidate := propose RoadCenterline(start,endpoint,field/route guidance)
+    candidate.start := exact origin-node position
     if hard constraint fails: reject(reason)
     snap := nearest eligible node/edge
     crossings := roadIndex.query(candidate.bounds)
@@ -143,8 +158,11 @@ SOURCE prototypes remain reference labs. TARGET native city may improve geometry
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    intersection split
+    intersection split straight/polyline/curve
     snap tie
+    snapped endpoint exact equality
+    connected centerline gap == 0 under exact node coordinate
+    curved candidate crossing revalidation
     no overlapping duplicate edge
     grid/organic seed stability
     parallel evaluate serial commit parity

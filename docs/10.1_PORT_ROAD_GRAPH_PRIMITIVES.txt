@@ -44,13 +44,45 @@ TARGET FILE TREE
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. RoadNode has stable RoadNodeId, XZ position + sampled height/ref, node type, region lineage. RoadEdge has stable RoadEdgeId, endpoints, RoadClass, surface, width/ROW, speed/capacity, bridge/tunnel level, lineage/seed metadata.
+1. RoadNode has stable RoadNodeId, exact XZ position + sampled height/ref,
+node type and region lineage.
+
+RoadEdge has stable RoadEdgeId, endpoint node IDs, RoadClass, surface,
+width/ROW, speed/capacity, bridge/tunnel level, lineage/seed metadata AND an
+explicit RoadCenterline.
+
+RoadCenterline supports at minimum:
+    StraightSegment
+    Polyline
+    CubicBezier
+
+SOURCE city currently uses curved/smoothed routed polylines; cubic Bézier is a
+supported native representation for later procedural roads, not a requirement
+that all SOURCE roads be converted to Bézier.
+
+HARD GEOMETRIC CONTRACT:
+    centerline.startPosition == RoadNode(a).position
+    centerline.endPosition   == RoadNode(b).position
+
+These endpoint values are canonical node coordinates, not approximately copied
+values. Mesh/ROW/sidewalk geometry must derive from the same centerline, so two
+edges sharing a node cannot create a geometric gap because of independent
+endpoint sampling.
 
 2. Graph mutation occurs only during candidate generation. Published RoadGraphArtifact is immutable.
 
 3. splitEdge(eid,p) retires original edge in build graph and creates deterministic child IDs derived from parent ID + split ordinal/quantized semantic point key.
 
 4. Adjacency arrays/indices support degree/other/endpoints without per-edge heap sets in published artifact.
+
+5. splitEdge(eid,p) splits BOTH graph topology and RoadCenterline geometry at
+one canonical split parameter/point. The new node stores the exact split point;
+both child centerlines reuse that exact node coordinate at their shared end.
+For Bézier, use a mathematically exact subdivision such as de Casteljau at t.
+For polyline, split the intersected segment and insert one canonical point.
+
+6. Published edge bounds and spatial indexes are computed from the complete
+centerline/corridor, not only endpoint chord bounds.
 
 ======================================================================
 DATA LAYOUT
@@ -62,11 +94,14 @@ MATHEMATICAL CONTRACTS
 ======================================================================
     DATA-GRAPH-001
     MATH-GEO-CLOSEST-SEGMENT-001
+    MATH-BEZIER-CUBIC-001
+    MATH-BEZIER-CUBIC-DERIVATIVE-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
     ALG-SPATIAL-HASH-001
+    ALG-CURVE-ADAPTIVE-SAMPLE-001
 
 ======================================================================
 SOURCE REFERENCES
@@ -78,7 +113,27 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define RoadClass hierarchy Trunk/Arterial/Collector/Local/Alley/Path with data table for nominal width/speed, not switch scattered through code.
+    Define one canonical RoadClass superset covering both SOURCE prototypes:
+
+        Motorway
+        Trunk
+        Arterial
+        Collector
+        Local
+        Service
+        Alley
+        Path
+
+    SOURCE road-graph-lab explicitly contains MOTORWAY/TRUNK/ARTERIAL/
+    COLLECTOR/LOCAL/SERVICE/PATH. SOURCE procedural-city exposes
+    trunk/arterial/collector/local/alley concepts.
+
+    Map SOURCE class IDs/names into the superset through versioned data tables;
+    do not collapse SERVICE and ALLEY merely because one prototype lacks one of
+    them.
+
+    Nominal width/speed/capacity/surface policy lives in data tables, not
+    switches scattered through code.
 
 STEP 2
     Implement mutable RoadGraphBuilder with node/edge pools and stable IDs.
@@ -145,7 +200,10 @@ TESTS TO ADD
 ======================================================================
     add duplicate
     degree
-    split
+    split straight/polyline/Bézier
+    exact shared-node endpoint equality after split
+    no centerline gap at connected node
+    source class superset mapping
     stable IDs insertion order test
     spatial nearest
     freeze compact adjacency
@@ -163,6 +221,9 @@ ACCEPTANCE CRITERIA
     [ ] semantic graph
     [ ] stable IDs
     [ ] split lineage
+    [ ] RoadCenterline representation
+    [ ] exact endpoint/junction contract
+    [ ] SOURCE road-class superset
     [ ] compact artifact
     [ ] spatial index
 

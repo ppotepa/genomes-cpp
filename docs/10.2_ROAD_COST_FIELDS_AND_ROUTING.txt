@@ -50,7 +50,17 @@ PUBLIC CONTRACTS
 
 3. Bridge-capable major classes may cross water with high/bridge construction cost; local classes may treat water impassable unless crossing candidate exists.
 
-4. Router returns polyline + cost + bridge-crossing annotations; smoothing cannot introduce forbidden-cell crossings.
+4. Router returns a RoadRoute containing:
+    raw routed polyline,
+    smoothed RoadCenterline candidate,
+    cost,
+    bridge-crossing annotations.
+
+Smoothing may use Chaikin/polyline fitting or cubic Bézier fitting but:
+    - start/end must remain exactly the route endpoint node coordinates,
+    - it cannot cross a forbidden cell/water policy not present in raw route,
+    - maximum deviation/error is explicit,
+    - topology/collision tests use adaptive centerline sampling where required.
 
 ======================================================================
 DATA LAYOUT
