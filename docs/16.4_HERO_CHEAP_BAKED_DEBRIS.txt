@@ -1,0 +1,213 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 16.4 - HERO_CHEAP_BAKED_DEBRIS
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Formalize the three-tier debris lifecycle preserving material and visibility while
+bounding expensive rigid bodies: HERO dynamic bodies -> CHEAP ballistic/gravity
+records -> BAKED persistent rubble.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.3_STRUCTURAL_LINKS_AND_DAMAGE_FIELDS.txt
+    TARGET::docs/13.5_DYNAMIC_BODY_COMMAND_BUFFERS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Latest SOURCE rubble-field lifecycle, including pool-pressure demotion/direct
+deposit, sleeping-but-dynamic behavior, no one-frame collision hole during bake,
+material-volume conservation and deterministic representation accounting.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later visual polish and domain integrations not explicitly owned by this chapter.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/destruction/include/genomes/destruction/DebrisLifecycle.hpp
+    modules/destruction/include/genomes/destruction/DebrisRecord.hpp
+    modules/destruction/src/DebrisLifecycle.cpp
+    tests/native/destruction/debris_lifecycle_tests.cpp
+    benchmarks/destruction/debris_lifecycle_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Debris representation tier is separate from semantic detached material identity. DebrisRecord stores stable DebrisId, source StructuralElementId(s), material-volume mix, transform/velocities, semantic geometry/artifact refs and tier.
+
+2. Hero tier uses Jolt dynamic body for important/large/near/interactive chunks under explicit retained and awake budgets. Sleeping hero remains dynamic and can wake/fall if support changes.
+
+3. Cheap tier stores simplified position/orientation/linear/angular velocity, bounds, material mix and optional retained visual mesh handle; integrates gravity/ground/rubble collision approximately without full body contacts.
+
+4. Baked tier transfers material volume into RubbleField. If hero budget full -> cheap; if cheap budget full/unrepresentable -> direct baked deposit. No material disappears because representation budget is exhausted.
+
+5. Bake order: deposit all settling candidates -> rebuild/commit affected rubble collision/field -> only then destroy old hero/cheap representations.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Hero table small bounded handles; Cheap SoA arrays for position/velocity/orientation/volume/material mix; Baked volume lives in RubbleField. RepresentationAccounting aggregates hero+cheap+baked by material/source.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define tier selection policy using volume/importance/distance/activity and budgets; defaults may start from SOURCE 128 awake/512 retained/1024 cheap but are configurable and benchmarked.
+
+STEP 2
+    Implement hero spawn via PhysicsCommandBuffer; failure/unrepresentable convex falls back to cheap/baked, not material loss.
+
+STEP 3
+    Implement cheap integrator fixed tick with gravity and collision against Terrain/Rubble surfaceHeight; orientation integrates angular velocity with bounded approximation.
+
+STEP 4
+    Implement settle candidate detection including hero sleep/contact support and cheap ground contact.
+
+STEP 5
+    Implement batch bake transaction depositing volume first, rebuilding rubble representation, then removing old tier records/bodies.
+
+STEP 6
+    Implement demotion hero->cheap preserving linear/angular state and semantic identity.
+
+STEP 7
+    Implement RepresentationAccounting exact sums and conservation tests by material.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+SPAWN DETACHED:
+    if qualifiesHero and heroBudget.available:
+        if physicsShapeBuild succeeds:
+            create hero
+            return
+    if cheapBudget.available:
+        create cheap record
+        return
+    rubble.deposit(materialVolumes, position)
+    mark baked
+
+BAKE BATCH:
+    candidates := settled hero + cheap
+    transaction:
+        for d in candidates:
+            rubble.deposit(d.materialVolumes, d.position, spread)
+        rubble.flushDirtySemanticTiles()
+        collisionUpdate := compile dirty rubble
+        commit collision/field
+        for d in candidates:
+            remove hero body / cheap record
+            d.tier := Baked
+    assert accounting conserved
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Hero physics state read after physics step. Cheap arrays integrate in parallel batches, generating settle commands. Rubble deposits commit under tile ownership. Tier transitions occur at deterministic commit points.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Unrepresentable physics hull, budget pressure or collider failure triggers explicit fallback tier and metric; never silent deletion. If rubble tile/collision compile fails, keep prior debris tier until safe fallback field representation exists.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Tier policy may depend on semantic importance/distance profile but must not depend on particle-quality settings. Conservation and DebrisId stable; visual priority may be camera-dependent without affecting semantic material.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Expensive active bodies naturally decay into cheap/baked forms. Cheap SoA integration and batch bakes; no physics body per tiny fragment.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Use latest SOURCE rubble-field semantics as authoritative over older building-damage docs that deleted overflow debris.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    hero spawn
+    hero budget -> cheap
+    cheap budget -> direct bake
+    demotion preserves velocity
+    batch bake no collision hole state ordering
+    material accounting exact
+    sleeping hero remains dynamic
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] three-tier lifecycle
+    [ ] budget fallback no loss
+    [ ] demotion
+    [ ] batch bake ordering
+    [ ] material conservation
+    [ ] configurable budgets
+    [ ] benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    deleting debris when physics pool full
+    turning sleeping hero Fixed
+    removing hero before rubble collider/field commit
+    quality setting changing semantic material preservation
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] three-tier lifecycle
+    [ ] budget fallback no loss
+    [ ] demotion
+    [ ] batch bake ordering
+    [ ] material conservation
+    [ ] configurable budgets
+    [ ] benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 16.4
