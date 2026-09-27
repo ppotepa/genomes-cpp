@@ -1,0 +1,2059 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 0.5 - MATHEMATICAL NOTATION AND ALGORITHM REFERENCE
+STATUS: READY
+REFERENCE VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Provide one canonical mathematical and algorithmic language for all later
+Genomes implementation chapters.
+
+This document is not a tutorial. It is a REFERENCE CONTRACT.
+
+Later chapters should reference stable IDs from this document rather than
+re-inventing formulas, sign conventions, tolerances, geometric predicates,
+sampling rules or algorithm names.
+
+Example:
+
+    MATHEMATICAL CONTRACTS:
+        MATH-GEO-ORIENT2D-001
+        MATH-POLY-AREA-001
+        MATH-POLY-CENTROID-001
+
+    ALGORITHM REFERENCES:
+        ALG-GRAPH-ASTAR-001
+        ALG-GEO-HALFPLANE-CLIP-001
+
+    SOURCES:
+        REF-RFC9923-FNV
+    L. Noll, K. Vo, D. Eastlake 3rd, T. Hansen,
+    "The FNV Non-Cryptographic Hash Algorithm",
+    RFC 9923, February 2026.
+    Reference:
+    https://www.rfc-editor.org/rfc/rfc9923.html
+
+    Use for:
+        FNV-1/FNV-1a constants and byte-stream definition,
+        explicit non-cryptographic applicability limits.
+
+
+REF-SHEWCHUK-1997
+        REF-HART-NILSSON-RAPHAEL-1968
+
+The reference is intentionally extensible. Later chapters may add new IDs, but
+must not silently redefine existing IDs.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+
+Existing algorithm references to inspect when relevant:
+
+    prototypes/procedural-city/index.html
+    prototypes/procedural-road-graph-lab/index.html
+    prototypes/procedural-building-generator/index.html
+    js/terrain.js
+    js/noise.js
+    js/animation/twoBoneIK.js
+    js/destruction/projectileMath.js
+    js/destruction/impactSolver.js
+    js/destruction/rubbleField.js
+
+======================================================================
+PRESERVES
+======================================================================
+
+This reference does not change current Genomes behavior.
+
+It formalizes mathematics already present in the project and establishes
+canonical forms for the native migration.
+
+If current JS behavior differs from a canonical formula in this file, a later
+migration chapter MUST explicitly choose one of:
+
+    A. preserve legacy behavior for parity,
+    B. correct the behavior and update parity expectations,
+    C. preserve legacy behavior behind a compatibility mode.
+
+Never silently change semantics because a formula in this reference is cleaner.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+This document does NOT:
+
+    choose the final C++ math library,
+    define the final ECS implementation,
+    define final physics gameplay constants,
+    define material penetration calibration,
+    define every animation curve,
+    define every city/building heuristic weight,
+    freeze every numerical tolerance.
+
+Domain-specific chapters will add formulas and constants when their exact
+requirements are known.
+
+======================================================================
+1. REFERENCE ID SYSTEM
+======================================================================
+
+ID families:
+
+    MATH-*      canonical mathematical definition
+    ALG-*       canonical algorithm / procedure
+    NUM-*       numerical robustness / tolerance rule
+    DATA-*      mathematical data convention
+    PERF-*      complexity/performance model
+    REF-*       external or repository source
+
+IDs are immutable once used by a READY implementation chapter.
+
+If a definition must change incompatibly:
+
+    DO NOT mutate the old meaning.
+
+Create:
+
+    MATH-FOO-002
+
+and mark the old definition SUPERSEDED with an explicit migration note.
+
+======================================================================
+2. TEXT / EQUATION NOTATION
+======================================================================
+
+All manual files are plain UTF-8 .txt.
+
+Use both readable mathematical notation and implementation-oriented notation.
+
+Example:
+
+    q = a + t (b - a)
+
+Implementation pseudocode:
+
+    q := a + t * (b - a)
+
+Use:
+
+    :=          assignment / definition in pseudocode
+    =           mathematical equality
+    ≈           numerical approximation
+    !=          implementation inequality
+    ∈           membership
+    Σ           summation
+    Π           product
+    ||v||       Euclidean norm
+    ||v||²      squared Euclidean norm
+    a · b       dot product
+    a × b       cross product
+    [a, b)      half-open interval
+    |S|         cardinality of set S
+    det(M)      determinant
+    H(...)      deterministic hash function
+    floor(x)    mathematical floor
+    clamp(x,a,b) = min(max(x,a),b)
+
+ASCII fallback is allowed in code snippets:
+
+    dot(a,b)
+    cross(a,b)
+    lengthSq(v)
+    sum(...)
+    in [a,b)
+
+Do not use ambiguous notation such as:
+
+    x^2
+
+inside C++ pseudocode if an implementation agent could interpret ^ as XOR.
+Write:
+
+    x*x
+
+in implementation pseudocode.
+
+======================================================================
+3. COORDINATE AND UNIT CONVENTIONS
+======================================================================
+
+DATA-COORD-001 - WORLD AXES
+
+Canonical semantic world:
+
+    X = horizontal axis
+    Y = vertical axis, positive up
+    Z = horizontal axis
+
+Basis orientation is defined algebraically:
+
+    e_x × e_y = e_z
+
+This is the canonical right-handed mathematical basis used by engine-level
+geometry.
+
+Game semantic convention may call +Z "forward" where appropriate.
+
+Renderer backend conversion, camera convention and clip-space convention MUST
+be handled at render boundaries. They do not redefine world mathematics.
+
+
+DATA-COORD-002 - 2D WORLD GEOMETRY
+
+Planar procedural geometry is represented in the horizontal XZ plane.
+
+A 2D point is written:
+
+    p = (x, z)
+
+Do not use (x,y) in city/road/building-plan mathematics unless the chapter
+explicitly states that it is using an abstract 2D coordinate system.
+
+
+DATA-UNIT-001 - SI UNITS
+
+Unless explicitly stated:
+
+    length          metre [m]
+    time            second [s]
+    mass            kilogram [kg]
+    velocity        m/s
+    acceleration    m/s²
+    force           newton [N]
+    energy          joule [J]
+    angle           radian [rad]
+
+UI may display degrees. Core mathematics uses radians.
+
+
+DATA-MATRIX-001 - MATHEMATICAL TRANSFORM CONVENTION
+
+Conceptually use column vectors:
+
+    p_world = M_world * p_local
+
+Hierarchy:
+
+    M_world = M_parent * M_local
+
+Storage order in memory is an implementation detail of the selected math and
+render libraries and MUST NOT alter semantic multiplication order.
+
+
+DATA-RANGE-001 - HALF-OPEN INDEX RANGES
+
+Container/index iteration uses:
+
+    [begin, end)
+
+unless a formula explicitly describes a closed geometric interval.
+
+======================================================================
+4. NUMERICAL ROBUSTNESS
+======================================================================
+
+NUM-EPS-001 - NO GLOBAL MAGIC EPSILON
+
+Forbidden:
+
+    constexpr double EPS = 1e-6;
+
+used indiscriminately by all geometry.
+
+Tolerance must be associated with:
+
+    units,
+    operation scale,
+    semantic purpose.
+
+Examples:
+
+    weld tolerance
+    road snap tolerance
+    building clearance tolerance
+    display comparison tolerance
+
+are different concepts.
+
+
+NUM-SCALE-001 - SCALE-AWARE COMPARISON
+
+For scalar comparison where approximate equality is semantically appropriate:
+
+    |a - b| <= absTol + relTol * max(|a|, |b|)
+
+Do NOT use approximate equality for IDs, counts, topology, or exact integer
+state.
+
+
+NUM-GEO-PREDICATE-001 - ROBUST PREDICATES
+
+Topological decisions such as:
+
+    orientation,
+    collinearity,
+    incircle / Delaunay,
+    side-of-line classification
+
+must not rely on a casually selected epsilon when an adaptive/exact predicate
+is required for correctness.
+
+Primary reference:
+
+    REF-SHEWCHUK-1997
+
+Native geometry chapters must either:
+
+    - use a proven robust predicate implementation,
+    - use a library providing filtered/exact predicates,
+    - or document why a bounded approximate predicate is safe for that domain.
+
+
+NUM-NORMALIZE-001 - SAFE NORMALIZATION
+
+For vector v:
+
+    if ||v||² <= threshold²:
+        return explicit failure/fallback
+    else:
+        return v / ||v||
+
+Never hide zero-vector normalization by returning an arbitrary unit vector in
+generic math primitives.
+
+
+NUM-ANGLE-001 - ANGLE WRAP
+
+Canonical signed wrap to (-π, π]:
+
+    wrapPi(a):
+        while a <= -π: a += 2π
+        while a >   π: a -= 2π
+        return a
+
+Performance implementations may use remainder-based equivalents if tests prove
+the same boundary convention.
+
+======================================================================
+5. BASIC SCALAR MATH
+======================================================================
+
+MATH-SCALAR-CLAMP-001
+
+    clamp(x, a, b) = min(max(x, a), b)
+    require a <= b
+
+
+MATH-SCALAR-LERP-001
+
+    lerp(a, b, t) = a + t (b - a)
+
+No implicit clamping of t.
+
+
+MATH-SCALAR-SMOOTHSTEP-001
+
+For t in [0,1]:
+
+    S3(t) = t² (3 - 2t)
+
+General interval:
+
+    u = clamp((x-a)/(b-a), 0, 1)
+    smoothstep(a,b,x) = u²(3 - 2u)
+
+
+MATH-SCALAR-FADE5-001
+
+Improved Perlin quintic fade:
+
+    F5(t) = 6t^5 - 15t^4 + 10t^3
+
+Implementation pseudocode:
+
+    return t*t*t * (t * (t*6 - 15) + 10)
+
+Reference:
+
+    REF-PERLIN-2002
+
+======================================================================
+6. VECTOR MATH
+======================================================================
+
+MATH-VEC-DOT-001
+
+For n-dimensional vectors:
+
+    a · b = Σ_i a_i b_i
+
+
+MATH-VEC-NORM2-001
+
+    ||v||² = v · v
+    ||v||  = sqrt(v · v)
+
+Prefer squared distance in comparisons when the actual distance is unnecessary.
+
+
+MATH-VEC-DIST2-001
+
+    d²(a,b) = ||a-b||²
+
+
+MATH-VEC-CROSS3-001
+
+For 3D:
+
+    a × b =
+        (a_y b_z - a_z b_y,
+         a_z b_x - a_x b_z,
+         a_x b_y - a_y b_x)
+
+
+MATH-VEC-CROSS2-001
+
+For horizontal 2D vectors a=(a_x,a_z), b=(b_x,b_z):
+
+    cross2(a,b) = a_x b_z - a_z b_x
+
+This is a scalar signed area factor.
+
+
+MATH-VEC-PROJECT-001
+
+Projection of v onto nonzero d:
+
+    proj_d(v) = d * (v · d) / (d · d)
+
+
+MATH-VEC-REJECT-001
+
+    reject_d(v) = v - proj_d(v)
+
+
+MATH-VEC-PERP2-001
+
+One canonical perpendicular in XZ:
+
+    perpCCW(x,z) = (-z, x)
+
+Orientation-sensitive code must state whether it expects CW or CCW.
+
+======================================================================
+7. SEGMENTS, LINES AND RAYS
+======================================================================
+
+MATH-GEO-CLOSEST-SEGMENT-001
+
+Closest point q on segment [a,b] to point p:
+
+    d = b - a
+    denom = d · d
+
+    if denom == 0:
+        q = a
+        t = 0
+    else:
+        t = clamp(((p-a) · d) / denom, 0, 1)
+        q = a + t d
+
+Squared distance:
+
+    ||p-q||²
+
+
+MATH-GEO-ORIENT2D-001
+
+For planar points a,b,c:
+
+    orient2d(a,b,c)
+        = (b_x-a_x)(c_z-a_z)
+        - (b_z-a_z)(c_x-a_x)
+
+Interpretation under the canonical XZ orientation:
+
+    > 0 : c lies to the left of directed a -> b
+    < 0 : c lies to the right
+    = 0 : collinear
+
+Topology-sensitive code must follow NUM-GEO-PREDICATE-001.
+
+
+MATH-GEO-LINE-INTERSECTION-001
+
+Lines:
+
+    p + t r
+    q + u s
+
+Let:
+
+    den = cross2(r,s)
+
+If den != 0:
+
+    t = cross2(q-p, s) / den
+    u = cross2(q-p, r) / den
+
+For a closed segment/segment test:
+
+    t ∈ [0,1]
+    u ∈ [0,1]
+
+Endpoint policy must be explicit in each algorithm. Road topology commonly
+needs separate handling for proper interior crossing versus shared endpoints.
+
+
+ALG-GEO-SEGMENT-INTERSECTION-001
+
+Pseudocode:
+
+    function intersectSegments(a,b,c,d, endpointPolicy):
+        r := b-a
+        s := d-c
+        den := cross2(r,s)
+
+        if robustZero(den):
+            handle collinear/parallel according to endpointPolicy
+
+        t := cross2(c-a, s) / den
+        u := cross2(c-a, r) / den
+
+        if endpointPolicy.accepts(t,u):
+            return Hit(a + t*r, t, u)
+
+        return NoHit
+
+
+MATH-GEO-RAY-001
+
+Ray:
+
+    R(t) = O + tD,  t >= 0
+
+D need not be normalized unless a consuming algorithm requires t to represent
+metric distance.
+
+
+ALG-GEO-RAY-TRIANGLE-001
+
+Canonical reference algorithm:
+
+    Möller-Trumbore ray/triangle intersection.
+
+Use barycentric values (u,v):
+
+    u >= 0
+    v >= 0
+    u + v <= 1
+
+and ray parameter:
+
+    t >= tMin
+
+Reference:
+
+    REF-MOLLER-TRUMBORE-1997
+
+Do not reproduce an ad-hoc plane-test + point-in-triangle implementation in a
+hot path unless benchmark/evidence justifies it.
+
+======================================================================
+8. POLYGON MATH
+======================================================================
+
+MATH-POLY-SIGNED-AREA-001
+
+For ordered planar polygon vertices p_i=(x_i,z_i), i=0..n-1,
+with p_n = p_0:
+
+    A_s = 1/2 * Σ_i (x_i z_{i+1} - x_{i+1} z_i)
+
+Absolute area:
+
+    A = |A_s|
+
+Convention:
+
+    positive signed area means CCW under the canonical XZ orientation.
+
+
+MATH-POLY-CENTROID-001
+
+For a non-degenerate simple polygon:
+
+    cross_i = x_i z_{i+1} - x_{i+1} z_i
+
+    C_x = [1 / (6 A_s)] * Σ_i (x_i + x_{i+1}) cross_i
+    C_z = [1 / (6 A_s)] * Σ_i (z_i + z_{i+1}) cross_i
+
+If |A_s| is degenerate, the caller must choose an explicit fallback.
+Generic polygon code must not silently pretend the arithmetic mean is the exact
+area centroid.
+
+
+ALG-POLY-POINT-IN-001
+
+For general simple polygons, use a documented winding-number or ray-crossing
+implementation.
+
+Boundary classification is a separate state:
+
+    Outside
+    Inside
+    Boundary
+
+Do not collapse Boundary into Inside/Outside inside the generic primitive.
+
+
+ALG-GEO-HALFPLANE-CLIP-001
+
+For clipping a polygon against one half-plane, use a
+Sutherland-Hodgman-style edge walk:
+
+    for each directed edge prev -> cur:
+        prevInside := predicate(prev)
+        curInside  := predicate(cur)
+
+        if curInside:
+            if !prevInside:
+                output(intersection(prev,cur,boundary))
+            output(cur)
+        else if prevInside:
+            output(intersection(prev,cur,boundary))
+
+This algorithm is a natural primitive for:
+    Voronoi-like clipping,
+    recursive city regions,
+    convex clipping stages.
+
+
+MATH-POLY-COMPACTNESS-001
+
+Isoperimetric compactness:
+
+    Q = 4πA / P²
+
+where:
+    A = polygon area
+    P = perimeter
+
+For a perfect circle Q=1.
+Use only as a heuristic/metric, not a topological validity test.
+
+
+MATH-POLY-RECTANGULARITY-001
+
+For a raster/cell footprint:
+
+    rectangularity = occupiedArea / boundingRectangleArea
+
+For unit grid cells this reduces to:
+
+    |cells| / (bboxWidthCells * bboxDepthCells)
+
+
+MATH-POLY-PCA-AXIS-001
+
+For points relative to centroid c:
+
+    dx_i = x_i - c_x
+    dz_i = z_i - c_z
+
+Unnormalized covariance terms:
+
+    S_xx = Σ dx_i²
+    S_zz = Σ dz_i²
+    S_xz = Σ dx_i dz_i
+
+Principal-axis angle:
+
+    θ = 1/2 atan2(2 S_xz, S_xx - S_zz)
+
+This matches the existing procedural-city/building style principal-axis
+calculation. Weighting by vertices versus area is a semantic choice and must be
+stated by the caller.
+
+======================================================================
+9. OBB / SAT
+======================================================================
+
+MATH-OBB2-001
+
+2D oriented rectangle:
+
+    center c
+    orthonormal axes u,v
+    half extents h_u, h_v
+
+A point p is inside when:
+
+    |(p-c) · u| <= h_u
+    |(p-c) · v| <= h_v
+
+
+ALG-SAT-OBB2-001
+
+Two convex OBBs A and B are disjoint if there exists a separating axis among:
+
+    A.u
+    A.v
+    B.u
+    B.v
+
+For each axis n:
+
+    [min_A(n), max_A(n)]
+    [min_B(n), max_B(n)]
+
+If intervals do not overlap, the boxes do not overlap.
+
+If no separating axis exists, they overlap.
+
+For 3D box/triangle specialized overlap, see:
+
+    REF-AKENINE-MOLLER-2001
+
+======================================================================
+10. CURVES FOR ROADS / PROCEDURAL GEOMETRY
+======================================================================
+
+MATH-BEZIER-CUBIC-001
+
+Cubic Bézier curve with control points P0,P1,P2,P3:
+
+    B(t) =
+        (1-t)^3 P0
+        + 3(1-t)^2 t P1
+        + 3(1-t)t^2 P2
+        + t^3 P3
+
+for:
+
+    t ∈ [0,1]
+
+
+MATH-BEZIER-CUBIC-DERIVATIVE-001
+
+    B'(t) =
+        3(1-t)^2 (P1-P0)
+        + 6(1-t)t (P2-P1)
+        + 3t^2 (P3-P2)
+
+Tangent:
+
+    T(t) = normalize(B'(t))
+
+with safe-normalization policy NUM-NORMALIZE-001.
+
+
+ALG-CURVE-ADAPTIVE-SAMPLE-001
+
+Do not assume equal t steps imply equal world-space spacing.
+
+For collision, road meshing or arc-length-sensitive work:
+
+    recursively subdivide interval [t0,t1]
+    compare curve midpoint against chord midpoint
+    if geometric error > tolerance:
+        subdivide
+    else:
+        accept chord
+
+Tolerance is expressed in metres and belongs to the consuming chapter.
+
+======================================================================
+10A. STABLE NON-CRYPTOGRAPHIC HASHING
+======================================================================
+
+MATH-HASH-FNV1A64-001
+
+Canonical FNV-1a 64-bit byte-stream hash for stable small semantic strings and
+manual/test identifiers.
+
+Constants:
+
+    offsetBasis = 14695981039346656037
+                = 0xcbf29ce484222325
+
+    prime       = 1099511628211
+                = 0x00000100000001b3
+
+For each input octet b in order:
+
+    h := h XOR b
+    h := (h * prime) mod 2^64
+
+Initial state:
+
+    h := offsetBasis
+
+Known fixtures:
+
+    FNV1a64("")       = 0xcbf29ce484222325
+    FNV1a64("a")      = 0xaf63dc4c8601ec8c
+    FNV1a64("hello")  = 0xa430d84680aabd0b
+    FNV1a64("foobar") = 0x85944171f73967e8
+
+Reference:
+
+    REF-RFC9923-FNV
+
+IMPORTANT:
+    FNV is explicitly non-cryptographic.
+
+Use this definition for:
+    stable small string/name hashes,
+    deterministic fixture IDs where collision risk is acceptable and handled.
+
+Do NOT use it for:
+    authentication,
+    untrusted collision-resistant hash tables,
+    security decisions,
+    cryptographic integrity.
+
+A stronger/versioned content hash for persistent artifacts may be introduced by
+the serialization/artifact chapters without redefining this ID.
+
+
+DATA-HASH-CANONICAL-BYTES-001
+
+When a stable semantic hash builder adds typed integers, byte encoding MUST be
+explicit rather than native-memory representation.
+
+Canonical integer encoding for the foundation stable hash builder:
+
+    unsigned integer -> little-endian octets of its declared fixed width
+
+For unsigned 64-bit x:
+
+    byte_i = (x >> (8*i)) AND 0xff
+    for i = 0..7
+
+Strings in a structured hash builder are length-prefixed:
+
+    addU64(byteLength)
+    addBytes(UTF8 bytes)
+
+This prevents concatenation ambiguity such as:
+
+    ["ab", "c"]
+    ["a", "bc"]
+
+Raw FNV1a64(string) test-vector function hashes only the string bytes and does
+NOT add a length prefix.
+
+Never hash:
+    struct padding,
+    pointer values,
+    native endian raw integer memory,
+    unordered-container iteration order
+
+when stable cross-run semantic identity is required.
+
+
+======================================================================
+11. RANDOMNESS / DETERMINISTIC SEED TREES
+======================================================================
+
+MATH-RNG-CHILD-SEED-001
+
+Semantic child streams derive from stable labels/IDs:
+
+    childSeed = H(
+        parentSeed,
+        generatorStableId,
+        semanticLabel,
+        semanticStableIndex
+    )
+
+The exact hash function is frozen by Chapter 5.1.
+
+The important mathematical contract is:
+
+    seed identity depends on semantic identity,
+    NOT execution order.
+
+
+ALG-RNG-SEED-TREE-001
+
+Pseudocode:
+
+    function childSeed(parent, label, stableId):
+        return Hash64(
+            parent.value,
+            StableHash(label),
+            stableId
+        )
+
+    parallel_for item in items:
+        rng := RandomStream(
+            childSeed(root, item.semanticType, item.stableId)
+        )
+
+Forbidden:
+
+    sharedRng.next() from multiple jobs
+
+
+MATH-SAMPLE-DISK-001
+
+Uniform point in disk radius R:
+
+    u,v ~ Uniform[0,1)
+
+    rho   = R * sqrt(u)
+    theta = 2πv
+
+    p = center + rho (cos(theta), sin(theta))
+
+Using rho = R*u is NOT uniform by area.
+
+======================================================================
+12. NOISE / FIELDS
+======================================================================
+
+MATH-NOISE-FBM-001
+
+Normalized fractal Brownian motion:
+
+    value(x) =
+        [Σ_{i=0}^{N-1} a_i N(f_i x)]
+        /
+        [Σ_{i=0}^{N-1} a_i]
+
+Common recurrence:
+
+    a_{i+1} = gain * a_i
+    f_{i+1} = lacunarity * f_i
+
+Parameters are domain-specific and are NOT fixed here.
+
+
+MATH-NOISE-RIDGED-001
+
+One common ridged transform:
+
+    r = 1 - |N(x)|
+
+Further shaping is domain-specific.
+
+
+REF-PERLIN-2002 defines the improved gradient-noise interpolation reference used
+when native terrain noise is intended to preserve/improve the current Perlin-like
+field behavior.
+
+======================================================================
+13. GRAPH THEORY / ROUTING
+======================================================================
+
+DATA-GRAPH-001
+
+Graph:
+
+    G = (V,E)
+
+Weighted directed or undirected edges have non-negative traversal cost:
+
+    w(e) >= 0
+
+unless a chapter explicitly chooses an algorithm supporting negative edges.
+
+
+MATH-GRAPH-PATH-COST-001
+
+For path P = (e_1,...,e_k):
+
+    cost(P) = Σ_i w(e_i)
+
+
+ALG-GRAPH-DIJKSTRA-001
+
+Use Dijkstra for non-negative weighted shortest paths when no useful heuristic
+is available.
+
+Core invariant:
+
+    when a node with globally minimum tentative distance is finalized,
+    its shortest-path distance is known.
+
+
+ALG-GRAPH-ASTAR-001
+
+Priority:
+
+    f(n) = g(n) + h(n)
+
+where:
+
+    g(n) = known cost from start to n
+    h(n) = estimated cost from n to goal
+
+Canonical relaxation:
+
+    tentative = g(current) + cost(current, neighbor)
+
+    if tentative < g(neighbor):
+        cameFrom[neighbor] = current
+        g(neighbor) = tentative
+        f(neighbor) = tentative + h(neighbor)
+        push/update neighbor
+
+
+MATH-GRAPH-HEURISTIC-001
+
+Admissibility for optimal A*:
+
+    0 <= h(n) <= h*(n)
+
+where h*(n) is the true remaining shortest-path cost.
+
+Consistency/monotonicity:
+
+    h(n) <= c(n,n') + h(n')
+
+for every traversable edge (n,n').
+
+Reference:
+
+    REF-HART-NILSSON-RAPHAEL-1968
+
+
+ALG-GRAPH-MST-001
+
+For transport skeleton construction, minimum spanning tree means:
+
+    choose acyclic edge set T connecting all required vertices
+    minimizing Σ_{e∈T} w(e)
+
+Implementation may use Kruskal or Prim.
+
+Deterministic tie-breaking MUST be defined:
+
+    primary: weight
+    secondary: stable edge id
+
+
+MATH-DELAUNAY-001
+
+For 2D Delaunay triangulation, each triangle satisfies the empty circumcircle
+property: no input point lies strictly inside its circumcircle, modulo
+degeneracies.
+
+Topological construction must use robust orientation/incircle predicates.
+
+References:
+
+    REF-CGAL-DELAUNAY
+    REF-SHEWCHUK-1997
+
+
+ALG-HALFEDGE-FACE-WALK-001
+
+For a planar embedded graph:
+
+    1. sort outgoing neighbors around each vertex by polar angle,
+    2. represent each undirected edge as two directed half-edges,
+    3. for directed half-edge u -> v, choose the next half-edge according to
+       the fixed face-walk orientation rule at v,
+    4. continue until returning to the starting directed half-edge,
+    5. mark every traversed directed half-edge visited,
+    6. compute signed area,
+    7. reject exterior/degenerate faces according to orientation and bounds.
+
+The chosen clockwise/counterclockwise rule MUST be identical in implementation
+and tests.
+
+This is the canonical family used for road-graph block extraction.
+
+======================================================================
+14. SPATIAL INDEXING
+======================================================================
+
+MATH-SPATIAL-GRID-001
+
+For cell size s > 0 and origin o:
+
+    cell_i(p) = floor((p_i - o_i) / s)
+
+Never use integer truncation for negative world coordinates.
+
+
+ALG-SPATIAL-HASH-001
+
+Object with bounds B is inserted into every overlapped grid cell:
+
+    minCell = floor((B.min - origin)/cellSize)
+    maxCell = floor((B.max - origin)/cellSize)
+
+Queries deduplicate object IDs before narrow phase.
+
+
+ALG-POISSON-BRIDSON-001
+
+Poisson disk sampling in n dimensions, minimum distance r.
+
+Background cell size:
+
+    cellSize <= r / sqrt(n)
+
+Canonical procedure:
+
+    choose initial sample
+    add to active list
+
+    while active list not empty:
+        choose active sample x
+        accepted := false
+
+        repeat up to k attempts:
+            candidate := random point in annulus [r, 2r] around x
+
+            if candidate is inside domain
+               and no neighboring grid sample is closer than r:
+                add candidate
+                add candidate to active list
+                accepted := true
+                break
+
+        if not accepted:
+            remove x from active list
+
+Typical paper value:
+
+    k = 30
+
+but production chapter may benchmark/tune it.
+
+Reference:
+
+    REF-BRIDSON-2007
+
+
+MATH-AABB-001
+
+AABB:
+
+    min = (min_x,min_y,min_z)
+    max = (max_x,max_y,max_z)
+
+Union:
+
+    union.min_i = min(A.min_i, B.min_i)
+    union.max_i = max(A.max_i, B.max_i)
+
+
+ALG-RAY-AABB-SLAB-001
+
+For each axis i:
+
+    t0 = (min_i - O_i) / D_i
+    t1 = (max_i - O_i) / D_i
+
+Swap if needed so t0 <= t1.
+
+Accumulate:
+
+    tEnter = max(tEnter, t0)
+    tExit  = min(tExit,  t1)
+
+No intersection when:
+
+    tEnter > tExit
+
+Zero/near-zero direction components require explicit robust handling.
+
+
+MATH-BVH-SAH-001
+
+Surface Area Heuristic split estimate:
+
+    C =
+        C_traversal
+        + (A_L / A_P) * N_L * C_intersect
+        + (A_R / A_P) * N_R * C_intersect
+
+where:
+    A_P = parent surface area
+    A_L/A_R = child surface areas
+    N_L/N_R = primitive counts
+
+Treat this as a heuristic cost model, not a correctness rule.
+
+======================================================================
+15. BUILDING / FOOTPRINT METRICS
+======================================================================
+
+MATH-BUILD-OCCUPANCY-001
+
+    occupancy = footprintArea / boundingBoxArea
+
+For cell footprints:
+
+    footprintArea = cellCount * gridSize²
+
+
+MATH-BUILD-ASPECT-001
+
+    aspect =
+        max(width, depth)
+        /
+        max(minDimensionThreshold, min(width,depth))
+
+
+ALG-GRID-CONNECTIVITY-001
+
+For orthogonal footprint cells, 4-neighbor connectivity:
+
+    N4 = {(1,0),(-1,0),(0,1),(0,-1)}
+
+BFS/DFS from any occupied cell.
+
+Footprint is connected iff:
+
+    visitedCount == occupiedCount
+
+
+ALG-GRID-HOLE-DETECT-001
+
+Canonical raster hole test:
+
+    1. expand occupied-cell bounds by >= 1 empty-cell border,
+    2. flood-fill empty cells from outside border using N4,
+    3. any empty cell inside expanded bounds not reached from outside is a hole.
+
+This formalizes the current prototype behavior.
+
+
+MATH-BUILD-STAIR-COSINE-001
+
+For two rigid segment lengths a,b reaching distance c:
+
+    cos(theta) = (a² + b² - c²) / (2ab)
+
+Clamp numerical cosine to [-1,1] before acos.
+
+This generic law-of-cosines definition is also used by 2-bone IK.
+
+======================================================================
+16. ANIMATION / QUATERNIONS / IK
+======================================================================
+
+MATH-QUAT-001
+
+Quaternion:
+
+    q = (x,y,z,w)
+
+Unit quaternion:
+
+    ||q|| = 1
+
+Quaternion component/storage order in implementation MUST be documented by the
+selected math library wrapper.
+
+
+MATH-QUAT-SLERP-001
+
+For normalized quaternions q0,q1:
+
+    cosOmega = q0 · q1
+
+If cosOmega < 0:
+    q1 := -q1
+    cosOmega := -cosOmega
+
+For non-degenerate angle Ω = acos(cosOmega):
+
+    slerp(q0,q1,t) =
+        [sin((1-t)Ω)/sinΩ] q0
+        +
+        [sin(tΩ)/sinΩ] q1
+
+Near Ω=0, use normalized linear interpolation to avoid numerical instability.
+
+
+ALG-IK-TWO-BONE-001
+
+Given:
+    root position R
+    target T
+    upper length a
+    lower length b
+    bend-plane preference
+
+Distance:
+
+    c = clamp(||T-R||, |a-b| + eps, a+b - eps)
+
+Use law of cosines to solve elbow/knee angle.
+
+The bend-plane construction and joint-space conversion are domain-specific and
+must be defined in the Infantry animation migration chapter.
+
+Reference implementation:
+
+    js/animation/twoBoneIK.js
+
+======================================================================
+17. BASIC PHYSICS DEFINITIONS
+======================================================================
+
+MATH-PHYS-MOMENTUM-001
+
+    p = m v
+
+
+MATH-PHYS-KINETIC-001
+
+Translational kinetic energy:
+
+    E_k = 1/2 m ||v||²
+
+
+MATH-PHYS-IMPULSE-001
+
+    J = Δp
+
+For fixed mass:
+
+    Δv = J / m
+
+
+MATH-PHYS-TORQUE-IMPULSE-001
+
+Impulse J applied at point offset r from center of mass produces angular
+impulse proportional to:
+
+    L_impulse = r × J
+
+Actual angular velocity change depends on inertia tensor and physics backend.
+
+
+IMPORTANT:
+
+These are mechanics definitions, not Genomes penetration/damage calibration.
+
+Material resistance, ricochet, fragmentation and damage laws are defined in
+destruction/ballistics chapters with explicit gameplay calibration and source
+notes.
+
+======================================================================
+17A. FIXED SIMULATION TIME
+======================================================================
+
+MATH-TIME-RATIONAL-TICK-001
+
+For a fixed simulation rate f [ticks/s] and monotonic wall-clock input measured
+as integer nanoseconds Δn, Genomes may accumulate wall time without rounding
+1/f to an integer nanosecond duration.
+
+Define:
+
+    Q = 1,000,000,000
+
+For each accepted wall delta:
+
+    accumulatorQuanta += Δn * f
+
+One simulation tick is available whenever:
+
+    accumulatorQuanta >= Q
+
+Consume one tick:
+
+    accumulatorQuanta -= Q
+
+Presentation interpolation fraction after all whole ticks are consumed:
+
+    alpha = accumulatorQuanta / Q
+
+with:
+
+    0 <= alpha < 1
+
+This schedules a rational f Hz fixed timestep against integer nanosecond wall
+time without repeatedly rounding the duration 1/f to 16,666,667 ns at 60 Hz.
+
+The simulation delta supplied to systems remains conceptually:
+
+    dt = 1/f seconds
+
+Catch-up limits and wall-delta clamping are policy, not part of this equation.
+
+Reference architecture:
+    current js/core/fixedClock.js
+    REF-FIEDLER-FIXED-TIMESTEP
+
+
+======================================================================
+18. PARALLEL ALGORITHM MODEL
+======================================================================
+
+PERF-PAR-WORK-001
+
+Define:
+
+    T1      work / serial execution time
+    T∞      critical-path span
+    P       processors/workers
+    TP      execution time on P workers
+
+For idealized work-stealing analysis of fully strict computations, the classic
+bound is of the form:
+
+    E[TP] = O(T1/P + T∞)
+
+Reference:
+
+    REF-BLUMOFE-LEISERSON-1999
+
+This is a design reference, not a promise that the Genomes scheduler will attain
+the theoretical bound for arbitrary workloads.
+
+
+ALG-PAR-STABLE-COMMIT-001
+
+Canonical deterministic parallel pattern:
+
+    partition input by stable semantic ranges
+
+    parallel_for partition:
+        process only owned range
+        write thread/job-local output
+
+    barrier
+
+    concatenate outputs
+
+    stable_sort by semantic stable key if production order matters
+
+    deterministic commit
+
+Do not use worker completion order as semantic order.
+
+
+ALG-PAR-REDUCE-001
+
+Floating reductions are not generally bitwise associative.
+
+If bitwise deterministic result is required:
+
+    - use fixed partitioning and fixed reduction tree,
+    - or use an exact/fixed-point representation where appropriate,
+    - or explicitly accept bounded non-bitwise determinism.
+
+A chapter must state which level it requires.
+
+======================================================================
+19. NAVIGATION REFERENCE PIPELINE
+======================================================================
+
+ALG-NAV-RECAST-PIPELINE-001
+
+Canonical Recast high-level pipeline:
+
+    input triangles
+        -> heightfield / voxel rasterization
+        -> walkability filtering
+        -> compact heightfield
+        -> region partitioning
+        -> contours
+        -> polygon mesh
+        -> detail mesh
+        -> Detour navmesh tile
+
+Reference:
+
+    REF-RECAST
+
+For Genomes, tiled navigation is preferred for large/dynamic worlds because
+individual tiles can be streamed and rebuilt after world changes.
+
+Exact tile sizes and voxel resolution belong to Chapter 14.
+
+
+ALG-NAV-HIERARCHICAL-001
+
+Genomes navigation layers:
+
+    strategic region graph
+        -> road / transport graph
+        -> local nav tile path
+        -> local movement / avoidance
+
+A unit/squad must not run full global low-level A* if a higher-level shared route
+already constrains the corridor.
+
+======================================================================
+20. PROCEDURAL CITY REFERENCE PIPELINE
+======================================================================
+
+ALG-CITY-PIPELINE-001
+
+Canonical semantic ordering derived from current prototypes:
+
+    terrain fields
+        -> hydrology
+        -> city boundary
+        -> centres
+        -> gateways
+        -> candidate transport graph
+        -> MST / connectivity backbone
+        -> cost-aware major roads
+        -> recursive regions
+        -> local road growth
+        -> planar graph repair
+        -> zoning
+        -> block face extraction
+        -> frontage parcels
+        -> buildable polygons
+        -> building requests
+        -> validation
+
+This is semantic stage ordering, not a requirement that every stage be strictly
+serial. The native GenerationGraph should parallelize independent branches.
+
+Primary repository references:
+
+    prototypes/procedural-city/index.html
+    prototypes/procedural-road-graph-lab/index.html
+
+======================================================================
+21. PROCEDURAL BUILDING REFERENCE PIPELINE
+======================================================================
+
+ALG-BUILD-PIPELINE-001
+
+Canonical semantic ordering derived from current prototype:
+
+    BuildingSpec
+        -> validated footprint
+        -> rectangular/macro decomposition
+        -> vertical core candidates
+        -> stair/core selection
+        -> entrances
+        -> circulation backbone
+        -> room subdivision/solver
+        -> openings
+        -> stairs
+        -> roof
+        -> structural/material model
+        -> details
+        -> validation
+        -> representation compilers
+
+Primary repository reference:
+
+    prototypes/procedural-building-generator/index.html
+
+
+ALG-BUILD-CANDIDATE-SOLVER-001
+
+Generic bounded candidate-search pattern:
+
+    best := none
+    bestScore := +infinity
+
+    for candidate in deterministicCandidateOrder:
+        if !hardConstraints(candidate):
+            continue
+
+        score := objective(candidate)
+
+        if score < bestScore
+           or (score == bestScore and candidate.stableId < best.stableId):
+            best = candidate
+            bestScore = score
+
+    return best
+
+Rules:
+    hard constraints are not soft penalties,
+    tie-breaking is deterministic,
+    solver budget is explicit,
+    exhausted budget returns typed failure/fallback rather than undefined state.
+
+======================================================================
+22. ALGORITHM PSEUDOCODE STYLE
+======================================================================
+
+Pseudocode keywords:
+
+    require
+    assert
+    if / else
+    for each
+    while
+    repeat
+    return
+    fail
+    parallel_for
+    spawn
+    await
+    barrier
+    stable_sort
+
+Assignments:
+
+    x := value
+
+Mathematical equality:
+
+    x = y
+
+Collections:
+
+    output.push(value)
+
+Optional:
+
+    Optional<T>
+    Some(value)
+    None
+
+Typed failure:
+
+    return Error(Code, context)
+
+Do NOT write pseudocode that relies on:
+    hidden globals,
+    unspecified iteration order of hash maps,
+    implicit thread safety,
+    undefined ownership,
+    unspecified RNG.
+
+Every nontrivial algorithm in a READY chapter should state:
+
+    INPUT
+    OUTPUT
+    PRECONDITIONS
+    POSTCONDITIONS
+    COMPLEXITY TARGET
+    DETERMINISM
+    FAILURE MODES
+
+======================================================================
+23. COMPLEXITY NOTATION
+======================================================================
+
+DATA-COMPLEXITY-001
+
+Use standard asymptotic notation:
+
+    O(f(n))      upper asymptotic bound
+    Ω(f(n))      lower asymptotic bound
+    Θ(f(n))      tight asymptotic bound
+
+But every performance-critical chapter must also state practical dimensions:
+
+    n = units
+    e = road edges
+    b = buildings
+    t = triangles
+    c = grid cells
+
+Avoid meaningless statements such as:
+
+    "this is O(n)"
+
+without defining n.
+
+
+PERF-SPATIAL-001
+
+For unit perception, target architecture is NOT:
+
+    O(U²) all-pairs candidate generation
+
+Target broad phase is approximately proportional to:
+
+    U * localCandidateDensity
+
+with spatial-cell lookup plus narrow phase.
+
+Exact worst-case remains workload-dependent.
+
+======================================================================
+24. REFERENCE SOURCE REGISTRY
+======================================================================
+
+REF-SHEWCHUK-1997
+    Jonathan Richard Shewchuk,
+    "Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric
+    Predicates",
+    Discrete & Computational Geometry 18(3), 305-363, 1997.
+    DOI: 10.1007/PL00009321
+    Reference copy:
+    https://people.eecs.berkeley.edu/~jrs/papers/robustr.pdf
+
+    Use for:
+        orient2d/orient3d robustness,
+        incircle/insphere robustness,
+        adaptive precision geometric predicates.
+
+
+REF-HART-NILSSON-RAPHAEL-1968
+    Peter E. Hart, Nils J. Nilsson, Bertram Raphael,
+    "A Formal Basis for the Heuristic Determination of Minimum Cost Paths",
+    IEEE Transactions on Systems Science and Cybernetics 4(2), 100-107, 1968.
+    DOI: 10.1109/TSSC.1968.300136
+    Landing:
+    https://ieeexplore.ieee.org/document/4082128
+
+    Use for:
+        A* formal basis,
+        admissible heuristic reasoning.
+
+
+REF-BRIDSON-2007
+    Robert Bridson,
+    "Fast Poisson Disk Sampling in Arbitrary Dimensions",
+    ACM SIGGRAPH 2007 Sketches.
+    Reference copy:
+    https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf
+
+    Use for:
+        blue-noise / Poisson placement,
+        minimum-distance procedural scatter.
+
+
+REF-PERLIN-2002
+    Ken Perlin,
+    "Improving Noise",
+    ACM Transactions on Graphics 21(3), 681-682, 2002.
+    DOI: 10.1145/566654.566636
+    Reference copy:
+    https://www.cs.cmu.edu/~jkh/462_s07/paper445.pdf
+
+    Use for:
+        improved gradient noise,
+        quintic interpolation fade.
+
+
+REF-MOLLER-TRUMBORE-1997
+    Tomas Möller, Ben Trumbore,
+    "Fast, Minimum Storage Ray-Triangle Intersection",
+    Journal of Graphics Tools 2(1), 21-28, 1997.
+    DOI: 10.1080/10867651.1997.10487468
+    Reference copy:
+    https://my.eng.utah.edu/~cs6965/papers/MT97.pdf
+
+    Use for:
+        ray/triangle narrow phase.
+
+
+REF-AKENINE-MOLLER-2001
+    Tomas Akenine-Möller,
+    "Fast 3D Triangle-Box Overlap Testing",
+    Journal of Graphics Tools 6(1), 29-33, 2001.
+    DOI: 10.1080/10867651.2001.10487535
+
+    Use for:
+        triangle-box SAT overlap,
+        voxelization/collision utilities.
+
+
+REF-BLUMOFE-LEISERSON-1999
+    Robert D. Blumofe, Charles E. Leiserson,
+    "Scheduling Multithreaded Computations by Work Stealing",
+    Journal of the ACM 46(5), 720-748, 1999.
+    DOI: 10.1145/324133.324234
+
+    Use for:
+        work-stealing scheduler model,
+        work/span performance reasoning.
+
+
+REF-CGAL-DELAUNAY
+    CGAL documentation, 2D/3D triangulation and Delaunay properties.
+    Current documentation:
+    https://doc.cgal.org/
+
+    Use for:
+        Delaunay definitions,
+        degeneracy/exact-predicate design references.
+
+    NOTE:
+        CGAL is a mathematical/implementation reference here.
+        This entry does NOT decide that Genomes must depend on CGAL.
+
+
+REF-RECAST
+    Recast Navigation / Detour.
+    Project:
+    https://github.com/recastnavigation/recastnavigation
+    Documentation:
+    https://recastnav.com/
+
+    Use for:
+        navmesh rasterization pipeline,
+        tiled navmeshes,
+        Detour runtime query semantics.
+
+
+REF-PARNAS-1972
+    David L. Parnas,
+    "On the Criteria To Be Used in Decomposing Systems into Modules",
+    Communications of the ACM 15(12), 1053-1058, 1972.
+    DOI: 10.1145/361598.361623
+
+    Use for:
+        information-hiding/module-boundary rationale.
+        Architecture reference, not a geometry algorithm.
+
+
+REF-ERICSON-RTCD
+    Christer Ericson,
+    "Real-Time Collision Detection",
+    Morgan Kaufmann, 2004/2005 editions.
+
+    Use for:
+        collision-detection data structures,
+        SAT,
+        closest-point primitives,
+        BVH/AABB engineering reference.
+
+    NOTE:
+        Prefer citing exact section/page in implementation chapters where the
+        edition used by the implementer is known.
+
+
+REF-DEBERG-CG
+    Mark de Berg, Otfried Cheong, Marc van Kreveld, Mark Overmars,
+    "Computational Geometry: Algorithms and Applications",
+    Springer.
+
+    Use for:
+        planar subdivisions,
+        Voronoi/Delaunay,
+        sweep-line and polygon algorithms,
+        computational-geometry definitions.
+
+
+REF-REPO-CITY
+    Repository:
+        prototypes/procedural-city/index.html
+        prototypes/procedural-road-graph-lab/index.html
+
+    Use for:
+        existing Genomes semantic behavior,
+        city/road parity fixtures,
+        current deterministic seed logic.
+
+
+REF-REPO-BUILDING
+    Repository:
+        prototypes/procedural-building-generator/index.html
+        js/buildings/*
+
+    Use for:
+        current building algorithms,
+        solver parity,
+        geometry and representation contracts.
+
+
+REF-REPO-DESTRUCTION
+    Repository:
+        js/destruction/*
+        docs/destruction/*
+        tests/destruction_*.cjs
+
+    Use for:
+        current gameplay destruction/ballistics behavior,
+        acceptance fixtures,
+        conservation and representation rules.
+
+======================================================================
+25. SOURCE QUALITY RULES
+======================================================================
+
+When adding a new REF-* entry, prefer in this order:
+
+    1. original peer-reviewed paper / original author publication,
+    2. official library/API documentation,
+    3. respected technical book,
+    4. standards/specification,
+    5. project repository source,
+    6. secondary explanation only when primary material is insufficient.
+
+Do not make a random tutorial/blog the canonical reference for a core algorithm
+when an original paper or official specification is available.
+
+A chapter may still cite an implementation article as a practical supplement.
+
+======================================================================
+26. HOW IMPLEMENTATION CHAPTERS MUST USE THIS FILE
+======================================================================
+
+Every READY chapter involving nontrivial mathematics or algorithms adds:
+
+    MATHEMATICAL CONTRACTS
+        <IDs>
+
+    ALGORITHM REFERENCES
+        <IDs>
+
+    SOURCE REFERENCES
+        <REF IDs>
+
+Example:
+
+    MATHEMATICAL CONTRACTS
+        MATH-GEO-ORIENT2D-001
+        MATH-POLY-SIGNED-AREA-001
+
+    ALGORITHM REFERENCES
+        ALG-HALFEDGE-FACE-WALK-001
+
+    SOURCE REFERENCES
+        REF-SHEWCHUK-1997
+        REF-REPO-CITY
+
+If required mathematics does not exist here:
+
+    1. add a new stable ID to this file,
+    2. add external/reference source if applicable,
+    3. then mark the implementation chapter READY.
+
+An implementation agent should never have to guess which version of an
+algorithm the chapter means.
+
+======================================================================
+27. TEST RULES FOR MATHEMATICS
+======================================================================
+
+Each native math/geometry implementation chapter should contain:
+
+A. EXACT CASES
+    known integer/rational fixtures where the result is obvious.
+
+B. BOUNDARY CASES
+    touching segments,
+    collinear points,
+    zero-length segments,
+    degenerate polygons,
+    near-zero vectors.
+
+C. PROPERTY TESTS
+    translation invariance,
+    scale behavior where appropriate,
+    symmetry,
+    result bounds.
+
+D. FUZZ TESTS
+    random valid and near-degenerate inputs.
+
+E. ROBUSTNESS REGRESSIONS
+    every discovered numerical failure becomes a permanent fixture.
+
+F. LEGACY PARITY
+    selected current JS seeds/fixtures where preserving behavior matters.
+
+======================================================================
+28. FORBIDDEN MATHEMATICAL SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    compare topology decisions with one universal EPS,
+    use truncation instead of floor for negative spatial cells,
+    normalize a zero vector silently,
+    use unordered-map iteration order as deterministic geometry order,
+    rely on floating reduction order across arbitrary worker schedules,
+    use equal-t curve sampling where equal arc-length behavior is required,
+    use N^2 neighbor scans when a spatial broadphase is required by chapter,
+    replace exact/robust predicates with approximate epsilon checks without
+        documenting the tradeoff,
+    use screen/render coordinates inside semantic world generators,
+    invent a new A* variant without specifying heuristic admissibility and
+        tie-breaking,
+    call a heuristic score a physical law.
+
+======================================================================
+29. COMPLETION CHECKLIST
+======================================================================
+
+[x] canonical coordinate notation
+[x] SI unit convention
+[x] matrix semantic convention
+[x] numerical tolerance policy
+[x] robust-predicate policy
+[x] scalar/vector formula IDs
+[x] line/segment/ray formula IDs
+[x] polygon formula IDs
+[x] SAT/OBB reference
+[x] Bézier reference formulas
+[x] seed-tree deterministic rule
+[x] noise/fBm formulas
+[x] A*/MST/Delaunay references
+[x] spatial grid/BVH basics
+[x] Poisson sampling reference
+[x] building footprint metrics
+[x] quaternion/IK fundamentals
+[x] basic mechanics definitions
+[x] deterministic parallel commit pattern
+[x] work-stealing theoretical reference
+[x] Recast pipeline reference
+[x] city semantic pipeline reference
+[x] building semantic pipeline reference
+[x] pseudocode style contract
+[x] source-quality hierarchy
+[x] external source registry
+[x] repository source registry
+[x] future chapter reference rule
+
+======================================================================
+30. OUTPUT / HANDOFF
+======================================================================
+
+This file is a living but versioned reference.
+
+Before any mathematics-heavy implementation chapter becomes READY:
+
+    - verify its MATH/ALG IDs exist here,
+    - verify formulas have explicit conventions,
+    - verify numerical behavior is specified,
+    - verify primary references exist where relevant,
+    - verify pseudocode contains deterministic tie-breaking and failure behavior.
+
+END OF CHAPTER 0.5
