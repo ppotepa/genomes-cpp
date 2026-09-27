@@ -51,7 +51,19 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Terrain work is partitioned into deterministic tile/row ranges.
+
+Per job:
+    TerrainTileRange {x0,z0,x1,z1}
+    read-only generator parameters
+    JobScratchArena temporary noise/derivative data
+    exclusive output span for primary samples
+
+Neighbor-dependent derived passes use explicit halo/input spans and write a
+separate destination field; no two jobs write the same output element.
+
+Final HeightFieldArtifact arrays remain contiguous row-major. Job descriptors,
+temporary halos and reduction buffers are transient and are not serialized.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

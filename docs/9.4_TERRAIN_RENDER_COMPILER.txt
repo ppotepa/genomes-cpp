@@ -55,7 +55,24 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+TerrainRenderArtifact is derived from HeightFieldArtifact and contains CPU-side
+renderer-neutral compile data:
+
+    TerrainRenderChunk[]
+        Region/ChunkId
+        sample bounds
+        world AABB
+        vertex/index ranges
+        material region metadata
+        LOD/error metrics
+
+    MeshData / GeometryRecipe arrays
+        positions/normals/UV or packed source fields
+        indices
+        bounds
+
+Diligent Buffer/Texture handles belong only to render resource objects after
+upload and are NOT stored in HeightFieldArtifact or procedural terrain state.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

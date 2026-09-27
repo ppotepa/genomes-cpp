@@ -51,7 +51,27 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+One authoritative HeightFieldArtifact backs both sampling and representation
+compilers.
+
+Query representation:
+    HeightQueryGrid
+        shared immutable height span/reference
+        origin
+        sample spacing
+        width/height
+        revision
+
+Physics representation:
+    TerrainCollisionTileRecipe[]
+        tile bounds
+        sample range/height span
+        collision material IDs
+        revision
+
+PhysicsBody/Shape handles live in engine/physics backend state, not terrain
+semantic records. Query interpolation reads the authoritative modified height
+field so road/pad grading cannot diverge from collision/query height.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

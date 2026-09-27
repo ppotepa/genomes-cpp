@@ -55,7 +55,25 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+HydrologyArtifact uses separate contiguous raster fields aligned to terrain or a
+declared coarser grid:
+
+    elevation/reference height
+    flowDirection or downstream-cell index
+    flowAccumulation
+    wetness/water mask
+    floodplain/distance field where generated
+
+RiverGraph is separate compact graph data:
+    RiverNode[]
+    RiverEdge[]
+    polyline point ranges
+    width/depth/flow metadata
+    stable IDs
+
+Raster cells never own graph objects. River polylines reference ranges in
+contiguous point storage. All fields carry grid transform, dimensions, revision
+and generator version.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

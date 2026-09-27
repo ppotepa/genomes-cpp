@@ -55,7 +55,22 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+GPU terrain-field inputs/outputs use ComputeService buffer/image descriptors
+matching explicit field dimensions/formats.
+
+CPU canonical/reference storage:
+    contiguous HeightField/Hydrology arrays from 9.1/9.6.
+
+GPU derived storage:
+    ComputeBuffer/TextureHandle
+    dimensions/format
+    source semantic revision
+    output revision/fence token
+
+No backend-native Diligent pointer leaks into terrain modules. If a GPU result is
+read back for an authoritative consumer, it is copied into a versioned CPU field
+artifact with explicit tolerance/validation; otherwise it remains derived
+presentation/heuristic data.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

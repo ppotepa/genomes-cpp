@@ -52,7 +52,19 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Authoritative output remains HeightFieldArtifact from 9.1: row-major contiguous
+height samples plus separate derived/material fields.
+
+Generation scratch is separate:
+    NoiseContext / seeded octave parameters
+    temporary row/tile buffers
+    optional normals/material classification scratch
+
+No THREE.BufferGeometry or GPU buffer is stored in terrain semantic output.
+Legacy chunk-mesh information is compiled later by 9.4.
+
+All arrays use explicit width/height/stride metadata and checked index:
+    index = z * width + x.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
