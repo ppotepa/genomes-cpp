@@ -1,0 +1,515 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 1.3 - EXECUTABLE TARGETS AND TEST RUNNER
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Standardize native executable targets and the unit/integration test runner so
+later chapters never invent incompatible harnesses.
+
+After this chapter:
+
+    - Catch2 v3 is the standard native test framework,
+    - Google Benchmark is the standard microbenchmark framework,
+    - native tests are grouped by layer,
+    - CTest is the single top-level test entry point,
+    - apps/headless and future apps share one target convention,
+    - benchmarks are never confused with correctness tests.
+
+At the time this chapter was authored, current package/release metadata shows
+Catch2 3.x and Google Benchmark 1.9.x as current stable families. Implementation
+must pin exact upstream revisions under the Chapter 1.2 policy.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+    docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+
+Existing JS tests remain authoritative migration evidence.
+
+Native test infrastructure is additive.
+
+Do not delete or rename current tests/*.cjs, tests/*.js or browser acceptance
+files.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No renderer.
+No physics runtime.
+No world simulation.
+No domain tests beyond smoke examples.
+No CI configuration; Chapter 1.4 owns CI.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Extend native tree:
+
+    external/
+        Catch2/
+        benchmark/
+
+    tests/
+        native/
+            CMakeLists.txt
+            test_main_policy.txt
+            foundation/
+                build_info_tests.cpp
+
+    benchmarks/
+        CMakeLists.txt
+        bootstrap/
+            foundation_benchmark.cpp
+
+    cmake/
+        GenomesTesting.cmake
+        GenomesBenchmarking.cmake
+
+No custom test runner executable framework is retained after Catch2 migration.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+TEST FRAMEWORK:
+    Catch2 v3
+    exact pinned revision
+    BSL-1.0 license metadata in THIRD_PARTY_NATIVE.txt
+
+BENCHMARK FRAMEWORK:
+    Google Benchmark
+    exact pinned revision
+    Apache-2.0 license metadata
+
+TOP LEVEL:
+    ctest is the authoritative correctness-test launcher.
+
+TEST TARGET NAMING:
+
+    genomes_test_<layer>_<subject>
+
+Examples:
+
+    genomes_test_foundation_build_info
+    genomes_test_geometry_polygon
+    genomes_test_proc_seed_tree
+
+BENCHMARK TARGET NAMING:
+
+    genomes_bench_<layer>_<subject>
+
+Examples:
+
+    genomes_bench_jobs_scheduler
+    genomes_bench_spatial_grid
+    genomes_bench_city_generation
+
+CTest test names:
+
+    <layer>.<subject>.<case-group>
+
+Do not encode machine-specific configuration into test names.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+Correctness test result:
+    process success/failure through Catch2/CTest.
+
+Benchmark output:
+    human console output
+    plus machine-readable JSON when invoked by benchmark automation.
+
+Correctness tests MUST NOT depend on benchmark timing.
+
+Benchmark failure thresholds are owned by Chapter 0.4/22.x regression policy.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+N/A.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+Official Catch2 repository/documentation.
+Official google/benchmark repository/documentation.
+Chapter 0.4 benchmark policy.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1
+    Verify 1.1 and 1.2 clean build.
+
+STEP 2
+    Add Catch2 and google/benchmark using exact pinned submodules under
+    Chapter 1.2 policy.
+
+STEP 3
+    Update docs/THIRD_PARTY_NATIVE.txt with source/SHA/version/license.
+
+STEP 4
+    Configure Catch2:
+        build tests/examples/docs OFF where upstream supports it.
+        expose Catch2::Catch2WithMain to project tests.
+        do not compile Catch2 with project warnings-as-errors.
+
+STEP 5
+    Configure Google Benchmark:
+        BENCHMARK_ENABLE_TESTING OFF
+        BENCHMARK_ENABLE_GTEST_TESTS OFF where applicable.
+        use benchmark::benchmark.
+
+STEP 6
+    Create GenomesTesting.cmake.
+
+Required helper concept:
+
+    genomes_add_test(
+        NAME <logical>
+        TARGET <target>
+        SOURCES <...>
+        LIBRARIES <...>
+        LABELS <...>
+    )
+
+It:
+        creates executable,
+        links Catch2::Catch2WithMain,
+        links passed Genomes libraries,
+        applies project warnings,
+        registers tests using Catch2 CMake discovery where practical.
+
+STEP 7
+    Migrate 1.1 ad-hoc smoke assertions to Catch2.
+
+Do not lose the bootstrap checks.
+
+STEP 8
+    Organize tests/native by subsystem folders as they grow.
+
+Tests should include public headers first.
+Implementation-private includes only for explicitly white-box tests.
+
+STEP 9
+    Create GenomesBenchmarking.cmake.
+
+Helper concept:
+
+    genomes_add_benchmark(
+        NAME <logical>
+        TARGET <target>
+        SOURCES <...>
+        LIBRARIES <...>
+    )
+
+It:
+        creates executable,
+        links benchmark::benchmark,
+        applies project warnings.
+
+It does NOT register benchmarks as CTest correctness tests.
+
+STEP 10
+    Add one trivial bootstrap benchmark only to validate framework wiring:
+
+        benchmark buildInfo() retrieval
+
+The result has no performance gate and must be marked infrastructure-only.
+
+STEP 11
+    Define test labels:
+
+        unit
+        integration
+        determinism
+        parity
+        smoke
+        stress
+
+Later tests may have multiple labels.
+
+STEP 12
+    Define commands:
+
+        ctest --preset dev-debug
+        ctest --test-dir ... -L unit
+        ctest --test-dir ... -L determinism
+
+STEP 13
+    Verify Catch2 listing and CTest discovery.
+
+STEP 14
+    Run current legacy core sanity.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+TEST HELPER:
+
+    function genomes_add_test(args):
+        require args.TARGET
+        require args.SOURCES not empty
+
+        add_executable(args.TARGET, args.SOURCES)
+
+        link(
+            args.TARGET,
+            Catch2WithMain,
+            args.LIBRARIES
+        )
+
+        applyGenomesWarnings(args.TARGET)
+
+        discoverCatchTests(
+            target = args.TARGET,
+            labels = args.LABELS
+        )
+
+
+BENCHMARK HELPER:
+
+    function genomes_add_benchmark(args):
+        add_executable(args.TARGET, args.SOURCES)
+
+        link(
+            args.TARGET,
+            benchmark,
+            args.LIBRARIES
+        )
+
+        applyGenomesWarnings(args.TARGET)
+
+
+FOUNDATION TEST:
+
+    TEST_CASE("BuildInfo identifies native bootstrap"):
+        info := buildInfo()
+
+        REQUIRE(info.projectName == "Genomes")
+        REQUIRE(info.nativeBootstrapVersion == "0.1")
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+Test framework does not define engine threading.
+
+Parallel test execution:
+    allowed only when tests are isolated and CTest configuration explicitly
+    permits it.
+
+Determinism tests must control thread count themselves.
+
+Benchmarks must report worker/thread configuration.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Framework discovery failure:
+    configure error with dependency remediation.
+
+Correctness assertion:
+    Catch2 failure.
+
+Benchmark result:
+    never interpreted as correctness pass/fail by default.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Tests must never rely on execution order across separate CTest processes.
+
+Seeded tests print/report seed on failure.
+
+Future fuzz/property tests must make failing seeds reproducible.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Correctness tests:
+    optimize for precision and diagnostics, not timing.
+
+Benchmarks:
+    Release/optimized configuration required for performance conclusions.
+    Debug benchmark may be used only for wiring/sanity.
+
+Follow 0.4 for:
+    warmup,
+    repetitions,
+    percentiles,
+    thread scaling,
+    machine metadata.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy Node/browser tests remain.
+
+Native Catch2 tests progressively translate acceptance requirements from 0.2.
+
+Do not replace legacy evidence until owning parity chapter approves it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+    tests/native/foundation/build_info_tests.cpp
+
+Cases:
+    project name
+    bootstrap version
+
+Framework smoke:
+    CTest discovers Catch2 cases.
+
+Benchmark smoke:
+    benchmark executable lists/runs infrastructure benchmark.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+List:
+    ctest --test-dir <debug-build-dir> -N
+
+Labels:
+    ctest --test-dir <debug-build-dir> -L unit
+
+Release benchmark wiring:
+    cmake --preset dev-release
+    cmake --build --preset dev-release
+    <genomes_bench_foundation_bootstrap> --benchmark_list_tests
+
+Legacy:
+    node tests/check_core.js
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+    [ ] Catch2 exact revision pinned
+    [ ] Google Benchmark exact revision pinned
+    [ ] licenses recorded
+    [ ] Catch2 tests/examples not unnecessarily built
+    [ ] Google Benchmark internal tests disabled
+    [ ] GenomesTesting.cmake exists
+    [ ] GenomesBenchmarking.cmake exists
+    [ ] ad-hoc 1.1 test migrated to Catch2
+    [ ] CTest discovers native tests
+    [ ] test labels work
+    [ ] benchmark target builds
+    [ ] benchmark is not a correctness CTest
+    [ ] Debug tests pass
+    [ ] Release benchmark wiring works
+    [ ] legacy sanity preserved
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    mix multiple native unit-test frameworks,
+    implement a homemade assertion framework after this chapter,
+    treat benchmark timing as unit-test correctness,
+    add benchmark binaries to normal CTest suite,
+    use moving dependency branches,
+    delete legacy tests,
+    hide seed/context on randomized test failure,
+    make test order semantically significant.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] dependency pins
+[ ] license entries
+[ ] testing CMake helper
+[ ] benchmark CMake helper
+[ ] Catch2 foundation tests
+[ ] CTest discovery
+[ ] labels
+[ ] benchmark smoke
+[ ] debug test pass
+[ ] release benchmark wiring
+[ ] legacy sanity
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next:
+
+    docs/1.4_CI_NATIVE_BASELINE.txt
+
+END OF CHAPTER 1.3
