@@ -1,0 +1,184 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 11.8 - BUILDING_GEOMETRY_COMPILER
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile valid BuildingPlan/StructuralModel into efficient render GeometryRecipe/MeshData with material groups, LOD recipes and damage-friendly semantic mapping.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/11.7_STRUCTURAL_AND_MATERIAL_MODEL.txt
+    TARGET::docs/4.4_MESH_DATA_AND_GEOMETRY_RECIPES.txt
+    TARGET::docs/7.5_GPU_SCENE_DATABASE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+Current SOURCE building semantics, validation and lazy representation concepts until Chapter 11.12 parity passes.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later destruction/AI/Infantry integration except defined compiler contracts.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/buildings/render/BuildingGeometryCompiler.hpp
+    modules/buildings/render/BuildingGeometryCompiler.cpp
+    tests/native/buildings/building_geometry_compiler_tests.cpp
+    benchmarks/buildings/building_geometry_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Compiler emits render meshes grouped by material/representation chunk, plus mapping ranges from triangles/vertices to StructuralElementId where needed for picking/damage visualization.
+
+2. Far representation may be simple envelope/roof proxy; World/detail representation contains openings/interiors according render profile. LOD changes representation only, not BuildingPlan identity.
+
+3. Windows/doors can be geometry or material/instance submeshes but openings in wall geometry must match semantic openings.
+
+4. Normals/tangents/UVs generated deterministically with seam policy; no duplicate micro-object per brick/window frame by default.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Semantic plan arrays remain renderer/physics/nav independent. Compiler products are versioned artifacts keyed by BuildingPlan fingerprint.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement wall panel meshing with rectangular/polygon openings via robust triangulation backend.
+
+STEP 2
+    Compile slabs/floors/ceilings, roof surfaces, stairs/rails at selected detail.
+
+STEP 3
+    Generate material-slot grouped MeshData and semantic range mapping.
+
+STEP 4
+    Implement FAR envelope compiler separately, using footprint/storeys/roof outline.
+
+STEP 5
+    Generate bounds and shared/reused primitive meshes for repeatable details where possible.
+
+STEP 6
+    Benchmark building batch compile and mesh memory; cache by plan/compiler hash.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMPILE WALL:
+    facePolygon := wall rectangle in local 2D
+    holes := semantic openings projected to face
+    triangles := triangulate(facePolygon,holes)
+    extrude thickness / emit front/back/reveals according detail
+    append semanticMapping(triangleRange, structuralElementId)
+
+LOD:
+    if FAR:
+        compile envelope + roof
+    else:
+        compile structural surfaces + openings + selected detail
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Building plan is immutable. Compilers can run independently/parallel from the same plan revision and publish separate representation artifacts.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Compiler failure never mutates BuildingPlan. Return typed errors/ValidationReport and keep prior valid representation if rebuilding.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Compiler output identity derives from plan fingerprint + compiler version/options. Job completion order never changes content.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Batch/merge geometry and queries; cache compiler products by plan hash; avoid one object per architectural micro-feature.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET replaces Three.js/Rapier-specific representation while preserving logical behavior and SOURCE acceptance requirements.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    no triangles across openings
+    normals finite
+    bounds
+    FAR containment
+    semantic triangle mapping
+    geometry quality fixtures
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] render compiler independent plan
+    [ ] openings exact
+    [ ] LOD representations
+    [ ] material grouping
+    [ ] batch benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one draw per wall/window
+    mutating plan during mesh compile
+    regenerating random details per LOD
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] render compiler independent plan
+    [ ] openings exact
+    [ ] LOD representations
+    [ ] material grouping
+    [ ] batch benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next building chapter.
+
+END OF CHAPTER 11.8
