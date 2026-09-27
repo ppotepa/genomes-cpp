@@ -54,7 +54,22 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Each worker/system writes an append-only local command buffer.
+
+Command header:
+    SimulationTick
+    simulation phase
+    command type
+    source EntityId/SystemId
+    stable local sequence
+    target semantic ID where applicable
+    payload offset/size
+
+Payloads are packed in frame/command arenas. At commit, buffers are concatenated
+and stable-sorted by the documented semantic key before mutation.
+
+Structural ECS commands are distinct from gameplay events; both share the same
+deterministic merge principle.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

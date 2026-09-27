@@ -56,7 +56,23 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+ArchetypeKey is the sorted stable set/hash of ComponentTypeId values.
+
+Archetype storage:
+    ArchetypeRecord[]
+        ArchetypeId
+        ComponentTypeId list/range
+        Chunk[] / chunk handles
+
+Chunk:
+    fixed target payload size chosen by benchmark
+    EntityId/generation column
+    one contiguous aligned column per component
+    count/capacity
+    structural revision
+
+Entity location table maps EntityId generation -> {ArchetypeId, ChunkId, row}.
+Raw pointers into chunks never survive structural mutation boundaries.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

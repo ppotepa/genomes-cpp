@@ -55,7 +55,22 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+SystemDescriptor:
+    SystemId
+    phase
+    read ComponentTypeId set
+    write ComponentTypeId set
+    explicit before/after dependencies
+    cadence/relevance policy reference
+
+Compiled schedule:
+    compact DAG nodes/edges
+    topological phase order
+    runnable batch descriptors
+    cached archetype query matches keyed by archetype revision
+
+Per-tick job data is transient in FrameArena/JobScratch. Systems do not own a
+private thread pool.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

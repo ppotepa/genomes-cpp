@@ -54,7 +54,21 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+CadencePolicy is compact value data:
+    kind {EveryTick, EveryNTicks, RationalFrequency, AdaptiveTier}
+    period numerator/denominator or periodTicks
+    stable phase offset
+    minimum/maximum tier limits
+
+Per system/entity cadence state:
+    lastRunTick
+    nextDueTick or derived bucket
+    current authoritative relevance tier
+    optional presentation tier stored separately
+
+Due buckets are arrays/ranges keyed by tick modulo period where practical.
+Camera-derived presentation cadence is never stored in authoritative tactical
+relevance state.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

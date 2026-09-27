@@ -56,7 +56,21 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+DynamicSpatialComponent:
+    semantic EntityId
+    current world AABB/radius/category masks
+    spatial revision
+    occupied cell/page range metadata
+
+Dynamic grid:
+    cell/page headers
+    contiguous EntityId entries or packed buckets
+    generation/revision
+    update scratch for moved entities
+
+Movement systems write transformed bounds to local update buffers. The spatial
+index applies a batched deterministic reindex at the spatial commit phase; no
+per-entity unordered remove/insert from arbitrary worker threads.
 
 ======================================================================
 MATHEMATICAL CONTRACTS

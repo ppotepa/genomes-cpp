@@ -55,7 +55,19 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-undefined
+Authoritative mutable simulation state remains in ECS/world databases.
+
+Published snapshot is immutable and contains only fields required by consumers:
+    stable EntityId
+    transforms/velocities
+    presentation state/LOD inputs
+    selected semantic world revisions
+    event ranges
+    optional pose/skeleton channel handles
+
+Use double/triple buffered SnapshotStorage with generation/revision. Writers
+publish only after fixed-tick barrier; readers hold a snapshot generation until
+release. Snapshot arrays are contiguous/SoA where consumers benefit.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
