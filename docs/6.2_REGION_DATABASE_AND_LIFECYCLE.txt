@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 6.2 - REGION_DATABASE_AND_LIFECYCLE
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Implement thread-safe region metadata database and explicit lifecycle from Unloaded through Metadata/Generated/Compiled/Resident/Active/Dormant without conflating representation residency.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/6.1_WORLD_COORDINATES_AND_REGION_IDS.txt
+    TARGET::docs/5.7_TRANSACTIONAL_GENERATION_COMMIT.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All preceding TARGET contracts and relevant SOURCE reference behavior.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later consumers and domain-specific policies.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/world/include/genomes/world/RegionState.hpp
+    engine/world/include/genomes/world/RegionRecord.hpp
+    engine/world/include/genomes/world/RegionDatabase.hpp
+    engine/world/src/RegionDatabase.cpp
+    tests/native/world/region_database_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. Region semantic lifecycle state is separate from render/physics/nav residency bits. A region may have semantic Metadata with no GPU data.
+
+2. RegionRecord is stable metadata keyed by RegionId; large artifact payloads referenced by handles/fingerprints, not embedded.
+
+3. Mutations occur through RegionDatabase writer/command path; read snapshots allow lock-light concurrent queries.
+
+4. Lifecycle transitions are validated by explicit state machine table.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use explicit versioned value types and ownership. Hot data remains contiguous; cold metadata is separate.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define RegionState and RepresentationResidency flags Render/Physics/Nav.
+
+STEP 2
+    Implement validTransition(from,to) table; illegal skip transitions return InvalidState.
+
+STEP 3
+    Implement RegionRecord metadata with revision, generation package ref, bounds, lifecycle and residency.
+
+STEP 4
+    Implement database using flat/hash map behind shared/read-mostly ownership; no references survive erase without handle/revision check.
+
+STEP 5
+    Add command API createMetadata/transition/setResidency/retire.
+
+STEP 6
+    Test concurrent readers against staged writer updates using snapshots.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+TRANSITION(id,to):
+    record := mutableLookup(id)
+    if !validTransition(record.state,to): fail
+    record.state := to
+    record.revision += 1
+
+READ SNAPSHOT:
+    snapshot := database.acquireReadSnapshot()
+    record := snapshot.find(id)
+    // immutable for snapshot lifetime
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Published data is immutable/read-mostly. Mutation is owned by one service or staged through jobs/commands.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures are typed Result values and diagnostic reports; no partial active-state mutation on failure.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Canonical keys, stable ordering and explicit versions determine identity; execution order does not.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Bound memory, avoid hidden allocations in hot paths and add targeted benchmarks for cache/query/streaming operations.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+TARGET remains independently buildable; SOURCE is consulted only for parity/reference workflows.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    all valid transitions
+    invalid transitions
+    residency independent
+    snapshot read
+    retire/recreate generation
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] explicit lifecycle
+    [ ] residency split
+    [ ] revision tracking
+    [ ] safe read snapshots
+    [ ] transition tests
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    single loaded bool
+    GPU residency implying simulation active
+    dangling RegionRecord pointers after erase
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] explicit lifecycle
+    [ ] residency split
+    [ ] revision tracking
+    [ ] safe read snapshots
+    [ ] transition tests
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in the master index.
+
+END OF CHAPTER 6.2
