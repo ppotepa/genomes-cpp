@@ -1,0 +1,185 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 10.7 - ZONING_BLOCKS_AND_HALF_EDGE_FACES
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Generate accessibility/urbanity zoning fields and extract planar road blocks using deterministic half-edge face walking over the validated level-0 road graph.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/10.6_RECURSIVE_REGIONS.txt
+    TARGET::docs/10.4_ROAD_GRAPH_VALIDATION.txt
+
+======================================================================
+PRESERVES
+======================================================================
+The semantic capabilities and invariants of SOURCE road/city prototypes while replacing browser/Three.js implementation details.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Detailed building interiors/geometry; city output produces building requests/artifacts only.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/city/include/genomes/city/ZoneField.hpp
+    modules/city/include/genomes/city/BlockSet.hpp
+    modules/city/src/Zoning.cpp
+    modules/city/src/BlockExtraction.cpp
+    tests/native/city/block_extraction_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ZoneField is raster/field artifact with Centre/Urban/Suburb/Rural plus extensible land-use metadata; classification derives from accessibility, center attraction, terrain/hydrology and development params.
+
+2. Half-edge graph uses only planar same-level road segments after intersections are registered. Outgoing half-edges sorted by robust atan2 angle with stable ID tie.
+
+3. Face walk marks directed half-edges; exterior face rejected by signed area/orientation/bounds policy. Block polygon then offsets inward by road ROW/setback policy using robust polygon backend.
+
+4. Block IDs derive from canonical cycle (rotate vertex/edge stable IDs to minimal lexicographic representation), not discovery order.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Graphs use contiguous node/edge arrays with stable IDs and adjacency ranges; fields are grid/raster artifacts; polygons use engine geometry types.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-POLY-SIGNED-AREA-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-HALFEDGE-FACE-WALK-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::prototypes/procedural-road-graph-lab/index.html
+    SOURCE::prototypes/procedural-city/index.html
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Generate ZoneField cells in parallel from immutable city/road/hydrology fields.
+
+STEP 2
+    Build directed half-edge adjacency from active level-0 edges.
+
+STEP 3
+    Sort outgoing edges by angle then RoadEdgeId.
+
+STEP 4
+    Walk every unvisited directed half-edge using fixed previous/next orientation rule from 0.5; compute face polygon.
+
+STEP 5
+    Reject exterior/tiny/invalid faces and canonicalize BlockId.
+
+STEP 6
+    Apply ROW inset/road corridor subtraction through geometry backend; validate simple buildable block polygons.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+FACE WALK:
+    start := halfEdge(u,v)
+    cur := start
+    do:
+        visited.add(cur)
+        polygon.push(position(cur.from))
+        outgoing := sortedAdj[cur.to]
+        reverseIndex := find edge to cur.from
+        cur := outgoing[(reverseIndex - 1 + count) % count] // chosen orientation
+    while cur != start
+    area := signedArea(polygon)
+    classify exterior/interior
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Each generation stage reads immutable prior artifacts and writes a candidate output; independent regions/blocks/parcels use jobs with stable IDs and stable merge.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid candidates are rejected through typed result/ValidationReport; bounded fallback strategies are explicit and traced.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Stable seed paths, node/edge IDs and deterministic tie-breakers define output; hash-map/job iteration never does.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Use spatial indexes/fields rather than global scans; batch expensive routing/placement and benchmark large city profiles.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE prototypes remain reference labs. TARGET native city may improve geometry while satisfying exported fixtures/invariants.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    square one block
+    grid blocks count
+    T junction no phantom face
+    bridge/level edge excluded
+    canonical ID independent insertion
+    zone fixtures
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] zoning artifact
+    [ ] half-edge deterministic
+    [ ] exterior removed
+    [ ] ROW inset validated
+    [ ] stable BlockIds
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    polygonizing via raster when graph face exists
+    including bridge crossing as planar intersection
+    BlockId=vector index
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] zoning artifact
+    [ ] half-edge deterministic
+    [ ] exterior removed
+    [ ] ROW inset validated
+    [ ] stable BlockIds
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next city/road chapter.
+
+END OF CHAPTER 10.7
