@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 17.5 - BALLISTICS_BATCHING_AND_SIMD
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Scale projectile flight/contact workloads across CPU cores and SIMD-friendly SoA
-batches while retaining branch-heavy material solver correctness and stable
-damage commit semantics.
+Scale native ballistics to large RTS workloads using SoA/chunk batching, spatial-query batching and compiler SIMD/autovectorization where profitable, without changing semantic outcomes.
 
 ======================================================================
 REQUIRES
@@ -23,51 +22,56 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
-    TARGET::docs/17.4_FRAGMENTATION_AND_HE.txt
-    TARGET::docs/3.5_JOB_PROFILING_AND_SCALING_BENCHMARKS.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
     TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
+    TARGET::docs/17.4_FRAGMENTATION_AND_HE.txt
+    TARGET::docs/3.3_PARALLEL_FOR_AND_BATCHING.txt
+    TARGET::docs/4.6_STATIC_BVH_AND_QUERY_SERVICE.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-Exact semantic projectile state/energy/contact behavior; optimization may alter
-storage/execution order but never projectile identity or outcome contracts.
+The exact per-projectile state machine and contact ordering from 17.1-17.4. Optimization may change storage/execution order only behind deterministic stable commit.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+No GPU-authoritative projectile simulation; GPU experimentation may be later and must preserve CPU authoritative fallback.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
-    modules/ballistics/include/genomes/ballistics/ProjectilePool.hpp
-    modules/ballistics/src/BallisticsBatchSystem.cpp
-    benchmarks/ballistics/ballistics_scaling_benchmark.cpp
-    tests/native/ballistics/ballistics_parallel_tests.cpp
+    modules/ballistics/include/genomes/ballistics/ProjectileStorage.hpp
+    modules/ballistics/src/ProjectileStorage.cpp
+    modules/ballistics/src/BallisticsBatch.cpp
+    benchmarks/ballistics/ballistics_batch_benchmark.cpp
+    tests/native/ballistics/batch_parity_tests.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. ProjectilePool uses generational ProjectileHandle and hot SoA columns position/velocity/mass/diameter/state/strategy, with optional cold/contact data handles. Active list compacted without changing stable ProjectileId.
+1. Canonical semantic ProjectileState remains serializable AoS; hot runtime storage may be SoA/chunked but conversion is lossless.
 
-2. Flight/aerodynamic free-space integration is batch-friendly and may SIMD/autovectorize grouped by strategy. Contact-heavy projectiles move to separate slow/contact queues without forcing divergent branches on free-flight batch.
+2. Batch scheduler partitions active projectile IDs into stable ranges/chunks; worker completion order does not define event order.
 
-3. Parallel batches read immutable WorldQuery/Physics snapshots for the tick and write disjoint projectile ranges plus thread-local Impact/Blast/Spawn command buffers.
+3. SIMD applies only to homogeneous flight math candidates (position/velocity/drag broad phases). Branch-heavy contact resolution may remain scalar.
 
-4. After flight batches, commands are merged/stable-sorted by tick/shot/projectile/contact sequence and target semantic ID before damage commit. Fragment spawn resolves stable IDs independently from pool slot allocation.
+4. World query batching groups segment/AABB requests without weakening exact narrow-phase surfaces.
 
-5. SIMD optimization is optional per compiler/ISA; scalar reference stays in tests. No architecture-specific path becomes sole implementation.
+5. Optimization gate requires scalar reference parity for seeded fixtures and 1-thread/N-thread runs.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-Hot SoA arrays aligned to cache/SIMD boundaries. FreeFlight index list, Contact index list and terminal/free slot lists. Strategy-group index lists may be rebuilt incrementally. Cold trace history not stored in hot pool.
+ProjectileStorage arrays: positionX/Y/Z, velocityX/Y/Z, age, travel, mass, diameters, state flags, IDs/index to cold orientation/ledger as benchmark dictates. Prefer chunk size chosen by benchmark, not arbitrary 1 entity/job.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    N/A
+    PERF-PAR-WORK-001
+    DATA-COMPLEXITY-001
+    MATH-VEC-NORM2-001
 
 ======================================================================
 ALGORITHM REFERENCES
@@ -77,86 +81,98 @@ ALGORITHM REFERENCES
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    N/A
+    SOURCE::js/destruction/ballistics.js
+    SOURCE::docs/27_AUDYT_WYDAJNOSCI_KODU.md
+    SOURCE::tests/destruction_projectile.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Implement ProjectilePool create/destroy/stale-handle reuse and hot/cold columns.
+    Measure scalar native baseline first with benchmark scenarios: free flight, dense obstacles, fragments.
 
 STEP 2
-    Partition active free-flight indices into jobs/grains; group by strategy where profitable.
+    Implement chunked ProjectileStorage with stable slot/generation handles and active compaction at commit boundaries.
 
 STEP 3
-    Implement scalar batch kernel first; enable compiler vectorization and add optional explicit SIMD abstraction only after benchmark.
+    Implement parallel_for over chunks using JobSystem grain-size benchmark.
 
 STEP 4
-    Separate contact candidates to ImpactSolver slow path while maintaining remaining substep state.
+    Batch acceleration/RK stage math; allow compiler autovectorization before explicit intrinsics.
 
 STEP 5
-    Merge impact/blast/fragment commands deterministically and commit grouped per target.
+    Implement batched broadphase segment queries and per-projectile sorted narrow hits.
 
 STEP 6
-    Benchmark 1k/10k/100k free flight, dense-contact workload, HE fragment burst, worker counts and SIMD on/off.
+    Merge contact/detonation/damage events by deterministic event key (tick, projectile stable ID, event sequence).
+
+STEP 7
+    Add optional explicit SIMD path only if profiler proves gain on supported ISA; keep scalar fallback and parity tests.
+
+STEP 8
+    Benchmark 1/2/4/8/16 workers and active counts 1k/10k/100k where machine permits.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
-TICK:
-    active := pool.activeIndices
-    parallelFor(active batches):
-        for idx:
-            if projectile.contactActive:
-                local.contactQueue.push(idx)
-            else:
-                integrate aerodynamic/free flight
-                if broadphase predicts candidate:
-                    local.contactQueue.push(idx)
-                else write state
+PARALLEL FLIGHT:
+    chunks := storage.activeChunks(grain)
+    parallel_for chunk in chunks:
+        localEvents := scratch.events
+        for lane/entity in chunk:
+            integrateFlightCandidate(...)
+            broadphaseRequests.push(segment)
+        hits := worldQuery.batchSegments(broadphaseRequests)
+        for entity in stable local order:
+            resolve candidate/hit
+            localEvents.push(...)
 
-    contactJobs := partition gathered contact indices
-    solve contacts -> local commands
+    barrier
+    allEvents := concatenate(workerEvents)
+    stable_sort(allEvents, by tick, projectileId, localSequence)
+    commit(allEvents)
 
-    commands := stableMerge(all job buffers)
-    commit target damage/blast
-    commit fragment spawns
-    retire terminal projectiles
+COMPACTION:
+    at safe commit:
+        move live records to dense slots
+        update handle generations/index map
+        never expose raw array pointer as semantic identity
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Each projectile index written by one job per phase. Shared target state immutable until command commit. Pool structural create/destroy happens after batches.
+Disjoint chunks owned by one worker. Cold catalog immutable. Structural effects via events only.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Pool exhaustion follows profile policy: reject new noncritical projectile or account HE omitted pairs explicitly; never overwrite active state. Invalid SIMD path detected by scalar parity tests.
+Storage capacity rejection explicit. SIMD unsupported -> scalar path, not build failure. Any parity mismatch disables optimized path in production profile until fixed.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Projectile results match scalar reference within exact/numeric policy at 1/N workers. Command order stable independent of pool index/job completion.
+Stable semantic IDs survive compaction. Parallel event sorting restores semantic order. Floating SIMD path must meet numeric tolerance/behavioral fixtures; exact where required.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Measure scheduler overhead, spatial query %, contact solver %, memory bandwidth, vectorization. Avoid SIMD effort on highly divergent contact solver until profiling proves benefit.
+Report projectiles/s and frame/tick ms by workload and thread count. Watch memory bandwidth, false sharing and query cost. No per-projectile task scheduling.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Replaces JS single-loop projectile stepping with native data-oriented batches while preserving parity.
+Do not preserve JS object arrays. Preserve outcomes and traces. SIMD optimization is native-only.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    pool stale handle
-    scalar vs vector/free flight
-    1 vs N worker state hashes
-    contact command ordering
-    fragment burst capacity
-    100k stress
+    AoS<->storage roundtrip
+    scalar vs batch parity
+    1 vs N workers
+    compaction handle validity
+    dense obstacle hit order
+    fragment capacity parity
+    SIMD fallback
 
 ======================================================================
 COMMANDS TO RUN
@@ -168,34 +184,37 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] SoA pool
-    [ ] parallel free flight
-    [ ] contact slow path
-    [ ] deterministic command merge
+    [ ] chunk storage
+    [ ] parallel batching
+    [ ] stable commit
+    [ ] query batching
+    [ ] benchmark scaling
     [ ] scalar parity
-    [ ] scaling benchmark
+    [ ] no per-projectile jobs
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    one task per projectile
-    SIMD approximation changing semantic thresholds silently
-    pool slot index as ProjectileId
-    concurrent damage mutation during trace
+    one JobSystem job per projectile
+    semantic ID equals dense index
+    SIMD changing branch/outcome silently
+    GPU-only correctness
+    nondeterministic event merge
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] SoA pool
-    [ ] parallel free flight
-    [ ] contact slow path
-    [ ] deterministic command merge
+    [ ] chunk storage
+    [ ] parallel batching
+    [ ] stable commit
+    [ ] query batching
+    [ ] benchmark scaling
     [ ] scalar parity
-    [ ] scaling benchmark
+    [ ] no per-projectile jobs
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next ballistics chapter.
+Continue with 17.6 BALLISTICS_REFERENCE_PARITY.
 
 END OF CHAPTER 17.5

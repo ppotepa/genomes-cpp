@@ -6,13 +6,12 @@ SOURCE: ppotepa/genomes
 
 CHAPTER 17.4 - FRAGMENTATION_AND_HE
 STATUS: READY
+VERSION: 0.1
 
 ======================================================================
 GOAL
 ======================================================================
-Port HE fuze/detonation/blast and fragment generation with explicit explosive
-energy allocation, paired fragment momentum balancing, capacity accounting and
-structural/rubble effects.
+Port projectile breakup, HE contact fuze, deterministic fragment generation and blast command generation with explicit energy/mass representation budgets.
 
 ======================================================================
 REQUIRES
@@ -23,160 +22,166 @@ REQUIRES
     TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
     TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
     TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+    TARGET::docs/6.5_WORLD_QUERY_SERVICE.txt
+    TARGET::docs/15.4_COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT.txt
     TARGET::docs/17.3_PENETRATION_RICOCHET_DEFLECTION.txt
-    TARGET::docs/16.7_NAV_AND_WORLD_INVALIDATION.txt
+    TARGET::docs/16.3_STRUCTURAL_LINKS_AND_DAMAGE_FIELDS.txt
+    TARGET::docs/16.5_RUBBLE_FIELD.txt
 
 ======================================================================
 PRESERVES
 ======================================================================
-SOURCE contact-fuze behavior, finite nose-crush work before detonation,
-separate explosive/blast energy, fragment child traces/IDs, omission accounting,
-paired radial momentum cancellation, blast breach/geometry changes and rubble
-excavation/re-ejection.
+SOURCE contact-armed HE behavior, finite nose-crush work before detonation, fragment profile metadata, opposite-pair radial momentum cancellation, inherited body velocity, capacity omission accounting and explicit explosive/blast/unrepresented energy ledger.
 
 ======================================================================
 OUT OF SCOPE
 ======================================================================
-Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+No attempt to model real fuze arming delay/programming; no claim of certified explosive physics.
 
 ======================================================================
 TARGET FILE TREE
 ======================================================================
-    modules/ballistics/include/genomes/ballistics/Fuze.hpp
     modules/ballistics/include/genomes/ballistics/Fragmentation.hpp
-    modules/ballistics/include/genomes/ballistics/Blast.hpp
+    modules/ballistics/include/genomes/ballistics/Detonation.hpp
     modules/ballistics/src/Fragmentation.cpp
-    modules/ballistics/src/BlastSolver.cpp
+    modules/ballistics/src/Detonation.cpp
     tests/native/ballistics/he_fragmentation_tests.cpp
+    benchmarks/ballistics/fragmentation_benchmark.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
-1. FuzeProfile v1 supports Contact {armed}; future delay/proximity/programmed are separate modes and not simulated implicitly. Contact candidate must be validated against actual surface point before fuze triggers.
+1. Detonation strategy explicitly defines fuze mode/armed state. Current compatibility profile supports armed contact fuze only; unsupported delayed/programmed modes fail/are not silently simulated.
 
-2. HE projectile performs bounded nose-crush kinetic contact up to profile distance (SOURCE compatibility quarter diameter where configured) before explosive detonation state; kinetic and explosive ledger terms remain separate.
+2. Surface candidate must be refined to actual convex/semantic surface point before contact fuze detonates.
 
-3. FragmentationProfile defines fragmentCount, bodyMassFraction, explosiveEnergyFraction, massSpread/angular distribution and body translation inheritance. Fragments become child ProjectileStates with parentTrace/Shot relation.
+3. Nose-crush kinetic work budget is finite and separated from explosive energy.
 
-4. Fragment generation uses opposite direction pairs for radial components so pair radial momentum cancels; translation/expansion cross-term/energy allocation is accounted. Capacity truncation omits complete pairs and moves missing energy/mass to unrepresented categories rather than boosting survivors.
+4. Fragmentation profile defines requested count, body mass fraction, explosive energy fraction, mass spread and deterministic pattern. Fragment set conserves represented mass/energy according to profile ledger.
 
-5. BlastSolver produces spatial BlastDamageCommands over nearby solids/rubble with attenuation/occlusion policy versioned. Blast can create holes/fractures/support damage and excavate RubbleField; it does not route all energy through tiny fragment crater shortcut.
+5. Opposite radial fragment pairs are generated together; capacity truncation drops complete pairs where possible and records omitted mass/energy instead of increasing survivors.
+
+6. Blast is an event/command with origin, radius/profile, energy and seed; destruction/rubble consumers apply geometry/material effects.
 
 ======================================================================
 DATA LAYOUT
 ======================================================================
-HE event uses immutable profile + transient BlastEvent. Fragment array allocated from projectile pool/batch with stable child IDs. Blast candidate list from WorldQuery spatial broadphase; commands grouped per target.
+FragmentSpawn array emitted to pending projectile store; each has child TraceId/parent, mass, diameter, velocity, seed. DetonationEvent is immutable and records energy split.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
 ======================================================================
-    MATH-PHYS-KINETIC-001
     MATH-PHYS-MOMENTUM-001
-    MATH-VEC-NORM2-001
+    MATH-PHYS-KINETIC-001
+    MATH-SAMPLE-DISK-001
 
 ======================================================================
 ALGORITHM REFERENCES
 ======================================================================
-    N/A
+    ALG-RNG-SEED-TREE-001
+    ALG-PAR-STABLE-COMMIT-001
 
 ======================================================================
 SOURCE REFERENCES
 ======================================================================
-    SOURCE::docs/destruction/contracts.md
-    SOURCE::docs/destruction/energy-acceptance.md
     SOURCE::js/destruction/ballistics.js
+    SOURCE::js/destruction/projectileState.js
+    SOURCE::js/destruction/ammunitionStrategy.js
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::docs/destruction/ballistics-calibration.md
     SOURCE::tests/destruction_projectile.cjs
 
 ======================================================================
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Define FuzeProfile/FragmentationProfile/BlastProfile schema and port current HE presets with provenance/game-model label.
+    Port fragmentation profile catalog values with source/calibration provenance.
 
 STEP 2
-    Implement contact fuze surface validation and nose-crush stage as strategy hook.
+    Implement contact-fuze condition through AmmunitionStrategy and actual surface contact.
 
 STEP 3
-    Allocate explosive energy into blast/fragment/unrepresented buckets per profile; assert fractions/budgets.
+    Apply bounded nose-crush impact work before detonation; record kinetic material work separately.
 
 STEP 4
-    Generate fragment masses/directions from deterministic child seeds, paired radial directions, inherit parent body velocity and compute child initial ledgers/IDs.
+    Compute explosive energy split: blast budget, radial fragment budget, unrepresented remainder.
 
 STEP 5
-    Apply projectile pool capacity by complete pair groups; account omitted mass/energy explicitly.
+    Generate deterministic mass weights and opposite direction pairs around projectile frame; add inherited translational velocity.
 
 STEP 6
-    Implement BlastSolver broadphase over structural parts and rubble tiles, optional occlusion sampling, falloff and command grouping; rebuild logical indexes once after batch before fragments trace.
+    Apply capacity selection by whole pair/stable priority and record dropped fragment energy/mass as unrepresented.
 
 STEP 7
-    Add HE fixture matrix 20/30/40/105-like game profiles if present in SOURCE catalog, without claiming real ordnance equivalence.
+    Emit BlastCommand to destruction and fragment Projectiles to BallisticsWorld pending queue.
+
+STEP 8
+    Test 20/30/40/105 compatibility profiles and energy/momentum ledgers.
 
 ======================================================================
 PSEUDOCODE
 ======================================================================
 DETONATE:
-    surface := verify actual contact
-    noseResult := apply bounded crush contact
-    explosive := profile.explosiveEnergy
-    Efrag := explosive * fragFraction
-    Eblast := explosive * blastFraction
-    Eunrepresented := explosive - Efrag - Eblast
+    Eexplosive := strategy.explosiveEnergy(ammo)
+    Eradial := Eexplosive * fragmentation.energyFraction
+    Mfrag := bodyMass * fragmentation.bodyMassFraction
 
-    pairs := floor(fragmentCount/2)
-    allowedPairs := min(pairs, projectileCapacity/2)
+    weights := seededMassWeights(count, spread)
+    normalize(weights)
 
-    for pairOrdinal in [0,allowedPairs):
-        dir := sample hemisphere/sphere child seed
-        for sign in [-1,+1]:
-            mass := paired/sample mass
-            radialSpeed := solve allocated pair expansion energy
-            v := parent.velocity + sign*dir*radialSpeed
-            create child projectile stable ID(parent,pair,sign)
+    for pair i in deterministic pair order:
+        m1,m2 := masses
+        radialDir := seededUnitDirectionPair(i)
+        e1,e2 := proportional energy
+        v1 := inheritedVelocity + radialDir * sqrt(2*e1/m1)
+        v2 := inheritedVelocity - radialDir * sqrt(2*e2/m2)
+        candidatePairs.push(...)
 
-    omitted complete pairs -> ledger.unrepresentedEnergy/mass
-
-BLAST:
-    candidates := spatial query radius
-    compute falloff/occlusion
-    emit grouped BlastDamageCommands
-    rubble.excavate/re-eject bounded
-    commit damage batch then rebuild logical index once
+    selectedPairs := capacityBoundWholePairs(candidatePairs)
+    ledger.fragmentEnergy += represented radial energy
+    ledger.unrepresentedEnergy += omitted radial/body energy
+    ledger.explosiveEnergy += Eexplosive
+    emit BlastCommand(Eblast)
+    mark parent detonated
 
 ======================================================================
 THREADING / OWNERSHIP RULES
 ======================================================================
-Detonations in projectile jobs emit fragment spawn/blast commands. Fragment creation and blast damage commit use stable parent/shot/ordinal ordering. Different targets can process grouped damage jobs.
+Detonation calculations parallel per projectile. Fragment admission to global capacity resolved in deterministic commit phase, not race on atomic counter.
 
 ======================================================================
 ERROR HANDLING
 ======================================================================
-Invalid profile energy fractions/mass fractions fail catalog validation. Projectile-capacity pressure never rescales survivor fragments to consume omitted budget. Fuze unsupported mode returns Unsupported, not fake contact behavior.
+Invalid fragmentation profile (fractions >1, nonpositive masses) rejected at catalog load. Capacity zero still emits blast and records all fragment budget unrepresented.
 
 ======================================================================
 DETERMINISM RULES
 ======================================================================
-Fragment seeds/IDs from parent + pair ordinal/sign. Capacity choice based on stable pair order. Blast candidate order stable for damage commits.
+Pattern/mass weights from projectile seed + detonation semantic path. Pair selection stable independent of worker scheduling.
 
 ======================================================================
 PERFORMANCE RULES
 ======================================================================
-Broadphase radius query, grouped target damage, bounded fragments and effects. Fragment projectiles share batching/SpatialTrace path.
+Bound fragment count and active fragment pool. Batch fragment spawn. Benchmark high-rate HE without rendering.
 
 ======================================================================
 MIGRATION / COMPATIBILITY
 ======================================================================
-Preserve SOURCE HE contracts and ledger categories. Visual flash/dust pools are Stage20 presentation, not semantic fragmentation.
+Compatibility profiles preserve current gameplay calibration; label clearly as game model. Trace parent/child relations preserved.
 
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    contact fuze actual surface
-    nose crush ledger
-    fragment pair momentum
-    capacity omission accounting
-    parent velocity inheritance
-    blast breach
-    rubble excavation/redeposit
+    contact fuze surface
+    nose crush before blast
+    fragment mass sum
+    energy split
+    opposite pair radial momentum
+    capacity whole-pair omission
+    inherited velocity
+    zero capacity ledger
+    profile deterministic
 
 ======================================================================
 COMMANDS TO RUN
@@ -188,34 +193,35 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] fuze model explicit
-    [ ] energy allocation
-    [ ] paired fragments
-    [ ] capacity no survivor boost
-    [ ] blast structural/rubble damage
-    [ ] ledger complete
+    [ ] detonation event
+    [ ] fragment profiles
+    [ ] mass/energy accounting
+    [ ] pair momentum property
+    [ ] capacity omission explicit
+    [ ] blast command integration
 
 ======================================================================
 FORBIDDEN SHORTCUTS
 ======================================================================
-    assigning all explosive energy to fragments and blast simultaneously
-    dropping omitted energy
-    fragment IDs from allocator order
-    treating HE visual particle as damage source
+    redistributing omitted fragment energy to survivors
+    detonating broadphase false positive
+    claiming real fuze model
+    unbounded fragments
+    global RNG
 
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] fuze model explicit
-    [ ] energy allocation
-    [ ] paired fragments
-    [ ] capacity no survivor boost
-    [ ] blast structural/rubble damage
-    [ ] ledger complete
+    [ ] detonation event
+    [ ] fragment profiles
+    [ ] mass/energy accounting
+    [ ] pair momentum property
+    [ ] capacity omission explicit
+    [ ] blast command integration
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER
 ======================================================================
-Continue with the next ballistics chapter.
+Continue with 17.5 BALLISTICS_BATCHING_AND_SIMD.
 
 END OF CHAPTER 17.4
