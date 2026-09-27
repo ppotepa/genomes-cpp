@@ -55,7 +55,8 @@ Parcel access is explicit semantic data:
         clear width
     DrivewaySpec
         connection from road/access point to parcel/building approach
-        preferred RoadClass::Track or Service according profile
+        semantic access class: Service or Local according profile
+        SOURCE compatibility surface/kind: Track
     FenceSpec optional
         fenced flag
         type {Wood, Wire, Wall}
@@ -130,8 +131,10 @@ STEP 5
     Generate rural road-oriented OBB/polygon parcels using spatial index.
 
 STEP 6
-    Create driveway/access reservations from frontage/gate to building approach
-    using Track/Service road/access semantics and reserve them before scatter.
+    Create driveway/access reservations from frontage/gate to building approach.
+    For SOURCE simple-settlement compatibility use an access-class edge
+    (Service/Local profile) with surface/kind Track, and reserve it before
+    scatter.
 
 STEP 7
     Plan optional fence spans/posts/gate from parcel boundary using SOURCE
@@ -217,7 +220,7 @@ ACCEPTANCE CRITERIA
     [ ] buildable polygons
     [ ] no overlap
     [ ] access validation
-    [ ] driveway/Track semantics
+    [ ] driveway Service/Local + Track-surface compatibility semantics
     [ ] fence/gate semantic planner
     [ ] SOURCE fence compatibility tests
     [ ] residual reporting

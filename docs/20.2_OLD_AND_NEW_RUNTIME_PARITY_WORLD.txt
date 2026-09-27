@@ -36,7 +36,8 @@ REQUIRES
 PRESERVES
 ======================================================================
 SOURCE START NEW behaviors and integrated interactions: terrain, roads including
-driveways/access tracks, parcels/gates/fences, buildings/environment including
+driveways/access roads with Track surface/kind, parcels/gates/fences,
+buildings/environment including
 orchards/fields, Infantry, AI/combat, ballistics/destruction, lifecycle and
 telemetry concepts.
 

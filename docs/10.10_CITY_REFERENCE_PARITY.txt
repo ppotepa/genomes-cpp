@@ -54,7 +54,8 @@ Road/parcel fixtures additionally cover:
     routed curved/smoothed centerlines
     edge splits on curved/polyline roads
     exact shared-node endpoint equality
-    SOURCE simple-settlement driveway Track/access semantics
+    SOURCE simple-settlement driveway access semantics:
+        Service/Local native class mapping + Track surface/kind
     fenced parcel GateSpec and wood/wire/wall FenceLayout
     FenceGenerator.plan compatibility cases.
 

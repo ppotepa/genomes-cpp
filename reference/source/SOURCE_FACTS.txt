@@ -283,12 +283,16 @@ procedural-city presents:
     local
     alley
 
-simple settlement uses:
+simple settlement road "kind" / surface values include:
     track
     asphalt
     dirt
 
-TARGET RoadClass is therefore intentionally a superset.
+IMPORTANT:
+    these simple-settlement values are not hierarchy RoadClass IDs.
+
+TARGET RoadClass is intentionally a superset of the road-lab/city hierarchy.
+Track/asphalt/dirt belong to RoadSurface/compatibility kind data.
 
 procedural-city pipeline explicitly describes:
     curved cost-routed regional roads

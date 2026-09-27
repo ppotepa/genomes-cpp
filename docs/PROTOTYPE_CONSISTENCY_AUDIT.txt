@@ -536,3 +536,38 @@ Current SOURCE values:
 Correction:
     16.4 and 16.5 now freeze these as compatibility-profile data while keeping
     native budgets configurable/versioned.
+
+
+======================================================================
+12. CORRECTION TO EARLIER TRACK CLASSIFICATION
+======================================================================
+
+Q. SIMPLE-SETTLEMENT "TRACK" IS NOT ROADCLASS
+
+SOURCE::js/world/settlementGenerator.js defines:
+    road(id, kind, width, points, sidewalk)
+
+and uses:
+    kind = asphalt
+    kind = dirt
+    kind = track
+
+Thus "track" is a road kind/surface in that legacy model, not the hierarchy
+class used by road-graph-lab.
+
+An earlier audit correction incorrectly added Track to TARGET RoadClass.
+
+Final correction:
+    RoadClass superset remains:
+        Motorway
+        Trunk
+        Arterial
+        Collector
+        Local
+        Service
+        Alley
+        Path
+
+    Simple-settlement driveway maps to:
+        class = Service or Local according native access profile
+        surface/kind = Track for SOURCE compatibility.

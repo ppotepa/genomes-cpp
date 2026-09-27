@@ -122,16 +122,16 @@ STEP 1
         Local
         Service
         Alley
-        Track
         Path
 
     SOURCE road-graph-lab explicitly contains MOTORWAY/TRUNK/ARTERIAL/
     COLLECTOR/LOCAL/SERVICE/PATH. SOURCE procedural-city exposes
-    trunk/arterial/collector/local/alley concepts. SOURCE simple settlement
-    uses track roads for parcel driveways/access.
+    trunk/arterial/collector/local/alley concepts.
 
-    Track is therefore a canonical low-order access class/usage distinct from
-    pedestrian Path.
+    SOURCE simple settlement uses "track" as road kind/surface for parcel
+    driveways, NOT as a hierarchy class. Therefore Track belongs to
+    RoadSurface/AccessSurface compatibility data, while the driveway semantic
+    class maps to Service or Local according the native access profile.
 
     Map SOURCE class IDs/names into the superset through versioned data tables;
     do not collapse SERVICE and ALLEY merely because one prototype lacks one of
