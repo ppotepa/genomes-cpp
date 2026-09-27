@@ -1,0 +1,1000 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 0.3 - C++ CODING AND DEPENDENCY RULES
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+
+Freeze the native code boundary, ownership, include, naming and dependency
+rules before the first C++ implementation chapter.
+
+The purpose is not cosmetic style consistency.
+
+The purpose is to prevent later agents from creating:
+
+    cyclic module dependencies,
+    renderer types inside procedural code,
+    physics backend types inside domain state,
+    shared_ptr ownership webs,
+    per-object virtual Update() hot paths,
+    implicit global services,
+    unstable cross-thread mutation,
+    undefined lifetime relationships.
+
+These rules apply to all native Genomes code unless a later chapter explicitly
+documents and justifies an exception.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+
+All legacy project behavior remains subject to the parity rules from 0.2.
+
+This chapter controls the structure of NEW native code only.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No CMake implementation yet.
+No dependency download yet.
+No concrete Result/StrongId implementation yet.
+No JobSystem implementation yet.
+No ECS selection yet.
+No Diligent/Jolt/Recast bootstrap yet.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Canonical module layout:
+
+    engine/<module>/
+        include/
+            genomes/<module>/
+                PublicHeader.hpp
+        src/
+            PrivateSource.cpp
+            PrivateHeader.hpp
+        tests/
+            ... optional module-local unit tests if build organization chooses
+
+Example:
+
+    engine/foundation/
+        include/genomes/foundation/StrongId.hpp
+        include/genomes/foundation/Result.hpp
+        src/Diagnostics.cpp
+
+    modules/buildings/
+        include/genomes/buildings/BuildingPlan.hpp
+        src/BuildingSolver.cpp
+
+Public headers live under:
+    include/genomes/...
+
+Private implementation headers stay under:
+    src/
+
+Applications:
+
+    apps/<app>/src/
+
+Global test tree may additionally contain:
+    tests/native/unit/
+    tests/native/integration/
+    tests/native/determinism/
+    tests/native/performance/
+
+Chapter 1.1 may implement the exact CMake target names, but MUST preserve these
+logical boundaries.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+RULE-CPP-LANG-001
+    Native Genomes baseline language is C++20.
+
+    Do not require a C++23-only standard-library feature in public engine code
+    unless a later compiler/toolchain chapter explicitly raises the baseline.
+
+    Reason:
+        C++20 provides the required language model while keeping dependency and
+        compiler integration conservative.
+
+    A custom Result type is therefore preferred over depending on std::expected
+    until the language baseline changes.
+
+
+RULE-NS-001
+    Root namespace:
+
+        genomes
+
+    Examples:
+
+        genomes::foundation
+        genomes::jobs
+        genomes::geometry
+        genomes::proc
+        genomes::world
+        genomes::render
+        genomes::physics
+        genomes::navigation
+        genomes::buildings
+        genomes::infantry
+
+    Do not use:
+        using namespace genomes;
+    in public headers.
+
+
+RULE-NAME-001
+    Types:
+        PascalCase
+
+    Functions/methods:
+        camelCase
+
+    Local variables:
+        camelCase
+
+    Constants:
+        kPascalCase
+
+    Enum types:
+        PascalCase
+
+    Enum values:
+        PascalCase
+
+    Template parameters:
+        PascalCase or descriptive PascalCase
+
+    Private data members:
+        trailing underscore
+
+Example:
+
+    class RegionDatabase {
+    public:
+        RegionHandle findRegion(RegionId id) const;
+
+    private:
+        FlatMap<RegionId, RegionRecord> regions_;
+    };
+
+
+RULE-HEADER-001
+    Use:
+        #pragma once
+
+    Public headers:
+        include only what their declarations require;
+        do not depend on transitive includes;
+        do not expose third-party implementation types unless the public
+        contract explicitly IS the third-party abstraction layer.
+
+
+RULE-INCLUDE-001
+    Preferred include order in .cpp:
+
+        1. matching own public/private header
+        2. other genomes headers
+        3. third-party headers
+        4. standard-library headers
+
+    Within a group use stable lexical ordering unless generated code requires
+    otherwise.
+
+    Every source must compile without relying on accidental include order.
+
+
+RULE-DEPS-001
+    Dependency direction follows 0.1.
+
+    engine/foundation
+        may not depend on higher engine modules.
+
+    engine/math
+        -> foundation only where required.
+
+    engine/jobs
+        -> foundation/memory primitives.
+
+    engine/geometry
+        -> foundation + math.
+
+    engine/spatial
+        -> foundation + math + geometry as needed.
+
+    engine/proc
+        -> foundation + jobs + math/geometry/spatial.
+
+    engine/world
+        -> foundation + proc + geometry/spatial.
+
+    engine/simulation
+        -> foundation + jobs + world contracts.
+
+    engine/render
+        -> foundation + assets + presentation contracts.
+        MUST NOT be required by proc/world semantic generation.
+
+    engine/physics/core
+        -> foundation + math.
+
+    engine/physics/jolt
+        -> physics/core + Jolt.
+
+    engine/navigation/core
+        -> foundation + math + world contracts.
+
+    engine/navigation/recast
+        -> navigation/core + Recast/Detour.
+
+    modules/*
+        -> engine/* and explicitly permitted lower-level modules.
+
+    engine/*
+        MUST NOT depend on modules/infantry, weapons, combat, vehicles.
+
+
+RULE-DEPS-002
+    Circular target dependencies are forbidden.
+
+    If A needs B and B needs A:
+        the abstraction boundary is wrong.
+
+    Resolve by:
+        extracting a lower-level contract,
+        event/message boundary,
+        handle/ID,
+        data transfer object,
+        or moving ownership to a lower-level service.
+
+
+RULE-THIRDPARTY-001
+    Third-party types must not leak across unrelated public module boundaries.
+
+Examples:
+
+    GOOD:
+        PhysicsBodyHandle
+        RenderBufferHandle
+        NavTileHandle
+
+    BAD:
+        JPH::BodyID inside BuildingPlan
+        Diligent::IBuffer* inside TerrainArtifact
+        dtNavMesh* inside WorldRegion public semantic record
+
+
+RULE-THIRDPARTY-002
+    Third-party source and warnings are isolated from Genomes warning policy.
+
+    We do not patch vendored dependencies merely to satisfy our stylistic
+    warnings unless there is a functional/security reason.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+RULE-DATA-001
+    Prefer value types and contiguous storage.
+
+Good:
+    std::vector<Transform>
+    std::span<const Transform>
+    chunked SoA/archetype storage
+    stable ID + index indirection
+
+Avoid by default:
+    std::list
+    pointer-linked object graphs
+    std::vector<std::shared_ptr<Entity>>
+    heap allocation per component
+
+
+RULE-DATA-002
+    IDs are not pointers.
+
+Long-lived cross-system references use:
+    StrongId / generational handle / stable semantic ID
+
+Do not store a raw pointer as an object identity.
+
+
+RULE-DATA-003
+    Public semantic data should be serializable without renderer/physics
+    backends.
+
+Example BuildingPlan must be expressible as:
+    numbers
+    IDs
+    arrays
+    enums
+    semantic records
+
+not GPU handles or physics bodies.
+
+
+RULE-DATA-004
+    Hot/cold split is explicit.
+
+If a batch loop reads:
+    position
+    velocity
+    target
+    flags
+
+then large strings, verbose metadata, UI labels and debug history should not sit
+in the same per-entity hot structure.
+
+
+RULE-DATA-005
+    Standard containers are the default until measurement justifies specialized
+    containers.
+
+Do not build custom vector/hash/string implementations in early chapters.
+
+Specialized flat/hash containers may be introduced later behind a measured
+reason and deterministic-order policy.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+    DATA-RANGE-001
+    DATA-MATRIX-001
+    NUM-EPS-001
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+    ALG-PAR-STABLE-COMMIT-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+    REF-PARNAS-1972
+    REF-BLUMOFE-LEISERSON-1999
+
+======================================================================
+1. OWNERSHIP RULES
+======================================================================
+
+RULE-OWN-001 - SINGLE OWNER BY DEFAULT
+
+Use:
+    value member
+    std::unique_ptr<T>
+
+for ownership.
+
+Use raw/reference/span for non-owning access when lifetime is statically clear.
+
+
+RULE-OWN-002 - shared_ptr IS NOT DEFAULT OWNERSHIP
+
+std::shared_ptr may be used only when:
+
+    multiple independent owners genuinely control lifetime
+
+and the chapter documents:
+    who the owners are,
+    why a single owner/handle cannot work,
+    whether atomic refcount cost affects hot paths.
+
+Forbidden common shortcut:
+
+    "I am unsure who owns this, so make it shared_ptr."
+
+
+RULE-OWN-003 - OBSERVERS
+
+For required non-null synchronous dependency:
+    T&
+
+For optional synchronous dependency:
+    T* or a dedicated optional handle
+
+For ranges:
+    std::span<T>
+    std::span<const T>
+
+For long-lived cross-system references:
+    stable handle/ID, resolved through owner database.
+
+
+RULE-OWN-004 - RESOURCE HANDLES
+
+GPU, physics and nav backend resources use opaque handles.
+
+Concept:
+
+    struct BufferHandle {
+        uint32_t index;
+        uint32_t generation;
+    };
+
+Actual implementation belongs to its subsystem chapter.
+
+
+RULE-OWN-005 - NO OWNERSHIP THROUGH GLOBAL SINGLETON
+
+Forbidden:
+
+    Renderer::instance()
+    World::instance()
+    GlobalJobSystem
+    global mutable RNG
+
+Application boot owns service objects and passes explicit references/contracts.
+
+A registry may exist for bootstrap/module discovery, not as hidden hot-path
+dependency lookup.
+
+======================================================================
+2. POLYMORPHISM RULES
+======================================================================
+
+RULE-POLY-001
+    Runtime virtual dispatch is allowed at coarse subsystem/backend boundaries.
+
+Good examples:
+    IRenderBackend
+    IPhysicsBackend
+    IComputeBackend
+    IArtifactStorage
+
+Bad examples:
+    virtual Entity::update()
+    virtual Component::tick()
+    virtual RoadSegment::simulate()
+
+per thousands/millions of hot objects.
+
+
+RULE-POLY-002
+    Data-oriented hot loops use:
+        contiguous records
+        tags/enums
+        function selection outside inner loop
+        templated/static dispatch where useful
+
+Do not micro-architect around avoiding every virtual call. The restriction is
+about scale and ownership, not ideology.
+
+======================================================================
+3. ERROR HANDLING
+======================================================================
+
+RULE-ERR-001
+    Expected runtime/generation failure returns Result<T,Error> or equivalent
+    typed outcome.
+
+Examples:
+    invalid building candidate
+    missing artifact cache entry
+    failed file read
+    nav rebuild failure with recoverable old tile
+
+
+RULE-ERR-002
+    assert is for programmer-contract violations.
+
+Examples:
+    impossible enum state
+    corrupted internal freelist
+    generation handle used after known destruction in debug build
+
+
+RULE-ERR-003
+    Exceptions are not the primary engine control flow.
+
+Third-party libraries may throw.
+Boundary adapters catch/translate where required.
+
+Do not throw per entity/job in hot loops.
+
+
+RULE-ERR-004
+    Destructors must not throw.
+
+======================================================================
+4. THREADING RULES
+======================================================================
+
+RULE-THREAD-001
+    Mutable data has one explicit owner during a job phase.
+
+A job can:
+    read shared immutable state,
+    write its assigned range,
+    write thread/job-local command buffers.
+
+It cannot:
+    mutate arbitrary shared objects because "there is probably no conflict".
+
+
+RULE-THREAD-002
+    Mutex is a tool, not a default architecture.
+
+Prefer:
+    partitioned ownership,
+    immutable snapshots,
+    thread-local outputs,
+    barriers,
+    deterministic merge.
+
+Use mutexes for genuinely shared coarse services when needed.
+
+
+RULE-THREAD-003
+    No sleeping/blocking I/O on worker threads assigned to simulation-critical
+    work unless JobSystem chapter explicitly supports a blocking pool.
+
+
+RULE-THREAD-004
+    Thread local state must be explicit.
+
+Do not place semantic RNG or hidden simulation state in thread_local merely to
+avoid locks.
+
+Thread-local scratch allocators are appropriate because they are non-semantic.
+
+
+RULE-THREAD-005
+    False sharing is a performance defect.
+
+Frequently written per-worker counters/queues should be separated/aligned where
+benchmarks show contention.
+
+Exact cache-line constants belong to the platform/performance chapter.
+
+======================================================================
+5. DETERMINISM / FLOATING-POINT RULES
+======================================================================
+
+RULE-DET-001
+    Unordered container iteration order is never semantic order.
+
+If output order matters:
+    sort by stable key
+    or use stable indexed storage.
+
+
+RULE-DET-002
+    Parallel completion order is never semantic order.
+
+Follow:
+    ALG-PAR-STABLE-COMMIT-001.
+
+
+RULE-DET-003
+    Do not enable unsafe fast-math globally for authoritative simulation or
+    procedural semantic code.
+
+No project-wide:
+    /fp:fast
+    -ffast-math
+
+without a later explicit policy change and determinism analysis.
+
+
+RULE-DET-004
+    Renderer shaders and non-authoritative visual compute may use different
+    precision/performance policies if their outputs are not authoritative.
+
+
+RULE-DET-005
+    Floating reductions that require deterministic results use a fixed
+    partition/reduction order or a suitable deterministic representation.
+
+======================================================================
+6. PERFORMANCE RULES
+======================================================================
+
+RULE-PERF-001
+    No allocation in a proven hot inner loop without benchmark justification.
+
+RULE-PERF-002
+    Avoid repeated string lookup in simulation hot paths.
+    Convert external names to IDs/handles at load/compile boundaries.
+
+RULE-PERF-003
+    Prefer batch APIs.
+
+Bad:
+    physics.addBody() called through high-overhead abstraction 100000 times if a
+    batch creation API is available.
+
+Preferred:
+    build command buffer / batch.
+
+
+RULE-PERF-004
+    Keep abstraction zero/low-cost where it sits inside hot paths.
+
+Backend abstraction belongs around a batch/system, not around every scalar
+operation.
+
+
+RULE-PERF-005
+    Do not pre-optimize cold authoring/debug code at the cost of core clarity.
+
+======================================================================
+7. CONST / MUTABILITY
+======================================================================
+
+RULE-CONST-001
+    Use const for read-only views and methods when semantically correct.
+
+RULE-CONST-002
+    const is not used to hide unsafe mutation through mutable/global caches.
+
+Caches that mutate under const access need explicit thread-safety/lifetime
+design.
+
+======================================================================
+8. HEADER / ABI BOUNDARIES
+======================================================================
+
+RULE-ABI-001
+    No stable plugin ABI is promised in early native milestones.
+
+Native engine and modules may evolve source-level APIs rapidly while migration
+is active.
+
+Do not add DLL ABI complexity before a dedicated plugin chapter exists.
+
+
+RULE-ABI-002
+    Public headers should expose minimal implementation detail.
+
+Use PImpl only when it solves:
+    third-party isolation,
+    compile-time dependency,
+    stable boundary,
+
+not automatically for every class.
+
+
+RULE-ABI-003
+    STL types may be used in internal/public source-level APIs during early
+    engine development because no binary-stable ABI is promised.
+
+If a binary plugin ABI is introduced later, that chapter may change the rule.
+
+======================================================================
+9. ENUM / FLAGS / OPTIONAL STATE
+======================================================================
+
+RULE-ENUM-001
+    enum class is preferred over unscoped enum.
+
+RULE-FLAG-001
+    Use explicit bitmask type/helper for dense flags.
+    Do not scatter magic integer masks.
+
+RULE-OPTIONAL-001
+    std::optional<T> is appropriate for small/cold optional values.
+
+For hot SoA data, use validity masks/indices if optional object layout becomes a
+measured cost.
+
+======================================================================
+10. PUBLIC API SHAPE
+======================================================================
+
+Prefer operation-oriented batch contracts:
+
+    Result<GenerationArtifact> generate(
+        const GenerationRequest& request,
+        GenerationContext& context);
+
+    void queryRadius(
+        const QuerySphere& sphere,
+        QueryMask mask,
+        QueryOutput& out) const;
+
+    void submit(
+        std::span<const PhysicsCommand> commands);
+
+Avoid chatty APIs that force repeated synchronization or backend transitions.
+
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+Documentation-only chapter.
+
+All later native implementation must:
+
+STEP 1
+    create target/module boundaries matching RULE-DEPS-*.
+
+STEP 2
+    define ownership before implementing behavior.
+
+STEP 3
+    expose third-party integrations through backend adapters.
+
+STEP 4
+    keep semantic data serializable/backend-independent.
+
+STEP 5
+    write tests for dependency and deterministic-order rules where practical.
+
+STEP 6
+    benchmark any intentional exception to hot-path rules.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+DEPENDENCY REVIEW:
+
+    function validateTargetDependency(from, to):
+        if from startsWith("engine/") and to startsWith("modules/"):
+            fail("engine cannot depend on gameplay/domain module")
+
+        if from == "engine/proc" and to contains("render"):
+            fail("procedural semantic code cannot depend on renderer")
+
+        if dependencyGraph.wouldCreateCycle(from, to):
+            fail("cyclic native dependency")
+
+        allow()
+
+
+OWNERSHIP REVIEW:
+
+    function chooseReferenceKind(relationship):
+        if relationship.ownsExclusively:
+            return unique_ptr or value
+
+        if relationship.nonOwning and relationship.required and sameScope:
+            return T&
+
+        if relationship.nonOwning and relationship.optional and sameScope:
+            return T*
+
+        if relationship.crossSystem or longLived:
+            return StableHandle
+
+        if relationship.trueSharedLifetime:
+            require documentedOwners
+            return shared_ptr
+
+        fail("ownership not defined")
+
+
+HOT SYSTEM SHAPE:
+
+    function updateMovement(readSnapshot, writeRange, commandBuffer):
+        for i in ownedContiguousRange:
+            state := readSnapshot.movement[i]
+            result := integrate(state)
+            writeRange[i] := result
+
+            if result.emitsEvent:
+                commandBuffer.push(eventFor(i))
+
+    // No arbitrary writes to other entity records.
+
+
+BACKEND BOUNDARY:
+
+    semanticArtifact := BuildingGenerator.generate(...)
+
+    renderRecipe := BuildingRenderCompiler.compile(semanticArtifact)
+    physicsRecipe := BuildingPhysicsCompiler.compile(semanticArtifact)
+
+    renderHandle := renderService.upload(renderRecipe)
+    physicsHandle := physicsService.create(physicsRecipe)
+
+    // semanticArtifact contains neither handle.
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+Defined by RULE-OWN-* and RULE-THREAD-* above.
+
+Every later chapter must identify:
+
+    owner
+    readers
+    writers
+    phase/lifetime
+    destruction point
+
+for every major mutable data structure.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+Defined by RULE-ERR-*.
+
+Chapter 2.1 implements the concrete Result/Error primitives.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+Defined by RULE-DET-* and 0.5.
+
+Any chapter requiring weaker determinism must explicitly state:
+    what is non-deterministic,
+    why it is acceptable,
+    why it is non-authoritative.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+Defined by RULE-PERF-*.
+
+Performance exceptions must include benchmark evidence in the responsible
+chapter.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+Legacy JS style is not mechanically copied.
+
+Example:
+
+    window.RTS global namespace
+
+does NOT migrate to a C++ global singleton.
+
+The feature migrates.
+The accidental architecture does not.
+
+Legacy object relationships must be translated into explicit native ownership
+and dependency contracts.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+Implemented starting in Stage 1/2:
+
+    compile-isolation tests where useful
+    dependency graph check script/tool
+    no-render dependency for headless targets
+    no-Diligent include from proc/world semantic targets
+    no-Jolt include from domain public semantic headers
+    warning-clean native source targets
+
+Chapter 1.4 defines CI enforcement.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Documentation-only now.
+
+Later C++ build baseline should expose commands that verify:
+    configure
+    compile
+    tests
+    dependency checks
+    warnings
+
+Exact commands belong to 1.1-1.4.
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+0.3 is complete when:
+
+    [x] C++ language baseline specified
+    [x] namespace/naming rules specified
+    [x] target dependency direction specified
+    [x] third-party leakage forbidden
+    [x] ownership model specified
+    [x] shared_ptr policy specified
+    [x] non-owning access policy specified
+    [x] polymorphism/hot-loop policy specified
+    [x] error handling policy specified
+    [x] threading mutation policy specified
+    [x] deterministic container/order policy specified
+    [x] floating fast-math policy specified
+    [x] hot-path allocation/batch rules specified
+    [x] source-level ABI assumptions specified
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    use global mutable singletons as service architecture;
+    use shared_ptr to avoid deciding ownership;
+    expose Diligent/Jolt/Recast types through unrelated public APIs;
+    create target dependency cycles;
+    place virtual update methods on millions of entities/components;
+    depend on unordered_map iteration order for deterministic results;
+    enable unsafe fast-math globally;
+    use a mutex around the whole world to "make it thread safe";
+    hide gameplay state in thread_local storage;
+    use PImpl everywhere without a boundary reason;
+    build a binary plugin ABI before one is required.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[x] no major ownership decision left to Stage 1 agent
+[x] no major include/dependency decision left to Stage 1 agent
+[x] third-party isolation rules explicit
+[x] threading ownership principles explicit
+[x] deterministic coding rules explicit
+[x] performance-sensitive coding rules explicit
+[x] compatibility principle explicit
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Next:
+
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+
+Then Stage 0 is complete except for ongoing additions to the mathematical
+reference 0.5.
+
+END OF CHAPTER 0.3
