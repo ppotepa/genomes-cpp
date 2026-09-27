@@ -1,0 +1,222 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 17.1 - PROJECTILE_STATE_AND_AMMO_STRATEGY
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Port projectile-state-3 and ammunition-strategy-1 into native semantic state
+and strategy contracts, preserving full translational/rotational/deformation
+state and explicit energy accounting rather than reducing ammunition to
+diameter + kinetic energy.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/16.2_IMPACT_SOLVER_PORT.txt
+    TARGET::docs/15.1_ENTITY_IDS_AND_COMPONENT_STORAGE.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE projectile state fields: mass, position, full velocity, quaternion,
+angular velocity, inertia, deformation, integrity, stability, effective
+diameter, trace/shot/parent IDs, travel/age/contact progress and signed energy
+ledger. Ammunition strategy owns aerodynamic/contact/material/detonation choices.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Weapon presentation/Infantry handling and strategic combat AI unless explicitly referenced.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/ballistics/CMakeLists.txt
+    modules/ballistics/include/genomes/ballistics/ProjectileState.hpp
+    modules/ballistics/include/genomes/ballistics/AmmunitionStrategy.hpp
+    modules/ballistics/include/genomes/ballistics/AmmoCatalog.hpp
+    modules/ballistics/include/genomes/ballistics/EnergyLedger.hpp
+    modules/ballistics/src/ProjectileState.cpp
+    modules/ballistics/src/AmmoCatalog.cpp
+    tests/native/ballistics/projectile_state_tests.cpp
+    reference/schemas/projectile_state_v1.txt
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. ProjectileState stores ProjectileId/ShotId/optional ParentProjectileId, ammunition strategy/profile IDs, mass, effective diameter, position, world velocity, orientation quaternion, angular velocity, local inertia parameters, deformation/integrity/stability, age, travel distance, current contact state and lifecycle state Flight/Contact/Fragment/Detonated/Stopped/GroundContact/TrackingLimit.
+
+2. EnergyLedger fields are explicit signed categories: initial translational/rotational, flightWork, rotationWork, materialWork, contactLoss, targetWork, fragmentEnergy, explosiveEnergy, blastEnergy, unrepresentedEnergy and residual balanceError. Ledger is diagnostic/accounting; solver does not force residual to zero.
+
+3. AmmunitionProfile identifies caliber/strategy/variant/construction/calibration plus base mass/diameter/muzzle velocity, aerodynamic profile, ricochet/material override profile and optional HE/fragmentation/fuze data. Strategy code owns algorithms; profile owns versioned parameters.
+
+4. Projectile kinetic energy always derives from current mass and full velocity E=1/2*m*dot(v,v). Unit direction is separately derived. Rotational energy derives from inertia/orientation state according documented shape approximation.
+
+5. Mass/diameter/deformation changes trigger inertia recomputation and angular-velocity rescale where strategy requires rotational-energy continuity, matching SOURCE contract.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Projectile hot SoA later: position/velocity/orientation/angular/mass/state/strategy IDs. Cold profile/calibration data lives immutable catalog. Contact/ledger may be separate columns for projectiles in contact/diagnostic mode to avoid bloating every inactive slot.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    MATH-PHYS-KINETIC-001
+    MATH-PHYS-MOMENTUM-001
+    MATH-VEC-NORM2-001
+    MATH-QUAT-001
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    SOURCE::docs/destruction/contracts.md
+    SOURCE::js/destruction/projectileState.js
+    SOURCE::js/destruction/ammunitionStrategy.js
+    SOURCE::js/destruction/calibers/*
+    SOURCE::tests/destruction_projectile.cjs
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Define v1 native ProjectileState schema and lifecycle invariants; map all SOURCE state-3 fields, explicitly documenting any renamed field.
+
+STEP 2
+    Define EnergyLedger formula helper computing current translational/rotational energy and independent residual from signed ledger terms.
+
+STEP 3
+    Port ammunition catalog into data-driven profiles with strategy IDs and provenance; keep current gameplay calibration labels, not real-world claims.
+
+STEP 4
+    Define IAmmunitionStrategy interface functions for initialize, aerodynamicStep, prepareImpact/materialResponse, ricochet/deformation/breakup and detonation/fragmentation hooks; keep strategy stateless/immutable.
+
+STEP 5
+    Implement inertia update helper from effective projectile dimensions/profile and rotational-energy preservation test.
+
+STEP 6
+    Create selected SOURCE projectile state fixture serialization and catalog/profile fixture tests.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+ENERGY:
+    translational(state):
+        return 0.5 * state.mass * dot(state.velocity,state.velocity)
+
+    totalTracked(state):
+        return translational(state) + rotational(state)
+
+    balance:
+        expected := initialEnergy
+                  + flightWork
+                  + rotationWork
+                  + targetWork
+                  + explosiveEnergy
+                  - materialWork
+                  - contactLoss
+                  - fragmentEnergy
+                  - blastEnergy
+                  - unrepresentedEnergy
+        balanceError := currentTrackedEnergy - expected
+
+DIAMETER CHANGE:
+    oldRot := rotationalEnergy(state)
+    state.effectiveDiameter := newDiameter
+    state.inertia := recomputeInertia(state)
+    if preserveRotEnergy:
+        state.angularVelocity *= sqrt(oldRot / max(newRotAtOldOmega,eps))
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+Projectile profiles/strategies immutable. Per-projectile state owned by ballistics batch/chunk during a substep. Impact/destruction commands emitted, not direct target mutation.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid mass/diameter/nonfinite profile fails catalog validation. Energy ledger nonfinite or residual beyond diagnostic threshold reports error but does not silently rewrite state.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Profile/version + seed + fixed-step state define results. Fragment child IDs/seeds derive from parent Shot/Projectile IDs and ordinal, never allocation/completion order.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Hot/cold split. Avoid virtual calls per microstep by strategy ID dispatch table/function pointers/batched strategy groups where profiling justifies.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+Preserve SOURCE projectile-state-3 semantics under native schema version; later improvements create explicit version/profile changes.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    kinetic energy full velocity
+    ledger residual
+    state serialization
+    inertia diameter change
+    catalog strategy validation
+    SOURCE state fixture
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] full projectile state
+    [ ] ammo strategy boundary
+    [ ] energy ledger
+    [ ] inertia update
+    [ ] calibration provenance
+    [ ] fixtures
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    ammunition behavior selected only by caliber/diameter
+    normalizing velocity and losing speed
+    forcing ledger error zero
+    embedding renderer trace state in projectile state
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] full projectile state
+    [ ] ammo strategy boundary
+    [ ] energy ledger
+    [ ] inertia update
+    [ ] calibration provenance
+    [ ] fixtures
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next ballistics chapter.
+
+END OF CHAPTER 17.1
