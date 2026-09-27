@@ -1,0 +1,898 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+CHAPTER 1.1 - C++ / CMAKE BOOTSTRAP
+STATUS: READY
+VERSION: 0.1
+
+======================================================================
+GOAL
+======================================================================
+
+Create the first native C++ build skeleton INSIDE the existing Genomes
+repository without removing, moving, modifying or disabling the current
+browser runtime.
+
+After this chapter:
+
+    - existing JS/browser Genomes still works,
+    - CMake configures a native project,
+    - genomes_foundation static library builds,
+    - genomes_headless command-line app builds,
+    - one native CTest smoke test passes,
+    - native and legacy implementations coexist,
+    - all later native chapters have stable target/directory conventions.
+
+This chapter intentionally introduces NO external native dependencies.
+
+======================================================================
+REQUIRES
+======================================================================
+
+    docs/0.0_NATIVE_MANUAL_INDEX.txt
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+
+Inspect before editing:
+
+    .gitignore
+    README.md
+    version.json
+
+Search repository for any existing:
+    CMakeLists.txt
+    CMakePresets.json
+    *.cpp
+    *.hpp
+    *.cc
+    *.cxx
+
+If compatible native bootstrap already exists, extend it instead of duplicating.
+
+======================================================================
+PRESERVES
+======================================================================
+
+All current Genomes behavior and files.
+
+Do not move or delete:
+
+    index.html
+    environment.html
+    js/*
+    prototypes/*
+    building-lab/*
+    current tests/*
+    current tools/*
+
+The native project is additive.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+
+No Diligent.
+No Jolt.
+No Recast/Detour.
+No ECS.
+No JobSystem.
+No window system.
+No renderer.
+No procedural system implementation.
+No gameplay migration.
+No third-party package manager.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+
+Create:
+
+    CMakeLists.txt
+    CMakePresets.json
+
+    cmake/
+        GenomesOptions.cmake
+        GenomesWarnings.cmake
+
+    engine/
+        CMakeLists.txt
+        foundation/
+            CMakeLists.txt
+            include/
+                genomes/
+                    foundation/
+                        BuildInfo.hpp
+            src/
+                BuildInfo.cpp
+
+    apps/
+        CMakeLists.txt
+        headless/
+            CMakeLists.txt
+            main.cpp
+
+    tests/
+        native/
+            CMakeLists.txt
+            foundation_smoke.cpp
+
+    benchmarks/
+        CMakeLists.txt
+
+Do NOT pre-create the full future engine directory forest.
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+
+TARGET NAMES:
+
+    genomes_foundation
+    genomes_headless
+    genomes_test_foundation_smoke
+
+Public alias:
+
+    genomes::foundation
+
+Future convention:
+
+    genomes_jobs
+    genomes_geometry
+    genomes_proc
+    genomes_world
+    genomes_render
+    ...
+
+Never use one monolithic "engine" library.
+
+
+C++ BASELINE:
+
+    C++20
+    CMAKE_CXX_EXTENSIONS OFF
+
+Do not require C++23 in Stage 1 unless a later chapter explicitly raises the
+toolchain baseline.
+
+
+ROOT OPTIONS:
+
+    GENOMES_BUILD_TESTS          default ON
+    GENOMES_BUILD_BENCHMARKS     default ON
+    GENOMES_WARNINGS_AS_ERRORS   default ON for project-owned code
+
+Third-party targets never inherit Genomes warnings-as-errors accidentally.
+
+
+VERSION CONTRACT:
+
+    legacy version.json remains untouched.
+
+Native bootstrap exports:
+
+    projectName            = "Genomes"
+    nativeBootstrapVersion = "0.1"
+
+Unified generated build/version metadata is deferred.
+
+
+INCLUDE CONTRACT:
+
+Correct:
+
+    #include <genomes/foundation/BuildInfo.hpp>
+
+Forbidden:
+
+    #include "../../../engine/foundation/include/..."
+
+
+======================================================================
+DATA LAYOUT
+======================================================================
+
+BuildInfo:
+
+    namespace genomes::foundation
+    {
+        struct BuildInfo final
+        {
+            std::string_view projectName;
+            std::string_view nativeBootstrapVersion;
+        };
+
+        [[nodiscard]]
+        BuildInfo buildInfo() noexcept;
+    }
+
+Properties:
+
+    no heap ownership
+    no virtual methods
+    no mutable global state
+    values backed by static string literals
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+
+N/A.
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+
+N/A.
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+
+    docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+
+External authority:
+    official CMake documentation.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+
+STEP 1 - INSPECT BEFORE EDIT
+
+    find existing native build/source files
+    read current .gitignore
+    do not assume this chapter is first native commit forever
+
+
+STEP 2 - EXTEND .gitignore
+
+Preserve current rules.
+
+Add:
+
+    /build/
+    /out/
+    /.vs/
+    /cmake-build-*/
+    CMakeUserPresets.json
+
+Do NOT ignore:
+
+    CMakePresets.json
+
+
+STEP 3 - ROOT CMakeLists.txt
+
+Required structure:
+
+    cmake_minimum_required(VERSION 3.20)
+
+    project(
+        Genomes
+        VERSION 0.1.0
+        LANGUAGES CXX
+    )
+
+    list(APPEND CMAKE_MODULE_PATH
+        "\${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+    )
+
+    include(GenomesOptions)
+    include(GenomesWarnings)
+
+    set(CMAKE_CXX_EXTENSIONS OFF)
+
+    add_subdirectory(engine)
+    add_subdirectory(apps)
+
+    if(GENOMES_BUILD_TESTS)
+        enable_testing()
+        add_subdirectory(tests/native)
+    endif()
+
+    if(GENOMES_BUILD_BENCHMARKS)
+        add_subdirectory(benchmarks)
+    endif()
+
+Forbidden:
+    global CMAKE_CXX_FLAGS mutation
+    global include_directories(...)
+    third-party FetchContent
+
+
+STEP 4 - OPTIONS MODULE
+
+GenomesOptions.cmake:
+
+    option(
+        GENOMES_BUILD_TESTS
+        "Build Genomes native tests"
+        ON
+    )
+
+    option(
+        GENOMES_BUILD_BENCHMARKS
+        "Build Genomes native benchmarks"
+        ON
+    )
+
+    option(
+        GENOMES_WARNINGS_AS_ERRORS
+        "Treat warnings in Genomes-owned native code as errors"
+        ON
+    )
+
+
+STEP 5 - WARNING FUNCTION
+
+Create:
+
+    function(genomes_set_project_warnings target)
+
+MSVC-compatible concept:
+
+    /W4
+    /permissive-
+
+    if warnings-as-errors:
+        /WX
+
+GCC/Clang concept:
+
+    -Wall
+    -Wextra
+    -Wpedantic
+
+    if warnings-as-errors:
+        -Werror
+
+Apply ONLY to Genomes-owned targets.
+
+Do not globally poison future vendor targets.
+
+
+STEP 6 - ENGINE ROOT
+
+engine/CMakeLists.txt:
+
+    add_subdirectory(foundation)
+
+
+STEP 7 - FOUNDATION TARGET
+
+engine/foundation/CMakeLists.txt:
+
+    add_library(
+        genomes_foundation
+        STATIC
+        src/BuildInfo.cpp
+    )
+
+    target_include_directories(
+        genomes_foundation
+        PUBLIC
+            "\${CMAKE_CURRENT_SOURCE_DIR}/include"
+    )
+
+    target_compile_features(
+        genomes_foundation
+        PUBLIC
+            cxx_std_20
+    )
+
+    genomes_set_project_warnings(genomes_foundation)
+
+    add_library(
+        genomes::foundation
+        ALIAS genomes_foundation
+    )
+
+No external dependencies.
+
+
+STEP 8 - BUILDINFO IMPLEMENTATION
+
+BuildInfo.hpp:
+
+    #pragma once
+    #include <string_view>
+
+    namespace genomes::foundation
+    {
+        struct BuildInfo final
+        {
+            std::string_view projectName;
+            std::string_view nativeBootstrapVersion;
+        };
+
+        [[nodiscard]]
+        BuildInfo buildInfo() noexcept;
+    }
+
+BuildInfo.cpp pseudocode:
+
+    BuildInfo buildInfo() noexcept
+    {
+        return BuildInfo{
+            "Genomes",
+            "0.1"
+        };
+    }
+
+No __DATE__.
+No __TIME__.
+No machine path.
+
+
+STEP 9 - APPS ROOT
+
+apps/CMakeLists.txt:
+
+    add_subdirectory(headless)
+
+
+STEP 10 - HEADLESS TARGET
+
+apps/headless/CMakeLists.txt:
+
+    add_executable(
+        genomes_headless
+        main.cpp
+    )
+
+    target_link_libraries(
+        genomes_headless
+        PRIVATE
+            genomes::foundation
+    )
+
+    genomes_set_project_warnings(genomes_headless)
+
+main.cpp behavior:
+
+    info := buildInfo()
+    print "Genomes native 0.1\\n"
+    return EXIT_SUCCESS
+
+No renderer/window/threads.
+
+
+STEP 11 - NATIVE TEST TARGET
+
+tests/native/CMakeLists.txt:
+
+    add_executable(
+        genomes_test_foundation_smoke
+        foundation_smoke.cpp
+    )
+
+    target_link_libraries(
+        genomes_test_foundation_smoke
+        PRIVATE
+            genomes::foundation
+    )
+
+    genomes_set_project_warnings(
+        genomes_test_foundation_smoke
+    )
+
+    add_test(
+        NAME foundation_smoke
+        COMMAND genomes_test_foundation_smoke
+    )
+
+No external test framework in 1.1.
+
+
+STEP 12 - SMOKE TEST
+
+foundation_smoke.cpp:
+
+    info := buildInfo()
+
+    if info.projectName != "Genomes":
+        stderr diagnostic
+        EXIT_FAILURE
+
+    if info.nativeBootstrapVersion != "0.1":
+        stderr diagnostic
+        EXIT_FAILURE
+
+    EXIT_SUCCESS
+
+
+STEP 13 - BENCHMARK PLACEHOLDER
+
+benchmarks/CMakeLists.txt:
+
+    # Benchmark targets are introduced by later benchmark chapters.
+
+No fake benchmark executable.
+
+
+STEP 14 - PRESETS
+
+Create CMakePresets.json.
+
+Required configure presets:
+
+    dev-debug
+    dev-release
+
+Required build presets:
+
+    dev-debug
+    dev-release
+
+Required test preset:
+
+    dev-debug
+
+No absolute machine paths.
+
+Binary directory:
+
+    \${sourceDir}/build/\${presetName}
+
+Preferred generator:
+    Ninja if available and consistent with developer environment.
+
+However chapter implementation may use a platform-standard generator if Ninja
+is unavailable. The committed preset must be coherent with the declared project
+baseline and documented in implementation report.
+
+Set:
+
+    CMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+where supported.
+
+
+STEP 15 - CONFIGURE / BUILD / TEST DEBUG
+
+Required intent:
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug
+
+All must succeed.
+
+
+STEP 16 - RELEASE BUILD
+
+    cmake --preset dev-release
+    cmake --build --preset dev-release
+
+Run genomes_headless.
+
+Expected exact line:
+
+    Genomes native 0.1
+
+
+STEP 17 - LEGACY SANITY
+
+If Node is available:
+
+    node tests/check_core.js
+
+This must not regress because of the native skeleton.
+
+If the environment cannot run it:
+    report NOT RUN with reason.
+
+
+STEP 18 - FINAL CHAPTER AUDIT
+
+Re-read this chapter.
+Check every box.
+
+Incomplete item:
+    continue implementation.
+
+Do not report "mostly complete".
+
+======================================================================
+PSEUDOCODE
+======================================================================
+
+BUILD GRAPH:
+
+    Genomes
+      |
+      +--> genomes_foundation
+      |
+      +--> genomes_headless
+      |      depends on genomes_foundation
+      |
+      +--> genomes_test_foundation_smoke
+             depends on genomes_foundation
+
+
+BUILD INFO:
+
+    function buildInfo() noexcept:
+        return {
+            projectName: "Genomes",
+            nativeBootstrapVersion: "0.1"
+        }
+
+
+HEADLESS:
+
+    function main():
+        info := buildInfo()
+
+        stdout(
+            info.projectName
+            + " native "
+            + info.nativeBootstrapVersion
+        )
+
+        return success
+
+
+TEST:
+
+    function main():
+        info := buildInfo()
+
+        requireEqual(
+            info.projectName,
+            "Genomes"
+        )
+
+        requireEqual(
+            info.nativeBootstrapVersion,
+            "0.1"
+        )
+
+        return success
+
+
+WARNING POLICY:
+
+    function genomes_set_project_warnings(target):
+        if compiler is MSVC-compatible:
+            target += /W4 /permissive-
+            if warningsAsErrors:
+                target += /WX
+
+        else if compiler is GCC-or-Clang:
+            target += -Wall -Wextra -Wpedantic
+            if warningsAsErrors:
+                target += -Werror
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+
+No worker threads.
+
+No singleton.
+No service locator.
+No shared ownership graph.
+
+BuildInfo has no ownership/lifetime complexity.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+
+No Result<T> abstraction yet.
+
+Build configuration invariant failure:
+    CMake configuration error.
+
+Smoke test mismatch:
+    diagnostic to stderr
+    nonzero process code.
+
+Do not introduce a provisional Result abstraction before 2.1.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+
+No timestamps in native binary metadata.
+
+No RNG.
+
+No environment-specific absolute paths in generated public data.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+
+No performance claims from 1.1.
+
+Headless bootstrap must not initialize:
+    GPU
+    renderer
+    worker pool
+    physics
+    navigation
+
+Keep target graph granular.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+
+The legacy browser implementation remains current.
+
+Native build is side-by-side.
+
+No bridge exists yet.
+
+No legacy retirement is permitted.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+
+    tests/native/foundation_smoke.cpp
+
+CTest:
+
+    foundation_smoke
+
+Also run legacy:
+
+    node tests/check_core.js
+
+when available.
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+
+Primary:
+
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug
+
+    cmake --preset dev-release
+    cmake --build --preset dev-release
+
+Then run the produced:
+
+    genomes_headless
+
+Expected:
+
+    Genomes native 0.1
+
+Legacy:
+
+    node tests/check_core.js
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+
+All required:
+
+    [ ] clean configure succeeds
+    [ ] C++20 enforced
+    [ ] genomes_foundation builds
+    [ ] genomes_headless builds
+    [ ] smoke test builds
+    [ ] CTest discovers foundation_smoke
+    [ ] foundation_smoke passes
+    [ ] Release builds
+    [ ] headless exact output is correct
+    [ ] project warnings are target-local
+    [ ] warnings-as-errors does not affect vendor code globally
+    [ ] no third-party dependency added
+    [ ] no absolute user path committed
+    [ ] build outputs gitignored
+    [ ] existing JS/runtime files not moved/deleted
+    [ ] legacy core test still passes where runnable
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+
+Do NOT:
+
+    restructure legacy JS,
+    add Diligent,
+    add Jolt,
+    add Recast,
+    add Flecs,
+    add SDL/GLFW,
+    add FetchContent,
+    set global CMAKE_CXX_FLAGS,
+    disable warnings globally,
+    create empty fake future modules,
+    introduce global service singletons,
+    embed __DATE__ or __TIME__,
+    commit user-specific build paths,
+    mark complete without configure/build/test.
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+
+[ ] native state inspected
+[ ] .gitignore extended
+[ ] root CMakeLists.txt
+[ ] CMakePresets.json
+[ ] GenomesOptions.cmake
+[ ] GenomesWarnings.cmake
+[ ] engine/CMakeLists.txt
+[ ] foundation/CMakeLists.txt
+[ ] BuildInfo.hpp
+[ ] BuildInfo.cpp
+[ ] apps/CMakeLists.txt
+[ ] headless/CMakeLists.txt
+[ ] headless/main.cpp
+[ ] tests/native/CMakeLists.txt
+[ ] foundation_smoke.cpp
+[ ] benchmarks/CMakeLists.txt
+[ ] Debug configure/build
+[ ] Debug CTest
+[ ] Release configure/build
+[ ] headless runtime check
+[ ] legacy sanity check or explicit NOT RUN reason
+[ ] no existing feature removed
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+
+Implementation report must include:
+
+    changed files
+    compiler and version
+    CMake version
+    generator
+    configure commands
+    build commands
+    test commands/results
+    exact headless stdout
+    warnings
+    legacy sanity result
+
+Next:
+
+    docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+
+END OF CHAPTER 1.1
