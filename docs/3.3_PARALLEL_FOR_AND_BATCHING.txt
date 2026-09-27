@@ -1,0 +1,200 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 3.3 - PARALLEL_FOR AND BATCHING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Provide the canonical bulk-data parallel execution API used by generators,
+simulation systems and compilers, with explicit grain-size policy and stable
+semantic ranges.
+
+This is an executable implementation specification. The implementing agent must
+complete every acceptance item before reporting the chapter complete.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.3_CODING_AND_DEPENDENCY_RULES.txt
+    TARGET::docs/0.4_BENCHMARK_AND_DETERMINISM_POLICY.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/3.2_WORK_STEALING_AND_DEPENDENCIES.txt
+
+======================================================================
+PRESERVES
+======================================================================
+All previously implemented native contracts and all SOURCE behavior relevant to this subsystem.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later-stage domain features that consume this subsystem.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    engine/jobs/include/genomes/jobs/ParallelFor.hpp
+    engine/jobs/include/genomes/jobs/BatchRange.hpp
+    tests/native/jobs/parallel_for_tests.cpp
+    benchmarks/jobs/parallel_for_benchmark.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. parallelFor(begin,end,grain,fn) partitions a half-open range into stable ranges; fn receives BatchRange and JobContext.
+
+2. Partition identity is deterministic from input range/grain; scheduling order is not.
+
+3. Automatic grain policy may estimate targetJobs = workerCount * oversubscription (default 4), but exact semantic reductions must use fixed partition/reduction tree.
+
+4. Nested parallelFor avoids explosive task creation: small/nested ranges may execute inline.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+Use compact value types, explicit ownership, contiguous storage in hot paths, and no hidden shared mutable state.
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    ALG-PAR-STABLE-COMMIT-001
+    ALG-PAR-REDUCE-001
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    TARGET manual contracts only.
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Implement BatchRange {begin,end,batchIndex}.
+
+STEP 2
+    Implement fixed-grain partitioning with no overlapping/missing indices.
+
+STEP 3
+    Implement auto grain helper based on count/workers/minGrain/maxJobs.
+
+STEP 4
+    Return JobHandle/Fence for asynchronous form and provide parallelForAndWait convenience.
+
+STEP 5
+    Add deterministic map pattern: job-local output indexed by batchIndex, stable merge after wait.
+
+STEP 6
+    Add parallelReduce only if fixed reduction tree is implemented; otherwise explicitly defer it.
+
+STEP 7
+    Benchmark trivial, medium and heavy kernels to find task overhead crossover.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+PARTITION:
+    count := end-begin
+    batches := ceil(count/grain)
+    for b in [0,batches):
+        lo := begin + b*grain
+        hi := min(end, lo+grain)
+        submit job(batchIndex=b, [lo,hi))
+
+STABLE MAP:
+    outputs.resize(batchCount)
+    parallelFor batches:
+        outputs[batchIndex] = process(range)
+    wait
+    merge outputs in ascending batchIndex
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+    - Ownership is explicit.
+    - Public APIs do not hide global mutable state.
+    - Thread safety is documented per type.
+    - Cross-thread mutation uses later JobSystem/command-buffer contracts where applicable.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Expected failures return Result/typed errors. Programmer-contract violations use diagnostics/assertion policy. No exception-driven hot-path control flow.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Deterministic output must not depend on pointer values, hash-map iteration order, thread completion order, wall time, or platform-dependent representations.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+No hidden per-call heap allocation in hot paths. Add benchmark coverage for performance-sensitive primitives and follow 0.4.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+This chapter is additive in TARGET. SOURCE remains reference evidence until owning parity chapters explicitly supersede it.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    empty range
+    one item
+    non-divisible grain
+    coverage exactly once
+    nested parallelFor
+    stable batch indexes
+    auto-grain bounds
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] half-open range exact
+    [ ] stable partition identity
+    [ ] nested task explosion prevented
+    [ ] async and wait variants
+    [ ] benchmark characterizes overhead
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    one job per element by default
+    semantic output order = completion order
+    parallel floating reduction with unspecified tree
+    hardcoding worker count
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] half-open range exact
+    [ ] stable partition identity
+    [ ] nested task explosion prevented
+    [ ] async and wait variants
+    [ ] benchmark characterizes overhead
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next chapter in TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt.
+
+END OF CHAPTER 3.3
