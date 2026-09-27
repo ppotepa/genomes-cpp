@@ -1,0 +1,182 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+TARGET: ppotepa/genomes-cpp
+SOURCE: ppotepa/genomes
+
+CHAPTER 12.5 - INSTANCE_PAGES_AND_GPU_RENDERING
+STATUS: READY
+
+======================================================================
+GOAL
+======================================================================
+Compile EnvironmentLayout into region/prototype instance pages and GPUScene records with LOD/culling-friendly bounds, shared transforms and minimal draw/upload overhead.
+
+======================================================================
+REQUIRES
+======================================================================
+    TARGET::docs/0.0_NATIVE_MANUAL_INDEX.txt
+    TARGET::docs/0.1_TARGET_ARCHITECTURE.txt
+    TARGET::docs/0.2_MIGRATION_INVENTORY_AND_PARITY_MATRIX.txt
+    TARGET::docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+    TARGET::docs/12.4_VEGETATION_SCATTER.txt
+    TARGET::docs/7.7_GPU_CULLING_LOD_AND_INDIRECT_DRAWS.txt
+
+======================================================================
+PRESERVES
+======================================================================
+SOURCE instancing and LOD identity while replacing Three.js InstancedMesh hierarchy.
+
+======================================================================
+OUT OF SCOPE
+======================================================================
+Later gameplay interaction/damage unless explicitly specified.
+
+======================================================================
+TARGET FILE TREE
+======================================================================
+    modules/vegetation/render/VegetationRenderCompiler.hpp
+    modules/vegetation/render/VegetationRenderCompiler.cpp
+    engine/render/passes/VegetationPass.*
+    shaders/vegetation.hlsl
+    tests/native/vegetation/vegetation_render_compile_tests.cpp
+
+======================================================================
+PUBLIC CONTRACTS
+======================================================================
+1. InstancePage groups RegionId + prototype/variant + render material family and stores SoA transform/scale/flags plus aggregate bounds. Pages are sized for culling/streaming budget, not one giant world buffer.
+
+2. All LOD meshes for page share one logical instance transform table; LOD selection chooses mesh representation without duplicate CPU transforms.
+
+3. Wind/season visual parameters are material/global/instance fields and must not reroll geometry identity.
+
+4. Far vegetation may use impostor/billboard later; initial mesh LOD path remains extensible.
+
+======================================================================
+DATA LAYOUT
+======================================================================
+undefined
+
+======================================================================
+MATHEMATICAL CONTRACTS
+======================================================================
+    N/A
+
+======================================================================
+ALGORITHM REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+SOURCE REFERENCES
+======================================================================
+    N/A
+
+======================================================================
+IMPLEMENTATION STEPS
+======================================================================
+STEP 1
+    Partition EnvironmentLayout into page size/spatial chunks and stable order.
+
+STEP 2
+    Upload one transform/instance record set per page to GPUScene; share across prototype LOD meshes.
+
+STEP 3
+    Register prototype mesh/material tables and page aggregate bounds.
+
+STEP 4
+    Integrate GPU culling/LOD thresholds with hysteresis.
+
+STEP 5
+    Add foliage shadow policy by LOD/profile without semantic effect.
+
+STEP 6
+    Benchmark 100k/1M instances CPU submission, VRAM and GPU culling.
+
+======================================================================
+PSEUDOCODE
+======================================================================
+COMPILE:
+    groups := group instances by region/prototype/pageCell
+    for group:
+        page.transforms := SoA stable sorted by InstanceId
+        page.bounds := merge prototype bounds transformed
+        gpuPage := gpuScene.upload(page)
+        register LOD mesh table(prototypeId,gpuPage)
+
+CULL:
+    per page coarse bound
+    then per instance GPU culling/LOD as policy
+
+======================================================================
+THREADING / OWNERSHIP RULES
+======================================================================
+CPU page compile jobs independent. GPU uploads staged; region unload deferred-release safe.
+
+======================================================================
+ERROR HANDLING
+======================================================================
+Invalid procedural candidates return typed validation failures; missing optional visual detail degrades by explicit representation policy, not silent corruption.
+
+======================================================================
+DETERMINISM RULES
+======================================================================
+Page grouping uses stable spatial cell/prototype keys; camera-dependent LOD never changes instance identity.
+
+======================================================================
+PERFORMANCE RULES
+======================================================================
+Shared transform buffers, indirect draw groups, page coarse culling, no per-tree CPU draw.
+
+======================================================================
+MIGRATION / COMPATIBILITY
+======================================================================
+SOURCE environment visuals remain reference; native may improve rendering while keeping procedural layout identity.
+
+======================================================================
+TESTS TO ADD
+======================================================================
+    page stable grouping
+    shared transforms across LOD
+    bounds contain instances
+    region unload
+    1M synthetic
+
+======================================================================
+COMMANDS TO RUN
+======================================================================
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug
+    ctest --preset dev-debug --output-on-failure
+
+======================================================================
+ACCEPTANCE CRITERIA
+======================================================================
+    [ ] instance pages
+    [ ] GPUScene integration
+    [ ] shared transforms
+    [ ] LOD identity
+    [ ] million-instance benchmark
+
+======================================================================
+FORBIDDEN SHORTCUTS
+======================================================================
+    duplicate matrices per LOD
+    individual draw calls per plant
+    LOD changes RNG
+
+======================================================================
+COMPLETION CHECKLIST
+======================================================================
+    [ ] instance pages
+    [ ] GPUScene integration
+    [ ] shared transforms
+    [ ] LOD identity
+    [ ] million-instance benchmark
+
+======================================================================
+OUTPUT / HANDOFF TO NEXT CHAPTER
+======================================================================
+Continue with the next environment chapter.
+
+END OF CHAPTER 12.5
