@@ -1,0 +1,534 @@
+GENOMES NATIVE MIGRATION MANUAL
+REPOSITORY CONTEXT
+======================================================================
+
+TARGET REPOSITORY:
+    ppotepa/genomes-cpp
+
+LEGACY / REFERENCE SOURCE REPOSITORY:
+    ppotepa/genomes
+
+PATH CONVENTION:
+    TARGET::<path>
+        path inside ppotepa/genomes-cpp.
+
+    SOURCE::<path>
+        path inside ppotepa/genomes.
+
+    Unprefixed implementation paths in TARGET FILE TREE / IMPLEMENTATION STEPS
+    refer to TARGET unless the section explicitly identifies legacy/source
+    material.
+
+SOURCE OWNERSHIP RULE:
+    The source repository remains authoritative legacy/reference behavior until
+    the responsible native parity chapter passes. Native implementation agents
+    must not modify SOURCE as part of a TARGET chapter unless that chapter
+    explicitly requires exporting a fixture/reference artifact.
+
+REFERENCE EXPORT RULE:
+    Do not copy private legacy source code wholesale into this repository.
+    Export only the smallest versioned fixtures, schemas, golden outputs and
+    explanatory reference data required for native parity.
+
+MASTER INDEX / CONTRACT
+Version: 0.1
+Branch policy: implementation chapters target main unless explicitly stated otherwise.
+
+======================================================================
+0. PURPOSE
+======================================================================
+
+This directory already contains historical design, research and implementation
+documentation. None of it is deleted by this manual.
+
+The new numbered X.Y_*.txt files form an EXECUTABLE IMPLEMENTATION MANUAL for
+migrating and improving Genomes while preserving the functionality already
+present in the repository.
+
+The intended usage is:
+
+    "Implement docs/1.1_BOOTSTRAP_CPP_CMAKE.txt in this repository."
+
+An implementation agent must be able to execute that chapter without inventing
+architecture that belongs in later chapters.
+
+======================================================================
+1. NON-NEGOTIABLE MIGRATION RULE
+======================================================================
+
+GENOMES IS MIGRATED AND IMPROVED, NOT RESET.
+
+Existing systems remain requirements until a chapter explicitly migrates them:
+
+    current browser runtime
+    deterministic seeded generation
+    infantry genome/anatomy/appearance
+    procedural animation and IK
+    equipment and weapon systems
+    vegetation and rock generators
+    current building runtime
+    destruction and rubble
+    ballistics
+    AI experiments
+    world runtime
+    procedural-city prototype
+    procedural-road-graph prototype
+    procedural-building-generator prototype
+    tests, fixtures and research documentation
+
+During migration, an old implementation may coexist with a new native
+implementation. Removal of the old path is allowed only after the responsible
+chapter defines parity criteria and those criteria pass.
+
+NO chapter may silently drop an existing feature because it is inconvenient to
+port.
+
+======================================================================
+2. FILE NAMING
+======================================================================
+
+Executable chapter:
+
+    docs/X.Y_SHORT_NAME.txt
+
+Examples:
+
+    docs/0.1_TARGET_ARCHITECTURE.txt
+    docs/1.1_CPP_CMAKE_BOOTSTRAP.txt
+    docs/1.2_THIRD_PARTY_DEPENDENCIES.txt
+    docs/2.1_STRONG_IDS_RESULT_HASH.txt
+
+X = stage / milestone.
+Y = ordered chapter inside the stage.
+
+A chapter may only assume files listed in its REQUIRES section are complete.
+
+======================================================================
+3. REQUIRED CHAPTER FORMAT
+======================================================================
+
+Every executable chapter MUST contain these sections in this order:
+
+    CHAPTER
+    STATUS
+    GOAL
+    REQUIRES
+    PRESERVES
+    OUT OF SCOPE
+    TARGET FILE TREE
+    PUBLIC CONTRACTS
+    DATA LAYOUT
+    MATHEMATICAL CONTRACTS
+    ALGORITHM REFERENCES
+    SOURCE REFERENCES
+    IMPLEMENTATION STEPS
+    PSEUDOCODE
+    THREADING / OWNERSHIP RULES
+    ERROR HANDLING
+    DETERMINISM RULES
+    PERFORMANCE RULES
+    MIGRATION / COMPATIBILITY
+    TESTS TO ADD
+    COMMANDS TO RUN
+    ACCEPTANCE CRITERIA
+    FORBIDDEN SHORTCUTS
+    COMPLETION CHECKLIST
+    OUTPUT / HANDOFF TO NEXT CHAPTER
+
+If a section is not applicable, the chapter says "N/A" and explains why.
+
+======================================================================
+4. AGENT EXECUTION CONTRACT
+======================================================================
+
+When told to implement one chapter, the agent must:
+
+1. Read that complete chapter.
+2. Read every file listed under REQUIRES / EXISTING REFERENCES.
+3. Inspect relevant TARGET/SOURCE repository state before editing.
+4. Implement ALL chapter steps, not a subset.
+5. Do not implement future chapters unless required to make the current
+   chapter compile/test and the chapter explicitly permits the minimal bridge.
+6. Do not delete an existing feature unless the chapter explicitly contains a
+   removal/parity step.
+7. Add all tests required by the chapter.
+8. Run all commands listed in COMMANDS TO RUN that are possible in the
+   environment.
+9. Re-read the chapter after implementation and check every completion item.
+10. If an item is incomplete, continue implementing instead of reporting
+    success.
+11. Update only documentation/status files explicitly permitted by the chapter.
+12. Return the exact changed files, tests executed, results, and remaining
+    blockers.
+13. For every nontrivial mathematical or algorithmic implementation, resolve
+    the required MATH-*, ALG-* and REF-* IDs from:
+        docs/0.5_MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE.txt
+14. If a required definition is missing, add a canonical referenced definition
+    to 0.5 before the implementation chapter may be considered READY.
+15. Do not silently invent a different version of an algorithm when the manual
+    specifies a canonical reference ID.
+
+"Mostly done" is not chapter complete.
+
+======================================================================
+5. STATUS VALUES
+======================================================================
+
+PLANNED
+    title and place in roadmap exist, chapter not yet authored.
+
+DRAFT
+    implementation instructions exist but completeness review is pending.
+
+READY
+    chapter has enough detail to hand directly to an implementation agent.
+
+IMPLEMENTED
+    repository implementation and required tests satisfy acceptance criteria.
+
+SUPERSEDED
+    replaced by a newer explicitly referenced chapter.
+
+The status written in a chapter is documentation status, not proof that code is
+implemented. A chapter becomes IMPLEMENTED only after verification.
+
+======================================================================
+6. COMPLETENESS RULE
+======================================================================
+
+A chapter is considered READY only when an implementation agent should not have
+to make a major architectural decision.
+
+The chapter must provide pseudocode for:
+    initialization/entry points,
+    core algorithms,
+    ownership/lifetime,
+    important loops,
+    job boundaries,
+    error paths,
+    tests,
+    compatibility bridges.
+
+The agent may choose syntax details and obvious local implementation details.
+The agent should NOT have to decide subsystem boundaries, ownership model,
+threading model, file locations, public interfaces, migration strategy or
+acceptance criteria.
+
+======================================================================
+7. MANUAL ROADMAP
+======================================================================
+
+STAGE 0 - ARCHITECTURE / MIGRATION CONTRACT
+
+0.1 TARGET_ARCHITECTURE
+    Overall layering, dependency direction, preserve-existing-functionality
+    rule, semantic/simulation/presentation split, engine/module boundaries.
+
+0.2 MIGRATION_INVENTORY_AND_PARITY_MATRIX
+    Enumerate every current subsystem/file group/prototype/test and assign a
+    target native module, migration chapter, parity evidence and retirement
+    rule.
+
+0.3 CODING_AND_DEPENDENCY_RULES
+    C++ style, includes, namespaces, ownership, no-cross-layer rules,
+    third-party boundaries, warning policy.
+
+0.4 BENCHMARK_AND_DETERMINISM_POLICY
+    Standard benchmark harness, thread scaling, deterministic fixtures,
+    performance regression rules.
+
+0.5 MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE
+    Canonical coordinate/unit notation, stable formula IDs, numerical
+    robustness rules, canonical algorithm pseudocode, source-quality rules and
+    references to original papers, official documentation and current Genomes
+    reference implementations.
+
+STAGE 1 - NATIVE BUILD SKELETON
+
+1.1 CPP_CMAKE_BOOTSTRAP
+1.2 THIRD_PARTY_DEPENDENCIES
+1.3 EXECUTABLE_TARGETS_AND_TEST_RUNNER
+1.4 CI_NATIVE_BASELINE
+
+STAGE 2 - FOUNDATION
+
+2.1 STRONG_IDS_RESULT_HASH
+2.2 TIME_CLOCKS_AND_FIXED_TICKS
+2.3 LOGGING_ASSERTS_AND_DIAGNOSTICS
+2.4 MEMORY_ARENAS_AND_SCRATCH
+2.5 SERIALIZATION_SCHEMA_FOUNDATION
+
+STAGE 3 - MULTICORE EXECUTION
+
+3.1 JOB_SYSTEM_CORE
+3.2 WORK_STEALING_AND_DEPENDENCIES
+3.3 PARALLEL_FOR_BATCHING
+3.4 CANCELLATION_AND_JOB_GROUPS
+3.5 JOB_PROFILING_AND_SCALING_BENCHMARKS
+
+STAGE 4 - MATH / GEOMETRY / SPATIAL
+
+4.1 MATH_TYPES_AND_COORDINATE_CONVENTIONS
+4.2 GEOMETRY_2D_PRIMITIVES
+4.3 POLYGONS_INTERSECTIONS_OFFSETS
+4.4 MESH_DATA_AND_GEOMETRY_RECIPES
+4.5 SPATIAL_HASH_AND_DYNAMIC_GRID
+4.6 STATIC_BVH_AND_QUERY_SERVICE
+
+STAGE 5 - PROCEDURAL FRAMEWORK
+
+5.1 SEED_TREE_RANDOM_STREAMS
+5.2 GENERATOR_DESCRIPTOR_AND_CONTEXT
+5.3 VERSIONED_ARTIFACTS
+5.4 GENERATION_DAG
+5.5 ARTIFACT_CACHE
+5.6 VALIDATION_REPORTS
+5.7 TRANSACTIONAL_GENERATION_COMMIT
+5.8 GENERATION_TRACE_AND_DEBUG_CHANNELS
+
+STAGE 6 - WORLD / REGIONS
+
+6.1 WORLD_COORDINATES_AND_REGION_IDS
+6.2 REGION_DATABASE_AND_LIFECYCLE
+6.3 STATIC_WORLD_DATABASES
+6.4 STREAMING_STATE_MACHINE
+6.5 WORLD_QUERY_SERVICE
+6.6 REGION_PACKAGE_SERIALIZATION
+
+STAGE 7 - DILIGENT RENDER FOUNDATION
+
+7.1 DILIGENT_BOOTSTRAP
+7.2 RENDER_DEVICE_HANDLES_AND_CAPABILITIES
+7.3 SHADER_AND_PIPELINE_ASSETS
+7.4 RENDER_GRAPH
+7.5 GPU_SCENE_DATABASE
+7.6 PRESENTATION_SNAPSHOT_AND_RENDER_EXTRACTION
+7.7 GPU_CULLING_LOD_AND_INDIRECT_DRAWS
+7.8 DEBUG_RENDERING_AND_PROFILING
+
+STAGE 8 - COMPUTE FRAMEWORK
+
+8.1 COMPUTE_SERVICE
+8.2 DILIGENT_COMPUTE_BACKEND
+8.3 ASYNC_COMPUTE_SCHEDULING
+8.4 READBACK_UPLOAD_AND_STAGING
+8.5 COMPUTE_BENCHMARK_HARNESS
+
+STAGE 9 - TERRAIN / HYDROLOGY
+
+9.1 TERRAIN_SEMANTIC_MODEL
+9.2 PORT_EXISTING_TERRAIN_GENERATION
+9.3 TERRAIN_MULTICORE_GENERATION
+9.4 TERRAIN_RENDER_COMPILER
+9.5 TERRAIN_PHYSICS_AND_QUERY_REPRESENTATION
+9.6 HYDROLOGY_FIELDS
+9.7 OPTIONAL_GPU_TERRAIN_FIELDS
+
+STAGE 10 - ROADS / CITY
+
+10.1 PORT_ROAD_GRAPH_PRIMITIVES
+10.2 ROAD_COST_FIELDS_AND_ROUTING
+10.3 ROAD_GROWTH_AND_TOPOLOGY
+10.4 ROAD_GRAPH_VALIDATION
+10.5 CITY_HYDROLOGY_BOUNDARY_CENTRES
+10.6 RECURSIVE_REGIONS
+10.7 ZONING_BLOCKS_AND_HALF_EDGE_FACES
+10.8 PARCELS_AND_BUILDABLE_AREAS
+10.9 CITY_PARALLEL_GENERATION
+10.10 CITY_REFERENCE_PARITY
+
+STAGE 11 - BUILDINGS
+
+11.1 BUILDING_SPEC_AND_PLAN_CONTRACT
+11.2 FOOTPRINT_SOLVER
+11.3 MACRO_DECOMPOSITION
+11.4 STAIR_CORE_SOLVER
+11.5 CIRCULATION_AND_ROOM_SOLVER
+11.6 OPENINGS_STAIRS_ROOFS
+11.7 STRUCTURAL_AND_MATERIAL_MODEL
+11.8 BUILDING_GEOMETRY_COMPILER
+11.9 BUILDING_COLLISION_COMPILER
+11.10 BUILDING_NAV_COMPILER
+11.11 BUILDING_PARALLEL_BATCH_GENERATION
+11.12 BUILDING_REFERENCE_PARITY
+
+STAGE 12 - VEGETATION / ENVIRONMENT
+
+12.1 PLANT_GENOME_AND_PROTOTYPE_MODEL
+12.2 PORT_PLANT_GENERATOR
+12.3 ROCK_GENERATOR
+12.4 VEGETATION_SCATTER
+12.5 INSTANCE_PAGES_AND_GPU_RENDERING
+12.6 VEGETATION_CACHE_AND_PARITY
+
+STAGE 13 - PHYSICS
+
+13.1 PHYSICS_ABSTRACTION
+13.2 JOLT_BACKEND_BOOTSTRAP
+13.3 JOLT_JOB_SYSTEM_ADAPTER
+13.4 STATIC_REGION_COLLISION
+13.5 DYNAMIC_BODY_COMMAND_BUFFERS
+13.6 PHYSICS_QUERY_SERVICE
+
+STAGE 14 - NAVIGATION
+
+14.1 NAVIGATION_ABSTRACTION
+14.2 RECAST_DETOUR_BACKEND
+14.3 NAV_TILES_AND_REGION_INTEGRATION
+14.4 STRATEGIC_REGION_AND_ROAD_ROUTING
+14.5 SHARED_PATHS_AND_FLOW_FIELDS
+14.6 DYNAMIC_NAV_INVALIDATION
+
+STAGE 15 - SIMULATION / ECS
+
+15.1 ENTITY_IDS_AND_COMPONENT_STORAGE
+15.2 ARCHETYPE_OR_SELECTED_ECS_BACKEND
+15.3 SYSTEM_SCHEDULING
+15.4 COMMAND_BUFFERS_AND_DETERMINISTIC_COMMIT
+15.5 SIMULATION_SNAPSHOTS
+15.6 SPATIAL_DYNAMIC_ENTITY_INTEGRATION
+15.7 VARIABLE_CADENCE_SYSTEMS
+
+STAGE 16 - DESTRUCTION
+
+16.1 DESTRUCTION_MATERIALS_AND_SOLIDS
+16.2 IMPACT_SOLVER_PORT
+16.3 STRUCTURAL_LINKS_AND_DAMAGE_FIELDS
+16.4 HERO_CHEAP_BAKED_DEBRIS
+16.5 RUBBLE_FIELD
+16.6 DESTRUCTION_PHYSICS_INTEGRATION
+16.7 NAV_AND_WORLD_INVALIDATION
+16.8 DESTRUCTION_REFERENCE_PARITY
+
+STAGE 17 - BALLISTICS
+
+17.1 PROJECTILE_STATE_AND_AMMO_STRATEGY
+17.2 PROJECTILE_SPATIAL_TRACE
+17.3 PENETRATION_RICOCHET_DEFLECTION
+17.4 FRAGMENTATION_AND_HE
+17.5 BALLISTICS_BATCHING_AND_SIMD
+17.6 BALLISTICS_REFERENCE_PARITY
+
+STAGE 18 - INFANTRY
+
+18.1 INFANTRY_MODULE_BOUNDARY
+18.2 INFANTRY_GENOME_AND_PHENOTYPE
+18.3 RIG_AND_SKELETON
+18.4 PROCEDURAL_SURFACE_AND_APPEARANCE
+18.5 EQUIPMENT
+18.6 LOCOMOTION_AND_POSTURE
+18.7 IK_AND_GROUND_CONTACT
+18.8 FACE_AND_EXPRESSION
+18.9 ANIMATION_LOD_AND_PARALLEL_EVALUATION
+18.10 INFANTRY_DAMAGE_AND_RAGDOLL
+18.11 INFANTRY_REFERENCE_PARITY
+
+STAGE 19 - WEAPONS / COMBAT / AI
+
+19.1 WEAPON_CATALOG_AND_GEOMETRY
+19.2 WEAPON_HANDLING_AND_ANIMATION
+19.3 COMBAT_COMMAND_FLOW
+19.4 PERCEPTION_SPATIAL_BROADPHASE
+19.5 LOS_BATCHING
+19.6 TACTICAL_AI_CADENCE
+19.7 SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION
+19.8 AI_MULTICORE_BATCHING
+
+STAGE 20 - FULL WORLD INTEGRATION
+
+20.1 NATIVE_WORLD_ASSEMBLY
+20.2 OLD_AND_NEW_RUNTIME_PARITY_WORLD
+20.3 STREAMING_LARGE_WORLD
+20.4 SAVE_LOAD_AND_ARTIFACT_PACKAGES
+20.5 NATIVE_PROC_VIEWER
+20.6 FULL_GAME_PRESENTATION
+20.7 LEGACY_RUNTIME_RETIREMENT_RULES
+
+STAGE 21 - HIGH-END GPU / OPTIONAL CUDA
+
+21.1 GPU_FIELD_ATLAS
+21.2 THREAT_INFLUENCE_FIELDS
+21.3 VISIBILITY_BATCH_COMPUTE
+21.4 FLOW_FIELD_COMPUTE
+21.5 CUDA_BACKEND_SPIKE
+21.6 CUDA_DILIGENT_INTEROP
+21.7 CUDA_FAST_PATH_SELECTION
+
+STAGE 22 - PRODUCTION HARDENING
+
+22.1 FULL_STRESS_BENCHMARK_MATRIX
+22.2 MEMORY_BUDGETS_AND_HIGH_WATER_LIMITS
+22.3 THREAD_SCALING_REGRESSION_GATES
+22.4 GPU_PERFORMANCE_REGRESSION_GATES
+22.5 CRASH_RECOVERY_AND_CORRUPT_ARTIFACTS
+22.6 PACKAGING_AND_RELEASE_BUILD
+
+======================================================================
+8. MASTER COMPLETENESS MATRIX
+======================================================================
+
+For each chapter we will track:
+
+    [ ] chapter authored
+    [ ] pseudocode complete
+    [ ] mathematical contracts complete or explicitly N/A
+    [ ] algorithm reference IDs complete or explicitly N/A
+    [ ] primary/source references complete or explicitly N/A
+    [ ] existing-system references complete
+    [ ] file tree complete
+    [ ] tests specified
+    [ ] acceptance criteria measurable
+    [ ] forbidden shortcuts specified
+    [ ] dependencies explicit
+    [ ] compatibility/parity defined
+    [ ] reviewed against overall architecture
+
+Only after every applicable check may chapter STATUS become READY.
+
+For mathematics-heavy chapters, "pseudocode complete" additionally means:
+    - equations use the canonical notation from 0.5,
+    - numerical tolerances/predicates are explicit,
+    - deterministic tie-breaking is explicit,
+    - algorithm INPUT/OUTPUT/PRECONDITIONS/POSTCONDITIONS are specified,
+    - complexity variables are defined,
+    - failure/degenerate cases are specified.
+
+======================================================================
+9. WHY THIS MANUAL EXISTS
+======================================================================
+
+The goal is not merely to document the desired architecture.
+
+The goal is to make the documentation precise enough that successive AI agents
+can implement the engine in small verified chapters while preserving continuity
+and avoiding a rewrite that accidentally loses existing Genomes functionality.
+
+This file is the authoritative index for the new implementation manual.
+
+======================================================================
+10. MANUAL AUTHORING PROGRESS
+======================================================================
+
+This table tracks DOCUMENT readiness, not source implementation status.
+
+READY:
+    0.1 TARGET_ARCHITECTURE
+    0.2 MIGRATION_INVENTORY_AND_PARITY_MATRIX
+    0.3 CODING_AND_DEPENDENCY_RULES
+    0.4 BENCHMARK_AND_DETERMINISM_POLICY
+    0.5 MATHEMATICAL_NOTATION_AND_ALGORITHM_REFERENCE
+
+    1.1 CPP_CMAKE_BOOTSTRAP
+    1.2 THIRD_PARTY_DEPENDENCIES
+    1.3 EXECUTABLE_TARGETS_AND_TEST_RUNNER
+    1.4 CI_NATIVE_BASELINE
+
+PLANNED / NOT YET READY:
+    2.1+ FOUNDATION AND ALL LATER STAGES
+
+IMPORTANT:
+    READY means the manual chapter is intended to be directly implementable.
+    It does NOT mean repository source code for that chapter has been implemented.
+
+When a new chapter becomes READY, update this section in the same documentation
+commit or immediately following documentation commit.
