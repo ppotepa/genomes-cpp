@@ -61,57 +61,6 @@ namespace {
            std::to_string(plan.hydrology.rivers.size());
 }
 
-#if GENOMES_HAS_INFANTRY
-void build_infantry_prototype(render::RenderMesh& mesh,
-                              const infantry::InfantryModelArtifact& model) {
-    if (!mesh.vertices.empty() || !mesh.indices.empty()) {
-        return;
-    }
-    mesh.mesh_id = foundation::stable_id("mesh.infantry.unit");
-    mesh.revision = model.cache_key;
-    const auto append = [&mesh](const infantry::AppearanceMesh& source) {
-        const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
-        for (const auto& vertex : source.vertices) {
-            mesh.vertices.push_back({vertex.position, vertex.normal, vertex.uv, vertex.color});
-        }
-        for (const auto index : source.indices) {
-            mesh.indices.push_back(base + index);
-        }
-    };
-    append(model.appearance.body);
-    append(model.appearance.hair);
-    if (!mesh.vertices.empty()) {
-        return;
-    }
-    constexpr foundation::Vec3 corners[] = {
-        {-0.5F, -0.5F, -0.5F}, {0.5F, -0.5F, -0.5F},
-        {0.5F, 0.5F, -0.5F},   {-0.5F, 0.5F, -0.5F},
-        {-0.5F, -0.5F, 0.5F},  {0.5F, -0.5F, 0.5F},
-        {0.5F, 0.5F, 0.5F},    {-0.5F, 0.5F, 0.5F},
-    };
-    constexpr std::uint32_t faces[][4] = {
-        {0, 1, 2, 3}, {5, 4, 7, 6}, {4, 0, 3, 7},
-        {1, 5, 6, 2}, {3, 2, 6, 7}, {4, 5, 1, 0}};
-    constexpr foundation::Vec3 normals[] = {
-        {0.0F, 0.0F, -1.0F}, {0.0F, 0.0F, 1.0F}, {-1.0F, 0.0F, 0.0F},
-        {1.0F, 0.0F, 0.0F},  {0.0F, 1.0F, 0.0F},  {0.0F, -1.0F, 0.0F}};
-    constexpr foundation::Vec2 uv[] = {
-        {0.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 1.0F}, {0.0F, 1.0F}};
-    mesh.vertices.reserve(24);
-    mesh.indices.reserve(36);
-    for (std::size_t face = 0; face < 6; ++face) {
-        const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
-        for (std::size_t corner = 0; corner < 4; ++corner) {
-            mesh.vertices.push_back(
-                {corners[faces[face][corner]], normals[face], uv[corner],
-                 {1.0F, 1.0F, 1.0F, 1.0F}});
-        }
-        mesh.indices.insert(mesh.indices.end(),
-                             {base, base + 1, base + 2, base, base + 2, base + 3});
-    }
-}
-#endif
-
 } // namespace
 
 foundation::SceneId BattlefieldScene::id() const noexcept {
@@ -670,86 +619,9 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 return;
             }
         }
-        if (!context.render_capabilities.instanced_rendering) {
-            if (!render_infantry_mesh_) {
-                render_infantry_mesh_ = std::make_shared<render::RenderMesh>();
-                render_infantry_mesh_->mesh_id = foundation::stable_id("mesh.infantry.baked");
-            }
-            ++render_infantry_mesh_->revision;
-            render_infantry_mesh_->vertices.clear();
-            render_infantry_mesh_->indices.clear();
-            const auto append_box = [this](foundation::Vec3 center, float width,
-                                            float height, foundation::Color color) {
-                const float half_width = width * 0.5F;
-                const foundation::Vec3 corners[] = {
-                    {center.x - half_width, center.y, center.z - half_width},
-                    {center.x + half_width, center.y, center.z - half_width},
-                    {center.x + half_width, center.y, center.z + half_width},
-                    {center.x - half_width, center.y, center.z + half_width},
-                    {center.x - half_width, center.y + height, center.z - half_width},
-                    {center.x + half_width, center.y + height, center.z - half_width},
-                    {center.x + half_width, center.y + height, center.z + half_width},
-                    {center.x - half_width, center.y + height, center.z + half_width},
-                };
-                constexpr std::uint32_t faces[][4] = {
-                    {0, 1, 5, 4}, {1, 2, 6, 5}, {2, 3, 7, 6},
-                    {3, 0, 4, 7}, {4, 5, 6, 7}, {3, 2, 1, 0}};
-                constexpr foundation::Vec3 normals[] = {
-                    {0.0F, 0.0F, -1.0F}, {1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F},
-                    {-1.0F, 0.0F, 0.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, -1.0F, 0.0F}};
-                for (std::size_t face = 0; face < 6; ++face) {
-                    const std::uint32_t base = static_cast<std::uint32_t>(
-                        render_infantry_mesh_->vertices.size());
-                    for (std::size_t corner = 0; corner < 4; ++corner) {
-                        render_infantry_mesh_->vertices.push_back(
-                            {corners[faces[face][corner]], normals[face],
-                             {corner == 1 || corner == 2 ? 1.0F : 0.0F,
-                              corner >= 2 ? 1.0F : 0.0F},
-                             color});
-                    }
-                    render_infantry_mesh_->indices.insert(
-                        render_infantry_mesh_->indices.end(),
-                        {base, base + 1, base + 2, base, base + 2, base + 3});
-                }
-            };
-            for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
-                const foundation::Color color = state.team == infantry::Team::Blue
-                                                    ? foundation::Color{0.18F, 0.42F, 0.88F, 1.0F}
-                                                    : foundation::Color{0.82F, 0.22F, 0.18F, 1.0F};
-                append_box(state.position, 0.75F, state.height, color);
-            }
-            context.presentation.infantry_mesh = render_infantry_mesh_;
-        } else {
-            // Dynamic actors share one immutable unit prototype. Their
-            // transforms and team material flags remain in GPUScene, so the
-            // CPU no longer rebuilds a mesh containing every unit each frame.
-            if (!render_infantry_mesh_) {
-                render_infantry_mesh_ = std::make_shared<render::RenderMesh>();
-                if (infantry_model_artifact_) {
-                    build_infantry_prototype(*render_infantry_mesh_, *infantry_model_artifact_);
-                }
-            }
-            context.presentation.infantry_mesh = render_infantry_mesh_;
-            context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
-        }
-        const foundation::StableId infantry_mesh = foundation::stable_id("mesh.infantry.unit");
-        const foundation::StableId blue_material = foundation::stable_id("material.infantry.blue");
-        const foundation::StableId red_material = foundation::stable_id("material.infantry.red");
-        context.presentation.instances.reserve(
-            context.presentation.instances.size() + infantry_->renderStates().size());
-        for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
-            const foundation::StableId material =
-                state.team == infantry::Team::Blue ? blue_material : red_material;
-            const std::uint32_t instance_flags =
-                render::RenderInstanceFlagDynamic |
-                (state.team == infantry::Team::Red ? render::RenderInstanceFlagTeamRed : 0U);
-            context.presentation.instances.push_back(
-                {foundation::stable_id("entity.infantry") ^ state.entity.packed(), infantry_mesh,
-                 material,
-                 {state.position.x, state.position.y + state.height * 0.5F, state.position.z},
-                 {0.8F, state.height, 0.8F}, state.heading, 0,
-                 instance_flags});
-        }
+        // There is deliberately no second, simplified infantry renderer here.
+        // A failed compiler result leaves the scene without infantry until the
+        // immutable model artifact can be rebuilt.
     }
 #endif
 }
