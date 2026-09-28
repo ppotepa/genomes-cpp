@@ -453,6 +453,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         context.presentation.skinned_prototypes.push_back(skinned);
         render::SkinnedBonePalette palette{};
         palette.instance_id = foundation::stable_id("unit-lab.infantry.instance");
+        palette.morph_weights = skinned->morph_weights;
         const auto pose_bones = animation_pose_
             ? std::span<const infantry::RigTransform>(animation_pose_->bones)
             : std::span<const infantry::RigTransform>{};

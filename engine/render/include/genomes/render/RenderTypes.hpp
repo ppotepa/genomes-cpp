@@ -88,6 +88,9 @@ struct SkinnedMeshPrototype final {
 struct SkinnedBonePalette final {
     foundation::StableId instance_id{0};
     std::vector<std::array<float, 16U>> matrices;
+    // Morph state belongs to the animated instance, not the immutable mesh
+    // prototype. This lets facial animation diverge between identical units.
+    std::array<float, 4U> morph_weights{};
 };
 
 struct RenderCamera final {

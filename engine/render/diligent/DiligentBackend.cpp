@@ -2041,7 +2041,7 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     pass_constants.object_scale_rotation[2] = draw_instance->scale.z;
                     pass_constants.object_scale_rotation[3] = draw_instance->rotation_y;
                     for (std::size_t index = 0U; index < 4U; ++index) {
-                        pass_constants.morph_weights[index] = prototype_owner->morph_weights[index];
+                        pass_constants.morph_weights[index] = draw_palette->morph_weights[index];
                     }
                     for (std::size_t bone = 0U; bone < kInfantryBonePaletteSize; ++bone) {
                         std::memcpy(pass_constants.bone_palette[bone],

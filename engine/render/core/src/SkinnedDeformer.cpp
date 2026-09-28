@@ -34,7 +34,8 @@ namespace {
 } // namespace
 
 RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
-                            std::span<const std::array<float, 16U>> palette) {
+                            std::span<const std::array<float, 16U>> palette,
+                            std::span<const float> morph_weights) {
     RenderMesh result{};
     result.mesh_id = prototype.mesh_id;
     result.revision = prototype.revision;
@@ -50,7 +51,9 @@ RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
         const auto vertex_index = result.vertices.size();
         for (std::size_t morph = 0; morph < prototype.morph_target_count && morph < 4U;
              ++morph) {
-            const float morph_weight = prototype.morph_weights[morph];
+            const float morph_weight = morph < morph_weights.size()
+                                           ? morph_weights[morph]
+                                           : prototype.morph_weights[morph];
             const auto& morph_target = prototype.morphs[morph];
             if (morph_weight == 0.0F || vertex_index >= morph_target.position_deltas.size()) {
                 continue;

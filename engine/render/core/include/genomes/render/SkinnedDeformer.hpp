@@ -11,6 +11,7 @@ namespace genomes::render {
 // layout published in SkinnedBonePalette.
 [[nodiscard]] RenderMesh deformSkinnedCPU(
     const SkinnedMeshPrototype& prototype,
-    std::span<const std::array<float, 16U>> palette);
+    std::span<const std::array<float, 16U>> palette,
+    std::span<const float> morph_weights = {});
 
 } // namespace genomes::render
