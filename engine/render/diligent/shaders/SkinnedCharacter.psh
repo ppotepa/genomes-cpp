@@ -1,66 +1,36 @@
 struct PSInput {
-    float4 Position : SV_POSITION;
-    float3 Normal : NORMAL0;
-    float4 Color : COLOR0;
-    nointerpolation uint MaterialRegion : TEXCOORD1;
-    float4 CharacterKeyDirectionIntensity : TEXCOORD2;
-    float4 CharacterKeyColor : TEXCOORD3;
-    float4 CharacterFillDirectionIntensity : TEXCOORD4;
-    float4 CharacterFillColor : TEXCOORD5;
-    float4 CharacterHemisphereSky : TEXCOORD6;
-    float4 CharacterHemisphereGround : TEXCOORD7;
+    float4 Position:SV_POSITION;
+    float3 Normal:NORMAL0;
+    float4 Color:COLOR0;
+    float3 WorldPosition:TEXCOORD0;
+    float2 UV:TEXCOORD1;
+    nointerpolation uint MaterialRegion:TEXCOORD2;
+    float Weight:TEXCOORD3;
 };
-
-float4 main(PSInput input) : SV_TARGET {
-    float3 base_color = input.Color.rgb;
-    float roughness = 0.78;
-    float specular = 0.12;
-    if (input.MaterialRegion == 4) {
-        base_color *= float3(0.30, 0.18, 0.10);
-        roughness = 0.52;
-        specular = 0.20;
-    } else if (input.MaterialRegion == 5) {
-        base_color = lerp(base_color, float3(0.92, 0.90, 0.82), 0.65);
-        roughness = 0.28;
-    } else if (input.MaterialRegion == 6) {
-        base_color = lerp(base_color, float3(0.14, 0.26, 0.22), 0.72);
-        roughness = 0.20;
-        specular = 0.45;
-    } else if (input.MaterialRegion == 7) {
-        base_color = float3(0.008, 0.006, 0.004);
-        roughness = 0.18;
-        specular = 0.55;
-    } else if (input.MaterialRegion == 13) {
-        base_color *= float3(0.33, 0.22, 0.14);
-        roughness = 0.48;
-        specular = 0.25;
-    } else if (input.MaterialRegion == 14) {
-        base_color *= float3(0.72, 0.76, 0.68);
-        roughness = 0.86;
-        specular = 0.08;
-    } else if (input.MaterialRegion == 15) {
-        base_color *= float3(0.42, 0.29, 0.18);
-        roughness = 0.52;
-        specular = 0.18;
-    } else if (input.MaterialRegion == 16) {
-        base_color *= float3(0.48, 0.50, 0.52);
-        roughness = 0.30;
-        specular = 0.62;
-    } else if (input.MaterialRegion == 17) {
-        base_color *= float3(0.62, 0.66, 0.56);
-        roughness = 0.58;
-        specular = 0.20;
-    } else if (input.MaterialRegion == 0) {
-        base_color *= float3(0.90, 0.96, 0.84);
-        roughness = 0.88;
+float4 main(PSInput input):SV_TARGET {
+    if (ObjectPositionScale.w>=0) {
+        float w=saturate(input.Weight);
+        return float4(w,0.15+0.65*(1-abs(2*w-1)),1-w,1);
     }
-    float3 normal = normalize(input.Normal);
-    float3 lit = characterLight(base_color, normal, roughness, specular,
-                                input.CharacterKeyDirectionIntensity,
-                                input.CharacterKeyColor,
-                                input.CharacterFillDirectionIntensity,
-                                input.CharacterFillColor,
-                                input.CharacterHemisphereSky,
-                                input.CharacterHemisphereGround);
-    return float4(saturate(lit), input.Color.a);
+    float roughness=0.72, specular=0.08;
+    switch (input.MaterialRegion) {
+        case 0: case 11: case 14: roughness=0.90; specular=0.025; break;
+        case 4: roughness=0.62; specular=0.08; break;
+        case 5: case 6: case 7: roughness=0.12; specular=0.32; break;
+        case 13: case 15: roughness=0.65; specular=0.07; break;
+        case 16: roughness=0.32; specular=0.35; break;
+        case 17: roughness=0.60; specular=0.10; break;
+        default: break;
+    }
+    // Vertex colors already carry resolved skin/hair/iris/equipment identity.
+    // Do not tint them a second time by hard-coded brown/green material colors.
+    float3 base=max(input.Color.rgb,0.0);
+    if (input.MaterialRegion==0 || input.MaterialRegion==11 || input.MaterialRegion==14) {
+        float2 frequency=float2(140,180);
+        float footprint=max(length(ddx(input.UV*frequency)),length(ddy(input.UV*frequency)));
+        float weave=sin(input.UV.x*frequency.x)*sin(input.UV.y*frequency.y);
+        base*=1.0+0.025*weave*(1.0-saturate(footprint));
+    }
+    float3 lit=characterLight(base,safeNormal(input.Normal),input.WorldPosition,roughness,specular);
+    return float4(characterToneMap(lit),input.Color.a);
 }

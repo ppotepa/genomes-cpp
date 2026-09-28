@@ -16,6 +16,9 @@ struct InputFrame {
     float mouse_delta_x{0.0F};
     float mouse_delta_y{0.0F};
     float mouse_wheel_y{0.0F};
+    // Pointer coordinates and dimensions use framebuffer pixels, including DPI.
+    float viewport_width{1280.0F};
+    float viewport_height{720.0F};
 };
 
 } // namespace genomes::input
