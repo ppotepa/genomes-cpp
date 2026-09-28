@@ -2,6 +2,7 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
+#include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/render/ProceduralMeshes.hpp>
 #include <genomes/render/SkinnedDeformer.hpp>
 
@@ -85,11 +86,17 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeSkinnedPrototype(
     };
     append(model.appearance.body);
     append(model.appearance.hair);
-    const auto appendGearBox = [&mesh](const infantry::GearPiece& piece) {
-        const foundation::Vec3 half{piece.dimensions.x * 0.5F,
-                                    piece.dimensions.y * 0.5F,
-                                    piece.dimensions.z * 0.5F};
-        const foundation::Vec3 c = piece.center;
+    const auto tint = [](foundation::Color color, float factor) noexcept {
+        return foundation::Color{std::clamp(color.r * factor, 0.0F, 1.0F),
+                                 std::clamp(color.g * factor, 0.0F, 1.0F),
+                                 std::clamp(color.b * factor, 0.0F, 1.0F), color.a};
+    };
+    const auto appendBox = [&mesh](foundation::Vec3 center, foundation::Vec3 dimensions,
+                                   foundation::Color color, infantry::BoneId bone,
+                                   std::uint32_t material_region) {
+        const foundation::Vec3 half{dimensions.x * 0.5F, dimensions.y * 0.5F,
+                                    dimensions.z * 0.5F};
+        const foundation::Vec3 c = center;
         constexpr foundation::Vec3 corners[] = {
             {-1.0F, -1.0F, -1.0F}, {1.0F, -1.0F, -1.0F},
             {1.0F, 1.0F, -1.0F},   {-1.0F, 1.0F, -1.0F},
@@ -112,15 +119,158 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeSkinnedPrototype(
                                    c.z + unit.z * half.z};
                 vertex.normal = normals[face];
                 vertex.uv = uv[corner];
-                vertex.color = piece.color;
-                vertex.material_region = static_cast<std::uint16_t>(piece.material_region);
-                vertex.bone_indices[0] = static_cast<std::uint16_t>(piece.bone);
+                vertex.color = color;
+                vertex.material_region = static_cast<std::uint16_t>(material_region);
+                vertex.bone_indices[0] = static_cast<std::uint16_t>(bone);
                 vertex.bone_weights[0] = 1.0F;
                 mesh->vertices.push_back(vertex);
             }
             mesh->indices.insert(mesh->indices.end(),
                                  {face_base, face_base + 1U, face_base + 2U,
-                                  face_base, face_base + 2U, face_base + 3U});
+                                 face_base, face_base + 2U, face_base + 3U});
+        }
+    };
+    const auto appendEllipsoid = [&mesh](foundation::Vec3 center, foundation::Vec3 radii,
+                                         foundation::Color color, infantry::BoneId bone,
+                                         std::uint32_t material_region) {
+        constexpr std::size_t segments = 16U;
+        constexpr std::size_t rows = 6U;
+        std::vector<std::uint32_t> previous;
+        for (std::size_t row = 0U; row <= rows; ++row) {
+            const float phi = -1.57079632679F +
+                              3.14159265359F * static_cast<float>(row) /
+                                  static_cast<float>(rows);
+            const float cp = std::cos(phi);
+            const float sp = std::sin(phi);
+            std::vector<std::uint32_t> ring;
+            ring.reserve(segments);
+            for (std::size_t segment = 0U; segment < segments; ++segment) {
+                const float angle = 6.28318530718F * static_cast<float>(segment) /
+                                    static_cast<float>(segments);
+                const float ca = std::cos(angle);
+                const float sa = std::sin(angle);
+                render::SkinnedMeshVertex vertex{};
+                vertex.position = {center.x + radii.x * cp * ca,
+                                   center.y + radii.y * sp,
+                                   center.z + radii.z * cp * sa};
+                vertex.normal = {cp * ca, sp, cp * sa};
+                vertex.uv = {static_cast<float>(segment) / static_cast<float>(segments),
+                             static_cast<float>(row) / static_cast<float>(rows)};
+                vertex.color = color;
+                vertex.material_region = static_cast<std::uint16_t>(material_region);
+                vertex.bone_indices[0] = static_cast<std::uint16_t>(bone);
+                vertex.bone_weights[0] = 1.0F;
+                ring.push_back(static_cast<std::uint32_t>(mesh->vertices.size()));
+                mesh->vertices.push_back(vertex);
+            }
+            if (!previous.empty()) {
+                for (std::size_t segment = 0U; segment < segments; ++segment) {
+                    const std::size_t next = (segment + 1U) % segments;
+                    mesh->indices.insert(mesh->indices.end(),
+                                         {previous[segment], ring[segment], previous[next],
+                                          previous[next], ring[segment], ring[next]});
+                }
+            }
+            previous = std::move(ring);
+        }
+    };
+    const auto appendGearBox = [&appendBox, &appendEllipsoid, &tint](
+                                  const infantry::GearPiece& piece) {
+        const auto* definition = infantry::EquipmentCatalog::findItem(piece.definition_id);
+        const std::string_view style = definition == nullptr ? std::string_view{} : definition->style;
+        const foundation::Vec3 c = piece.center;
+        const foundation::Vec3 d = piece.dimensions;
+        const foundation::Color dark = tint(piece.color, 0.58F);
+        const foundation::Color edge = tint(piece.color, 0.78F);
+
+        // Base clothing is already part of AppearanceCompiler. Do not cover
+        // the articulated jacket, trousers, hands or boots with cubes.
+        if (piece.slot != infantry::EquipmentSlot::TorsoBase &&
+            piece.slot != infantry::EquipmentSlot::Legs &&
+            piece.slot != infantry::EquipmentSlot::Feet &&
+            piece.slot != infantry::EquipmentSlot::Hands) {
+            appendBox(c, d, piece.color, piece.bone, piece.material_region);
+        }
+        switch (piece.slot) {
+        case infantry::EquipmentSlot::Head:
+            appendEllipsoid({c.x, c.y + d.y * 0.10F, c.z},
+                            {d.x * 0.60F, d.y * 0.52F, d.z * 0.66F},
+                            piece.color, piece.bone, piece.material_region + 100U);
+            appendBox({c.x, c.y - d.y * 0.22F, c.z + d.z * 0.05F},
+                      {d.x * 1.18F, d.y * 0.10F, d.z * 1.05F}, edge, piece.bone,
+                      piece.material_region + 101U);
+            break;
+        case infantry::EquipmentSlot::TorsoArmor:
+            appendBox({c.x, c.y, c.z + d.z * 0.58F}, {d.x * 0.86F, d.y * 0.82F,
+                                                       d.z * 0.20F}, edge, piece.bone,
+                      piece.material_region + 100U);
+            appendBox({c.x - d.x * 0.48F, c.y + d.y * 0.05F, c.z},
+                      {d.x * 0.12F, d.y * 0.76F, d.z * 0.72F}, dark, piece.bone,
+                      piece.material_region + 101U);
+            appendBox({c.x + d.x * 0.48F, c.y + d.y * 0.05F, c.z},
+                      {d.x * 0.12F, d.y * 0.76F, d.z * 0.72F}, dark, piece.bone,
+                      piece.material_region + 102U);
+            break;
+        case infantry::EquipmentSlot::ChestRig:
+            for (int index = -1; index <= 1; ++index) {
+                appendBox({c.x + static_cast<float>(index) * d.x * 0.28F,
+                           c.y - d.y * 0.05F, c.z + d.z * 0.57F},
+                          {d.x * 0.24F, d.y * 0.52F, d.z * 0.18F}, dark, piece.bone,
+                          piece.material_region + 100U + static_cast<std::uint32_t>(index + 1));
+                appendBox({c.x + static_cast<float>(index) * d.x * 0.28F,
+                           c.y + d.y * 0.23F, c.z + d.z * 0.68F},
+                          {d.x * 0.22F, d.y * 0.08F, d.z * 0.04F}, edge, piece.bone,
+                          piece.material_region + 104U);
+            }
+            break;
+        case infantry::EquipmentSlot::Back:
+            appendEllipsoid({c.x, c.y, c.z - d.z * 0.52F},
+                            {d.x * 0.52F, d.y * 0.48F, d.z * 0.58F},
+                            piece.color, piece.bone, piece.material_region + 100U);
+            appendBox({c.x, c.y + d.y * 0.45F, c.z - d.z * 0.54F},
+                      {d.x * 0.72F, d.y * 0.12F, d.z * 0.10F}, edge, piece.bone,
+                      piece.material_region + 101U);
+            break;
+        case infantry::EquipmentSlot::LeftHip:
+        case infantry::EquipmentSlot::RightHip:
+        case infantry::EquipmentSlot::LeftThigh:
+        case infantry::EquipmentSlot::RightThigh:
+        case infantry::EquipmentSlot::Utility1:
+        case infantry::EquipmentSlot::Utility2:
+        case infantry::EquipmentSlot::Utility3:
+            appendBox({c.x, c.y + d.y * 0.48F, c.z + d.z * 0.04F},
+                      {d.x * 0.86F, d.y * 0.12F, d.z * 0.92F}, edge, piece.bone,
+                      piece.material_region + 100U);
+            appendBox({c.x, c.y - d.y * 0.18F, c.z + d.z * 0.56F},
+                      {d.x * 0.18F, d.y * 0.54F, d.z * 0.08F}, dark, piece.bone,
+                      piece.material_region + 101U);
+            break;
+        case infantry::EquipmentSlot::PrimaryWeapon:
+            // The old native path rendered the rifle as one vertical box.
+            // Split it into receiver, stock, magazine and barrel so its
+            // silhouette reads as a rifle even before weapon animation owns it.
+            appendBox({c.x, c.y, c.z - d.z * 0.12F},
+                      {d.x * 0.72F, d.y * 0.72F, d.z * 0.42F}, dark, piece.bone,
+                      piece.material_region + 100U);
+            appendBox({c.x, c.y - d.y * 0.70F, c.z - d.z * 0.02F},
+                      {d.x * 0.38F, d.y * 0.62F, d.z * 0.22F}, edge, piece.bone,
+                      piece.material_region + 101U);
+            appendBox({c.x, c.y + d.y * 0.02F, c.z + d.z * 0.42F},
+                      {d.x * 0.30F, d.y * 0.30F, d.z * 0.70F}, edge, piece.bone,
+                      piece.material_region + 102U);
+            appendBox({c.x, c.y + d.y * 0.04F, c.z - d.z * 0.46F},
+                      {d.x * 0.48F, d.y * 0.42F, d.z * 0.28F}, dark, piece.bone,
+                      piece.material_region + 103U);
+            break;
+        case infantry::EquipmentSlot::SecondaryWeapon:
+        case infantry::EquipmentSlot::MeleeWeapon:
+        case infantry::EquipmentSlot::Throwable:
+            appendEllipsoid(c, {d.x * 0.52F, d.y * 0.48F, d.z * 0.48F},
+                            style == "grenade" ? edge : dark, piece.bone,
+                            piece.material_region + 100U);
+            break;
+        default:
+            break;
         }
     };
     for (const auto& piece : model.gear.pieces) {

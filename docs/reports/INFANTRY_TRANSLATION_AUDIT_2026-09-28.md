@@ -25,9 +25,9 @@ behavioral parity. No defensible completion percentage has been established.
 | `modules/infantry/src/PhenotypeResolver.cpp` | Landmark scale and face sections have been corrected toward the reference, but the resolver still lacks the full FaceAnatomy correction set and diagnostics. Several phenotype fields remain only partially represented in native output. |
 | `modules/infantry/src/InfantryGenome.cpp` | All body and face fields are now sampled, with the reference `varied`/`centred` ordering. RNG seed compatibility and the incomplete override surface still differ from JS. |
 | `engine/proc/include/genomes/proc/RandomStream.hpp` | RNG is still PCG32, not the planned Mulberry32. Seed derivation also differs: replacing the algorithm alone does not establish matching JS seeds. |
-| `modules/infantry/src/AppearanceCompiler.cpp` | Torso, head and hair now have denser multi-level profiles and front-side opening filtering, but hands, facial feature surfaces, clothing ports/details and style-specific hair remain substantially simpler than JS. |
+| `modules/infantry/src/AppearanceCompiler.cpp` | Torso, head and hair now have denser multi-level profiles, separate hand/boot surfaces and front-side opening filtering, but facial feature surfaces, clothing ports/details and style-specific hair remain substantially simpler than JS. |
 | `modules/infantry/src/InfantryModelCompiler.cpp` | Request cache key omits equipment overrides and color alpha. Appearance is compiled before equipment fit. Returning the previous model on failure hides the failure reason. |
-| `modules/infantry/src/GearGenerator.cpp` | Gear pieces describe boxes rather than faithful surfaces. Hand/foot anchoring does not represent both sides. Catalog counts alone do not establish semantic compatibility. |
+| `modules/infantry/src/GearGenerator.cpp` | The artifact contract still stores fitted pieces as compact primitives; UnitLab now expands those pieces into rounded panels, pouches, pack details and weapon subparts, but this remains a simplified translation of the JS gear builder. |
 | `modules/infantry/src/AnimationSystem.cpp` | Pose starts from local bind transforms while locomotion and face state are stored separately; full animated bone-pose writing is missing. Wiring this system into the scene alone will not restore gait/IK. |
 | `engine/render/diligent/DiligentBackend.cpp` | The adapter now has a working D3D12 GPU skinned pass using a mutable SRB, but preview material shading still adds material-ID/actor tint rather than faithfully using all anatomical material regions. Vulkan and manual visual parity remain to be checked. |
 | `engine/runtime/src/BattlefieldScene.cpp` | Its separate ordinary-mesh path loses skinning, morphs and gear instead of using the common animated model pipeline. |
@@ -54,9 +54,10 @@ The first recovery slice is now implemented and tested:
 - The native landmark scale was corrected toward the reference anatomy: hips
   near `0.54H`, eyes near `0.935–0.945H`, and face spacing is constrained by
   the jaw instead of using the former low-face coordinates.
-- Face, torso and hair generation now use multiple anatomical levels; front
-  opening filtering checks the front half of the profile, and gear boxes are
-  skinned to their anchor bones.
+- Face, torso, hair, hands and boots now use multiple anatomical levels; front
+  opening filtering checks the front half of the profile, and gear details are
+  expanded into rounded panels, pouches, pack straps and weapon subparts on
+  the same anchor bones.
 - The Diligent terrain guard was corrected so a terrain mesh no longer causes
   `draw_meshes()` to return before world, infantry and instance passes. The
   instance filter was also corrected so UnitLab's `Preview` actor is not
