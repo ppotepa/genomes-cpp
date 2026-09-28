@@ -854,6 +854,7 @@ struct DiligentBackend::Impl final {
     Diligent::RefCntAutoPtr<Diligent::IShader> terrain_vertex_shader;
     Diligent::RefCntAutoPtr<Diligent::IShader> terrain_pixel_shader;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> terrain_pipeline;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> terrain_srb;
     Diligent::RefCntAutoPtr<Diligent::IShader> preview_vertex_shader;
     Diligent::RefCntAutoPtr<Diligent::IShader> preview_pixel_shader;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> preview_pipeline;
@@ -1139,7 +1140,7 @@ DiligentBackend::create(RenderConfig config,
         terrain_pipeline_info.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::True;
         terrain_pipeline_info.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = Diligent::True;
         terrain_pipeline_info.PSODesc.ResourceLayout.DefaultVariableType =
-            Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
+            Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
 
         Diligent::IPipelineState* terrain_pipeline = nullptr;
         impl->device->CreateGraphicsPipelineState(terrain_pipeline_info, &terrain_pipeline);
@@ -1164,14 +1165,23 @@ DiligentBackend::create(RenderConfig config,
                  "Diligent could not create the terrain camera buffer"});
         }
         impl->terrain_camera_buffer.Attach(camera_buffer);
-        auto* camera_variable = impl->terrain_pipeline->GetStaticVariableByName(
+        Diligent::IShaderResourceBinding* terrain_srb = nullptr;
+        impl->terrain_pipeline->CreateShaderResourceBinding(&terrain_srb, true);
+        if (terrain_srb == nullptr) {
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent terrain shader resource binding is not available"});
+        }
+        auto* camera_variable = terrain_srb->GetVariableByName(
             Diligent::SHADER_TYPE_VERTEX, "CameraConstants");
         if (camera_variable == nullptr) {
+            terrain_srb->Release();
             return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
                 {foundation::ErrorCode::Internal,
                  "Diligent terrain shader camera constants are not reflected"});
         }
         camera_variable->Set(impl->terrain_camera_buffer);
+        impl->terrain_srb.Attach(terrain_srb);
 
         Diligent::ShaderResourceVariableDesc preview_variables[] = {
             {Diligent::SHADER_TYPE_VERTEX, "Instances",
@@ -1574,6 +1584,8 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
         Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
     impl_->context->SetPipelineState(impl_->terrain_pipeline);
+    impl_->context->CommitShaderResources(
+        impl_->terrain_srb, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     Diligent::IBuffer* vertex_buffers[] = {impl_->terrain_vertex_buffer};
     impl_->context->SetVertexBuffers(
         0, 1, vertex_buffers, offsets, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
