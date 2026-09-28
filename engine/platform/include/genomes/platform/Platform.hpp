@@ -57,6 +57,9 @@ private:
     void* window_{nullptr};
     std::int32_t width_{0};
     std::int32_t height_{0};
+    float last_mouse_x_{0.0F};
+    float last_mouse_y_{0.0F};
+    bool mouse_left_down_{false};
     bool initialized_{false};
 };
 

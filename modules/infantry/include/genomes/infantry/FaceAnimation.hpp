@@ -36,6 +36,10 @@ struct FaceOutput final {
     std::array<float, kFaceChannelCount> channels{};
     float eyelids_close{0.0F};
     float eyelids_arc{0.0F};
+    // Canonical non-topological soft-tissue channels. Hands remain primarily
+    // skeletal; hands_relax is an optional palm/tissue adjustment.
+    float neck_flex{0.0F};
+    float hands_relax{0.0F};
     float jaw_rotation{0.0F};
     float head_yaw{0.0F};
     float head_pitch{0.0F};

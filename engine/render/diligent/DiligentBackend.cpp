@@ -1,6 +1,7 @@
 #include "DiligentBackend.hpp"
 
 #include <genomes/render/gpu_scene/GpuScene.hpp>
+#include <ShaderSources.hpp>
 
 #include <DiligentCore/Common/interface/RefCntAutoPtr.hpp>
 #include <DiligentCore/Graphics/GraphicsEngine/interface/Buffer.h>
@@ -34,6 +35,7 @@ namespace genomes::render {
 namespace {
 
 constexpr std::size_t kMaxUiVertices = 65'536;
+constexpr std::size_t kMaxDebugVertices = 65'536;
 
 struct CameraConstants final {
     float view_projection[16]{};
@@ -59,6 +61,12 @@ struct SkinnedPassConstants final {
     float view_projection[16]{};
     float object_position_scale[4]{};
     float object_scale_rotation[4]{};
+    float character_key_direction_intensity[4]{};
+    float character_key_color[4]{};
+    float character_fill_direction_intensity[4]{};
+    float character_fill_color[4]{};
+    float character_hemisphere_sky[4]{};
+    float character_hemisphere_ground[4]{};
     float morph_weights[4]{};
     float bone_palette[kInfantryBonePaletteSize][16]{};
 };
@@ -74,9 +82,11 @@ struct SkinnedGpuVertex final {
     float bone_weights[4]{};
     float morph_position[4][3]{};
     float morph_normal[4][3]{};
+    std::uint32_t material_region{0};
 };
 
-static_assert(sizeof(SkinnedGpuVertex) == 176U);
+static_assert(sizeof(SkinnedGpuVertex) == 180U);
+static_assert(offsetof(SkinnedGpuVertex, material_region) == 176U);
 
 struct Mat4 final {
     float values[16]{};
@@ -161,6 +171,11 @@ struct UiVertex final {
     float color[4];
 };
 
+struct DebugVertex final {
+    float position[3]{};
+    float color[4]{1.0F, 1.0F, 1.0F, 1.0F};
+};
+
 [[nodiscard]] std::shared_ptr<RenderMesh> make_unit_cube_mesh(
     foundation::StableId mesh_id) {
     auto mesh = std::make_shared<RenderMesh>();
@@ -239,6 +254,7 @@ struct UiVertex final {
     target.color[1] = source.color.g;
     target.color[2] = source.color.b;
     target.color[3] = source.color.a;
+    target.material_region = source.material_region;
     for (std::size_t index = 0U; index < 4U; ++index) {
         target.bone_indices[index] = static_cast<float>(source.bone_indices[index]);
         target.bone_weights[index] = source.bone_weights[index];
@@ -283,6 +299,40 @@ constexpr char kUiPixelShader[] = R"(
 struct PSInput {
     float4 Position : SV_POSITION;
     float4 Color    : COLOR0;
+};
+
+float4 main(PSInput input) : SV_TARGET {
+    return input.Color;
+}
+)";
+
+constexpr char kDebugVertexShader[] = R"(
+cbuffer CameraConstants {
+    float4x4 ViewProjection;
+};
+
+struct VSInput {
+    float3 Position : ATTRIB0;
+    float4 Color : ATTRIB1;
+};
+
+struct VSOutput {
+    float4 Position : SV_POSITION;
+    float4 Color : COLOR0;
+};
+
+VSOutput main(VSInput input) {
+    VSOutput output;
+    output.Position = mul(ViewProjection, float4(input.Position, 1.0));
+    output.Color = input.Color;
+    return output;
+}
+)";
+
+constexpr char kDebugPixelShader[] = R"(
+struct PSInput {
+    float4 Position : SV_POSITION;
+    float4 Color : COLOR0;
 };
 
 float4 main(PSInput input) : SV_TARGET {
@@ -442,96 +492,8 @@ float4 main(PSInput input) : SV_TARGET {
 }
 )";
 
-constexpr char kSkinnedVertexShader[] = R"(
-cbuffer SkinnedPassConstants {
-    float4x4 ViewProjection;
-    float4 ObjectPositionScale;
-    float4 ObjectScaleRotation;
-    float4 MorphWeights;
-    float4x4 BonePalette[69];
-};
-
-struct VSInput {
-    float3 Position : ATTRIB0;
-    float3 Normal : ATTRIB1;
-    float2 UV : ATTRIB2;
-    float4 Color : ATTRIB3;
-    float4 BoneIndices : ATTRIB4;
-    float4 BoneWeights : ATTRIB5;
-    float3 MorphPosition0 : ATTRIB6;
-    float3 MorphPosition1 : ATTRIB7;
-    float3 MorphPosition2 : ATTRIB8;
-    float3 MorphPosition3 : ATTRIB9;
-    float3 MorphNormal0 : ATTRIB10;
-    float3 MorphNormal1 : ATTRIB11;
-    float3 MorphNormal2 : ATTRIB12;
-    float3 MorphNormal3 : ATTRIB13;
-};
-
-struct VSOutput {
-    float4 Position : SV_POSITION;
-    float3 Normal : NORMAL0;
-    float4 Color : COLOR0;
-};
-
-VSOutput main(VSInput input) {
-    float3 position = input.Position;
-    float3 normal = input.Normal;
-    position += input.MorphPosition0 * MorphWeights.x;
-    position += input.MorphPosition1 * MorphWeights.y;
-    position += input.MorphPosition2 * MorphWeights.z;
-    position += input.MorphPosition3 * MorphWeights.w;
-    normal += input.MorphNormal0 * MorphWeights.x;
-    normal += input.MorphNormal1 * MorphWeights.y;
-    normal += input.MorphNormal2 * MorphWeights.z;
-    normal += input.MorphNormal3 * MorphWeights.w;
-    float4 skinned_position = float4(0.0, 0.0, 0.0, 0.0);
-    float3 skinned_normal = float3(0.0, 0.0, 0.0);
-    [unroll]
-    for (uint i = 0; i < 4; ++i) {
-        uint bone = (uint)input.BoneIndices[i];
-        float weight = input.BoneWeights[i];
-        if (weight > 0.0 && bone < 69) {
-            skinned_position += mul(BonePalette[bone], float4(position, 1.0)) * weight;
-            skinned_normal += mul((float3x3)BonePalette[bone], normal) * weight;
-        }
-    }
-    if (dot(skinned_position, skinned_position) < 1.0e-12) {
-        skinned_position = float4(position, 1.0);
-        skinned_normal = normal;
-    }
-    float3 scale = ObjectScaleRotation.xyz;
-    float cosine = cos(ObjectScaleRotation.w);
-    float sine = sin(ObjectScaleRotation.w);
-    float3 scaled = skinned_position.xyz * scale;
-    float3 rotated = float3(scaled.x * cosine - scaled.z * sine,
-                             scaled.y,
-                             scaled.x * sine + scaled.z * cosine);
-    float3 rotated_normal = float3(skinned_normal.x * cosine - skinned_normal.z * sine,
-                                   skinned_normal.y,
-                                   skinned_normal.x * sine + skinned_normal.z * cosine);
-    VSOutput output;
-    output.Position = mul(ViewProjection,
-                           float4(rotated + ObjectPositionScale.xyz, 1.0));
-    output.Normal = normalize(rotated_normal);
-    output.Color = input.Color;
-    return output;
-}
-)";
-
-constexpr char kSkinnedPixelShader[] = R"(
-struct PSInput {
-    float4 Position : SV_POSITION;
-    float3 Normal : NORMAL0;
-    float4 Color : COLOR0;
-};
-
-float4 main(PSInput input) : SV_TARGET {
-    float3 light_direction = normalize(float3(-0.35, 0.80, -0.25));
-    float lighting = saturate(dot(normalize(input.Normal), light_direction));
-    return float4(input.Color.rgb * (0.35 + 0.65 * lighting), input.Color.a);
-}
-)";
+constexpr const char* kSkinnedVertexShader = diligent_shaders::kSkinnedVertexShader;
+constexpr const char* kSkinnedPixelShader = diligent_shaders::kSkinnedPixelShader;
 
 using Glyph = std::array<std::uint8_t, 7>;
 
@@ -820,7 +782,6 @@ struct DiligentBackend::Impl final {
         Diligent::RefCntAutoPtr<Diligent::IBuffer> index_buffer;
         std::size_t vertex_capacity{0};
         std::size_t index_capacity{0};
-        const RenderMesh* uploaded_mesh{nullptr};
         std::shared_ptr<const RenderMesh> owner;
         std::uint64_t uploaded_revision{0};
     };
@@ -830,7 +791,6 @@ struct DiligentBackend::Impl final {
         Diligent::RefCntAutoPtr<Diligent::IBuffer> index_buffer;
         std::size_t vertex_capacity{0};
         std::size_t index_capacity{0};
-        const SkinnedMeshPrototype* uploaded_mesh{nullptr};
         std::shared_ptr<const SkinnedMeshPrototype> owner;
         std::uint64_t uploaded_revision{0};
     };
@@ -840,6 +800,7 @@ struct DiligentBackend::Impl final {
                                            in_config.headless, true,
                                            !in_config.headless} {
         capabilities.instanced_rendering = !in_config.headless;
+        capabilities.gpu_skinning = !in_config.headless;
     }
 
     RenderConfig config{};
@@ -851,6 +812,12 @@ struct DiligentBackend::Impl final {
     Diligent::RefCntAutoPtr<Diligent::IShader> ui_pixel_shader;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> ui_pipeline;
     Diligent::RefCntAutoPtr<Diligent::IBuffer> ui_vertex_buffer;
+    Diligent::RefCntAutoPtr<Diligent::IShader> debug_vertex_shader;
+    Diligent::RefCntAutoPtr<Diligent::IShader> debug_pixel_shader;
+    Diligent::RefCntAutoPtr<Diligent::IPipelineState> debug_pipeline;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> debug_srb;
+    Diligent::RefCntAutoPtr<Diligent::IBuffer> debug_vertex_buffer;
+    std::vector<DebugVertex> debug_vertices;
     Diligent::RefCntAutoPtr<Diligent::IShader> terrain_vertex_shader;
     Diligent::RefCntAutoPtr<Diligent::IShader> terrain_pixel_shader;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> terrain_pipeline;
@@ -875,21 +842,18 @@ struct DiligentBackend::Impl final {
     Diligent::RefCntAutoPtr<Diligent::IBuffer> terrain_index_buffer;
     std::size_t terrain_vertex_capacity{0};
     std::size_t terrain_index_capacity{0};
-    const RenderMesh* uploaded_terrain_mesh{nullptr};
     std::shared_ptr<const RenderMesh> uploaded_terrain_owner;
     std::uint64_t uploaded_terrain_revision{0};
     Diligent::RefCntAutoPtr<Diligent::IBuffer> infantry_vertex_buffer;
     Diligent::RefCntAutoPtr<Diligent::IBuffer> infantry_index_buffer;
     std::size_t infantry_vertex_capacity{0};
     std::size_t infantry_index_capacity{0};
-    const RenderMesh* uploaded_infantry_mesh{nullptr};
     std::shared_ptr<const RenderMesh> uploaded_infantry_owner;
     std::uint64_t uploaded_infantry_revision{0};
     Diligent::RefCntAutoPtr<Diligent::IBuffer> world_vertex_buffer;
     Diligent::RefCntAutoPtr<Diligent::IBuffer> world_index_buffer;
     std::size_t world_vertex_capacity{0};
     std::size_t world_index_capacity{0};
-    const RenderMesh* uploaded_world_mesh{nullptr};
     std::shared_ptr<const RenderMesh> uploaded_world_owner;
     std::uint64_t uploaded_world_revision{0};
     Diligent::RefCntAutoPtr<Diligent::ITexture> depth_texture;
@@ -1061,6 +1025,10 @@ DiligentBackend::create(RenderConfig config,
                            Diligent::SHADER_TYPE_VERTEX, impl->ui_vertex_shader) ||
             !create_shader(kUiPixelShader, "Genomes UI pixel shader",
                            Diligent::SHADER_TYPE_PIXEL, impl->ui_pixel_shader) ||
+            !create_shader(kDebugVertexShader, "Genomes debug line vertex shader",
+                           Diligent::SHADER_TYPE_VERTEX, impl->debug_vertex_shader) ||
+            !create_shader(kDebugPixelShader, "Genomes debug line pixel shader",
+                           Diligent::SHADER_TYPE_PIXEL, impl->debug_pixel_shader) ||
             !create_shader(kTerrainVertexShader, "Genomes terrain vertex shader",
                            Diligent::SHADER_TYPE_VERTEX, impl->terrain_vertex_shader) ||
             !create_shader(kTerrainPixelShader, "Genomes terrain pixel shader",
@@ -1183,6 +1151,71 @@ DiligentBackend::create(RenderConfig config,
         camera_variable->Set(impl->terrain_camera_buffer);
         impl->terrain_srb.Attach(terrain_srb);
 
+        Diligent::LayoutElement debug_layout[] = {
+            Diligent::LayoutElement{0, 0, 3, Diligent::VT_FLOAT32, Diligent::False},
+            Diligent::LayoutElement{1, 0, 4, Diligent::VT_FLOAT32, Diligent::False},
+        };
+        Diligent::GraphicsPipelineStateCreateInfo debug_pipeline_info{
+            "Genomes debug line pipeline"};
+        debug_pipeline_info.pVS = impl->debug_vertex_shader;
+        debug_pipeline_info.pPS = impl->debug_pixel_shader;
+        debug_pipeline_info.GraphicsPipeline.InputLayout =
+            Diligent::InputLayoutDesc{
+                debug_layout, static_cast<Diligent::Uint32>(std::size(debug_layout))};
+        debug_pipeline_info.GraphicsPipeline.PrimitiveTopology =
+            Diligent::PRIMITIVE_TOPOLOGY_LINE_LIST;
+        debug_pipeline_info.GraphicsPipeline.NumRenderTargets = 1;
+        debug_pipeline_info.GraphicsPipeline.RTVFormats[0] =
+            impl->swap_chain->GetDesc().ColorBufferFormat;
+        debug_pipeline_info.GraphicsPipeline.DSVFormat = Diligent::TEX_FORMAT_D32_FLOAT;
+        debug_pipeline_info.GraphicsPipeline.RasterizerDesc.CullMode = Diligent::CULL_MODE_NONE;
+        debug_pipeline_info.GraphicsPipeline.DepthStencilDesc.DepthEnable = Diligent::True;
+        debug_pipeline_info.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = Diligent::False;
+        debug_pipeline_info.PSODesc.ResourceLayout.DefaultVariableType =
+            Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
+        Diligent::IPipelineState* debug_pipeline = nullptr;
+        impl->device->CreateGraphicsPipelineState(debug_pipeline_info, &debug_pipeline);
+        if (debug_pipeline == nullptr) {
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create the debug line graphics pipeline"});
+        }
+        impl->debug_pipeline.Attach(debug_pipeline);
+
+        Diligent::BufferDesc debug_vertex_buffer_desc{};
+        debug_vertex_buffer_desc.Name = "Genomes debug line vertex buffer";
+        debug_vertex_buffer_desc.Size =
+            static_cast<Diligent::Uint64>(sizeof(DebugVertex) * kMaxDebugVertices);
+        debug_vertex_buffer_desc.BindFlags = Diligent::BIND_VERTEX_BUFFER;
+        debug_vertex_buffer_desc.Usage = Diligent::USAGE_DEFAULT;
+        debug_vertex_buffer_desc.CPUAccessFlags = Diligent::CPU_ACCESS_NONE;
+        Diligent::IBuffer* debug_vertex_buffer = nullptr;
+        impl->device->CreateBuffer(debug_vertex_buffer_desc, nullptr, &debug_vertex_buffer);
+        if (debug_vertex_buffer == nullptr) {
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create the debug line vertex buffer"});
+        }
+        impl->debug_vertex_buffer.Attach(debug_vertex_buffer);
+        Diligent::IShaderResourceBinding* debug_srb = nullptr;
+        impl->debug_pipeline->CreateShaderResourceBinding(&debug_srb, true);
+        if (debug_srb == nullptr) {
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent debug line shader resource binding is not available"});
+        }
+        auto* debug_camera_variable = debug_srb->GetVariableByName(
+            Diligent::SHADER_TYPE_VERTEX, "CameraConstants");
+        if (debug_camera_variable == nullptr) {
+            debug_srb->Release();
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent debug line camera constants are not reflected"});
+        }
+        debug_camera_variable->Set(impl->terrain_camera_buffer);
+        impl->debug_srb.Attach(debug_srb);
+        impl->debug_vertices.reserve(kMaxDebugVertices);
+
         Diligent::ShaderResourceVariableDesc preview_variables[] = {
             {Diligent::SHADER_TYPE_VERTEX, "Instances",
              Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE},
@@ -1273,20 +1306,21 @@ DiligentBackend::create(RenderConfig config,
         impl->preview_srb.Attach(preview_srb);
 
         Diligent::LayoutElement skinned_layout[] = {
-            Diligent::LayoutElement{0, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 0U, 176U},
-            Diligent::LayoutElement{1, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 12U, 176U},
-            Diligent::LayoutElement{2, 0, 2, Diligent::VT_FLOAT32, Diligent::False, 24U, 176U},
-            Diligent::LayoutElement{3, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 32U, 176U},
-            Diligent::LayoutElement{4, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 48U, 176U},
-            Diligent::LayoutElement{5, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 64U, 176U},
-            Diligent::LayoutElement{6, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 80U, 176U},
-            Diligent::LayoutElement{7, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 92U, 176U},
-            Diligent::LayoutElement{8, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 104U, 176U},
-            Diligent::LayoutElement{9, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 116U, 176U},
-            Diligent::LayoutElement{10, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 128U, 176U},
-            Diligent::LayoutElement{11, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 140U, 176U},
-            Diligent::LayoutElement{12, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 152U, 176U},
-            Diligent::LayoutElement{13, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 164U, 176U},
+            Diligent::LayoutElement{0, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 0U, 180U},
+            Diligent::LayoutElement{1, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 12U, 180U},
+            Diligent::LayoutElement{2, 0, 2, Diligent::VT_FLOAT32, Diligent::False, 24U, 180U},
+            Diligent::LayoutElement{3, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 32U, 180U},
+            Diligent::LayoutElement{4, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 48U, 180U},
+            Diligent::LayoutElement{5, 0, 4, Diligent::VT_FLOAT32, Diligent::False, 64U, 180U},
+            Diligent::LayoutElement{6, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 80U, 180U},
+            Diligent::LayoutElement{7, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 92U, 180U},
+            Diligent::LayoutElement{8, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 104U, 180U},
+            Diligent::LayoutElement{9, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 116U, 180U},
+            Diligent::LayoutElement{10, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 128U, 180U},
+            Diligent::LayoutElement{11, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 140U, 180U},
+            Diligent::LayoutElement{12, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 152U, 180U},
+            Diligent::LayoutElement{13, 0, 3, Diligent::VT_FLOAT32, Diligent::False, 164U, 180U},
+            Diligent::LayoutElement{14, 0, 1, Diligent::VT_UINT32, Diligent::False, 176U, 180U},
         };
         Diligent::GraphicsPipelineStateCreateInfo skinned_pipeline_info{
             "Genomes skinned infantry pipeline"};
@@ -1519,8 +1553,7 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
         buffers_recreated = true;
     }
 
-    if (buffers_recreated || impl_->uploaded_terrain_mesh != &mesh ||
-        impl_->uploaded_terrain_revision != mesh.revision) {
+    if (buffers_recreated || impl_->uploaded_terrain_revision != mesh.revision) {
         impl_->context->MapBuffer(impl_->terrain_vertex_buffer, Diligent::MAP_WRITE,
                                   Diligent::MAP_FLAG_DISCARD, mapped_data);
         if (mapped_data == nullptr) {
@@ -1542,7 +1575,6 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
         std::memcpy(mapped_data, mesh.indices.data(), index_bytes);
         impl_->context->UnmapBuffer(impl_->terrain_index_buffer, Diligent::MAP_WRITE);
         impl_->uploaded_terrain_owner = snapshot.terrain_mesh;
-        impl_->uploaded_terrain_mesh = &mesh;
         impl_->uploaded_terrain_revision = mesh.revision;
     }
 
@@ -1649,8 +1681,7 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
             impl_->world_index_capacity = capacity;
             world_buffers_recreated = true;
         }
-        if (world_buffers_recreated || impl_->uploaded_world_mesh != &world_mesh ||
-            impl_->uploaded_world_revision != world_mesh.revision) {
+    if (world_buffers_recreated || impl_->uploaded_world_revision != world_mesh.revision) {
             mapped_data = nullptr;
             impl_->context->MapBuffer(impl_->world_vertex_buffer, Diligent::MAP_WRITE,
                                       Diligent::MAP_FLAG_DISCARD, mapped_data);
@@ -1672,8 +1703,7 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
             std::memcpy(mapped_data, world_mesh.indices.data(), world_index_bytes);
             impl_->context->UnmapBuffer(impl_->world_index_buffer, Diligent::MAP_WRITE);
             impl_->uploaded_world_owner = snapshot.world_mesh;
-            impl_->uploaded_world_mesh = &world_mesh;
-            impl_->uploaded_world_revision = world_mesh.revision;
+        impl_->uploaded_world_revision = world_mesh.revision;
         }
         impl_->context->SetPipelineState(impl_->terrain_pipeline);
         Diligent::IBuffer* world_vertex_buffers[] = {impl_->world_vertex_buffer};
@@ -1744,7 +1774,7 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
             impl_->infantry_index_capacity = capacity;
             infantry_buffers_recreated = true;
         }
-        if (infantry_buffers_recreated || impl_->uploaded_infantry_mesh != &infantry_mesh ||
+        if (infantry_buffers_recreated ||
             impl_->uploaded_infantry_revision != infantry_mesh.revision) {
             mapped_data = nullptr;
             impl_->context->MapBuffer(impl_->infantry_vertex_buffer, Diligent::MAP_WRITE,
@@ -1768,7 +1798,6 @@ RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) 
             std::memcpy(mapped_data, infantry_mesh.indices.data(), infantry_index_bytes);
             impl_->context->UnmapBuffer(impl_->infantry_index_buffer, Diligent::MAP_WRITE);
             impl_->uploaded_infantry_owner = snapshot.infantry_mesh;
-            impl_->uploaded_infantry_mesh = &infantry_mesh;
             impl_->uploaded_infantry_revision = infantry_mesh.revision;
         }
         impl_->context->SetPipelineState(impl_->terrain_pipeline);
@@ -1859,7 +1888,7 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
         // The GPU pass owns the UnitLab draw when its immutable prototype and
         // palette are available. The CPU deformer remains as the headless and
         // backend fallback without changing the presentation contract.
-        const bool gpu_skinning_enabled = true;
+        const bool gpu_skinning_enabled = impl_->capabilities.gpu_skinning;
         if (gpu_skinning_enabled && impl_->swap_chain && impl_->skinned_pipeline &&
             impl_->skinned_srb && impl_->skinned_pass_constants &&
             !snapshot.skinned_prototypes.empty() &&
@@ -1907,21 +1936,21 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                          "skinned infantry data exceeds Diligent limits"});
                 }
 
-                std::vector<SkinnedGpuVertex> gpu_vertices;
-                gpu_vertices.reserve(prototype_owner->vertices.size());
-                for (std::size_t index = 0U; index < prototype_owner->vertices.size(); ++index) {
-                    gpu_vertices.push_back(to_skinned_gpu_vertex(
-                        prototype_owner->vertices[index], *prototype_owner, index));
-                }
-                const std::size_t vertex_bytes = gpu_vertices.size() * sizeof(SkinnedGpuVertex);
+                const std::size_t vertex_bytes =
+                    prototype_owner->vertices.size() * sizeof(SkinnedGpuVertex);
                 const std::size_t index_bytes =
                     prototype_owner->indices.size() * sizeof(std::uint32_t);
                 Impl::SkinnedPrototypeGpu& prototype_gpu =
                     impl_->skinned_prototypes_gpu[prototype_owner->mesh_id];
-                const bool changed = prototype_gpu.uploaded_mesh != prototype_owner.get() ||
-                                     prototype_gpu.uploaded_revision != prototype_owner->revision;
+                const bool changed = prototype_gpu.uploaded_revision != prototype_owner->revision;
                 if (!prototype_gpu.vertex_buffer || changed ||
                     vertex_bytes > prototype_gpu.vertex_capacity) {
+                    std::vector<SkinnedGpuVertex> gpu_vertices;
+                    gpu_vertices.reserve(prototype_owner->vertices.size());
+                    for (std::size_t index = 0U; index < prototype_owner->vertices.size(); ++index) {
+                        gpu_vertices.push_back(to_skinned_gpu_vertex(
+                            prototype_owner->vertices[index], *prototype_owner, index));
+                    }
                     Diligent::BufferDesc desc{};
                     desc.Name = "Genomes skinned prototype vertex buffer";
                     desc.Size = static_cast<Diligent::Uint64>(
@@ -1981,7 +2010,6 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                                                 Diligent::MAP_WRITE);
                 }
                 prototype_gpu.owner = prototype_owner;
-                prototype_gpu.uploaded_mesh = prototype_owner.get();
                 prototype_gpu.uploaded_revision = prototype_owner->revision;
 
                 foundation::Vec3 min_corner{std::numeric_limits<float>::max(),
@@ -2045,6 +2073,31 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     pass_constants.object_scale_rotation[1] = draw_instance->scale.y;
                     pass_constants.object_scale_rotation[2] = draw_instance->scale.z;
                     pass_constants.object_scale_rotation[3] = draw_instance->rotation_y;
+                    const auto& lights = snapshot.character_lights;
+                    pass_constants.character_key_direction_intensity[0] = lights.key.direction.x;
+                    pass_constants.character_key_direction_intensity[1] = lights.key.direction.y;
+                    pass_constants.character_key_direction_intensity[2] = lights.key.direction.z;
+                    pass_constants.character_key_direction_intensity[3] = lights.key.intensity;
+                    pass_constants.character_key_color[0] = lights.key.color.r;
+                    pass_constants.character_key_color[1] = lights.key.color.g;
+                    pass_constants.character_key_color[2] = lights.key.color.b;
+                    pass_constants.character_key_color[3] = lights.key.color.a;
+                    pass_constants.character_fill_direction_intensity[0] = lights.fill.direction.x;
+                    pass_constants.character_fill_direction_intensity[1] = lights.fill.direction.y;
+                    pass_constants.character_fill_direction_intensity[2] = lights.fill.direction.z;
+                    pass_constants.character_fill_direction_intensity[3] = lights.fill.intensity;
+                    pass_constants.character_fill_color[0] = lights.fill.color.r;
+                    pass_constants.character_fill_color[1] = lights.fill.color.g;
+                    pass_constants.character_fill_color[2] = lights.fill.color.b;
+                    pass_constants.character_fill_color[3] = lights.fill.color.a;
+                    pass_constants.character_hemisphere_sky[0] = lights.hemisphere.sky.r;
+                    pass_constants.character_hemisphere_sky[1] = lights.hemisphere.sky.g;
+                    pass_constants.character_hemisphere_sky[2] = lights.hemisphere.sky.b;
+                    pass_constants.character_hemisphere_sky[3] = lights.hemisphere.intensity;
+                    pass_constants.character_hemisphere_ground[0] = lights.hemisphere.ground.r;
+                    pass_constants.character_hemisphere_ground[1] = lights.hemisphere.ground.g;
+                    pass_constants.character_hemisphere_ground[2] = lights.hemisphere.ground.b;
+                    pass_constants.character_hemisphere_ground[3] = lights.hemisphere.intensity;
                     for (std::size_t index = 0U; index < 4U; ++index) {
                         pass_constants.morph_weights[index] = draw_palette->morph_weights[index];
                     }
@@ -2250,8 +2303,8 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     prototype.vertices.size() * sizeof(RenderMeshVertex);
                 const std::size_t prototype_index_bytes =
                     prototype.indices.size() * sizeof(std::uint32_t);
-                const bool prototype_changed = prototype_gpu.uploaded_mesh != &prototype ||
-                                               prototype_gpu.uploaded_revision != prototype.revision;
+                const bool prototype_changed =
+                    prototype_gpu.uploaded_revision != prototype.revision;
                 if (!prototype_gpu.vertex_buffer || prototype_changed ||
                     prototype_vertex_bytes > prototype_gpu.vertex_capacity) {
                     const std::size_t capacity = prototype_vertex_bytes;
@@ -2295,7 +2348,6 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     prototype_gpu.index_capacity = capacity;
                 }
                 prototype_gpu.owner = prototype_owner;
-                prototype_gpu.uploaded_mesh = &prototype;
                 prototype_gpu.uploaded_revision = prototype.revision;
 
                 const std::size_t remap_bytes = batch.slots.size() * sizeof(std::uint32_t);
@@ -2358,6 +2410,58 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
     } catch (const std::exception&) {
         return RenderResult::failure(
             {foundation::ErrorCode::Internal, "could not synchronize the GPU scene"});
+    }
+
+    if (impl_->swap_chain && impl_->debug_pipeline && impl_->debug_srb &&
+        impl_->debug_vertex_buffer && !snapshot.debug_lines.empty() &&
+        snapshot.debug_lines.size() <= kMaxDebugVertices / 2U) {
+        const Diligent::SwapChainDesc swap_chain_desc = impl_->swap_chain->GetDesc();
+        const float aspect = static_cast<float>(swap_chain_desc.Width) /
+                             static_cast<float>(std::max(1U, swap_chain_desc.Height));
+        const foundation::Vec3 eye = snapshot.camera.enabled
+            ? snapshot.camera.position : foundation::Vec3{0.0F, 2.0F, 5.0F};
+        const foundation::Vec3 target = snapshot.camera.enabled
+            ? snapshot.camera.target : foundation::Vec3{0.0F, 1.0F, 0.0F};
+        const foundation::Vec3 up = snapshot.camera.enabled
+            ? snapshot.camera.up : foundation::Vec3{0.0F, 1.0F, 0.0F};
+        const float vertical_fov = snapshot.camera.enabled ? snapshot.camera.vertical_fov : 0.9F;
+        const float near_plane = snapshot.camera.enabled ? snapshot.camera.near_plane : 0.05F;
+        const float far_plane = snapshot.camera.enabled ? snapshot.camera.far_plane : 100.0F;
+        const Mat4 view_projection = multiply(
+            perspective(vertical_fov, aspect, near_plane, far_plane),
+            look_at(eye, target, up));
+        CameraConstants camera{};
+        std::memcpy(camera.view_projection, view_projection.values,
+                    sizeof(camera.view_projection));
+        impl_->context->UpdateBuffer(
+            impl_->terrain_camera_buffer, 0, sizeof(camera), &camera,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl_->debug_vertices.clear();
+        impl_->debug_vertices.reserve(snapshot.debug_lines.size() * 2U);
+        for (const DebugLine& line : snapshot.debug_lines) {
+            impl_->debug_vertices.push_back({
+                {line.start.x, line.start.y, line.start.z},
+                {line.color.r, line.color.g, line.color.b, line.color.a}});
+            impl_->debug_vertices.push_back({
+                {line.end.x, line.end.y, line.end.z},
+                {line.color.r, line.color.g, line.color.b, line.color.a}});
+        }
+        impl_->context->UpdateBuffer(
+            impl_->debug_vertex_buffer, 0,
+            static_cast<Diligent::Uint64>(impl_->debug_vertices.size() * sizeof(DebugVertex)),
+            impl_->debug_vertices.data(), Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl_->context->SetPipelineState(impl_->debug_pipeline);
+        impl_->context->CommitShaderResources(
+            impl_->debug_srb, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        Diligent::IBuffer* debug_vertex_buffers[] = {impl_->debug_vertex_buffer};
+        const Diligent::Uint64 debug_offsets[] = {0};
+        impl_->context->SetVertexBuffers(
+            0, 1, debug_vertex_buffers, debug_offsets,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+            Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+        impl_->context->Draw(Diligent::DrawAttribs{
+            static_cast<Diligent::Uint32>(impl_->debug_vertices.size()),
+            Diligent::DRAW_FLAG_NONE});
     }
 
     if (!impl_->swap_chain || !impl_->ui_pipeline || !impl_->ui_vertex_buffer) {
@@ -2515,6 +2619,12 @@ void DiligentBackend::shutdown() noexcept {
     impl_->ui_pipeline.Release();
     impl_->ui_pixel_shader.Release();
     impl_->ui_vertex_shader.Release();
+    impl_->debug_vertex_buffer.Release();
+    impl_->debug_srb.Release();
+    impl_->debug_pipeline.Release();
+    impl_->debug_pixel_shader.Release();
+    impl_->debug_vertex_shader.Release();
+    impl_->debug_vertices.clear();
     impl_->terrain_index_buffer.Release();
     impl_->terrain_vertex_buffer.Release();
     impl_->terrain_camera_buffer.Release();
@@ -2530,21 +2640,18 @@ void DiligentBackend::shutdown() noexcept {
     impl_->depth_texture.Release();
     impl_->terrain_vertex_capacity = 0;
     impl_->terrain_index_capacity = 0;
-    impl_->uploaded_terrain_mesh = nullptr;
     impl_->uploaded_terrain_owner.reset();
     impl_->uploaded_terrain_revision = 0;
     impl_->infantry_index_buffer.Release();
     impl_->infantry_vertex_buffer.Release();
     impl_->infantry_vertex_capacity = 0;
     impl_->infantry_index_capacity = 0;
-    impl_->uploaded_infantry_mesh = nullptr;
     impl_->uploaded_infantry_owner.reset();
     impl_->uploaded_infantry_revision = 0;
     impl_->world_index_buffer.Release();
     impl_->world_vertex_buffer.Release();
     impl_->world_vertex_capacity = 0;
     impl_->world_index_capacity = 0;
-    impl_->uploaded_world_mesh = nullptr;
     impl_->uploaded_world_owner.reset();
     impl_->uploaded_world_revision = 0;
     impl_->instance_remap_buffer.Release();

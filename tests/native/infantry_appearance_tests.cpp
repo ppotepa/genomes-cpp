@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <array>
+#include <algorithm>
 #include <cmath>
 
 int main() {
@@ -29,6 +30,21 @@ int main() {
     assert(!artifact.value().body.indices.empty());
     assert(artifact.value().hair.vertices.size() > 0U);
     assert(artifact.value().morphs.size() == 4U);
+    const std::array<const char*, 4U> morph_names{
+        "eyelidsClose", "eyelidsArc", "neckFlex", "handsRelax"};
+    for (std::size_t morph = 0U; morph < morph_names.size(); ++morph) {
+        const auto& target = artifact.value().morphs[morph];
+        assert(target.name == morph_names[morph]);
+        assert(target.position_deltas.size() == artifact.value().body.vertices.size());
+        assert(target.normal_deltas.size() == artifact.value().body.vertices.size());
+        bool has_delta = false;
+        for (const auto& delta : target.position_deltas) {
+            assert(std::isfinite(delta.x) && std::isfinite(delta.y) && std::isfinite(delta.z));
+            has_delta = has_delta || std::abs(delta.x) > 1.0e-8F ||
+                        std::abs(delta.y) > 1.0e-8F || std::abs(delta.z) > 1.0e-8F;
+        }
+        assert(has_delta);
+    }
 
     genomes::infantry::AppearanceOptions short_hair = options;
     short_hair.hair_style = genomes::infantry::HairStyle::Short;
@@ -45,8 +61,18 @@ int main() {
         const auto variant_artifact = genomes::infantry::AppearanceCompiler::build(
             phenotype.value(), rig.value(), variant);
         assert(variant_artifact && variant_artifact.value().valid(rig.value()));
-        assert(variant_artifact.value().hair.vertices.size() !=
-               short_artifact.value().hair.vertices.size());
+        bool geometry_changed = variant_artifact.value().hair.vertices.size() !=
+                                short_artifact.value().hair.vertices.size();
+        const std::size_t common_vertices = std::min(
+            variant_artifact.value().hair.vertices.size(),
+            short_artifact.value().hair.vertices.size());
+        for (std::size_t index = 0U; index < common_vertices; ++index) {
+            const auto& left = variant_artifact.value().hair.vertices[index].position;
+            const auto& right = short_artifact.value().hair.vertices[index].position;
+            geometry_changed = geometry_changed || left.x != right.x || left.y != right.y ||
+                                left.z != right.z;
+        }
+        assert(geometry_changed);
     }
 
     for (const auto& vertex : artifact.value().body.vertices) {

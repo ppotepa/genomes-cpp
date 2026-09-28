@@ -103,7 +103,9 @@ bool FaceState::valid() const noexcept {
 
 bool FaceOutput::valid() const noexcept {
     const auto finiteValue = [](float value) { return std::isfinite(value); };
-    if (!finiteValue(eyelids_close) || !finiteValue(eyelids_arc) || !finiteValue(jaw_rotation) ||
+    if (!finiteValue(eyelids_close) || !finiteValue(eyelids_arc) ||
+        !finiteValue(neck_flex) || !finiteValue(hands_relax) ||
+        !finiteValue(jaw_rotation) ||
         !finiteValue(head_yaw) || !finiteValue(head_pitch) || !finiteValue(eye_yaw) ||
         !finiteValue(eye_pitch)) {
         return false;
@@ -222,6 +224,7 @@ void FaceAnimator::evaluateOutput(float fixed_dt_seconds) noexcept {
     }
     output_.eyelids_close = blink;
     output_.eyelids_arc = 4.0F * blink * (1.0F - blink);
+    output_.hands_relax = 0.0F;
     output_.jaw_rotation = state_.channels[static_cast<std::size_t>(FaceChannel::JawOpen)] * 0.26F;
 
     float yaw = state_.saccade_offset.x;
@@ -240,6 +243,7 @@ void FaceAnimator::evaluateOutput(float fixed_dt_seconds) noexcept {
     pitch = std::clamp(pitch, -0.60F, 0.60F);
     output_.head_yaw = yaw * 0.35F;
     output_.head_pitch = pitch * 0.30F;
+    output_.neck_flex = std::clamp(std::abs(output_.head_pitch) / 0.75F, 0.0F, 1.0F) * 0.35F;
     output_.eye_yaw = yaw * 0.65F;
     output_.eye_pitch = pitch * 0.70F;
 }

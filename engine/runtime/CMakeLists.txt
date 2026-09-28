@@ -1,8 +1,9 @@
 add_library(genomes_runtime STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
-    src/BuiltinScenes.cpp
-    src/MainMenuScene.cpp
+src/BuiltinScenes.cpp
+src/InfantryPresentation.cpp
+src/MainMenuScene.cpp
     src/UnitLabScene.cpp
     src/WorldConfigScene.cpp
     src/SceneDirector.cpp)

@@ -6,6 +6,12 @@
 
 namespace genomes::infantry {
 
+// Genome dimensions are normalized genes; every field in BodyPhenotype is a
+// resolved metre quantity. Keep conversions explicit at the resolver boundary.
+[[nodiscard]] constexpr float relativeToHeight(float normalized, float height) noexcept {
+    return normalized * height;
+}
+
 struct BodyPhenotype final {
     std::uint32_t version{1};
     float height{1.75F};

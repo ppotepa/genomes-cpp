@@ -8,6 +8,9 @@
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantrySimulation.hpp>
 #include <genomes/infantry/InfantryModelCompiler.hpp>
+#include <genomes/infantry/AnimationSystem.hpp>
+#include <genomes/infantry/FaceAnimation.hpp>
+#include <genomes/infantry/LocomotionController.hpp>
 #endif
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
@@ -27,6 +30,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace genomes::runtime {
 
@@ -48,6 +52,10 @@ public:
 private:
     void finalize_plan(world::WorldPlan plan);
     void configure_simulation_graph();
+#if GENOMES_HAS_INFANTRY
+    void initialize_infantry_animation();
+    void evaluate_infantry_animation(float fixed_dt_seconds);
+#endif
 
     WorldGenerationConfig config_{};
     std::optional<world::WorldPlan> plan_;
@@ -66,6 +74,16 @@ private:
     std::unique_ptr<infantry::InfantrySimulation> infantry_;
     infantry::InfantryModelCompiler infantry_model_compiler_;
     std::optional<infantry::InfantryModelArtifact> infantry_model_artifact_;
+    struct InfantryAnimationAgent final {
+        simulation::EntityId entity{};
+        std::optional<infantry::LocomotionController> locomotion;
+        std::optional<infantry::LocomotionState> locomotion_state;
+        std::optional<infantry::FaceAnimator> face;
+        infantry::AnimationLODState lod{};
+    };
+    std::optional<infantry::AnimationSystem> animation_system_;
+    std::vector<InfantryAnimationAgent> animation_agents_;
+    std::vector<infantry::AnimationPose> animation_poses_;
 #endif
     std::unique_ptr<combat::CombatSystem> combat_;
     combat::DamageBuffer damage_buffer_;

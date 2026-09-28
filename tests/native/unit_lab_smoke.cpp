@@ -1,9 +1,11 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/runtime/UnitLabScene.hpp>
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 
 int main() {
@@ -22,15 +24,74 @@ int main() {
     assert(presentation.skinned_palettes.size() == 1U);
     assert(presentation.skinned_prototypes.front()->vertices.size() > 100U);
     assert(presentation.skinned_prototypes.front()->indices.size() > 300U);
+    const auto& prototype = *presentation.skinned_prototypes.front();
+    assert(prototype.indices.size() % 3U == 0U);
+    for (std::size_t offset = 0U; offset < prototype.indices.size(); offset += 3U) {
+        const auto i0 = prototype.indices[offset];
+        const auto i1 = prototype.indices[offset + 1U];
+        const auto i2 = prototype.indices[offset + 2U];
+        assert(i0 < prototype.vertices.size() && i1 < prototype.vertices.size() &&
+               i2 < prototype.vertices.size());
+        const auto& p0 = prototype.vertices[i0].position;
+        const auto& p1 = prototype.vertices[i1].position;
+        const auto& p2 = prototype.vertices[i2].position;
+        const genomes::foundation::Vec3 a{p1.x - p0.x, p1.y - p0.y, p1.z - p0.z};
+        const genomes::foundation::Vec3 b{p2.x - p0.x, p2.y - p0.y, p2.z - p0.z};
+        const genomes::foundation::Vec3 n{a.y * b.z - a.z * b.y,
+                                          a.z * b.x - a.x * b.z,
+                                          a.x * b.y - a.y * b.x};
+        assert(std::isfinite(n.x) && std::isfinite(n.y) && std::isfinite(n.z));
+        assert(n.x * n.x + n.y * n.y + n.z * n.z > 1.0e-12F);
+    }
     assert(presentation.skinned_palettes.front().matrices.size() == 69U);
+    assert(presentation.skinned_prototypes.front()->morph_target_count == 4U);
+    for (std::size_t morph = 0U; morph < 4U; ++morph) {
+        assert(presentation.skinned_prototypes.front()->morphs[morph].position_deltas.size() ==
+               presentation.skinned_prototypes.front()->vertices.size());
+        assert(presentation.skinned_prototypes.front()->morphs[morph].normal_deltas.size() ==
+               presentation.skinned_prototypes.front()->vertices.size());
+    }
     assert(presentation.instance_prototypes.size() == 1U);
     assert(!presentation.instance_prototypes.front()->vertices.empty());
+    assert(presentation.camera.valid());
+    const auto stable_prototype = presentation.skinned_prototypes.front();
+    bool has_explicit_uniform_color = false;
+    for (const auto& vertex : stable_prototype->vertices) {
+        if (vertex.color.r < 0.95F || vertex.color.g < 0.95F || vertex.color.b < 0.95F) {
+            has_explicit_uniform_color = true;
+            break;
+        }
+    }
+    assert(has_explicit_uniform_color);
+    bool has_equipment_material = false;
+    for (const auto& vertex : stable_prototype->vertices) {
+        if (vertex.material_region == static_cast<std::uint16_t>(
+                genomes::infantry::AppearanceMaterialRegion::EquipmentMetal) ||
+            vertex.material_region == static_cast<std::uint16_t>(
+                genomes::infantry::AppearanceMaterialRegion::EquipmentPaint)) {
+            has_equipment_material = true;
+            break;
+        }
+    }
+    assert(has_equipment_material);
+
+    director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
+                           .mouse_y = 386.0F}); // camera preset
+    director.frame_update(1.0 / 60.0);
+    assert(presentation.skinned_prototypes.front() == stable_prototype);
+
+    director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
+                           .mouse_y = 276.0F}); // regenerate
+    director.frame_update(1.0 / 60.0);
+    assert(presentation.skinned_prototypes.front() != stable_prototype);
+    const auto regenerated_prototype = presentation.skinned_prototypes.front();
 
     director.handle_input({.right_pressed = true});
     for (int tick = 0; tick < 30; ++tick) {
         director.fixed_update(1.0 / 60.0);
     }
     director.frame_update(1.0 / 60.0);
+    assert(presentation.skinned_prototypes.front() == regenerated_prototype);
     const auto& palette = presentation.skinned_palettes.front().matrices;
     bool has_pose_rotation = false;
     for (const auto& matrix : palette) {
@@ -41,5 +102,42 @@ int main() {
         }
     }
     assert(has_pose_rotation);
+
+    genomes::runtime::SceneCommandQueue gpu_commands;
+    genomes::ui::UiDocument gpu_ui;
+    genomes::render::PresentationSnapshot gpu_presentation;
+    genomes::runtime::SceneContext gpu_context{gpu_commands, gpu_ui, gpu_presentation};
+    gpu_context.render_capabilities.gpu_skinning = true;
+    genomes::runtime::UnitLabScene gpu_scene;
+    gpu_scene.on_enter(gpu_context);
+    gpu_scene.build_presentation(gpu_context);
+    assert(gpu_presentation.skinned_prototypes.size() == 1U);
+    assert(gpu_presentation.skinned_palettes.size() == 1U);
+    assert(gpu_presentation.instance_prototypes.empty());
+    const auto initial_camera_position = gpu_presentation.camera.position;
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 506.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 566.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 626.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 686.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 866.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_down = true,
+                                         .mouse_x = 700.0F, .mouse_delta_x = 22.0F,
+                                         .mouse_delta_y = -8.0F, .mouse_wheel_y = 1.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 926.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 986.0F});
+    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
+                                         .mouse_x = 100.0F, .mouse_y = 1046.0F});
+    gpu_scene.build_presentation(gpu_context);
+    assert(!gpu_presentation.debug_lines.empty());
+    assert(std::abs(gpu_presentation.camera.position.x - initial_camera_position.x) > 0.0001F ||
+           std::abs(gpu_presentation.camera.position.y - initial_camera_position.y) > 0.0001F ||
+           std::abs(gpu_presentation.camera.position.z - initial_camera_position.z) > 0.0001F);
     return 0;
 }

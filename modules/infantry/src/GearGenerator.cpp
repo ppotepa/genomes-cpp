@@ -1,5 +1,6 @@
 #include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/EquipmentFit.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -8,6 +9,33 @@
 namespace genomes::infantry {
 
 namespace {
+
+[[nodiscard]] std::uint32_t materialRegionFor(EquipmentSlot slot) noexcept {
+    switch (slot) {
+    case EquipmentSlot::Feet:
+        return static_cast<std::uint32_t>(AppearanceMaterialRegion::BootLeather);
+    case EquipmentSlot::PrimaryWeapon:
+    case EquipmentSlot::SecondaryWeapon:
+    case EquipmentSlot::MeleeWeapon:
+    case EquipmentSlot::Throwable:
+        return static_cast<std::uint32_t>(AppearanceMaterialRegion::EquipmentMetal);
+    case EquipmentSlot::Head:
+    case EquipmentSlot::TorsoArmor:
+        return static_cast<std::uint32_t>(AppearanceMaterialRegion::EquipmentPaint);
+    case EquipmentSlot::ChestRig:
+    case EquipmentSlot::Back:
+    case EquipmentSlot::LeftHip:
+    case EquipmentSlot::RightHip:
+    case EquipmentSlot::LeftThigh:
+    case EquipmentSlot::RightThigh:
+    case EquipmentSlot::Utility1:
+    case EquipmentSlot::Utility2:
+    case EquipmentSlot::Utility3:
+        return static_cast<std::uint32_t>(AppearanceMaterialRegion::EquipmentCloth);
+    default:
+        return static_cast<std::uint32_t>(AppearanceMaterialRegion::UniformCloth);
+    }
+}
 
 [[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
@@ -212,7 +240,7 @@ foundation::Result<GearArtifact, foundation::Error> GearGenerator::build(
         piece.color = {std::clamp(palette.r * item->variant.shade, 0.0F, 1.0F),
                        std::clamp(palette.g * item->variant.shade, 0.0F, 1.0F),
                        std::clamp(palette.b * item->variant.shade, 0.0F, 1.0F), palette.a};
-        piece.material_region = static_cast<std::uint32_t>(index);
+        piece.material_region = materialRegionFor(slot);
         result.pieces.push_back(piece);
     }
     return result.valid(skeleton)

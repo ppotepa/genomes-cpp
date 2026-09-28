@@ -15,17 +15,26 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     request_key = foundation::stableHashCombine(request_key,
                                                 foundation::stableHashFloat(request.variation));
     request_key = foundation::stableHashCombine(request_key, request.detail_level);
+    request_key = foundation::stableHashCombine(request_key, request.genome_overrides.hash());
     request_key = foundation::stableHashCombine(request_key, request.loadout_id);
+    for (const EquipmentOverride& override : request.equipment_overrides.slots) {
+        request_key = foundation::stableHashCombine(request_key, override.specified ? 1U : 0U);
+        request_key = foundation::stableHashCombine(request_key, override.empty ? 1U : 0U);
+        request_key = foundation::stableHashCombine(request_key, override.definition_id);
+    }
     request_key = foundation::stableHashCombine(request_key,
                                                 foundation::stableHashFloat(request.uniform_color.r));
     request_key = foundation::stableHashCombine(request_key,
                                                 foundation::stableHashFloat(request.uniform_color.g));
     request_key = foundation::stableHashCombine(request_key,
                                                 foundation::stableHashFloat(request.uniform_color.b));
+    request_key = foundation::stableHashCombine(request_key,
+                                                foundation::stableHashFloat(request.uniform_color.a));
     {
         std::scoped_lock lock(mutex_);
         if (const auto found = cache_.find(request_key); found != cache_.end()) {
             ++cache_hits_;
+            last_error_.reset();
             last_successful_ = *found->second;
             return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
                 *found->second);
@@ -35,10 +44,7 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     const auto failure = [this](foundation::Error error)
         -> foundation::Result<InfantryModelArtifact, foundation::Error> {
         std::scoped_lock lock(mutex_);
-        if (last_successful_) {
-            return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
-                *last_successful_);
-        }
+        last_error_ = error;
         return foundation::Result<InfantryModelArtifact, foundation::Error>::failure(
             std::move(error));
     };
@@ -56,24 +62,13 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     if (!genome) {
         return failure(genome.error());
     }
-    auto phenotype = PhenotypeResolver::resolve(genome.value());
+    auto phenotype = PhenotypeResolver::resolve(genome.value(), request.genome_overrides);
     if (!phenotype) {
         return failure(phenotype.error());
     }
     auto skeleton = RigBuilder::build(phenotype.value().body, phenotype.value().face);
     if (!skeleton) {
         return failure(skeleton.error());
-    }
-    AppearanceOptions appearance_options{};
-    appearance_options.seed = request.seed;
-    appearance_options.detail_level = request.detail_level;
-    appearance_options.skin_color = phenotype.value().body.skin_color;
-    appearance_options.cloth_color = request.uniform_color;
-    appearance_options.hair_style = static_cast<HairStyle>(phenotype.value().face.hair_style);
-    auto appearance = AppearanceCompiler::build(phenotype.value(), skeleton.value(),
-                                                 appearance_options);
-    if (!appearance) {
-        return failure(appearance.error());
     }
     auto equipment = EquipmentResolver::resolve(request.seed, loadout,
                                                 request.equipment_overrides);
@@ -84,6 +79,26 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
                                       skeleton.value());
     if (!fit) {
         return failure(fit.error());
+    }
+
+    AppearanceOptions appearance_options{};
+    appearance_options.seed = request.seed;
+    appearance_options.detail_level = request.detail_level;
+    appearance_options.skin_color = phenotype.value().body.skin_color;
+    appearance_options.cloth_color = request.uniform_color;
+    appearance_options.hair_style = canonicalHairStyle(
+        static_cast<HairStyle>(phenotype.value().face.hair_style));
+    if (const EquipmentItem* head_item = equipment.value().item(EquipmentSlot::Head)) {
+        if (const auto* definition = EquipmentCatalog::findItem(head_item->definition_id)) {
+            appearance_options.hair_coverage = definition->kind == EquipmentKind::Helmet
+                ? 0.92F
+                : definition->kind == EquipmentKind::Cap ? 0.34F : 0.0F;
+        }
+    }
+    auto appearance = AppearanceCompiler::build(phenotype.value(), skeleton.value(),
+                                                 appearance_options);
+    if (!appearance) {
+        return failure(appearance.error());
     }
     auto gear = GearGenerator::build(equipment.value(), fit.value(), skeleton.value(),
                                      request.uniform_color);
@@ -102,6 +117,7 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     result.cache_key = foundation::stableHashCombine(
         foundation::stableHashCombine(foundation::stable_id("genomes.infantry.model"),
                                       InfantryArtifactVersion), request.seed);
+    result.cache_key = foundation::stableHashCombine(result.cache_key, request_key);
     result.cache_key = foundation::stableHashCombine(result.cache_key,
                                                      result.phenotype.cache_key);
     result.cache_key = foundation::stableHashCombine(result.cache_key,
@@ -111,6 +127,17 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
 
     {
         std::scoped_lock lock(mutex_);
+        last_error_.reset();
+        if (const auto found = cache_.find(request_key); found != cache_.end()) {
+            // Another worker may have completed the same expensive request while
+            // this candidate was being generated.  Preserve one immutable
+            // canonical artifact instead of replacing it with an equivalent
+            // duplicate.
+            ++cache_hits_;
+            last_successful_ = *found->second;
+            return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
+                *found->second);
+        }
         last_successful_ = result;
         cache_[request_key] = std::make_shared<const InfantryModelArtifact>(result);
     }
@@ -122,6 +149,11 @@ std::optional<InfantryModelArtifact>
 InfantryModelCompiler::lastSuccessful() const {
     std::scoped_lock lock(mutex_);
     return last_successful_;
+}
+
+std::optional<foundation::Error> InfantryModelCompiler::lastError() const {
+    std::scoped_lock lock(mutex_);
+    return last_error_;
 }
 
 } // namespace genomes::infantry

@@ -21,6 +21,25 @@ inline constexpr std::uint32_t RenderInstanceFlagPreview = 1U << 1U;
 inline constexpr std::uint32_t RenderInstanceFlagDynamic = 1U << 2U;
 inline constexpr std::uint32_t RenderInstanceFlagTeamRed = 1U << 3U;
 
+struct DirectionalLight final {
+    foundation::Vec3 direction{-0.35F, 0.80F, -0.25F};
+    foundation::Color color{1.0F, 0.88F, 0.72F, 1.0F};
+    float intensity{1.0F};
+};
+
+struct HemisphereLight final {
+    foundation::Color sky{0.30F, 0.38F, 0.52F, 1.0F};
+    foundation::Color ground{0.12F, 0.10F, 0.08F, 1.0F};
+    float intensity{1.0F};
+};
+
+struct CharacterLightRig final {
+    HemisphereLight hemisphere{};
+    DirectionalLight key{};
+    DirectionalLight fill{{0.55F, 0.25F, 0.65F},
+                          {0.56F, 0.72F, 1.0F, 1.0F}, 0.35F};
+};
+
 struct RenderInstance {
     foundation::StableId object_id{0};
     foundation::StableId mesh_id{0};
@@ -51,6 +70,9 @@ struct RenderMeshVertex {
     foundation::Vec3 normal{0.0F, 1.0F, 0.0F};
     foundation::Vec2 uv{};
     foundation::Color color{1.0F, 1.0F, 1.0F, 1.0F};
+    // Optional generic material classification retained by CPU fallback
+    // deformation. Backends may ignore it for legacy RenderMesh passes.
+    std::uint16_t material_region{0};
 };
 
 struct RenderMesh {
@@ -116,6 +138,16 @@ struct RenderCamera final {
                std::isfinite(far_plane) && vertical_fov > 0.05F && vertical_fov < 3.0F &&
                near_plane > 0.0F && far_plane > near_plane;
     }
+};
+
+// Renderer-neutral diagnostics. Domain code may publish these without
+// knowing whether the backend draws them as line primitives or another
+// overlay representation. They are deliberately separate from authoritative
+// character geometry.
+struct DebugLine final {
+    foundation::Vec3 start{};
+    foundation::Vec3 end{};
+    foundation::Color color{1.0F, 1.0F, 1.0F, 1.0F};
 };
 
 struct PresentationSnapshot;

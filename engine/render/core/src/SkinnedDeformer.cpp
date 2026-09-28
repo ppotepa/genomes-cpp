@@ -46,6 +46,7 @@ RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
         target.normal = source.normal;
         target.uv = source.uv;
         target.color = source.color;
+        target.material_region = source.material_region;
         foundation::Vec3 morphed_position = source.position;
         foundation::Vec3 morphed_normal = source.normal;
         const auto vertex_index = result.vertices.size();
@@ -55,7 +56,8 @@ RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
                                            ? morph_weights[morph]
                                            : prototype.morph_weights[morph];
             const auto& morph_target = prototype.morphs[morph];
-            if (morph_weight == 0.0F || vertex_index >= morph_target.position_deltas.size()) {
+            if (!std::isfinite(morph_weight) || morph_weight == 0.0F ||
+                vertex_index >= morph_target.position_deltas.size()) {
                 continue;
             }
             const auto& position_delta = morph_target.position_deltas[vertex_index];
@@ -72,7 +74,7 @@ RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
         for (std::size_t i = 0; i < source.bone_weights.size(); ++i) {
             const auto index = source.bone_indices[i];
             const float weight = source.bone_weights[i];
-            if (weight <= 0.0F || index >= palette.size()) {
+            if (!(weight > 0.0F) || !std::isfinite(weight) || index >= palette.size()) {
                 continue;
             }
             const auto& matrix = palette[index];
@@ -97,6 +99,14 @@ RenderMesh deformSkinnedCPU(const SkinnedMeshPrototype& prototype,
             deformed_normal.x += morphed_normal.x * remainder;
             deformed_normal.y += morphed_normal.y * remainder;
             deformed_normal.z += morphed_normal.z * remainder;
+        } else if (total_weight > 1.0F) {
+            const float inverse_total = 1.0F / total_weight;
+            target.position.x *= inverse_total;
+            target.position.y *= inverse_total;
+            target.position.z *= inverse_total;
+            deformed_normal.x *= inverse_total;
+            deformed_normal.y *= inverse_total;
+            deformed_normal.z *= inverse_total;
         }
         target.normal = normalize(deformed_normal, {0.0F, 1.0F, 0.0F});
         result.vertices.push_back(target);

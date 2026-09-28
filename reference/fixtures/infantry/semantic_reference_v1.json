@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "source_repository": "ppotepa/genomes",
+  "source_commit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "generator_version": "reference-js-semantic-export-v1",
+  "evidence_class": "semantic-reference",
+  "captures": [
+    {
+      "seed": 1592598566,
+      "height": 1.8656433369,
+      "shoulder_width_scale": 1.0677721742,
+      "hip_width_scale": 1.1296276544,
+      "eye_y": 0.9368234129,
+      "mouth_y": 0.9006372400,
+      "hair_style": 6,
+      "head_level_count": 19,
+      "first_head_level": {"y": 1.5447526829, "half_width": 0.0774438449,
+                           "half_depth": 0.0640717313, "center_z": -0.0037312867},
+      "last_head_level": {"y": 1.8637776935, "half_width": 0.0,
+                          "half_depth": 0.0, "center_z": -0.0074625733},
+      "rig_bone_count": 69,
+      "adjustment_count": 2
+    },
+    {
+      "seed": 305419896,
+      "height": 1.6371532031,
+      "shoulder_width_scale": 0.8511065319,
+      "hip_width_scale": 1.0687817930,
+      "eye_y": 0.9413299523,
+      "mouth_y": 0.9015856157,
+      "hair_style": 0,
+      "head_level_count": 19,
+      "first_head_level": {"y": 1.3555628521, "half_width": 0.0438569585,
+                           "half_depth": 0.0362842427, "center_z": -0.0032743064},
+      "last_head_level": {"y": 1.6355160499, "half_width": 0.0,
+                          "half_depth": 0.0, "center_z": -0.0065486128},
+      "rig_bone_count": 69,
+      "adjustment_count": 2
+    },
+    {
+      "seed": 3405691582,
+      "height": 1.8023804968,
+      "shoulder_width_scale": 1.1443907608,
+      "hip_width_scale": 0.9246072091,
+      "eye_y": 0.9413379865,
+      "mouth_y": 0.9022130856,
+      "hair_style": 0,
+      "head_level_count": 19,
+      "first_head_level": {"y": 1.4923710513, "half_width": 0.0626929640,
+                           "half_depth": 0.0518678640, "center_z": -0.0036047610},
+      "last_head_level": {"y": 1.8005781163, "half_width": 0.0,
+                          "half_depth": 0.0, "center_z": -0.0072095220},
+      "rig_bone_count": 69,
+      "adjustment_count": 2
+    }
+  ]
+}

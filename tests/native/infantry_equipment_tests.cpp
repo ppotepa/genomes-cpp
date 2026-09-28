@@ -1,10 +1,14 @@
 #include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/EquipmentFit.hpp>
+#include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/infantry/PhenotypeResolver.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
 
 #include <cassert>
+#include <cmath>
+#include <cstdint>
 
 int main() {
     using namespace genomes::infantry;
@@ -28,6 +32,24 @@ int main() {
         assert(fit && fit.value().valid(rig.value()));
         const auto gear = GearGenerator::build(state.value(), fit.value(), rig.value());
         assert(gear && gear.value().valid(rig.value()));
+        const auto gear_surface = GearSurfaceGenerator::build(gear.value());
+        assert(gear_surface);
+        assert(gear_surface.value().vertices.size() >= gear.value().pieces.size());
+        assert(gear_surface.value().indices.size() % 3U == 0U);
+        for (const auto& vertex : gear_surface.value().vertices) {
+            assert(std::isfinite(vertex.position.x));
+            assert(std::isfinite(vertex.position.y));
+            assert(std::isfinite(vertex.position.z));
+            assert(std::isfinite(vertex.normal.x));
+            assert(std::isfinite(vertex.normal.y));
+            assert(std::isfinite(vertex.normal.z));
+            assert(vertex.influence_count > 0U);
+            assert(vertex.material_region <=
+                   static_cast<std::uint16_t>(AppearanceMaterialRegion::EquipmentPaint));
+        }
+        for (const auto index : gear_surface.value().indices) {
+            assert(index < gear_surface.value().vertices.size());
+        }
         GearCache gear_cache;
         const auto cached_first = gear_cache.acquire(state.value(), fit.value(), rig.value());
         const auto cached_second = gear_cache.acquire(state.value(), fit.value(), rig.value());

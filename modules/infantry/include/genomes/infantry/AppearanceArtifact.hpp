@@ -19,23 +19,79 @@
 
 namespace genomes::infantry {
 
+// These values are the domain vocabulary used by new genome artifacts.  The
+// legacy names remain source-compatible for callers compiled against the
+// first native prototype, but are deliberately outside the canonical range
+// so serialized/native integer IDs cannot accidentally masquerade as the JS
+// reference's style numbering.
 enum class HairStyle : std::uint8_t {
-    Bald,
-    Short,
-    Long,
-    Braids,
-    Bun,
-    Mohawk,
-    Curly,
+    Bald = 0,
+    Buzz = 1,
+    Crew = 2,
+    Crop = 3,
+    SidePart = 4,
+    Fade = 5,
+    Messy = 6,
+    LegacyShort = 7,
+    LegacyLong = 8,
+    LegacyBraids = 9,
+    LegacyBun = 10,
+    LegacyMohawk = 11,
+    LegacyCurly = 12,
+    Short = LegacyShort,
+    Long = LegacyLong,
+    Braids = LegacyBraids,
+    Bun = LegacyBun,
+    Mohawk = LegacyMohawk,
+    Curly = LegacyCurly,
 };
+
+inline constexpr foundation::Color kDefaultUniformColor{
+    0.23F, 0.29F, 0.22F, 1.0F};
+
+[[nodiscard]] constexpr HairStyle canonicalHairStyle(HairStyle style) noexcept {
+    switch (style) {
+    case HairStyle::LegacyShort:
+        return HairStyle::Buzz;
+    case HairStyle::LegacyLong:
+        return HairStyle::SidePart;
+    case HairStyle::LegacyBraids:
+        return HairStyle::Messy;
+    case HairStyle::LegacyBun:
+        return HairStyle::Crew;
+    case HairStyle::LegacyMohawk:
+        return HairStyle::Crop;
+    case HairStyle::LegacyCurly:
+        return HairStyle::Messy;
+    default:
+        return style;
+    }
+}
+
+[[nodiscard]] constexpr std::string_view hairStyleName(HairStyle style) noexcept {
+    switch (canonicalHairStyle(style)) {
+    case HairStyle::Bald: return "bald";
+    case HairStyle::Buzz: return "buzz";
+    case HairStyle::Crew: return "crew";
+    case HairStyle::Crop: return "crop";
+    case HairStyle::SidePart: return "sidePart";
+    case HairStyle::Fade: return "fade";
+    case HairStyle::Messy: return "messy";
+    default: return "unknown";
+    }
+}
 
 struct AppearanceOptions final {
     std::uint32_t version{1};
     std::uint32_t detail_level{2};
     proc::Seed seed{0};
-    HairStyle hair_style{HairStyle::Short};
+    HairStyle hair_style{HairStyle::Buzz};
     foundation::Color skin_color{0.72F, 0.50F, 0.38F, 1.0F};
     foundation::Color cloth_color{0.18F, 0.24F, 0.20F, 1.0F};
+    // Equipment fit supplies this presentation mask without changing the
+    // semantic HairStyle selected by the genome.  0 is uncovered and 1 is
+    // full frontal/crown coverage.
+    float hair_coverage{0.0F};
 
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] foundation::StableId hash() const noexcept;

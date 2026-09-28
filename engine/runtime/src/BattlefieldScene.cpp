@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <span>
 #include <string>
 #include <utility>
 
@@ -109,6 +110,9 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     physics_ = physics::SimplePhysicsWorld{};
 #if GENOMES_HAS_INFANTRY
     infantry_.reset();
+    animation_system_.reset();
+    animation_agents_.clear();
+    animation_poses_.clear();
 #endif
     combat_.reset();
     navigation_.reset();
@@ -145,6 +149,9 @@ void BattlefieldScene::on_exit(SceneContext&) {
     render_camera_ = {};
 #if GENOMES_HAS_INFANTRY
     infantry_.reset();
+    animation_system_.reset();
+    animation_agents_.clear();
+    animation_poses_.clear();
 #endif
     combat_.reset();
     navigation_.reset();
@@ -160,6 +167,106 @@ void BattlefieldScene::on_exit(SceneContext&) {
 #endif
     jobs_ = nullptr;
 }
+
+#if GENOMES_HAS_INFANTRY
+void BattlefieldScene::initialize_infantry_animation() {
+    animation_system_.reset();
+    animation_agents_.clear();
+    animation_poses_.clear();
+    if (!infantry_ || !infantry_model_artifact_) {
+        return;
+    }
+    auto animation = infantry::AnimationSystem::create(64U);
+    if (!animation) {
+        generation_error_ = std::string(animation.error().message);
+        return;
+    }
+    animation_system_ = std::move(animation.value());
+    animation_agents_.reserve(infantry_->renderStates().size());
+    for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+        auto locomotion = infantry::LocomotionController::create(
+            infantry_model_artifact_->phenotype.body);
+        auto face = infantry::FaceAnimator::create(
+            proc::Seed(foundation::stableHashCombine(
+                static_cast<std::uint64_t>(config_.seed), state.entity.packed())),
+            infantry_model_artifact_->phenotype.face);
+        if (!locomotion || !face) {
+            generation_error_ = !locomotion ? std::string(locomotion.error().message)
+                                            : std::string(face.error().message);
+            continue;
+        }
+        InfantryAnimationAgent agent{};
+        agent.entity = state.entity;
+        agent.locomotion = std::move(locomotion.value());
+        agent.locomotion_state = agent.locomotion->initialState();
+        agent.face = std::move(face.value());
+        agent.lod.setTier(infantry::AnimationLOD::Near);
+        animation_agents_.push_back(std::move(agent));
+    }
+}
+
+void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
+    if (!animation_system_ || !infantry_ || !infantry_model_artifact_ ||
+        animation_agents_.empty()) {
+        return;
+    }
+    std::vector<infantry::AnimationEntity> entities;
+    entities.reserve(animation_agents_.size());
+    for (InfantryAnimationAgent& agent : animation_agents_) {
+        const auto state_iterator = std::find_if(
+            infantry_->renderStates().begin(), infantry_->renderStates().end(),
+            [&agent](const infantry::InfantryRenderState& state) {
+                return state.entity == agent.entity;
+            });
+        if (state_iterator == infantry_->renderStates().end() || !agent.locomotion ||
+            !agent.locomotion_state || !agent.face) {
+            continue;
+        }
+        infantry::BipedPreset preset = infantry::BipedPreset::Idle;
+        switch (state_iterator->state) {
+        case infantry::AgentState::Advance:
+            preset = infantry::BipedPreset::Run;
+            break;
+        case infantry::AgentState::Engage:
+            preset = infantry::BipedPreset::Crouch;
+            break;
+        case infantry::AgentState::Dead:
+            preset = infantry::BipedPreset::Crouch;
+            break;
+        case infantry::AgentState::Idle:
+            preset = infantry::BipedPreset::Idle;
+            break;
+        }
+        (void)agent.locomotion->setPreset(*agent.locomotion_state, preset);
+        (void)agent.locomotion->step(*agent.locomotion_state, fixed_dt_seconds);
+        entities.push_back({
+            foundation::stable_id("battlefield.infantry") ^ agent.entity.packed(),
+            &infantry_model_artifact_->skeleton,
+            &*agent.locomotion,
+            &*agent.locomotion_state,
+            &*agent.face,
+            state_iterator->position,
+            foundation::Vec3{state_iterator->position.x +
+                                 std::sin(state_iterator->heading) * 6.0F,
+                             state_iterator->position.y +
+                                 infantry_model_artifact_->phenotype.body.height * 0.62F,
+                             state_iterator->position.z +
+                                 std::cos(state_iterator->heading) * 6.0F},
+            agent.lod});
+    }
+    if (entities.empty()) {
+        return;
+    }
+    const auto result = animation_system_->evaluate(
+        std::span<infantry::AnimationEntity>(entities), simulation_tick_.value,
+        fixed_dt_seconds, jobs_);
+    if (!result) {
+        generation_error_ = std::string(result.error().message);
+        return;
+    }
+    animation_poses_ = animation_system_->currentSnapshot().poses;
+}
+#endif
 
 void BattlefieldScene::handle_input(SceneContext& context, const input::InputFrame& input) {
     if (input.cancel_pressed || input.confirm_pressed) {
@@ -205,6 +312,7 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
             (void)combat_result;
         }
     }
+    evaluate_infantry_animation(static_cast<float>(dt));
 #endif
 }
 
@@ -535,6 +643,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
                        {red_position.x, red_ground + 0.55F, red_position.z}, genome,
                        100U + index / 5U);
     }
+    initialize_infantry_animation();
 #endif
     terrain_min_height_ = std::numeric_limits<float>::max();
     terrain_max_height_ = std::numeric_limits<float>::lowest();
@@ -574,13 +683,15 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 context.presentation.skinned_prototypes.push_back(infantry_skinned_prototype_);
                 const auto bind_palette = infantry_presentation::makeBindPalette(
                     infantry_model_artifact_->skeleton);
-                if (!render_infantry_mesh_) {
+                if (!context.render_capabilities.gpu_skinning && !render_infantry_mesh_) {
                     render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
                         render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
                     render_infantry_mesh_->mesh_id = infantry_skinned_prototype_->mesh_id;
                     render_infantry_mesh_->revision = infantry_skinned_prototype_->revision;
                 }
-                context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
+                if (!context.render_capabilities.gpu_skinning && render_infantry_mesh_) {
+                    context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
+                }
 
                 const float model_height =
                     std::max(0.01F, infantry_model_artifact_->phenotype.body.height);
@@ -596,9 +707,26 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
                     const foundation::StableId object_id =
                         foundation::stable_id("entity.infantry") ^ state.entity.packed();
+                    const foundation::StableId pose_id =
+                        foundation::stable_id("battlefield.infantry") ^ state.entity.packed();
+                    const auto pose_iterator = std::find_if(
+                        animation_poses_.begin(), animation_poses_.end(),
+                        [pose_id](const infantry::AnimationPose& pose) {
+                            return pose.semantic_id == pose_id;
+                        });
                     render::SkinnedBonePalette palette{};
                     palette.instance_id = object_id;
-                    palette.matrices = bind_palette;
+                    if (pose_iterator != animation_poses_.end()) {
+                        palette.matrices = infantry_presentation::makePalette(
+                            infantry_model_artifact_->skeleton,
+                            std::span<const infantry::RigTransform>(pose_iterator->bones));
+                        palette.morph_weights[0] = pose_iterator->face.eyelids_close;
+                        palette.morph_weights[1] = pose_iterator->face.eyelids_arc;
+                        palette.morph_weights[2] = pose_iterator->face.neck_flex;
+                        palette.morph_weights[3] = pose_iterator->face.hands_relax;
+                    } else {
+                        palette.matrices = bind_palette;
+                    }
                     context.presentation.skinned_palettes.push_back(std::move(palette));
                     const std::uint32_t instance_flags =
                         render::RenderInstanceFlagDynamic |

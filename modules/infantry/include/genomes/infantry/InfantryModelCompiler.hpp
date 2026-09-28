@@ -21,9 +21,10 @@ struct InfantryModelRequest final {
     proc::Seed seed{0};
     float variation{1.0F};
     std::uint32_t detail_level{2};
+    GenomeOverrides genome_overrides{};
     foundation::StableId loadout_id{0};
     EquipmentOverrideSet equipment_overrides{};
-    foundation::Color uniform_color{};
+    foundation::Color uniform_color{kDefaultUniformColor};
 };
 
 struct InfantryModelArtifact final {
@@ -44,12 +45,14 @@ public:
     compile(const InfantryModelRequest& request);
 
     [[nodiscard]] std::optional<InfantryModelArtifact> lastSuccessful() const;
+    [[nodiscard]] std::optional<foundation::Error> lastError() const;
     [[nodiscard]] std::uint64_t cacheHits() const noexcept { return cache_hits_; }
     [[nodiscard]] std::uint64_t cacheMisses() const noexcept { return cache_misses_; }
 
 private:
     mutable std::mutex mutex_;
     std::optional<InfantryModelArtifact> last_successful_;
+    std::optional<foundation::Error> last_error_;
     std::unordered_map<foundation::StableId,
                        std::shared_ptr<const InfantryModelArtifact>> cache_;
     std::uint64_t cache_hits_{0};

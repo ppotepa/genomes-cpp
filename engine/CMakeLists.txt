@@ -1,4 +1,5 @@
 add_subdirectory(foundation)
+add_subdirectory(geometry)
 add_subdirectory(ui)
 add_subdirectory(render)
 add_subdirectory(input)

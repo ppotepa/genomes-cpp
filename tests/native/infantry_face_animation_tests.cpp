@@ -21,6 +21,8 @@ int main() {
     assert(animator.output().valid());
     assert(animator.output().head_yaw <= 0.95F && animator.output().head_yaw >= -0.95F);
     assert(animator.output().eyelids_close >= 0.0F && animator.output().eyelids_close <= 1.0F);
+    assert(animator.output().neck_flex >= 0.0F && animator.output().neck_flex <= 0.35F);
+    assert(animator.output().hands_relax == 0.0F);
     assert(animator.identity().eye_spacing == before.eye_spacing);
 
     const auto invalid = animator.setExpression(

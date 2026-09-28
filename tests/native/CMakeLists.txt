@@ -127,6 +127,20 @@ genomes_set_project_warnings(genomes_test_skinned_deformer)
 genomes_enable_test_assertions(genomes_test_skinned_deformer)
 add_test(NAME render.skinned_deformer COMMAND genomes_test_skinned_deformer)
 
+add_executable(genomes_test_color_space
+    render/color_space_tests.cpp)
+target_link_libraries(genomes_test_color_space PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_color_space)
+genomes_enable_test_assertions(genomes_test_color_space)
+add_test(NAME render.color_space COMMAND genomes_test_color_space)
+
+add_executable(genomes_test_geometry_mesh_validation
+    geometry_mesh_validation_tests.cpp)
+target_link_libraries(genomes_test_geometry_mesh_validation PRIVATE genomes::geometry)
+genomes_set_project_warnings(genomes_test_geometry_mesh_validation)
+genomes_enable_test_assertions(genomes_test_geometry_mesh_validation)
+add_test(NAME geometry.mesh_validation COMMAND genomes_test_geometry_mesh_validation)
+
 add_executable(genomes_test_gpu_scene
     render/gpu_scene_smoke.cpp)
 target_link_libraries(genomes_test_gpu_scene PRIVATE genomes::render)
@@ -483,7 +497,39 @@ if(GENOMES_ENABLE_INFANTRY)
     add_executable(genomes_test_infantry_reference_parity
         infantry_reference_parity_tests.cpp)
     target_link_libraries(genomes_test_infantry_reference_parity PRIVATE genomes::infantry)
+    target_compile_definitions(genomes_test_infantry_reference_parity PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_test_infantry_reference_parity)
     genomes_enable_test_assertions(genomes_test_infantry_reference_parity)
-    add_test(NAME infantry.reference_parity COMMAND genomes_test_infantry_reference_parity)
+add_test(NAME infantry.reference_parity COMMAND genomes_test_infantry_reference_parity)
+
+add_executable(genomes_test_infantry_appearance_topology infantry_appearance_topology_tests.cpp)
+target_link_libraries(genomes_test_infantry_appearance_topology PRIVATE genomes::infantry)
+genomes_set_project_warnings(genomes_test_infantry_appearance_topology)
+genomes_enable_test_assertions(genomes_test_infantry_appearance_topology)
+add_test(NAME infantry.appearance_topology COMMAND genomes_test_infantry_appearance_topology)
+
+add_executable(genomes_test_infantry_skin_usage infantry_skin_usage_tests.cpp)
+target_link_libraries(genomes_test_infantry_skin_usage PRIVATE genomes::infantry)
+genomes_set_project_warnings(genomes_test_infantry_skin_usage)
+genomes_enable_test_assertions(genomes_test_infantry_skin_usage)
+add_test(NAME infantry.skin_usage COMMAND genomes_test_infantry_skin_usage)
+
+add_executable(genomes_test_infantry_phenotype_units infantry_phenotype_units_tests.cpp)
+target_link_libraries(genomes_test_infantry_phenotype_units PRIVATE genomes::infantry)
+genomes_set_project_warnings(genomes_test_infantry_phenotype_units)
+genomes_enable_test_assertions(genomes_test_infantry_phenotype_units)
+add_test(NAME infantry.phenotype_units COMMAND genomes_test_infantry_phenotype_units)
+
+add_executable(genomes_test_infantry_hair_semantics infantry_hair_semantics_tests.cpp)
+target_link_libraries(genomes_test_infantry_hair_semantics PRIVATE genomes::infantry)
+genomes_set_project_warnings(genomes_test_infantry_hair_semantics)
+genomes_enable_test_assertions(genomes_test_infantry_hair_semantics)
+add_test(NAME infantry.hair_semantics COMMAND genomes_test_infantry_hair_semantics)
+
+add_executable(genomes_test_infantry_model_compiler infantry_model_compiler_tests.cpp)
+target_link_libraries(genomes_test_infantry_model_compiler PRIVATE genomes::infantry)
+genomes_set_project_warnings(genomes_test_infantry_model_compiler)
+genomes_enable_test_assertions(genomes_test_infantry_model_compiler)
+add_test(NAME infantry.model_compiler COMMAND genomes_test_infantry_model_compiler)
 endif()

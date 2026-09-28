@@ -32,6 +32,7 @@ struct RenderCapabilities final {
     bool ray_tracing{false};
     bool timestamp_queries{false};
     bool instanced_rendering{false};
+    bool gpu_skinning{false};
     std::uint32_t api_major{0};
     std::uint32_t api_minor{0};
     RenderFeatureLimits limits{};

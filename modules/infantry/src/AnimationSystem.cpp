@@ -299,6 +299,8 @@ AnimationPose AnimationSystem::interpolate(const AnimationPose& previous,
     }
     result.face.eyelids_close = mix(previous.face.eyelids_close, current.face.eyelids_close, t);
     result.face.eyelids_arc = mix(previous.face.eyelids_arc, current.face.eyelids_arc, t);
+    result.face.neck_flex = mix(previous.face.neck_flex, current.face.neck_flex, t);
+    result.face.hands_relax = mix(previous.face.hands_relax, current.face.hands_relax, t);
     result.face.jaw_rotation = mix(previous.face.jaw_rotation, current.face.jaw_rotation, t);
     result.face.head_yaw = mix(previous.face.head_yaw, current.face.head_yaw, t);
     result.face.head_pitch = mix(previous.face.head_pitch, current.face.head_pitch, t);

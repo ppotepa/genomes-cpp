@@ -1,4 +1,5 @@
 #include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/runtime/InfantryPresentation.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -8,328 +9,148 @@
 
 #include <cmath>
 #include <algorithm>
+#include <array>
 #include <string>
+#include <span>
 
 namespace genomes::runtime {
 
 namespace {
 
-[[nodiscard]] std::array<float, 16U> transformMatrix(
-    const infantry::RigTransform& transform) noexcept {
-    const auto& q = transform.rotation;
-    const float xx = q.x * q.x;
-    const float yy = q.y * q.y;
-    const float zz = q.z * q.z;
-    const float xy = q.x * q.y;
-    const float xz = q.x * q.z;
-    const float yz = q.y * q.z;
-    const float wx = q.w * q.x;
-    const float wy = q.w * q.y;
-    const float wz = q.w * q.z;
-    return {
-        (1.0F - 2.0F * (yy + zz)) * transform.scale.x,
-        (2.0F * (xy + wz)) * transform.scale.x,
-        (2.0F * (xz - wy)) * transform.scale.x,
-        0.0F,
-        (2.0F * (xy - wz)) * transform.scale.y,
-        (1.0F - 2.0F * (xx + zz)) * transform.scale.y,
-        (2.0F * (yz + wx)) * transform.scale.y,
-        0.0F,
-        (2.0F * (xz + wy)) * transform.scale.z,
-        (2.0F * (yz - wx)) * transform.scale.z,
-        (1.0F - 2.0F * (xx + yy)) * transform.scale.z,
-        0.0F,
-        transform.translation.x,
-        transform.translation.y,
-        transform.translation.z,
-        1.0F};
+using Vec3 = foundation::Vec3;
+
+[[nodiscard]] Vec3 add(Vec3 a, Vec3 b) noexcept {
+    return {a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
-[[nodiscard]] std::array<float, 16U> multiply(
-    const std::array<float, 16U>& left,
-    const std::array<float, 16U>& right) noexcept {
-    std::array<float, 16U> result{};
-    for (std::size_t column = 0U; column < 4U; ++column) {
-        for (std::size_t row = 0U; row < 4U; ++row) {
-            for (std::size_t k = 0U; k < 4U; ++k) {
-                result[column * 4U + row] +=
-                    left[k * 4U + row] * right[column * 4U + k];
-            }
+[[nodiscard]] Vec3 multiply(Vec3 value, float scalar) noexcept {
+    return {value.x * scalar, value.y * scalar, value.z * scalar};
+}
+
+[[nodiscard]] Vec3 componentMultiply(Vec3 a, Vec3 b) noexcept {
+    return {a.x * b.x, a.y * b.y, a.z * b.z};
+}
+
+[[nodiscard]] infantry::RigQuaternion multiply(infantry::RigQuaternion left,
+                                                infantry::RigQuaternion right) noexcept {
+    return {
+        left.w * right.x + left.x * right.w + left.y * right.z - left.z * right.y,
+        left.w * right.y - left.x * right.z + left.y * right.w + left.z * right.x,
+        left.w * right.z + left.x * right.y - left.y * right.x + left.z * right.w,
+        left.w * right.w - left.x * right.x - left.y * right.y - left.z * right.z};
+}
+
+[[nodiscard]] Vec3 rotate(infantry::RigQuaternion rotation, Vec3 value) noexcept {
+    const infantry::RigQuaternion vector{value.x, value.y, value.z, 0.0F};
+    const infantry::RigQuaternion inverse{-rotation.x, -rotation.y, -rotation.z, rotation.w};
+    const infantry::RigQuaternion result = multiply(multiply(rotation, vector), inverse);
+    return {result.x, result.y, result.z};
+}
+
+struct DebugBoneTransform final {
+    Vec3 position{};
+    infantry::RigQuaternion rotation{};
+    Vec3 scale{1.0F, 1.0F, 1.0F};
+};
+
+[[nodiscard]] std::array<DebugBoneTransform, infantry::kRigBoneCount> debugPose(
+    const infantry::SkeletonData& skeleton,
+    std::span<const infantry::RigTransform> pose_bones,
+    Vec3 root_position) noexcept {
+    std::array<DebugBoneTransform, infantry::kRigBoneCount> result{};
+    const auto bones = skeleton.bones();
+    for (std::size_t index = 0U; index < bones.size() && index < result.size(); ++index) {
+        const auto& record = bones[index];
+        const auto& local = pose_bones.empty() ? record.local_bind : pose_bones[index];
+        if (record.parent == infantry::kInvalidBoneIndex) {
+            result[index] = {add(root_position, local.translation), local.rotation, local.scale};
+            continue;
         }
+        const auto& parent = result[record.parent];
+        result[index].position = add(parent.position,
+                                     rotate(parent.rotation,
+                                            componentMultiply(local.translation, parent.scale)));
+        result[index].rotation = multiply(parent.rotation, local.rotation);
+        result[index].scale = componentMultiply(parent.scale, local.scale);
     }
     return result;
 }
+
+[[nodiscard]] Vec3 rotateY(Vec3 value, float angle) noexcept {
+    const float cosine = std::cos(angle);
+    const float sine = std::sin(angle);
+    return {value.x * cosine - value.z * sine, value.y,
+            value.x * sine + value.z * cosine};
+}
+
 } // namespace
 
-namespace infantry_presentation {
-
-std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
-    const infantry::InfantryModelArtifact& model,
-    const infantry::FaceOutput* face_output) {
-    auto mesh = std::make_shared<render::SkinnedMeshPrototype>();
-    mesh->mesh_id = foundation::stable_id("mesh.unit-lab.infantry");
-    mesh->revision = model.cache_key;
-    const auto append = [&mesh](const infantry::AppearanceMesh& source) {
-        const auto base = static_cast<std::uint32_t>(mesh->vertices.size());
-        for (const auto& source_vertex : source.vertices) {
-            render::SkinnedMeshVertex vertex{};
-            vertex.position = source_vertex.position;
-            vertex.normal = source_vertex.normal;
-            vertex.uv = source_vertex.uv;
-            vertex.color = source_vertex.color;
-            vertex.material_region = source_vertex.material_region;
-            for (std::size_t i = 0; i < source_vertex.influences.size(); ++i) {
-                vertex.bone_indices[i] = source_vertex.influences[i].bone_index;
-                vertex.bone_weights[i] = source_vertex.influences[i].weight;
-            }
-            mesh->vertices.push_back(vertex);
-        }
-        for (const auto index : source.indices) {
-            mesh->indices.push_back(base + index);
-        }
-    };
-    append(model.appearance.body);
-    append(model.appearance.hair);
-    const auto tint = [](foundation::Color color, float factor) noexcept {
-        return foundation::Color{std::clamp(color.r * factor, 0.0F, 1.0F),
-                                 std::clamp(color.g * factor, 0.0F, 1.0F),
-                                 std::clamp(color.b * factor, 0.0F, 1.0F), color.a};
-    };
-    const auto appendBox = [&mesh](foundation::Vec3 center, foundation::Vec3 dimensions,
-                                   foundation::Color color, infantry::BoneId bone,
-                                   std::uint32_t material_region) {
-        const foundation::Vec3 half{dimensions.x * 0.5F, dimensions.y * 0.5F,
-                                    dimensions.z * 0.5F};
-        const foundation::Vec3 c = center;
-        constexpr foundation::Vec3 corners[] = {
-            {-1.0F, -1.0F, -1.0F}, {1.0F, -1.0F, -1.0F},
-            {1.0F, 1.0F, -1.0F},   {-1.0F, 1.0F, -1.0F},
-            {-1.0F, -1.0F, 1.0F},  {1.0F, -1.0F, 1.0F},
-            {1.0F, 1.0F, 1.0F},    {-1.0F, 1.0F, 1.0F}};
-        constexpr std::array<std::array<std::uint32_t, 4U>, 6U> faces{{
-            {{0U, 1U, 2U, 3U}}, {{5U, 4U, 7U, 6U}}, {{4U, 0U, 3U, 7U}},
-            {{1U, 5U, 6U, 2U}}, {{3U, 2U, 6U, 7U}}, {{4U, 5U, 1U, 0U}}}};
-        constexpr foundation::Vec3 normals[] = {
-            {0.0F, 0.0F, -1.0F}, {0.0F, 0.0F, 1.0F}, {-1.0F, 0.0F, 0.0F},
-            {1.0F, 0.0F, 0.0F},  {0.0F, 1.0F, 0.0F},  {0.0F, -1.0F, 0.0F}};
-        constexpr foundation::Vec2 uv[] = {
-            {0.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 1.0F}, {0.0F, 1.0F}};
-        for (std::size_t face = 0U; face < faces.size(); ++face) {
-            const std::uint32_t face_base = static_cast<std::uint32_t>(mesh->vertices.size());
-            for (std::size_t corner = 0U; corner < 4U; ++corner) {
-                const foundation::Vec3 unit = corners[faces[face][corner]];
-                render::SkinnedMeshVertex vertex{};
-                vertex.position = {c.x + unit.x * half.x, c.y + unit.y * half.y,
-                                   c.z + unit.z * half.z};
-                vertex.normal = normals[face];
-                vertex.uv = uv[corner];
-                vertex.color = color;
-                vertex.material_region = static_cast<std::uint16_t>(material_region);
-                vertex.bone_indices[0] = static_cast<std::uint16_t>(bone);
-                vertex.bone_weights[0] = 1.0F;
-                mesh->vertices.push_back(vertex);
-            }
-            mesh->indices.insert(mesh->indices.end(),
-                                 {face_base, face_base + 1U, face_base + 2U,
-                                 face_base, face_base + 2U, face_base + 3U});
-        }
-    };
-    const auto appendEllipsoid = [&mesh](foundation::Vec3 center, foundation::Vec3 radii,
-                                         foundation::Color color, infantry::BoneId bone,
-                                         std::uint32_t material_region) {
-        constexpr std::size_t segments = 16U;
-        constexpr std::size_t rows = 6U;
-        std::vector<std::uint32_t> previous;
-        for (std::size_t row = 0U; row <= rows; ++row) {
-            const float phi = -1.57079632679F +
-                              3.14159265359F * static_cast<float>(row) /
-                                  static_cast<float>(rows);
-            const float cp = std::cos(phi);
-            const float sp = std::sin(phi);
-            std::vector<std::uint32_t> ring;
-            ring.reserve(segments);
-            for (std::size_t segment = 0U; segment < segments; ++segment) {
-                const float angle = 6.28318530718F * static_cast<float>(segment) /
-                                    static_cast<float>(segments);
-                const float ca = std::cos(angle);
-                const float sa = std::sin(angle);
-                render::SkinnedMeshVertex vertex{};
-                vertex.position = {center.x + radii.x * cp * ca,
-                                   center.y + radii.y * sp,
-                                   center.z + radii.z * cp * sa};
-                vertex.normal = {cp * ca, sp, cp * sa};
-                vertex.uv = {static_cast<float>(segment) / static_cast<float>(segments),
-                             static_cast<float>(row) / static_cast<float>(rows)};
-                vertex.color = color;
-                vertex.material_region = static_cast<std::uint16_t>(material_region);
-                vertex.bone_indices[0] = static_cast<std::uint16_t>(bone);
-                vertex.bone_weights[0] = 1.0F;
-                ring.push_back(static_cast<std::uint32_t>(mesh->vertices.size()));
-                mesh->vertices.push_back(vertex);
-            }
-            if (!previous.empty()) {
-                for (std::size_t segment = 0U; segment < segments; ++segment) {
-                    const std::size_t next = (segment + 1U) % segments;
-                    mesh->indices.insert(mesh->indices.end(),
-                                         {previous[segment], ring[segment], previous[next],
-                                          previous[next], ring[segment], ring[next]});
-                }
-            }
-            previous = std::move(ring);
-        }
-    };
-    const auto appendGearBox = [&appendBox, &appendEllipsoid, &tint](
-                                  const infantry::GearPiece& piece) {
-        const auto* definition = infantry::EquipmentCatalog::findItem(piece.definition_id);
-        const std::string_view style = definition == nullptr ? std::string_view{} : definition->style;
-        const foundation::Vec3 c = piece.center;
-        const foundation::Vec3 d = piece.dimensions;
-        const foundation::Color dark = tint(piece.color, 0.58F);
-        const foundation::Color edge = tint(piece.color, 0.78F);
-
-        // Base clothing is already part of AppearanceCompiler. Do not cover
-        // the articulated jacket, trousers, hands or boots with cubes.
-        if (piece.slot != infantry::EquipmentSlot::TorsoBase &&
-            piece.slot != infantry::EquipmentSlot::Legs &&
-            piece.slot != infantry::EquipmentSlot::Feet &&
-            piece.slot != infantry::EquipmentSlot::Hands) {
-            appendBox(c, d, piece.color, piece.bone, piece.material_region);
-        }
-        switch (piece.slot) {
-        case infantry::EquipmentSlot::Head:
-            appendEllipsoid({c.x, c.y + d.y * 0.10F, c.z},
-                            {d.x * 0.60F, d.y * 0.52F, d.z * 0.66F},
-                            piece.color, piece.bone, piece.material_region + 100U);
-            appendBox({c.x, c.y - d.y * 0.22F, c.z + d.z * 0.05F},
-                      {d.x * 1.18F, d.y * 0.10F, d.z * 1.05F}, edge, piece.bone,
-                      piece.material_region + 101U);
-            break;
-        case infantry::EquipmentSlot::TorsoArmor:
-            appendBox({c.x, c.y, c.z + d.z * 0.58F}, {d.x * 0.86F, d.y * 0.82F,
-                                                       d.z * 0.20F}, edge, piece.bone,
-                      piece.material_region + 100U);
-            appendBox({c.x - d.x * 0.48F, c.y + d.y * 0.05F, c.z},
-                      {d.x * 0.12F, d.y * 0.76F, d.z * 0.72F}, dark, piece.bone,
-                      piece.material_region + 101U);
-            appendBox({c.x + d.x * 0.48F, c.y + d.y * 0.05F, c.z},
-                      {d.x * 0.12F, d.y * 0.76F, d.z * 0.72F}, dark, piece.bone,
-                      piece.material_region + 102U);
-            break;
-        case infantry::EquipmentSlot::ChestRig:
-            for (int index = -1; index <= 1; ++index) {
-                appendBox({c.x + static_cast<float>(index) * d.x * 0.28F,
-                           c.y - d.y * 0.05F, c.z + d.z * 0.57F},
-                          {d.x * 0.24F, d.y * 0.52F, d.z * 0.18F}, dark, piece.bone,
-                          piece.material_region + 100U + static_cast<std::uint32_t>(index + 1));
-                appendBox({c.x + static_cast<float>(index) * d.x * 0.28F,
-                           c.y + d.y * 0.23F, c.z + d.z * 0.68F},
-                          {d.x * 0.22F, d.y * 0.08F, d.z * 0.04F}, edge, piece.bone,
-                          piece.material_region + 104U);
-            }
-            break;
-        case infantry::EquipmentSlot::Back:
-            appendEllipsoid({c.x, c.y, c.z - d.z * 0.52F},
-                            {d.x * 0.52F, d.y * 0.48F, d.z * 0.58F},
-                            piece.color, piece.bone, piece.material_region + 100U);
-            appendBox({c.x, c.y + d.y * 0.45F, c.z - d.z * 0.54F},
-                      {d.x * 0.72F, d.y * 0.12F, d.z * 0.10F}, edge, piece.bone,
-                      piece.material_region + 101U);
-            break;
-        case infantry::EquipmentSlot::LeftHip:
-        case infantry::EquipmentSlot::RightHip:
-        case infantry::EquipmentSlot::LeftThigh:
-        case infantry::EquipmentSlot::RightThigh:
-        case infantry::EquipmentSlot::Utility1:
-        case infantry::EquipmentSlot::Utility2:
-        case infantry::EquipmentSlot::Utility3:
-            appendBox({c.x, c.y + d.y * 0.48F, c.z + d.z * 0.04F},
-                      {d.x * 0.86F, d.y * 0.12F, d.z * 0.92F}, edge, piece.bone,
-                      piece.material_region + 100U);
-            appendBox({c.x, c.y - d.y * 0.18F, c.z + d.z * 0.56F},
-                      {d.x * 0.18F, d.y * 0.54F, d.z * 0.08F}, dark, piece.bone,
-                      piece.material_region + 101U);
-            break;
-        case infantry::EquipmentSlot::PrimaryWeapon:
-            // The old native path rendered the rifle as one vertical box.
-            // Split it into receiver, stock, magazine and barrel so its
-            // silhouette reads as a rifle even before weapon animation owns it.
-            appendBox({c.x, c.y, c.z - d.z * 0.12F},
-                      {d.x * 0.72F, d.y * 0.72F, d.z * 0.42F}, dark, piece.bone,
-                      piece.material_region + 100U);
-            appendBox({c.x, c.y - d.y * 0.70F, c.z - d.z * 0.02F},
-                      {d.x * 0.38F, d.y * 0.62F, d.z * 0.22F}, edge, piece.bone,
-                      piece.material_region + 101U);
-            appendBox({c.x, c.y + d.y * 0.02F, c.z + d.z * 0.42F},
-                      {d.x * 0.30F, d.y * 0.30F, d.z * 0.70F}, edge, piece.bone,
-                      piece.material_region + 102U);
-            appendBox({c.x, c.y + d.y * 0.04F, c.z - d.z * 0.46F},
-                      {d.x * 0.48F, d.y * 0.42F, d.z * 0.28F}, dark, piece.bone,
-                      piece.material_region + 103U);
-            break;
-        case infantry::EquipmentSlot::SecondaryWeapon:
-        case infantry::EquipmentSlot::MeleeWeapon:
-        case infantry::EquipmentSlot::Throwable:
-            appendEllipsoid(c, {d.x * 0.52F, d.y * 0.48F, d.z * 0.48F},
-                            style == "grenade" ? edge : dark, piece.bone,
-                            piece.material_region + 100U);
-            break;
-        default:
-            break;
-        }
-    };
-    for (const auto& piece : model.gear.pieces) {
-        appendGearBox(piece);
-    }
-    mesh->morph_target_count = static_cast<std::uint32_t>(
-        std::min<std::size_t>(model.appearance.morphs.size(), mesh->morphs.size()));
-    if (face_output != nullptr) {
-        mesh->morph_weights[0] = face_output->eyelids_close;
-        mesh->morph_weights[1] = face_output->eyelids_arc;
-        // Morph order is eyelidsClose, eyelidsArc, neckFlex, handsRelax.
-        // Jaw rotation is a bone controller, not neckFlex.
-        mesh->morph_weights[2] = 0.0F;
-        mesh->morph_weights[3] = 0.0F;
-    }
-    for (std::size_t index = 0; index < mesh->morph_target_count; ++index) {
-        mesh->morphs[index].position_deltas = model.appearance.morphs[index].position_deltas;
-        mesh->morphs[index].normal_deltas = model.appearance.morphs[index].normal_deltas;
-    }
-    return mesh;
-}
-
-std::vector<std::array<float, 16U>> makePalette(
-    const infantry::SkeletonData& skeleton,
-    std::span<const infantry::RigTransform> pose_bones) {
-    const auto bones = skeleton.bones();
-    std::vector<std::array<float, 16U>> palette;
-    palette.reserve(bones.size());
-    std::array<std::array<float, 16U>, infantry::kRigBoneCount> world_matrices{};
-    for (std::size_t index = 0U; index < bones.size(); ++index) {
-        const auto& bone = bones[index];
-        const auto& local = pose_bones.empty() ? bone.local_bind : pose_bones[index];
-        const auto local_matrix = transformMatrix(local);
-        world_matrices[index] = bone.parent == infantry::kInvalidBoneIndex
-            ? local_matrix
-            : multiply(world_matrices[bone.parent], local_matrix);
-        palette.push_back(multiply(world_matrices[index], transformMatrix(bone.inverse_bind)));
-    }
-    return palette;
-}
-
-std::vector<std::array<float, 16U>> makeBindPalette(const infantry::SkeletonData& skeleton) {
-    return makePalette(skeleton, {});
-}
-
-} // namespace infantry_presentation
 
 foundation::SceneId UnitLabScene::id() const noexcept {
     return foundation::scene_id("scene.unit-lab");
+}
+
+void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
+    switch (flag) {
+    case UnitLabDirtyFlag::Geometry: geometry_dirty_ = true; break;
+    case UnitLabDirtyFlag::Material: material_dirty_ = true; break;
+    case UnitLabDirtyFlag::Pose: pose_dirty_ = true; break;
+    case UnitLabDirtyFlag::Ui: ui_dirty_ = true; break;
+    }
+}
+
+void UnitLabScene::rebuildModel() {
+    infantry::InfantryModelRequest request{};
+    request.seed = preview_seed_;
+    request.variation = variation_;
+    request.detail_level = detail_level_;
+    request.genome_overrides = genome_overrides_;
+    request.uniform_color = infantry::kDefaultUniformColor;
+    const auto loadouts = infantry::infantryLoadouts();
+    if (!loadouts.empty()) {
+        request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
+    }
+    const auto compiled = model_compiler_.compile(request);
+    if (!compiled) {
+        last_generation_error_ = compiled.error();
+        markDirty(UnitLabDirtyFlag::Ui);
+        return;
+    }
+
+    model_artifact_ = compiled.value();
+    skinned_prototype_.reset();
+    skinned_prototype_model_key_ = 0;
+    locomotion_.reset();
+    locomotion_state_.reset();
+    face_animator_.reset();
+    animation_system_.reset();
+    animation_pose_.reset();
+    if (auto locomotion = infantry::LocomotionController::create(
+            model_artifact_->phenotype.body); locomotion) {
+        locomotion_ = std::move(locomotion.value());
+        locomotion_state_ = locomotion_->initialState();
+    }
+    if (auto face = infantry::FaceAnimator::create(
+            preview_seed_, model_artifact_->phenotype.face); face) {
+        face_animator_ = std::move(face.value());
+    }
+    if (auto animation = infantry::AnimationSystem::create(1U); animation) {
+        animation_system_ = std::move(animation.value());
+    }
+    last_generation_error_.reset();
+    markDirty(UnitLabDirtyFlag::Geometry);
+    markDirty(UnitLabDirtyFlag::Material);
+    markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Ui);
 }
 
 void UnitLabScene::on_enter(SceneContext& context) {
     elapsed_seconds_ = 0.0;
     fixed_tick_ = 0;
     fixed_accumulator_ = 0.0F;
+    camera_orbit_yaw_ = 0.0F;
+    camera_orbit_pitch_ = 0.0F;
+    camera_distance_scale_ = 1.0F;
     unit_prototype_.reset();
     model_artifact_.reset();
     locomotion_.reset();
@@ -337,29 +158,112 @@ void UnitLabScene::on_enter(SceneContext& context) {
     face_animator_.reset();
     animation_system_.reset();
     animation_pose_.reset();
-    infantry::InfantryModelRequest request{};
-    request.seed = 0x5EED2026ull;
-    request.variation = 1.0F;
-    request.detail_level = 2U;
-    if (auto compiled = model_compiler_.compile(request); compiled) {
-        model_artifact_ = std::move(compiled.value());
-        if (auto locomotion = infantry::LocomotionController::create(
-                model_artifact_->phenotype.body); locomotion) {
-            locomotion_ = std::move(locomotion.value());
-            locomotion_state_ = locomotion_->initialState();
-        }
-        if (auto face = infantry::FaceAnimator::create(
-                request.seed, model_artifact_->phenotype.face); face) {
-            face_animator_ = std::move(face.value());
-        }
-        if (auto animation = infantry::AnimationSystem::create(1U); animation) {
-            animation_system_ = std::move(animation.value());
-        }
-    }
+    last_generation_error_.reset();
+    geometry_dirty_ = true;
+    material_dirty_ = true;
+    pose_dirty_ = true;
+    ui_dirty_ = true;
+    skinned_prototype_.reset();
+    skinned_prototype_model_key_ = 0;
+    rebuildModel();
+    geometry_dirty_ = false;
+    material_dirty_ = false;
     context.ui.clear();
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
+    if (input.mouse_left_pressed && input.mouse_x >= 78.0F && input.mouse_x <= 500.0F) {
+        constexpr float first_control_y = 266.0F;
+        constexpr float control_step = 60.0F;
+        const int control = static_cast<int>((input.mouse_y - first_control_y) / control_step);
+        const float local_y = input.mouse_y -
+                              (first_control_y + static_cast<float>(control) * control_step);
+        if (control >= 0 && control <= 14 && local_y >= 0.0F && local_y <= 48.0F) {
+            switch (control) {
+            case 0:
+                ++preview_seed_;
+                rebuildModel();
+                break;
+            case 1:
+                detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U;
+                rebuildModel();
+                break;
+            case 2:
+                camera_mode_ = static_cast<UnitLabCameraMode>(
+                    (static_cast<std::uint8_t>(camera_mode_) + 1U) % 5U);
+                camera_orbit_yaw_ = 0.0F;
+                camera_orbit_pitch_ = 0.0F;
+                camera_distance_scale_ = 1.0F;
+                markDirty(UnitLabDirtyFlag::Ui);
+                break;
+            case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
+            case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
+            case 5: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
+            case 6: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
+            case 7: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
+            case 8: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
+            case 9:
+                expression_ = static_cast<infantry::FaceExpression>(
+                    (static_cast<std::uint8_t>(expression_) + 1U) %
+                    infantry::kFaceExpressionCount);
+                expression_intensity_ = expression_ == infantry::FaceExpression::Neutral
+                    ? 0.0F : 1.0F;
+                if (face_animator_) {
+                    (void)face_animator_->setExpression(expression_, expression_intensity_);
+                }
+                markDirty(UnitLabDirtyFlag::Pose);
+                break;
+            case 10:
+                debug_weight_bone_ = debug_weight_bone_
+                    ? static_cast<infantry::BoneId>(
+                        (static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) %
+                        infantry::kRigBoneCount)
+                    : infantry::BoneId::Hips;
+                markDirty(UnitLabDirtyFlag::Ui);
+                break;
+            case 11:
+                variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 2.0F : 0.5F;
+                rebuildModel();
+                break;
+            case 12:
+                if (!infantry::infantryLoadouts().empty()) {
+                    loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
+                    rebuildModel();
+                }
+                break;
+            case 13:
+                genome_override_mode_ = static_cast<std::uint8_t>(
+                    (genome_override_mode_ + 1U) % 4U);
+                genome_overrides_ = {};
+                if (genome_override_mode_ == 1U) {
+                    genome_overrides_.height = 1.65F;
+                } else if (genome_override_mode_ == 2U) {
+                    genome_overrides_.height = 1.90F;
+                } else if (genome_override_mode_ == 3U) {
+                    genome_overrides_.shoulder_width = 1.0F;
+                    genome_overrides_.hip_width = 0.0F;
+                }
+                rebuildModel();
+                break;
+            case 14:
+                context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+                break;
+            default: break;
+            }
+            return;
+        }
+    }
+    if (input.mouse_left_down && input.mouse_x > 570.0F) {
+        camera_orbit_yaw_ += input.mouse_delta_x * 0.008F;
+        camera_orbit_pitch_ = std::clamp(
+            camera_orbit_pitch_ - input.mouse_delta_y * 0.006F, -0.75F, 0.75F);
+        markDirty(UnitLabDirtyFlag::Ui);
+    }
+    if (std::abs(input.mouse_wheel_y) > 0.001F) {
+        camera_distance_scale_ = std::clamp(
+            camera_distance_scale_ * std::exp(-input.mouse_wheel_y * 0.10F), 0.55F, 1.80F);
+        markDirty(UnitLabDirtyFlag::Ui);
+    }
     if (locomotion_ && locomotion_state_) {
         if (input.right_pressed) {
             const auto current = locomotion_state_->preset;
@@ -382,6 +286,7 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                         : infantry::BipedPreset::Idle;
             (void)locomotion_->setPreset(*locomotion_state_, previous);
         }
+        markDirty(UnitLabDirtyFlag::Pose);
     }
     if (input.cancel_pressed || input.confirm_pressed) {
         context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
@@ -395,10 +300,10 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
         fixed_accumulator_ -= fixed_dt;
         ++fixed_tick_;
         elapsed_seconds_ = static_cast<double>(fixed_tick_) * fixed_dt;
-        if (locomotion_ && locomotion_state_) {
+        if (!animation_paused_ && locomotion_ && locomotion_state_) {
             (void)locomotion_->step(*locomotion_state_, fixed_dt);
         }
-        if (animation_system_ && locomotion_ && locomotion_state_ && model_artifact_) {
+        if (!animation_paused_ && animation_system_ && locomotion_ && locomotion_state_ && model_artifact_) {
             infantry::AnimationEntity entity{};
             entity.semantic_id = foundation::stable_id("unit-lab.infantry");
             entity.skeleton = &model_artifact_->skeleton;
@@ -411,22 +316,29 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
             if (!animation_system_->currentSnapshot().poses.empty()) {
                 animation_pose_ = animation_system_->currentSnapshot().poses.front();
             }
+            markDirty(UnitLabDirtyFlag::Pose);
         }
     }
 }
 
 void UnitLabScene::frame_update(SceneContext& context, double) {
+    ui_dirty_ = false;
     context.ui.clear();
     context.ui.add({foundation::stable_id("unit-lab.panel"), ui::UiNodeType::Panel,
-                    "UNIT LAB", true, false, 520.0F, 560.0F});
+                    "UNIT LAB", true, false, 520.0F, 1240.0F});
     context.ui.add({foundation::stable_id("unit-lab.title"), ui::UiNodeType::Label,
                     "Procedural infantry prototypes", true, false, 0.0F, 0.0F});
     context.ui.add({foundation::stable_id("unit-lab.description"), ui::UiNodeType::Label,
                     "Native procedural body, face, hair and equipment preview.", true,
                     false, 0.0F, 0.0F});
     std::string metrics = model_artifact_
-        ? "MODEL READY | SEED 1592598566 | RIFLEMAN | DETAIL 2"
+        ? "MODEL READY | SEED " + std::to_string(preview_seed_) +
+          " | RIFLEMAN | DETAIL " + std::to_string(detail_level_)
         : "MODEL COMPILATION FAILED";
+    if (last_generation_error_) {
+        metrics += " | PREVIOUS MODEL / ERROR " +
+                   std::string(last_generation_error_->message);
+    }
     if (model_artifact_) {
         const auto& appearance = model_artifact_->appearance;
         metrics += " | BONES " + std::to_string(model_artifact_->skeleton.bones().size());
@@ -437,10 +349,63 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         metrics += " | MORPHS " + std::to_string(appearance.morphs.size());
         metrics += " | CACHE H" + std::to_string(model_compiler_.cacheHits());
         metrics += "/M" + std::to_string(model_compiler_.cacheMisses());
+        metrics += show_surface_ ? " | SURFACE" : " | SURFACE OFF";
+        metrics += show_wireframe_ ? " | WIREFRAME" : "";
+        metrics += show_skeleton_ ? " | SKELETON" : "";
+        metrics += show_bounds_ ? " | BOUNDS" : "";
+        metrics += show_normals_ ? " | NORMALS" : "";
+        metrics += debug_weight_bone_
+            ? " | WEIGHT " + std::to_string(static_cast<std::uint16_t>(*debug_weight_bone_))
+            : "";
+        metrics += " | CAMERA " + std::to_string(static_cast<int>(camera_mode_));
+        metrics += " | VAR " + std::to_string(variation_);
+        metrics += " | OVERRIDE " + std::to_string(genome_override_mode_);
+        if (!infantry::infantryLoadouts().empty()) {
+            metrics += " | LOADOUT " + std::string(
+                infantry::infantryLoadouts()[loadout_index_ % infantry::infantryLoadouts().size()].identifier);
+        }
+        metrics += " | EXPRESSION " + std::to_string(static_cast<int>(expression_)) +
+                   "@" + std::to_string(expression_intensity_);
     }
     context.ui.add({foundation::stable_id("unit-lab.metrics"), ui::UiNodeType::Label,
                     std::move(metrics),
                     true, false, 0.0F, 0.0F});
+    context.ui.add({foundation::stable_id("unit-lab.regenerate"), ui::UiNodeType::Button,
+                    "Regenerate seed", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.detail"), ui::UiNodeType::Button,
+                    "Cycle detail level", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.camera"), ui::UiNodeType::Button,
+                    "Cycle camera preset", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.surface"), ui::UiNodeType::Button,
+                    show_surface_ ? "Surface: ON" : "Surface: OFF", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.wireframe"), ui::UiNodeType::Button,
+                    show_wireframe_ ? "Wireframe: ON" : "Wireframe: OFF", true, false,
+                    420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.skeleton"), ui::UiNodeType::Button,
+                    show_skeleton_ ? "Skeleton: ON" : "Skeleton: OFF", true, false,
+                    420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.bounds"), ui::UiNodeType::Button,
+                    show_bounds_ ? "Bounds: ON" : "Bounds: OFF", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.normals"), ui::UiNodeType::Button,
+                    show_normals_ ? "Normals: ON" : "Normals: OFF", true, false,
+                    420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.pause"), ui::UiNodeType::Button,
+                    animation_paused_ ? "Animation: PAUSED" : "Animation: PLAYING", true,
+                    false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.expression"), ui::UiNodeType::Button,
+                    "Cycle expression", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.weight"), ui::UiNodeType::Button,
+                    debug_weight_bone_
+                        ? "Cycle weight bone (" + std::to_string(
+                            static_cast<std::uint16_t>(*debug_weight_bone_)) + ")"
+                        : "Weight heatmap: OFF",
+                    true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.variation"), ui::UiNodeType::Button,
+                    "Cycle phenotype variation", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.loadout"), ui::UiNodeType::Button,
+                    "Cycle equipment loadout", true, false, 420.0F, 48.0F});
+    context.ui.add({foundation::stable_id("unit-lab.overrides"), ui::UiNodeType::Button,
+                    "Cycle genome overrides", true, false, 420.0F, 48.0F});
     context.ui.add({foundation::stable_id("unit-lab.back"), ui::UiNodeType::Button,
                     "Back to main menu", true, true, 420.0F, 48.0F});
 }
@@ -448,28 +413,157 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 void UnitLabScene::build_presentation(SceneContext& context) {
     context.presentation.clear();
     if (model_artifact_) {
-        const auto skinned = infantry_presentation::makePrototype(
-            *model_artifact_, face_animator_ ? &face_animator_->output() : nullptr);
-        context.presentation.skinned_prototypes.push_back(skinned);
+        if (!skinned_prototype_ ||
+            skinned_prototype_model_key_ != model_artifact_->cache_key) {
+            skinned_prototype_ = infantry_presentation::makePrototype(*model_artifact_);
+            skinned_prototype_model_key_ = model_artifact_->cache_key;
+        }
+        context.presentation.skinned_prototypes.push_back(skinned_prototype_);
         render::SkinnedBonePalette palette{};
         palette.instance_id = foundation::stable_id("unit-lab.infantry.instance");
-        palette.morph_weights = skinned->morph_weights;
+        if (face_animator_) {
+            palette.morph_weights[0] = face_animator_->output().eyelids_close;
+            palette.morph_weights[1] = face_animator_->output().eyelids_arc;
+            palette.morph_weights[2] = face_animator_->output().neck_flex;
+            palette.morph_weights[3] = face_animator_->output().hands_relax;
+        }
         const auto pose_bones = animation_pose_
             ? std::span<const infantry::RigTransform>(animation_pose_->bones)
             : std::span<const infantry::RigTransform>{};
         palette.matrices = infantry_presentation::makePalette(model_artifact_->skeleton,
                                                                pose_bones);
         context.presentation.skinned_palettes.push_back(std::move(palette));
-        auto render_mesh = std::make_shared<render::RenderMesh>(
-            render::deformSkinnedCPU(*skinned, context.presentation.skinned_palettes.back().matrices));
-        context.presentation.instance_prototypes.push_back(render_mesh);
-        context.presentation.instances.push_back({
-            foundation::stable_id("unit-lab.infantry.instance"), skinned->mesh_id,
-            foundation::stable_id("material.unit-lab.uniform"), {0.0F, 0.0F, 0.0F},
-            {1.0F, 1.0F, 1.0F},
-            std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F,
-            fixed_tick_,
-            render::RenderInstanceFlagPreview});
+        if (!context.render_capabilities.gpu_skinning) {
+            auto render_mesh = std::make_shared<render::RenderMesh>(
+                render::deformSkinnedCPU(*skinned_prototype_,
+                                         context.presentation.skinned_palettes.back().matrices,
+                                         context.presentation.skinned_palettes.back().morph_weights));
+            context.presentation.instance_prototypes.push_back(render_mesh);
+        }
+        const foundation::Vec3 center{
+            (model_artifact_->appearance.minimum.x + model_artifact_->appearance.maximum.x) * 0.5F,
+            (model_artifact_->appearance.minimum.y + model_artifact_->appearance.maximum.y) * 0.5F,
+            (model_artifact_->appearance.minimum.z + model_artifact_->appearance.maximum.z) * 0.5F};
+        const float extent = std::max(0.5F,
+            model_artifact_->appearance.maximum.y - model_artifact_->appearance.minimum.y);
+        foundation::Vec3 camera_offset{0.0F, extent * 0.08F, extent * 2.35F};
+        switch (camera_mode_) {
+        case UnitLabCameraMode::Front: camera_offset = {0.0F, extent * 0.08F, extent * 2.35F}; break;
+        case UnitLabCameraMode::Side: camera_offset = {extent * 2.35F, extent * 0.08F, 0.0F}; break;
+        case UnitLabCameraMode::Back: camera_offset = {0.0F, extent * 0.08F, -extent * 2.35F}; break;
+        case UnitLabCameraMode::Face: camera_offset = {0.0F, extent * 0.62F, extent * 1.15F}; break;
+        case UnitLabCameraMode::ThreeQuarter: break;
+        }
+        const float horizontal = std::sqrt(camera_offset.x * camera_offset.x +
+                                            camera_offset.z * camera_offset.z);
+        const float base_angle = std::atan2(camera_offset.x, camera_offset.z);
+        const float orbit_angle = base_angle + camera_orbit_yaw_;
+        const float pitched_horizontal = horizontal * std::cos(camera_orbit_pitch_);
+        camera_offset.x = pitched_horizontal * std::sin(orbit_angle);
+        camera_offset.z = pitched_horizontal * std::cos(orbit_angle);
+        camera_offset.y = (camera_offset.y - extent * 0.08F) *
+                              std::cos(camera_orbit_pitch_) + extent * 0.08F +
+                          horizontal * std::sin(camera_orbit_pitch_);
+        camera_offset.x *= camera_distance_scale_;
+        camera_offset.y = extent * 0.08F +
+                          (camera_offset.y - extent * 0.08F) * camera_distance_scale_;
+        camera_offset.z *= camera_distance_scale_;
+        context.presentation.camera = {
+            true, {center.x + camera_offset.x, center.y + camera_offset.y,
+                   center.z + camera_offset.z},
+            {center.x, center.y + (camera_mode_ == UnitLabCameraMode::Face
+                                       ? extent * 0.68F : extent * 0.45F), center.z},
+            {0.0F, 1.0F, 0.0F}, 0.72F, 0.05F, 100.0F};
+        const float model_rotation = std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
+        const auto debugPoint = [model_rotation](Vec3 point) noexcept {
+            return rotateY(point, model_rotation);
+        };
+        const auto addDebugLine = [&context, &debugPoint](Vec3 start, Vec3 end,
+                                                           foundation::Color color) {
+            context.presentation.debug_lines.push_back(
+                {debugPoint(start), debugPoint(end), color});
+        };
+        if (show_bounds_) {
+            const Vec3 minimum = model_artifact_->appearance.minimum;
+            const Vec3 maximum = model_artifact_->appearance.maximum;
+            const Vec3 corners[] = {
+                {minimum.x, minimum.y, minimum.z}, {maximum.x, minimum.y, minimum.z},
+                {maximum.x, maximum.y, minimum.z}, {minimum.x, maximum.y, minimum.z},
+                {minimum.x, minimum.y, maximum.z}, {maximum.x, minimum.y, maximum.z},
+                {maximum.x, maximum.y, maximum.z}, {minimum.x, maximum.y, maximum.z}};
+            constexpr std::uint32_t edges[][2] = {
+                {0U, 1U}, {1U, 2U}, {2U, 3U}, {3U, 0U},
+                {4U, 5U}, {5U, 6U}, {6U, 7U}, {7U, 4U},
+                {0U, 4U}, {1U, 5U}, {2U, 6U}, {3U, 7U}};
+            for (const auto& edge : edges) {
+                addDebugLine(corners[edge[0]], corners[edge[1]],
+                             {0.10F, 0.85F, 1.0F, 1.0F});
+            }
+        }
+        if (show_skeleton_) {
+            const auto pose = debugPose(
+                model_artifact_->skeleton, pose_bones,
+                animation_pose_ ? animation_pose_->root_position : Vec3{});
+            const auto bones = model_artifact_->skeleton.bones();
+            for (std::size_t index = 0U; index < bones.size(); ++index) {
+                if (bones[index].parent == infantry::kInvalidBoneIndex) {
+                    continue;
+                }
+                addDebugLine(pose[bones[index].parent].position, pose[index].position,
+                             {1.0F, 0.82F, 0.12F, 1.0F});
+            }
+        }
+        if (show_normals_ || show_wireframe_ || debug_weight_bone_) {
+            const auto& vertices = skinned_prototype_->vertices;
+            if (show_normals_ || debug_weight_bone_) {
+                for (std::size_t index = 0U; index < vertices.size(); index += 8U) {
+                    const auto& vertex = vertices[index];
+                    foundation::Color color{1.0F, 0.10F, 0.85F, 1.0F};
+                    if (debug_weight_bone_) {
+                        float weight = 0.0F;
+                        const auto selected = static_cast<std::uint16_t>(*debug_weight_bone_);
+                        for (std::size_t influence = 0U;
+                             influence < vertex.bone_indices.size(); ++influence) {
+                            if (vertex.bone_indices[influence] == selected) {
+                                weight += vertex.bone_weights[influence];
+                            }
+                        }
+                        const float clamped = std::clamp(weight, 0.0F, 1.0F);
+                        color = {clamped, 0.12F + 0.76F * (1.0F - clamped),
+                                 1.0F - clamped, 1.0F};
+                    }
+                    addDebugLine(vertex.position,
+                                 add(vertex.position, multiply(vertex.normal, 0.045F)),
+                                 color);
+                }
+            }
+            if (show_wireframe_) {
+                constexpr std::size_t kMaxDebugLines = 20'000U;
+                for (std::size_t index = 0U;
+                     index + 2U < skinned_prototype_->indices.size() &&
+                     context.presentation.debug_lines.size() < kMaxDebugLines;
+                     index += 3U) {
+                    const auto vertex = [this](std::uint32_t position) noexcept -> Vec3 {
+                        return skinned_prototype_->vertices[position].position;
+                    };
+                    const Vec3 a = vertex(skinned_prototype_->indices[index]);
+                    const Vec3 b = vertex(skinned_prototype_->indices[index + 1U]);
+                    const Vec3 c = vertex(skinned_prototype_->indices[index + 2U]);
+                    addDebugLine(a, b, {0.15F, 1.0F, 0.35F, 1.0F});
+                    addDebugLine(b, c, {0.15F, 1.0F, 0.35F, 1.0F});
+                    addDebugLine(c, a, {0.15F, 1.0F, 0.35F, 1.0F});
+                }
+            }
+        }
+        if (show_surface_) {
+            context.presentation.instances.push_back({
+                foundation::stable_id("unit-lab.infantry.instance"), skinned_prototype_->mesh_id,
+                foundation::stable_id("material.unit-lab.uniform"), {0.0F, 0.0F, 0.0F},
+                {1.0F, 1.0F, 1.0F},
+                model_rotation,
+                fixed_tick_,
+                render::RenderInstanceFlagPreview});
+        }
         return;
     }
     if (!unit_prototype_) {

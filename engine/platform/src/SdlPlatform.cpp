@@ -121,14 +121,41 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
             if (event.button.button == SDL_BUTTON_LEFT) {
                 frame.input.mouse_left_pressed = true;
+                frame.input.mouse_left_down = true;
+                mouse_left_down_ = true;
                 frame.input.mouse_x = event.button.x;
                 frame.input.mouse_y = event.button.y;
+                last_mouse_x_ = event.button.x;
+                last_mouse_y_ = event.button.y;
             }
+            break;
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                mouse_left_down_ = false;
+                frame.input.mouse_x = event.button.x;
+                frame.input.mouse_y = event.button.y;
+                last_mouse_x_ = event.button.x;
+                last_mouse_y_ = event.button.y;
+            }
+            break;
+        case SDL_EVENT_MOUSE_MOTION:
+            frame.input.mouse_x = event.motion.x;
+            frame.input.mouse_y = event.motion.y;
+            frame.input.mouse_delta_x += event.motion.xrel;
+            frame.input.mouse_delta_y += event.motion.yrel;
+            last_mouse_x_ = event.motion.x;
+            last_mouse_y_ = event.motion.y;
+            break;
+        case SDL_EVENT_MOUSE_WHEEL:
+            frame.input.mouse_wheel_y += event.wheel.y;
             break;
         default:
             break;
         }
     }
+    frame.input.mouse_left_down = mouse_left_down_;
+    frame.input.mouse_x = last_mouse_x_;
+    frame.input.mouse_y = last_mouse_y_;
     return frame;
 }
 

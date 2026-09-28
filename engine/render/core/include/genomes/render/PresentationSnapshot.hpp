@@ -19,6 +19,8 @@ struct PresentationSnapshot final {
     foundation::StableId world_origin_id{0};
     std::uint64_t world_origin_revision{0};
     RenderCamera camera{};
+    CharacterLightRig character_lights{};
+    std::vector<DebugLine> debug_lines;
     std::vector<RenderInstance> instances;
     // Immutable geometry prototypes referenced by RenderInstance::mesh_id.
     // The renderer may resolve these once and draw each mesh/material batch
@@ -38,6 +40,8 @@ struct PresentationSnapshot final {
         world_origin_id = 0;
         world_origin_revision = 0;
         camera = {};
+        character_lights = {};
+        debug_lines.clear();
         instances.clear();
         instance_prototypes.clear();
         skinned_prototypes.clear();

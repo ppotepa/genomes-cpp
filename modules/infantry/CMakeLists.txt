@@ -1,9 +1,16 @@
 add_library(genomes_infantry STATIC
     src/InfantrySimulation.cpp
     src/InfantryGenome.cpp
-    src/PhenotypeResolver.cpp
+src/PhenotypeResolver.cpp
+src/FaceAnatomy.cpp
     src/RigBuilder.cpp
-    src/AppearanceCompiler.cpp
+src/AppearanceCompiler.cpp
+src/AppearanceMeshBuilder.cpp
+src/AppearanceMorphBuilder.cpp
+    src/HairGenerator.cpp
+    src/BodySurfaceGenerator.cpp
+    src/FaceSurfaceGenerator.cpp
+    src/GearSurfaceGenerator.cpp
     src/Equipment.cpp
     src/GearGenerator.cpp
     src/PostureProfile.cpp
@@ -19,7 +26,8 @@ add_library(genomes_infantry STATIC
 target_include_directories(genomes_infantry PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_infantry PUBLIC
-    genomes::foundation
+genomes::foundation
+genomes::geometry
     genomes::simulation
     genomes::spatial
     genomes::jobs

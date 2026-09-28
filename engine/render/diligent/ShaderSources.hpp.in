@@ -1,0 +1,15 @@
+#pragma once
+
+namespace genomes::render::diligent_shaders {
+
+inline constexpr char kSkinnedVertexShader[] = R"GENOMES(
+@GENOMES_CHARACTER_COMMON@
+@GENOMES_SKINNED_VERTEX@
+)GENOMES";
+
+inline constexpr char kSkinnedPixelShader[] = R"GENOMES(
+@GENOMES_CHARACTER_COMMON@
+@GENOMES_SKINNED_PIXEL@
+)GENOMES";
+
+} // namespace genomes::render::diligent_shaders

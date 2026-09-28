@@ -1,5 +1,4 @@
 #include <genomes/infantry/InfantryGenome.hpp>
-#include <genomes/proc/RandomStream.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -18,14 +17,31 @@ namespace {
     return std::clamp(0.5F + (value - 0.5F) * scale, 0.0F, 1.0F);
 }
 
-[[nodiscard]] float varied(proc::RandomStream& random) noexcept {
+class ReferenceRandom final {
+public:
+    explicit ReferenceRandom(std::uint32_t seed) noexcept : state_(seed) {}
+
+    [[nodiscard]] float uniform01() noexcept {
+        state_ += 0x6D2B79F5U;
+        std::uint32_t t = state_;
+        t = (t ^ (t >> 15U)) * (t | 1U);
+        t ^= t + ((t ^ (t >> 7U)) * (t | 61U));
+        const std::uint32_t result = t ^ (t >> 14U);
+        return static_cast<float>(result) / 4294967296.0F;
+    }
+
+private:
+    std::uint32_t state_{0};
+};
+
+[[nodiscard]] float varied(ReferenceRandom& random) noexcept {
     const float signed_value = static_cast<float>(random.uniform01() * 2.0 - 1.0);
     const float magnitude = std::pow(std::abs(signed_value), 1.30F);
     return std::clamp(0.5F + 0.5F * (signed_value < 0.0F ? -magnitude : magnitude), 0.0F,
                       1.0F);
 }
 
-[[nodiscard]] float centred(proc::RandomStream& random) noexcept {
+[[nodiscard]] float centred(ReferenceRandom& random) noexcept {
     return static_cast<float>((random.uniform01() + random.uniform01()) * 0.5);
 }
 
@@ -122,16 +138,15 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     InfantryGenome result{};
     result.seed = seed;
     result.diversity_scale = diversity_scale;
-    const proc::SeedPath root(seed);
-    proc::RandomStream identity(root.child("identity", 0));
-    proc::RandomStream body_stream(root.child("body", 0));
-    proc::RandomStream face_stream(root.child("face", 0));
-    result.height = static_cast<float>(identity.uniformRange(1.60, 1.95));
-    result.move_speed = static_cast<float>(identity.uniformRange(2.6, 3.6));
-    result.perception_radius = static_cast<float>(identity.uniformRange(50.0, 70.0));
-    result.attack_range = static_cast<float>(identity.uniformRange(30.0, 40.0));
-    result.max_health = static_cast<float>(identity.uniformRange(90.0, 110.0));
-    result.appearance_variant = identity.bounded(16U);
+    ReferenceRandom base(static_cast<std::uint32_t>(seed));
+    result.height = 1.60F + 0.35F * base.uniform01();
+    result.move_speed = 2.6F + 1.0F * base.uniform01();
+    result.perception_radius = 50.0F + 20.0F * base.uniform01();
+    result.attack_range = 30.0F + 10.0F * base.uniform01();
+    result.max_health = 90.0F + 20.0F * base.uniform01();
+    result.appearance_variant = static_cast<std::uint32_t>(base.uniform01() * 16.0F);
+
+    ReferenceRandom body_stream(static_cast<std::uint32_t>(seed) ^ 0x8B7A3D11U);
     result.body.frame = varied(body_stream);
     result.body.mass = varied(body_stream);
     result.body.musculature = varied(body_stream);
@@ -150,6 +165,7 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     result.body.foot_scale = varied(body_stream);
     result.body.skin_tone = varied(body_stream);
 
+    ReferenceRandom face_stream(static_cast<std::uint32_t>(seed) ^ 0x51F15E37U);
     result.face.head_width = varied(face_stream);
     result.face.head_depth = varied(face_stream);
     result.face.head_length = varied(face_stream);
@@ -174,7 +190,7 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     result.face.eye_depth = varied(face_stream);
     result.face.eye_tilt = varied(face_stream);
     result.face.eye_vertical = varied(face_stream);
-    result.face.eye_color = static_cast<float>(face_stream.uniform01());
+    result.face.eye_color = face_stream.uniform01();
     result.face.brow_height = varied(face_stream);
     result.face.brow_thickness = varied(face_stream);
     result.face.brow_tilt = varied(face_stream);
@@ -192,9 +208,9 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     result.face.mouth_height = varied(face_stream);
     result.face.ear_size = varied(face_stream);
     result.face.ear_angle = varied(face_stream);
-    result.face.hair_color = static_cast<float>(face_stream.uniform01());
+    result.face.hair_color = face_stream.uniform01();
     result.face.hair_brightness = centred(face_stream);
-    result.face.hair_style = static_cast<float>(face_stream.uniform01());
+    result.face.hair_style = face_stream.uniform01();
     result.face.hair_density = varied(face_stream);
     result.face.hair_thickness = varied(face_stream);
     result.face.hair_volume = varied(face_stream);
@@ -414,3 +430,4 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
 }
 
 } // namespace genomes::infantry
+
