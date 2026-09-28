@@ -20,7 +20,7 @@ behavioral parity. No defensible completion percentage has been established.
 
 | Area / source | Observed gap |
 | --- | --- |
-| `engine/runtime/src/UnitLabScene.cpp` | Palette uses local bind scale/translation instead of hierarchical world pose multiplied by inverse bind. Mesh positions already contain bind-space placement. Body/hair prototypes are recreated; visible output goes through CPU deformation to an ordinary mesh. Jaw rotation is assigned to morph index 2, which represents neckFlex. Gear is displayed as boxes rather than articulated equipment geometry. |
+| `engine/runtime/src/UnitLabScene.cpp` | UnitLab now publishes the shared immutable skinned prototype and hierarchical pose palette. The CPU copy remains as a diagnostic/fallback path. Gear is still generated from simplified native primitives and does not yet match every articulated JS attachment. |
 | `engine/render/core/src/SkinnedDeformer.cpp` | Position deformation uses diagonal matrix entries and translation, omitting rotational cross terms. Normals are not transformed by the bone palette. |
 | `modules/infantry/src/PhenotypeResolver.cpp` | Landmark scale and face sections have been corrected toward the reference, but the resolver still lacks the full FaceAnatomy correction set and diagnostics. Several phenotype fields remain only partially represented in native output. |
 | `modules/infantry/src/InfantryGenome.cpp` | All body and face fields are now sampled, with the reference `varied`/`centred` ordering. RNG seed compatibility and the incomplete override surface still differ from JS. |
@@ -29,7 +29,7 @@ behavioral parity. No defensible completion percentage has been established.
 | `modules/infantry/src/InfantryModelCompiler.cpp` | Request cache key omits equipment overrides and color alpha. Appearance is compiled before equipment fit. Returning the previous model on failure hides the failure reason. |
 | `modules/infantry/src/GearGenerator.cpp` | Gear pieces describe boxes rather than faithful surfaces. Hand/foot anchoring does not represent both sides. Catalog counts alone do not establish semantic compatibility. |
 | `modules/infantry/src/AnimationSystem.cpp` | Pose starts from local bind transforms while locomotion and face state are stored separately; full animated bone-pose writing is missing. Wiring this system into the scene alone will not restore gait/IK. |
-| `engine/render/diligent/DiligentBackend.cpp` | The current adapter still reaches the existing instanced pass through CPU-deformed `RenderMesh` data rather than a true GPU skinning pass. It also had two presentation blockers: terrain caused an early return, and terrain scenes filtered out `Preview` instances. Both code paths are now fixed; a windowed visual check is still required. Preview shading still adds material-ID/actor tint rather than faithfully using anatomical material regions. |
+| `engine/render/diligent/DiligentBackend.cpp` | The adapter now has a working D3D12 GPU skinned pass using a mutable SRB, but preview material shading still adds material-ID/actor tint rather than faithfully using all anatomical material regions. Vulkan and manual visual parity remain to be checked. |
 | `engine/runtime/src/BattlefieldScene.cpp` | Its separate ordinary-mesh path loses skinning, morphs and gear instead of using the common animated model pipeline. |
 
 These are interacting failures: incorrect phenotype changes the shape; reduced
@@ -61,24 +61,21 @@ The first recovery slice is now implemented and tested:
   `draw_meshes()` to return before world, infantry and instance passes. The
   instance filter was also corrected so UnitLab's `Preview` actor is not
   dropped merely because the scene has terrain. The adapter compiles with the
-  installed Windows SDK `fxc.exe`, and a five-second windowed D3D12 smoke run
-  is stable with the CPU fallback.
+  installed Windows SDK `fxc.exe`.
 - Diligent now contains a dedicated skinned infantry GPU pass. It uploads the
   immutable prototype once per revision, evaluates four morph channels and
   four bone influences per vertex, applies the 69-matrix palette and instance
-  transform on the GPU, and is intended to exclude that actor from the
-  compatibility CPU instanced pass. During runtime verification, the first
-  D3D12 `DrawIndexed` in this new pass faults even though shader/pipeline and
-  buffer creation succeed. The pass is therefore disabled by default until
-  that backend-specific crash is isolated; the CPU deformer remains the
-  active UnitLab fallback.
+  transform on the GPU, and excludes that actor from the compatibility CPU
+  instanced pass. The original D3D12 crash was caused by the static resource
+  binding path for this pipeline; using a mutable SRB fixes it. A 30-second
+  windowed D3D12 UnitLab smoke run remains alive with GPU skinning active.
+  The CPU deformer remains available for headless diagnostics and fallback.
 
 The Diligent-enabled build was verified from the existing
 `build/diligent-config` tree. With the installed Windows SDK `fxc.exe` added to
 the process PATH, `genomes_render_diligent` compiles and links successfully.
-This is compile-level verification plus a stable CPU-fallback smoke run; it
-does not replace the required windowed/manual visual run of the final GPU path
-on D3D12 and Vulkan.
+This is compile-level verification plus a 30-second D3D12 GPU smoke run; it
+does not replace the required manual visual review or the Vulkan run.
 
 This fixes the renderer-side skinning connection, not the remaining anatomy,
 equipment, material-region and reference-parity gaps listed below.

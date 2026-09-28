@@ -865,6 +865,7 @@ struct DiligentBackend::Impl final {
     Diligent::RefCntAutoPtr<Diligent::IShader> skinned_vertex_shader;
     Diligent::RefCntAutoPtr<Diligent::IShader> skinned_pixel_shader;
     Diligent::RefCntAutoPtr<Diligent::IPipelineState> skinned_pipeline;
+    Diligent::RefCntAutoPtr<Diligent::IShaderResourceBinding> skinned_srb;
     Diligent::RefCntAutoPtr<Diligent::IBuffer> skinned_pass_constants;
     std::unordered_map<foundation::StableId, SkinnedPrototypeGpu> skinned_prototypes_gpu;
     std::shared_ptr<const RenderMesh> preview_prototype;
@@ -1296,7 +1297,7 @@ DiligentBackend::create(RenderConfig config,
         skinned_pipeline_info.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable =
             Diligent::True;
         skinned_pipeline_info.PSODesc.ResourceLayout.DefaultVariableType =
-            Diligent::SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
+            Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
         Diligent::IPipelineState* skinned_pipeline = nullptr;
         impl->device->CreateGraphicsPipelineState(skinned_pipeline_info, &skinned_pipeline);
         if (skinned_pipeline == nullptr) {
@@ -1305,20 +1306,12 @@ DiligentBackend::create(RenderConfig config,
                  "Diligent could not create the skinned infantry pipeline"});
         }
         impl->skinned_pipeline.Attach(skinned_pipeline);
-        auto* skinned_camera_variable = impl->skinned_pipeline->GetStaticVariableByName(
-            Diligent::SHADER_TYPE_VERTEX, "SkinnedPassConstants");
-        if (skinned_camera_variable == nullptr) {
-            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
-                {foundation::ErrorCode::Internal,
-                 "Diligent skinned shader constants are not reflected"});
-        }
         Diligent::BufferDesc skinned_pass_desc{};
         skinned_pass_desc.Name = "Genomes skinned pass constants";
         // D3D12 CBV sizes and offsets are 256-byte aligned.  The palette is
         // deliberately kept as one immutable binding, but its byte size must
         // be rounded before the backend creates the resource.
-        skinned_pass_desc.Size = static_cast<Diligent::Uint64>(
-            (sizeof(SkinnedPassConstants) + 255U) & ~std::size_t{255U});
+        skinned_pass_desc.Size = 256U;
         skinned_pass_desc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
         skinned_pass_desc.Usage = Diligent::USAGE_DEFAULT;
         skinned_pass_desc.CPUAccessFlags = Diligent::CPU_ACCESS_NONE;
@@ -1330,7 +1323,23 @@ DiligentBackend::create(RenderConfig config,
                  "Diligent could not create the skinned pass constants"});
         }
         impl->skinned_pass_constants.Attach(skinned_pass_buffer);
+        Diligent::IShaderResourceBinding* skinned_srb = nullptr;
+        impl->skinned_pipeline->CreateShaderResourceBinding(&skinned_srb, true);
+        if (skinned_srb == nullptr) {
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create the skinned shader resource binding"});
+        }
+        auto* skinned_camera_variable = skinned_srb->GetVariableByName(
+            Diligent::SHADER_TYPE_VERTEX, "SkinnedPassConstants");
+        if (skinned_camera_variable == nullptr) {
+            skinned_srb->Release();
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent skinned shader constants are not reflected"});
+        }
         skinned_camera_variable->Set(impl->skinned_pass_constants);
+        impl->skinned_srb.Attach(skinned_srb);
     }
 
     impl->capabilities.initialized = true;
@@ -1830,13 +1839,13 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
         // an instance palette.  Consume that contract directly on the GPU;
         // the ordinary RenderMesh path below remains available for scenes and
         // backends that do not publish skinned data.
-        // Keep the CPU deformation fallback active until the D3D12 skinned
-        // DrawIndexed path is validated on the supported adapters.  The GPU
-        // pass remains compiled and can be re-enabled without changing the
-        // presentation contract.
-        const bool gpu_skinning_enabled = false;
+        // The GPU pass owns the UnitLab draw when its immutable prototype and
+        // palette are available. The CPU deformer remains as the headless and
+        // backend fallback without changing the presentation contract.
+        const bool gpu_skinning_enabled = true;
         if (gpu_skinning_enabled && impl_->swap_chain && impl_->skinned_pipeline &&
-            impl_->skinned_pass_constants && !snapshot.skinned_prototypes.empty() &&
+            impl_->skinned_srb && impl_->skinned_pass_constants &&
+            !snapshot.skinned_prototypes.empty() &&
             !snapshot.skinned_palettes.empty()) {
             const auto find_instance = [&snapshot](foundation::StableId mesh_id)
                 -> const RenderInstance* {
@@ -2017,9 +2026,13 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                                 sizeof(pass_constants.bone_palette[bone]));
                 }
                 impl_->context->UpdateBuffer(
-                    impl_->skinned_pass_constants, 0, sizeof(pass_constants), &pass_constants,
+                    impl_->skinned_pass_constants, 0, sizeof(pass_constants.view_projection),
+                    &pass_constants,
                     Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
                 impl_->context->SetPipelineState(impl_->skinned_pipeline);
+                impl_->context->CommitShaderResources(
+                    impl_->skinned_srb,
+                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
                 Diligent::IBuffer* vertex_buffers[] = {prototype_gpu.vertex_buffer};
                 const Diligent::Uint64 vertex_offsets[] = {0};
                 impl_->context->SetVertexBuffers(
