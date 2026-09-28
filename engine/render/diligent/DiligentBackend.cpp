@@ -1318,10 +1318,15 @@ DiligentBackend::create(RenderConfig config,
         impl->skinned_pipeline.Attach(skinned_pipeline);
         Diligent::BufferDesc skinned_pass_desc{};
         skinned_pass_desc.Name = "Genomes skinned pass constants";
-        // D3D12 CBV sizes and offsets are 256-byte aligned.  The palette is
-        // deliberately kept as one immutable binding, but its byte size must
-        // be rounded before the backend creates the resource.
-        skinned_pass_desc.Size = 256U;
+        // D3D12 CBV sizes and offsets are 256-byte aligned. The complete
+        // 69-bone palette is much larger than one alignment block, so round
+        // the actual structure size up instead of allocating a single block.
+        constexpr std::size_t kConstantBufferAlignment = 256U;
+        constexpr std::size_t kSkinnedPassBufferSize =
+            ((sizeof(SkinnedPassConstants) + kConstantBufferAlignment - 1U) /
+             kConstantBufferAlignment) *
+            kConstantBufferAlignment;
+        skinned_pass_desc.Size = static_cast<Diligent::Uint64>(kSkinnedPassBufferSize);
         skinned_pass_desc.BindFlags = Diligent::BIND_UNIFORM_BUFFER;
         skinned_pass_desc.Usage = Diligent::USAGE_DEFAULT;
         skinned_pass_desc.CPUAccessFlags = Diligent::CPU_ACCESS_NONE;
