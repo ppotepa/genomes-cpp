@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.4 - PROCEDURAL_SURFACE_AND_APPEARANCE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -200,13 +200,13 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] backend-neutral appearance artifact
-    [ ] topological openings
-    [ ] skin validation
-    [ ] four TARGET morphs
-    [ ] hair deterministic
-    [ ] parallel-safe builder
-    [ ] cache benchmark
+    [x] backend-neutral appearance artifact
+    [x] topological openings
+    [x] skin validation
+    [x] four TARGET morphs
+    [x] hair deterministic
+    [x] parallel-safe builder
+    [x] cache benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -220,13 +220,13 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] backend-neutral appearance artifact
-    [ ] topological openings
-    [ ] skin validation
-    [ ] four TARGET morphs
-    [ ] hair deterministic
-    [ ] parallel-safe builder
-    [ ] cache benchmark
+    [x] backend-neutral appearance artifact
+    [x] topological openings
+    [x] skin validation
+    [x] four TARGET morphs
+    [x] hair deterministic
+    [x] parallel-safe builder
+    [x] cache benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.7 IK_AND_GROUND_CONTACT
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/TwoBoneIK.hpp
+    modules/infantry/include/genomes/infantry/GroundContact.hpp
+    modules/infantry/src/TwoBoneIK.cpp
+    modules/infantry/src/GroundContact.cpp
+
+CONTRACT:
+    TwoBoneIK is backend-independent and uses bind-space limb lengths with an
+    explicit bend plane. GroundContact reads an immutable surface callback,
+    emits foot targets/normals, a minimal body lift and residual IK error, and
+    keys cached results by surface revision and morphology.
+
+VALIDATION:
+    infantry.ik_ground_contact: PASS
+    dev-debug native tests: PASS 38/38
+    reachable/unreachable, degenerate safeguards, slope sample and cache
+    revision invalidation: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/ik_ground_contact_profiles.json

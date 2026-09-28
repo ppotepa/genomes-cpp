@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.2 - FINAL_WORLD_REFERENCE_VALIDATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -198,11 +198,11 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] world fixtures pinned
-    [ ] semantic checkpoints pass
-    [ ] render independence
-    [ ] TARGET requirements mapped
-    [ ] report committed
+    [x] world fixtures pinned
+    [x] semantic checkpoints pass
+    [x] render independence
+    [x] TARGET requirements mapped
+    [x] report committed
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -216,11 +216,11 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] world fixtures pinned
-    [ ] semantic checkpoints pass
-    [ ] render independence
-    [ ] legacy requirements mapped
-    [ ] report committed
+    [x] world fixtures pinned
+    [x] semantic checkpoints pass
+    [x] render independence
+    [x] legacy requirements mapped
+    [x] report committed
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

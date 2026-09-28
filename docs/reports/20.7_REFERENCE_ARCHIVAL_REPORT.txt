@@ -1,0 +1,16 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.7 REFERENCE_EVIDENCE_ARCHIVAL
+
+IMPLEMENTATION:
+    reference/manifests/REFERENCE_EVIDENCE_LEDGER.txt
+
+VALIDATION:
+    Ledger defines all allowed evidence statuses, SOURCE baseline provenance,
+    TARGET owners and translated native tests. Native runtime remains
+    independent from SOURCE; no SOURCE mutation or deletion was performed.
+
+RESULT:
+    PASS (documentation/ownership gate)

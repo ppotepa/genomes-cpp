@@ -1,0 +1,36 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.5 EQUIPMENT
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/Equipment.hpp
+    modules/infantry/include/genomes/infantry/EquipmentCatalog.hpp
+    modules/infantry/include/genomes/infantry/EquipmentFit.hpp
+    modules/infantry/src/Equipment.cpp
+    modules/infantry/src/GearGenerator.cpp
+
+INVENTORY:
+    slots=22
+    item definitions=61
+    Infantry loadouts=10
+
+CONTRACT:
+    Equipment state is separate from genome and uses the named EQUIPMENT/v1
+    seed domain with canonical slot and item derivation. Overrides distinguish
+    absent from explicit null. Fit and gear recipes use the single
+    phenotype-derived SkeletonData; no second equipment skeleton is created.
+
+VALIDATION:
+    infantry.equipment: PASS
+    dev-debug native tests: PASS 36/36
+    appearance benchmark remains PASS
+
+FIXTURE:
+    reference/fixtures/infantry/equipment_profiles.json
+
+LIMITS:
+    Active weapon handling, firing and hand pose belong to Stage 19. Gear is
+    currently a validated semantic recipe; renderer mesh batching is a later
+    presentation boundary.

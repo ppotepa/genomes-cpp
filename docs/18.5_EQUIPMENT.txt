@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.5 - EQUIPMENT
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -221,13 +221,13 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] pinned baseline inventory counts verified
-    [ ] catalog/loadouts ported
-    [ ] separate RNG domain
-    [ ] fit semantic
-    [ ] single skeleton gear
-    [ ] candidate-before-commit
-    [ ] no-op cache
+    [x] pinned baseline inventory counts verified
+    [x] catalog/loadouts ported
+    [x] separate RNG domain
+    [x] fit semantic
+    [x] single skeleton gear
+    [x] candidate-before-commit
+    [x] no-op cache
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -241,12 +241,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] catalog/loadouts ported
-    [ ] separate RNG domain
-    [ ] fit semantic
-    [ ] single skeleton gear
-    [ ] candidate-before-commit
-    [ ] no-op cache
+    [x] catalog/loadouts ported
+    [x] separate RNG domain
+    [x] fit semantic
+    [x] single skeleton gear
+    [x] candidate-before-commit
+    [x] no-op cache
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

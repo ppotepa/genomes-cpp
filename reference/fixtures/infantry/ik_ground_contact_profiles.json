@@ -1,0 +1,9 @@
+{
+  "schema": "infantry-ik-ground-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "solver": "two-bone-law-of-cosines",
+  "surfaceRevisionInKey": true,
+  "morphologyInKey": true,
+  "cases": ["reachable-flat", "unreachable-clamped", "slope", "cache-revision-change"],
+  "note": "Contact is a pose correction from an authoritative surface callback, not a full physics balance solver."
+}

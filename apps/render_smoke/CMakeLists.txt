@@ -1,0 +1,3 @@
+add_executable(genomes_render_smoke main.cpp)
+target_link_libraries(genomes_render_smoke PRIVATE genomes::render_diligent)
+genomes_set_project_warnings(genomes_render_smoke)

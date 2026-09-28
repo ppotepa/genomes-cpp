@@ -1,0 +1,19 @@
+{
+  "schema": "combat-visibility-batch-fixtures-1",
+  "source": "ppotepa/genomes chapter 21.3 translated semantic fixture",
+  "authority": "cpu-world-query-los",
+  "gpu": {
+    "optional": true,
+    "proxy": "revisioned-aabb",
+    "default_latency_policy": "selective_cpu_confirmation",
+    "stale_revision": "cpu_fallback"
+  },
+  "cases": [
+    {"id": "cpu_batch_order", "expected": "input_order_preserved"},
+    {"id": "backend_unavailable", "expected": "cpu_world_query"},
+    {"id": "pending_completion", "expected": "cpu_world_query"},
+    {"id": "stale_revision", "expected": "discard_gpu_cpu_world_query"},
+    {"id": "ambiguous_boundary", "expected": "cpu_confirmation"},
+    {"id": "ready_unambiguous", "expected": "gpu_advisory"}
+  ]
+}

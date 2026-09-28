@@ -1,0 +1,8 @@
+{
+  "schema": "weapons-handling-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "states": ["STOWED", "DRAWING", "HELD", "HOLSTERING"],
+  "grips": ["ONE_HANDED", "TWO_HANDED", "SUPPORTED"],
+  "invariants": ["fixed-tick-transition", "explicit-hand-ownership", "bounded-aim", "sprint-fire-guard", "typed-fire-intent"],
+  "evidenceClass": "DiagnosticNativeContract"
+}

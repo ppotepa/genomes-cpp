@@ -1,0 +1,10 @@
+{
+  "domain": "render.full_presentation",
+  "version": 1,
+  "quality_profiles": [
+    {"name": "debug", "render_scale": 1.0, "max_instances": 100000, "debug_overlays": true},
+    {"name": "balanced", "render_scale": 1.0, "max_instances": 25000, "debug_overlays": false}
+  ],
+  "semantic_invariance": ["simulation_tick", "world_origin_id", "authoritative_events"],
+  "culling": "presentation_only"
+}

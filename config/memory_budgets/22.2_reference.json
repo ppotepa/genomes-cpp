@@ -1,0 +1,21 @@
+{
+  "profile_id": "22.2-reference",
+  "version": 1,
+  "hardware_tier": "reference",
+  "units": "bytes",
+  "limits": {
+    "cpu": { "steady_state": 536870912, "warning_high_water": 805306368, "hard_limit": 1073741824 },
+    "vram": { "steady_state": 1073741824, "warning_high_water": 1610612736, "hard_limit": 2147483648 },
+    "transient": { "steady_state": 268435456, "warning_high_water": 402653184, "hard_limit": 536870912 },
+    "cache": { "steady_state": 268435456, "warning_high_water": 402653184, "hard_limit": 536870912 }
+  },
+  "gpu_accounting": {
+    "estimated_bytes_are_not_driver_reported": true,
+    "unknown_allocations_category": "unknown"
+  },
+  "regression": {
+    "transient_teardown_tolerance": 0,
+    "allowed_cache_growth": 67108864,
+    "allowed_persistent_growth": 0
+  }
+}

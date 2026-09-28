@@ -8,7 +8,7 @@ SOURCE REFERENCE:
     ppotepa/genomes
 
 STATUS BASELINE:
-    2026-09-27
+    2026-09-28
 
 ======================================================================
 1. TWO SEPARATE PROGRESS METRICS
@@ -42,10 +42,109 @@ implementation agents have independently executed chapters after this status
 update.
 
 Approximate implementation completion at this baseline:
-    < 1%
+    53% of the full product roadmap (vertical-slice estimate)
 
 Approximate implementation remaining:
-    > 99%
+    47% of the full product roadmap
+
+This estimate is deliberately conservative. The native repository now has a
+working CMake/Diligent/SDL bootstrap, scene director and main-menu flow,
+deterministic world and terrain generation, a CPU physics/navigation/compute
+fallback, hot SoA and archetype/chunk simulation storage, a declarative
+simulation system graph, deterministic structural command buffers,
+infantry/combat/weapons/ballistics slices and a windowed battlefield
+presentation, plus a persistent semantic GPU-scene shadow with dirty upload
+batches staged into a Diligent structured buffer and consumed by menu/config
+preview and battlefield dynamic-actor instanced passes with immutable prototype
+geometry and mesh/material slot-remap batching, plus a bounded
+    presentation snapshot/extraction boundary wired into SceneDirector. The
+    destruction stage now also includes material/impact/damage/structural
+    contracts, debris lifecycle, persistent rubble, physics replacement,
+    revisioned regional invalidation and a fixture-backed 16.8 validation
+    report. Ballistics now also has versioned projectile flight/contact
+    resolution plus armed-contact HE detonation, bounded deterministic
+    opposite-pair fragmentation and blast/energy ledgers. Ballistics also now
+    has generational chunk storage, stable event ordering, batched flight and
+    ordered segment-query APIs with scalar parity coverage. Infantry now has
+    an explicit optional module boundary plus deterministic
+    genome/body/face phenotype resolution and a canonical backend-independent
+    69-bone rig with phenotype-derived bind transforms and attachments plus a
+    backend-neutral body/face/hair appearance artifact with four morph targets,
+    bounded skin weights and exact-key cache, plus a data-driven 22-slot /
+    61-item / 10-loadout equipment catalog with named seed-domain resolution,
+    bind-space fitting and shared-skeleton gear recipes, plus a fixed-tick
+    renderer-independent locomotion/posture controller with phase continuity
+    and explicit BIPED/PRONE/SEATED/REST families, plus backend-independent
+    two-bone IK, surface-revision keyed ground contact and limited gear support
+    samples, plus deterministic expression profiles, event-indexed blink and
+    saccade scheduling, bounded world gaze and renderer-independent face
+    channels, plus batched animation LOD/cadence scheduling, immutable
+    previous/current pose snapshots, deterministic 1/N worker evaluation and
+    a 100/1k/10k mixed-tier benchmark, plus semantic infantry hit volumes,
+    batched spatial reindex, damage-region protection, cached ragdoll schemas
+    and lazy deterministic physics handoff/disposal. The Infantry stage is now
+    covered by a pinned seed-matrix parity test and classified semantic fixture
+    manifest. Weapons now also have an 8-entry backend-neutral catalog with
+    deterministic geometry artifacts/cache and an entity-local handling state
+    machine for draw/holster, 1H/2H tasks, aim, recoil and FireIntent. Combat
+    now also has a typed command/event bridge with deterministic fire commit,
+    duplicate rejection, impact routing and presentation-only events. Combat
+    broadphase now uses a read-only spatial snapshot, team/alive/range/FOV
+    filters, stable nearest ordering and explicit candidate budgets. Exact CPU
+    LOS now consumes immutable WorldQuerySnapshot batches, distinguishes stale
+    regions from blockers, handles semantic self/target hits and publishes
+    blocker diagnostics. Tactical AI now has an immutable observation-to-intent
+    model registry, integer 12-tick cadence with stable phase, 150-tick target
+    memory, deterministic nearest-target hysteresis, fire alignment and passive
+    unknown-model fallback. Squad combat now has explicit shared state and
+    tick-delayed tactical signals with bounded TTL/range/hops, deterministic
+    contact merge, provenance, confidence decay, member validation and a
+    disabled-sharing baseline;
+    AI now also has a common-JobSystem batch pipeline with explicit
+    broadphase/LOS/squad stage barriers, deterministic serial-vs-parallel intent
+    merge, cancellation without partial publication and 1/2/4/8-worker
+    benchmark coverage;
+    Stage 20.1 now adds a gameplay WorldScenario transactional composition
+    boundary over WorldGenerationService and an explicit graphical
+    GameApplication composition root, with headless rollback/candidate-discard
+    integration coverage;
+    World semantic snapshots now provide a render-independent parity contract,
+    with a headless/graphical same-seed integration check and pinned fixture;
+    World streaming now tracks independent semantic/simulation/render/physics/
+    navigation residency axes with bounded async generation, stale-load discard,
+    pin-aware eviction and camera-independent authoritative state;
+    World save/load now has a bounded GSV1 schema with canonical ordering,
+    checksums, stable IDs, persistent region/entity state and corruption-safe
+    file roundtrip without renderer/physics backend memory;
+    A native procedural viewer model/CLI now exposes seven domain modes,
+    asynchronous candidate regeneration, validation trace and rollback while
+    keeping generator code independent of UI/rendering;
+    Render presentation now has an immutable-snapshot quality pipeline with
+    deterministic budgeted culling, debug-toggle independence and a 100k
+    instance CPU preparation benchmark;
+    reference evidence is now classified in a provenance ledger with explicit
+    fixture ownership, research/lab status and a no-source-runtime-dependency
+    retirement gate;
+    Stage 21 now also includes a tiled/layered CPU field atlas with optional
+    shader upload semantics, faction-scoped influence fields, revisioned LOS
+    batching with CPU confirmation, deterministic multi-goal flow fields,
+    backend selection with CPU fallback/crossover policy, and an optional
+    CUDA spike that builds in AUTO mode without leaking CUDA types into the
+    generic compute API;
+    CUDA/Diligent interop now has a capability-only identity and external
+    memory/semaphore contract with portable fallback; production hardware
+    handles remain deferred. Production hardening now also includes CPU/VRAM
+    memory telemetry with high-water budgets and deterministic thread-scaling
+    regression gates. The fast viability plan is recorded in
+    docs/FAST_VIABILITY_AGENT_PLAN.md; full parity and stress gates remain
+    deliberately deferred until a graphical battlefield can be launched.
+    runtime/menu builds also pass with GENOMES_ENABLE_INFANTRY=OFF. Most later
+chapters also now have a renderer-independent graph compiler for pass hazards
+and transient lifetimes, backend-neutral resource/capability contracts and
+deterministic shader/pipeline keys, but still require their
+production contracts, parity fixtures, optimized backends and acceptance
+verification; the existence of a source file does not mark a chapter
+IMPLEMENTED.
 
 Implementation progress must be tracked by chapter status transitions from
 READY -> IMPLEMENTED after code + tests + acceptance verification.

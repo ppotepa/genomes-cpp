@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.3 - RIG_AND_SKELETON
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -181,12 +181,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] backend-independent skeleton
-    [ ] stable IDs/hierarchy
-    [ ] exact canonical 69-bone TARGET schema
-    [ ] bind transforms phenotype-derived
-    [ ] no equipment dependency
-    [ ] fixtures
+    [x] backend-independent skeleton
+    [x] stable IDs/hierarchy
+    [x] exact canonical 69-bone TARGET schema
+    [x] bind transforms phenotype-derived
+    [x] no equipment dependency
+    [x] fixtures
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -199,12 +199,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] backend-independent skeleton
-    [ ] stable IDs/hierarchy
-    [ ] exact canonical 69-bone TARGET schema
-    [ ] bind transforms phenotype-derived
-    [ ] no equipment dependency
-    [ ] fixtures
+    [x] backend-independent skeleton
+    [x] stable IDs/hierarchy
+    [x] exact canonical 69-bone TARGET schema
+    [x] bind transforms phenotype-derived
+    [x] no equipment dependency
+    [x] fixtures
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

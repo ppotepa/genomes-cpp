@@ -1,0 +1,15 @@
+{
+  "schema": "infantry-animation-lod-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "tiers": {
+    "NEAR": {"cadenceTicks": 1, "contacts": true, "face": true},
+    "MID": {"cadenceTicks": 2, "contacts": true, "face": true},
+    "FAR": {"cadenceTicks": 4, "contacts": false, "face": true},
+    "OFFSCREEN": {"cadenceTicks": 8, "contacts": false, "face": false}
+  },
+  "poseBuffers": "previous-current",
+  "invariants": ["lod-does-not-reset-phase", "disjoint-batch-parity", "camera-not-authoritative", "renderer-reads-published-snapshot"],
+  "benchmarkCounts": [100, 1000, 10000],
+  "fixedDt": 0.0166666667,
+  "note": "Diagnostic fixture. AnimationSystem publishes renderer-independent pose channels; GPU skinning remains a presentation consumer."
+}

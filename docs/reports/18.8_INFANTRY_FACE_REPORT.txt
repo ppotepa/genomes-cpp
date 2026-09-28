@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.8 FACE_AND_EXPRESSION
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/ExpressionProfile.hpp
+    modules/infantry/include/genomes/infantry/FaceAnimation.hpp
+    modules/infantry/src/FaceAnimator.cpp
+
+CONTRACT:
+    FaceAnimator keeps immutable FacePhenotype identity separate from runtime
+    expression, blink, saccade and gaze state. Expression channels are blended
+    into renderer-independent morph/controller outputs. Blink and saccade
+    values use stable event-indexed seed paths; world look is bounded and
+    missing targets return to deterministic idle gaze.
+
+VALIDATION:
+    infantry.face_animation: PASS
+    focused dev-debug test: PASS
+    deterministic event sequence, immutable identity, finite output, bounded
+    gaze and invalid-input rejection: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/face_expression_profiles.json

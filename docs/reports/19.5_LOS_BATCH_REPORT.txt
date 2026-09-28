@@ -1,0 +1,17 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.5 LOS_BATCHING
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/LineOfSight.hpp
+    modules/combat/src/LineOfSight.cpp
+
+VALIDATION:
+    combat.los_batch: PASS
+    first-blocker ordering, target-hit acceptance, self-origin skip, stale
+    snapshot rejection and batch/scalar result parity: PASS
+
+FIXTURE:
+    reference/fixtures/combat_los_profiles.json

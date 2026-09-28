@@ -1,0 +1,18 @@
+{
+  "schema": "destruction-fixtures-1",
+  "id": "rubble.mixed_material.conservation",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "input": {
+    "cellSizeM": 0.5,
+    "tileSizeM": 4.0,
+    "cellsPerTile": 8,
+    "materials": {"brick": 1.0, "steel": 0.5},
+    "removeVolume": 0.25
+  },
+  "targetPolicy": {
+    "totalVolumeAfterRemove": 1.25,
+    "relaxationConservesVolume": true,
+    "negativeCoordinates": true
+  },
+  "validation": "invariant"
+}

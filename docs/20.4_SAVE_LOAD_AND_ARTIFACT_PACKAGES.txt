@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.4 - SAVE_LOAD_AND_ARTIFACT_PACKAGES
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -186,13 +186,13 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] state classification
-    [ ] versioned header
-    [ ] transactional load
-    [ ] stable IDs
-    [ ] destruction persisted
-    [ ] corruption safe
-    [ ] roundtrip
+    [x] state classification
+    [x] versioned header
+    [x] transactional load
+    [x] stable IDs
+    [x] destruction persisted
+    [x] corruption safe
+    [x] roundtrip
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -205,13 +205,13 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] state classification
-    [ ] versioned header
-    [ ] transactional load
-    [ ] stable IDs
-    [ ] destruction persisted
-    [ ] corruption safe
-    [ ] roundtrip
+    [x] state classification
+    [x] versioned header
+    [x] transactional load
+    [x] stable IDs
+    [x] destruction persisted
+    [x] corruption safe
+    [x] roundtrip
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

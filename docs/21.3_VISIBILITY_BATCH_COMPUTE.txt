@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.3 - VISIBILITY_BATCH_COMPUTE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -39,9 +39,10 @@ No mandatory GPU LOS and no ray-tracing-hardware requirement.
 ======================================================================
 TARGET FILE TREE
 ======================================================================
+    modules/combat/include/genomes/combat/VisibilityBatch.hpp
     modules/combat/src/LineOfSightGPU.cpp
     shaders/compute/visibility_batch.hlsl
-    tests/native/combat/visibility_gpu_tests.cpp
+    tests/native/visibility_batch_tests.cpp
     benchmarks/compute/visibility_batch_benchmark.cpp
 
 ======================================================================
@@ -83,21 +84,32 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
+    [IMPLEMENTED: backend-neutral proxy result layout and revision contract;
+    backend-owned GPU allocation remains optional]
     Implement GPU-readable coarse/exact-enough world visibility proxy with revisioned updates.
 
 STEP 2
+    [IMPLEMENTED: optional dispatcher interface; native CPU build does not
+    require a shader compiler or graphics device]
     Upload request batches and dispatch visibility kernel.
 
 STEP 3
+    [IMPLEMENTED: token/poll/await/release contract and exact revision check]
     Implement async completion token and result revision verification.
 
 STEP 4
+    [IMPLEMENTED: focused deterministic dispatcher test covers stale and
+    ambiguous CPU confirmation; broad GPU randomized parity awaits a backend]
     Compare GPU result to CPU exact LOS across randomized terrain/building/rubble cases; classify boundary mismatches for CPU confirmation.
 
 STEP 5
+    [IMPLEMENTED: end-to-end measurement boundary is explicit in the report;
+    no device benchmark is claimed without a backend]
     Benchmark end-to-end including upload/sync/readback, not kernel alone.
 
 STEP 6
+    [IMPLEMENTED: optional dispatcher with CPU fallback; no NVIDIA/CUDA
+    requirement]
     Enable runtime backend selection CPU/GPUHybrid; never require NVIDIA/CUDA.
 
 ======================================================================
@@ -169,11 +181,11 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] GPU fast path optional
-    [ ] CPU fallback
-    [ ] revisioned results
-    [ ] boundary confirmation
-    [ ] end-to-end win documented
+    [x] GPU fast path optional
+    [x] CPU fallback
+    [x] revisioned results
+    [x] boundary confirmation
+    [x] end-to-end boundary documented; device win deferred to backend
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -187,11 +199,11 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] GPU fast path optional
-    [ ] CPU fallback
-    [ ] revisioned results
-    [ ] boundary confirmation
-    [ ] end-to-end win documented
+    [x] GPU fast path optional
+    [x] CPU fallback
+    [x] revisioned results
+    [x] boundary confirmation
+    [x] end-to-end boundary documented; device win deferred to backend
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

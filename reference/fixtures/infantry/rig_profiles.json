@@ -1,0 +1,18 @@
+{
+  "schema": "infantry-rig-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "rigSchemaVersion": 1,
+  "boneCount": 69,
+  "categoryCounts": {
+    "body": 22,
+    "faceController": 17,
+    "finger": 30
+  },
+  "cases": [
+    {"name": "short", "seed": 11, "height": 1.60},
+    {"name": "average", "seed": 12, "height": 1.75},
+    {"name": "tall", "seed": 13, "height": 1.95},
+    {"name": "extreme", "seed": 14, "height": 1.90, "diversityScale": 1.50}
+  ],
+  "note": "Diagnostic schema/count fixture. TARGET bind transforms are generated from the native phenotype resolver; imported SOURCE coordinates are not authoritative."
+}

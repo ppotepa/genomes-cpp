@@ -1,0 +1,22 @@
+{
+  "schema": "genomes.thread_scaling_baseline.v1",
+  "workload": "deterministic_job_batch",
+  "machine": {
+    "class": "reference",
+    "compiler": "portable",
+    "dependency_profile": "native"
+  },
+  "semantic_hash": 13907095936298285200,
+  "thresholds": {
+    "median_regression_percent": 10.0,
+    "p95_regression_percent": 20.0,
+    "maximum_coefficient_of_variation": 0.25,
+    "minimum_samples": 3
+  },
+  "expected_trend": "no_assumption",
+  "workers": {
+    "1": [10.0, 10.2, 9.8, 10.1, 10.0],
+    "2": [10.0, 9.9, 10.1, 10.0, 10.2],
+    "4": [10.0, 10.1, 9.9, 10.0, 10.1]
+  }
+}

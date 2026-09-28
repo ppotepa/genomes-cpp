@@ -1,0 +1,34 @@
+viability: runnable (SDL3 + Diligent Vulkan menu/unit-lab smoke); battlefield blocked by a shared gameplay compile/runtime issue
+
+Profile:
+  cmake -S . -B build/graphical-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
+    -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_RC_COMPILER=llvm-rc
+    -DGENOMES_ENABLE_SDL=ON -DGENOMES_ENABLE_DILIGENT=ON
+    -DGENOMES_BUILD_TESTS=OFF -DGENOMES_BUILD_BENCHMARKS=OFF
+
+Successful build (before the shared gameplay edits were reconfigured):
+  cmake --build build/graphical-debug --target genomes_game -j 4
+  -> build/graphical-debug/apps/game/genomes_game.exe
+
+Smoke runs:
+  --unit-lab: process remained alive for 8 seconds; no Diligent error lines.
+  default menu: process remained alive for 8 seconds; no Diligent error lines.
+  --battlefield: access violation (exit -1073741819 / 0xC0000005) during startup.
+
+Changes:
+  * GameApplication destructor is out-of-line so forward-declared unique_ptr
+    members compile with clang/MSVC.
+  * Diligent factory break-on-error is disabled so backend failures return via
+    Result rather than modal/debug-break process termination.
+  * Preview StructuredBuffer variables bind shader-resource views, and dynamic
+    prototype buffers are re-uploaded each frame.
+  * Main menu labels/selection expose Battlefield, Unit laboratory, Building
+    laboratory and World configuration while preserving the existing config flow.
+
+Current handoff limitation:
+  Rebuilding after concurrent gameplay edits now stops in
+  modules/gameplay/src/BattlefieldScenario.cpp on unused-variable/function
+  -Werror diagnostics (kHalfMap/normalize). The existing graphical executable
+  remains the verified menu/unit-lab artifact; rerun the build after gameplay
+  fixes land. Headless dev-debug also currently has separate BattlefieldScenario
+  compile errors outside this Agent A scope.

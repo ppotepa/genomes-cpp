@@ -1,0 +1,105 @@
+#include <genomes/render/NullRenderer.hpp>
+#include <genomes/jobs/JobSystem.hpp>
+#include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/runtime/SceneDirector.hpp>
+#include <genomes/runtime/WorldConfigScene.hpp>
+
+#include <cassert>
+#include <memory>
+#include <thread>
+
+namespace {
+
+class DummyScene final : public genomes::runtime::Scene {
+public:
+    explicit DummyScene(genomes::foundation::SceneId scene_id) : scene_id_(scene_id) {}
+
+    [[nodiscard]] genomes::foundation::SceneId id() const noexcept override {
+        return scene_id_;
+    }
+
+    void frame_update(genomes::runtime::SceneContext& context, double) override {
+        context.ui.add({genomes::foundation::stable_id("test.scene.panel"),
+                        genomes::ui::UiNodeType::Panel, "test scene", true, false, 1.0F,
+                        1.0F});
+    }
+
+private:
+    genomes::foundation::SceneId scene_id_;
+};
+
+} // namespace
+
+int main() {
+    genomes::jobs::JobSystem jobs{2};
+    genomes::render::NullRenderer renderer;
+    genomes::ui::UiDocument ui;
+    genomes::render::PresentationSnapshot presentation;
+    genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
+
+    const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
+    const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
+    const auto world_config_id = genomes::foundation::scene_id("scene.world-config");
+    const auto battlefield_id = genomes::foundation::scene_id("scene.battlefield");
+    director.register_scene(menu_id, [] {
+        return std::make_unique<genomes::runtime::MainMenuScene>();
+    });
+    director.register_scene(unit_lab_id, [unit_lab_id] {
+        return std::make_unique<DummyScene>(unit_lab_id);
+    });
+    director.register_scene(world_config_id, [] {
+        return std::make_unique<genomes::runtime::WorldConfigScene>();
+    });
+    director.register_scene(battlefield_id, [] {
+        return std::make_unique<genomes::runtime::BattlefieldScene>();
+    });
+
+    assert(director.start(menu_id));
+    director.fixed_update(1.0 / 60.0);
+    director.frame_update(1.0 / 60.0);
+    director.present();
+
+    assert(ui.nodes.size() == 10);
+    assert(presentation.instances.size() == 3);
+    assert(renderer.submitted_ui_nodes() == 10);
+
+    director.handle_input({.down_pressed = true, .confirm_pressed = true});
+    assert(director.current() != nullptr);
+    assert(director.current()->id() == unit_lab_id);
+
+    director.frame_update(1.0 / 60.0);
+    director.present();
+    assert(ui.nodes.size() == 1);
+    assert(presentation.instances.empty());
+    assert(renderer.frames_started() == 2);
+    assert(renderer.submitted_instances() == 3);
+    assert(renderer.submitted_ui_nodes() == 11);
+
+    assert(director.start(menu_id));
+    director.handle_input({.confirm_pressed = true});
+    assert(director.current() != nullptr);
+    assert(director.current()->id() == world_config_id);
+    director.frame_update(1.0 / 60.0);
+    assert(ui.nodes.size() == 13);
+    assert(presentation.instances.size() == 2);
+    director.handle_input({.confirm_pressed = true});
+    assert(director.current() != nullptr);
+    assert(director.current()->id() == battlefield_id);
+    assert(director.active_world_config() != nullptr);
+    assert(director.active_world_config()->seed == 0x5EED2026ull);
+    assert(director.active_world_config()->map_size_m == 600);
+    const auto* battlefield = dynamic_cast<const genomes::runtime::BattlefieldScene*>(
+        director.current());
+    assert(battlefield != nullptr);
+    for (int attempt = 0; attempt < 1000 && battlefield->plan() == nullptr; ++attempt) {
+        director.frame_update(1.0 / 60.0);
+        std::this_thread::yield();
+        battlefield = dynamic_cast<const genomes::runtime::BattlefieldScene*>(
+            director.current());
+    }
+    assert(battlefield != nullptr);
+    assert(battlefield->plan() != nullptr);
+    assert(!battlefield->plan()->features.empty());
+    return 0;
+}

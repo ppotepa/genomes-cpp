@@ -1,0 +1,11 @@
+{
+  "schema": "destruction-fixtures-1",
+  "id": "materials.layers.ordered_void",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "targetPolicy": {
+    "layers": ["concrete:0.00-0.30", "brick:0.30-0.60", "void:0.60-0.80", "steel:0.80-1.00"],
+    "reverseTraversalFirstLayer": 3,
+    "interfaceGroups": 2
+  },
+  "validation": "semantic-invariant"
+}

@@ -5,8 +5,15 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.6 - CUDA_DILIGENT_INTEROP
-STATUS: READY
+STATUS: IMPLEMENTED (CAPABILITY CONTRACT; HARDWARE ADAPTER DEFERRED)
 VERSION: 0.1
+
+IMPLEMENTATION NOTE
+----------------------------------------------------------------------
+This chapter currently implements the backend-neutral gate and value model
+only.  It does not claim a working CUDA/Diligent native import path.  CUDA,
+Diligent, Vulkan, and D3D12 remain optional integration work for a target
+machine with documented adapter ownership and driver coverage.
 
 ======================================================================
 GOAL
@@ -40,16 +47,20 @@ No assumption Diligent exposes every native handle uniformly; implementation may
 TARGET FILE TREE
 ======================================================================
     engine/compute/cuda/CudaInterop.*
-    engine/render/diligent/DiligentNativeInterop.*
     tests/native/compute/cuda_interop_tests.cpp
-    benchmarks/compute/cuda_interop_benchmark.cpp
+    config/compute_profiles/21.6_cuda_interop_fixture.json
+    docs/parity/21.6_CUDA_DILIGENT_INTEROP_REPORT.txt
+
+    DEFERRED HARDWARE ADAPTERS:
+        engine/render/diligent/DiligentNativeInterop.*
+        benchmarks/compute/cuda_interop_benchmark.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
 ======================================================================
 1. Interop only enabled when CUDA device matches render physical device using robust identifier (UUID/LUID as platform/API supports).
 
-2. Shared buffers/images are created with exportable memory flags by native D3D12/Vulkan backend path and imported into CUDA through supported external memory handles.
+2. The capability contract accepts shared buffers/images only when both sides advertise export/import support, a supported opaque handle transport, and a supported resource type/format.  Native D3D12/Vulkan creation and CUDA import remain adapter responsibilities.
 
 3. Synchronization uses imported external semaphores/fences/timeline where supported; ownership/order is explicit. No CPU busy wait.
 
@@ -82,25 +93,26 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Inspect pinned Diligent backend APIs for safe native object access/export requirements; do not assume undocumented handles.
+    [IMPLEMENTED: contract records the adapter boundary; no undocumented native handles are assumed]
 
 STEP 2
-    Implement physical-device match on D3D12 (adapter LUID where appropriate) and Vulkan (device UUID), following CUDA guide.
+    [IMPLEMENTED: exact UUID/LUID type-and-bytes matching; ordinal/name matching is rejected]
 
 STEP 3
-    Create dedicated interop-capable buffer path with external memory flags and lifetime ownership.
+    [DEFERRED: native exportable resource creation and ownership adapter]
 
 STEP 4
-    Import memory into CUDA and map; import/export synchronization semaphore/timeline.
+    [DEFERRED: CUDA external memory and semaphore/timeline import]
 
 STEP 5
-    Implement Render->CUDA and CUDA->Render dependency handshakes without host copies.
+    [DEFERRED: queue/stream handshakes and no-copy data movement]
 
 STEP 6
-    Test lifecycle: outstanding semaphore operations completed before destruction; device reset invalidates interop resources.
+    [CONTRACT TESTED: device generation mismatch rejects stale resources]
+    [DEFERRED: native outstanding-operation destruction and reset handling]
 
 STEP 7
-    Benchmark interop vs ordinary upload/readback and Diligent compute.
+    [DEFERRED: hardware benchmark; no crossover or performance claim is made]
 
 ======================================================================
 PSEUDOCODE
@@ -154,12 +166,11 @@ Optional NVIDIA fast path; no impact SOURCE parity.
 ======================================================================
 TESTS TO ADD
 ======================================================================
-    device match/mismatch
-    buffer roundtrip
-    semaphore ordering
-    no-copy data correctness
-    resource destroy
-    fallback unsupported
+    [IMPLEMENTED] device UUID/LUID match and mismatch
+    [IMPLEMENTED] external memory/semaphore capability rejection reasons
+    [IMPLEMENTED] generation invalidation and portable fallback decision
+    [DEFERRED] buffer roundtrip and no-copy data correctness on native adapters
+    [DEFERRED] semaphore ordering/resource destroy on native adapters
 
 ======================================================================
 COMMANDS TO RUN
@@ -171,12 +182,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] device identity check
-    [ ] external memory
-    [ ] external sync
-    [ ] native handle isolation
-    [ ] safe lifetime
-    [ ] benchmark gain or documented disable
+    [x] device identity check (UUID/LUID value contract)
+    [x] external memory capability model and rejection reasons
+    [x] external sync capability model and explicit ordering requirement
+    [x] native handle isolation (value-only public contract)
+    [x] safe lifetime gate (device generation contract; native destruction deferred)
+    [x] benchmark gain or documented disable (hardware benchmark deferred and reported)
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -189,12 +200,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] device identity check
-    [ ] external memory
-    [ ] external sync
-    [ ] native handle isolation
-    [ ] safe lifetime
-    [ ] benchmark gain or documented disable
+    [x] device identity check
+    [x] external memory contract
+    [x] external sync contract
+    [x] native handle isolation
+    [x] safe lifetime gate
+    [x] documented hardware deferral
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

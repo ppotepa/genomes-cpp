@@ -1,0 +1,39 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    21.3 VISIBILITY_BATCH_COMPUTE
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/VisibilityBatch.hpp
+    modules/combat/src/LineOfSightGPU.cpp
+    shaders/compute/visibility_batch.hlsl
+    tests/native/visibility_batch_tests.cpp
+
+VALIDATION:
+    CPU WorldQuery LOS is evaluated first and remains the deterministic
+    semantic fallback. The backend-neutral dispatcher carries only request,
+    result and world-revision data; no Diligent/CUDA handle is exposed.
+    Unavailable, failed, pending and stale completions retain CPU results.
+    Revision-matching ready results can be consumed under an explicit latency
+    policy; selective confirmation routes ambiguous or incomplete entries back
+    through CPU LOS. Same-tick awaiting crosses one explicit backend barrier
+    and never spin-waits.
+
+FIXTURE:
+    reference/fixtures/combat_visibility_batch_profiles.json
+
+COMMANDS:
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug --target genomes_test_visibility_batch
+    ctest --preset dev-debug -R '^combat\\.visibility_batch$' --output-on-failure
+
+RESULT:
+    PASS (CPU batch, optional dispatch contract, latency and revision policy)
+
+LIMITATION:
+    No native GPU device/backend is required or exercised. The HLSL proxy is
+    registered as a header-only render-compute asset and must be compiled and
+    synchronized by a future backend. Terrain, destruction and rubble remain
+    authoritative through the WorldQuery CPU path until a proxy is declared
+    complete for the matching world revision.

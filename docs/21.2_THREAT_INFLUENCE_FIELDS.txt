@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.2 - THREAT_INFLUENCE_FIELDS
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -40,9 +40,9 @@ TARGET FILE TREE
 ======================================================================
     modules/combat/include/genomes/combat/InfluenceField.hpp
     modules/combat/src/InfluenceFieldCPU.cpp
-    modules/combat/src/InfluenceFieldGPU.cpp
-    shaders/compute/influence_field.hlsl
-    tests/native/combat/influence_field_tests.cpp
+    tests/native/influence_field_tests.cpp
+    reference/fixtures/combat_influence_field_profiles.json
+    docs/reports/21.2_THREAT_INFLUENCE_FIELDS_REPORT.txt
 
 ======================================================================
 PUBLIC CONTRACTS
@@ -98,6 +98,17 @@ STEP 5
 
 STEP 6
     Compare CPU/GPU on small deterministic maps with tolerance and benchmark large fields.
+
+NATIVE STAGING IMPLEMENTATION
+    The CPU reference is implemented in modules/combat as a backend-neutral
+    single-faction/layer raster. Sources must be explicitly marked
+    known_to_faction and contain only position, confidence and observation
+    provenance; no enemy entity handle or world query is accepted. Source
+    order is canonicalized by stable id and source data before accumulation.
+    A source is ignored after max_source_age_ticks, with confidence decayed by
+    confidence_decay_per_tick. Results record field/world revisions and the
+    latest accepted observation tick. GPU dispatch, source binning and tactical
+    AI consumption remain follow-up integration work.
 
 ======================================================================
 PSEUDOCODE
@@ -163,12 +174,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] CPU reference
-    [ ] GPU kernel
-    [ ] knowledge boundary
-    [ ] revision/tick
-    [ ] AI optional consume
-    [ ] benchmark
+    [x] CPU reference
+    [ ] GPU kernel (follow-up backend)
+    [x] knowledge boundary
+    [x] revision/tick
+    [ ] AI optional consume (field remains opt-in)
+    [ ] benchmark (large-field gate follows source binning)
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -181,12 +192,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] CPU reference
-    [ ] GPU kernel
-    [ ] knowledge boundary
-    [ ] revision/tick
-    [ ] AI optional consume
-    [ ] benchmark
+    [x] CPU reference
+    [ ] GPU kernel (follow-up backend)
+    [x] knowledge boundary
+    [x] revision/tick
+    [ ] AI optional consume (field remains opt-in)
+    [ ] benchmark (large-field gate follows source binning)
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

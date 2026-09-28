@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.7 - REFERENCE_EVIDENCE_ARCHIVAL
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -173,11 +173,11 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] complete evidence ledger
-    [ ] every imported fixture has provenance and TARGET owner
-    [ ] no runtime SOURCE dependency
-    [ ] labs/research classified
-    [ ] no automatic SOURCE mutation
+    [x] complete evidence ledger
+    [x] every imported fixture has provenance and TARGET owner
+    [x] no runtime SOURCE dependency
+    [x] labs/research classified
+    [x] no automatic SOURCE mutation
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -190,11 +190,11 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] complete evidence ledger
-    [ ] every imported fixture has provenance and TARGET owner
-    [ ] no runtime SOURCE dependency
-    [ ] labs/research classified
-    [ ] no automatic SOURCE mutation
+    [x] complete evidence ledger
+    [x] every imported fixture has provenance and TARGET owner
+    [x] no runtime SOURCE dependency
+    [x] labs/research classified
+    [x] no automatic SOURCE mutation
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

@@ -1,0 +1,15 @@
+{
+  "domain": "world.native_assembly",
+  "version": 1,
+  "scenario": {
+    "seed": "0x12345678",
+    "map_size_m": 600,
+    "generator_version": 2
+  },
+  "transaction": {
+    "candidate_commit": "after_generation_validation",
+    "failed_candidate": "preserve_active_world",
+    "cancelled_candidate": "discard_without_publish"
+  },
+  "modes": ["headless", "graphical"]
+}

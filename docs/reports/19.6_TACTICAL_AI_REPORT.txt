@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.6 TACTICAL_AI_CADENCE
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/AIModelRegistry.hpp
+    modules/combat/include/genomes/combat/TacticalAI.hpp
+    modules/combat/src/TacticalAISystem.cpp
+
+VALIDATION:
+    combat.tactical_ai: PASS
+    immutable Observation -> AIIntent model boundary, 12-tick integer
+    cadence, deterministic target selection, 150-tick memory expiry,
+    0.85 target hysteresis, 4-degree fire alignment and passive unknown-model
+    fallback: PASS
+
+BENCHMARK:
+    genomes_bench_tactical_ai (1k and 10k entities, 120 ticks)
+    dev-debug sample: 1000 -> 8 ms / 10000 intents;
+    10000 -> 104 ms / 100000 intents.
+    Release timing is a separate performance gate; debug output is diagnostic.
+
+FIXTURE:
+    reference/fixtures/combat_tactical_ai_profiles.json

@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.6 LOCOMOTION_AND_POSTURE
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/LocomotionState.hpp
+    modules/infantry/include/genomes/infantry/PostureProfile.hpp
+    modules/infantry/include/genomes/infantry/LocomotionController.hpp
+    modules/infantry/src/PostureProfile.cpp
+    modules/infantry/src/LocomotionController.cpp
+
+CONTRACT:
+    Requested and actual values are separate. Biped preset changes preserve
+    phase; PRONE/SEATED/REST are explicit non-moving families. Controller
+    integration, speed/crouch limits, run/sprint weights and posture samples
+    are fixed-tick and renderer-independent.
+
+VALIDATION:
+    infantry.locomotion: PASS
+    dev-debug native tests: PASS 37/37
+    NaN rejection, zero validity, phase continuity, clamp and family guards: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/locomotion_profiles.json

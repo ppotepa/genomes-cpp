@@ -1,0 +1,46 @@
+GENOMES C++ BALLISTICS VALIDATION REPORT
+========================================
+
+REPORT SCHEMA: ballistics-validation-1
+TARGET: ppotepa/genomes-cpp
+TARGET REVISION: working-tree (uncommitted native implementation)
+SOURCE: ppotepa/genomes
+SOURCE COMMIT: da885ca68b2ae63154a004574fed00eb9dfeb458
+FIXTURE SCHEMA: ballistics-fixtures-1
+
+RUN
+---
+Command: ctest --preset dev-debug --output-on-failure
+Focused executable: genomes_test_ballistics_validation
+Result: PASS 11/11 focused checks; PASS 33/33 complete native tests
+Fixture exporter: export_ballistics_reference.ps1
+Export smoke: PASS, 5 fixtures and MANIFEST.txt
+
+CASES
+------
+PASS  fixtures.schema_and_source_pin
+PASS  fixtures.manifest_contract
+PASS  policy.capacity_and_tracking
+PASS  flight.adaptive_distance_policy
+PASS  batch.scalar_one_four_worker_parity
+PASS  he.full_capacity_mass_energy
+PASS  he.whole_pair_capacity_omission
+PASS  he.opposite_pair_momentum
+PASS  trace.child_parent_identity
+PASS  batch.stable_event_commit_key
+PASS  fixtures.required_categories
+
+SCOPE
+-----
+The validator covers the TARGET policy fixtures, scalar/batch worker
+invariance, adaptive projectile/fragment distance limits, HE mass/energy
+accounting, complete opposite-pair capacity selection, trace parent identity
+and deterministic event ordering. Contact solver behavior is additionally
+covered by the native ballistics.contact test and destruction impact suite.
+Visual presentation and final weapons/infantry routing remain outside Stage 17.
+
+STATUS
+------
+PASS for the automated TARGET cases implemented in this stage. The exporter
+does not require a SOURCE checkout and records the pinned SOURCE provenance;
+TARGET fixtures remain the authoritative native validation inputs.

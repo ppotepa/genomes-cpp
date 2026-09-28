@@ -1,0 +1,82 @@
+#pragma once
+
+#include <genomes/combat/CombatSystem.hpp>
+#if GENOMES_HAS_INFANTRY
+#include <genomes/gameplay/BattlefieldScenario.hpp>
+#endif
+#include <genomes/gameplay/WorldScenario.hpp>
+#if GENOMES_HAS_INFANTRY
+#include <genomes/infantry/InfantrySimulation.hpp>
+#include <genomes/infantry/InfantryModelCompiler.hpp>
+#endif
+#include <genomes/jobs/JobSystem.hpp>
+#include <genomes/navigation/NavigationWorld.hpp>
+#include <genomes/physics/PhysicsWorld.hpp>
+#include <genomes/render/RenderTypes.hpp>
+#include <genomes/runtime/Scene.hpp>
+#include <genomes/runtime/WorldConfig.hpp>
+#include <genomes/simulation/EntityStore.hpp>
+#include <genomes/simulation/SimulationCommand.hpp>
+#include <genomes/simulation/SystemGraph.hpp>
+#include <genomes/terrain/HeightField.hpp>
+#include <genomes/terrain/TerrainMesh.hpp>
+#include <genomes/world/WorldPlan.hpp>
+#include <genomes/world/WorldRegionStreamer.hpp>
+
+#include <memory>
+#include <optional>
+#include <string>
+
+namespace genomes::runtime {
+
+class BattlefieldScene final : public Scene {
+public:
+    [[nodiscard]] foundation::SceneId id() const noexcept override;
+
+    void on_enter(SceneContext&) override;
+    void on_exit(SceneContext&) override;
+    void handle_input(SceneContext&, const input::InputFrame&) override;
+    void fixed_update(SceneContext&, double) override;
+    void frame_update(SceneContext&, double) override;
+    void build_presentation(SceneContext&) override;
+
+    [[nodiscard]] const world::WorldPlan* plan() const noexcept {
+        return plan_ ? &*plan_ : nullptr;
+    }
+
+private:
+    void finalize_plan(world::WorldPlan plan);
+    void configure_simulation_graph();
+
+    WorldGenerationConfig config_{};
+    std::optional<world::WorldPlan> plan_;
+    std::unique_ptr<gameplay::WorldScenario> scenario_;
+    std::optional<terrain::HeightField> terrain_;
+    std::optional<terrain::TerrainMesh> terrain_mesh_;
+    std::shared_ptr<const render::RenderMesh> render_terrain_mesh_;
+    std::shared_ptr<const render::RenderMesh> render_world_mesh_;
+    std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
+    render::RenderCamera render_camera_{};
+    simulation::EntityStore entities_;
+    physics::SimplePhysicsWorld physics_;
+#if GENOMES_HAS_INFANTRY
+    std::unique_ptr<gameplay::BattlefieldScenario> viability_scenario_;
+    std::unique_ptr<infantry::InfantrySimulation> infantry_;
+    infantry::InfantryModelCompiler infantry_model_compiler_;
+    std::optional<infantry::InfantryModelArtifact> infantry_model_artifact_;
+#endif
+    std::unique_ptr<combat::CombatSystem> combat_;
+    combat::DamageBuffer damage_buffer_;
+    simulation::SystemGraph simulation_graph_;
+    simulation::CommandBufferSet command_buffers_;
+    std::unique_ptr<navigation::GridNavigationWorld> navigation_;
+    std::unique_ptr<world::WorldRegionStreamer> region_streamer_;
+    jobs::JobSystem* jobs_{nullptr};
+    std::string generation_error_;
+    float terrain_min_height_{0.0F};
+    float terrain_max_height_{0.0F};
+    double elapsed_seconds_{0.0};
+    foundation::SimulationTick simulation_tick_{};
+};
+
+} // namespace genomes::runtime

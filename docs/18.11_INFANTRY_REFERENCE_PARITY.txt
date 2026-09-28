@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.11 - INFANTRY_REFERENCE_VALIDATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -219,14 +219,14 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] SOURCE pinned
-    [ ] every fixture/golden has admissible evidence classification
-    [ ] all test requirements mapped
-    [ ] artifact invariants
-    [ ] animation acceptance
-    [ ] cache correctness
-    [ ] serial/parallel equivalence
-    [ ] report committed
+    [x] SOURCE pinned
+    [x] every fixture/golden has admissible evidence classification
+    [x] all test requirements mapped
+    [x] artifact invariants
+    [x] animation acceptance
+    [x] cache correctness
+    [x] serial/parallel equivalence
+    [x] report committed
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -241,13 +241,13 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] SOURCE pinned
-    [ ] all test requirements mapped
-    [ ] artifact parity
-    [ ] animation parity
-    [ ] cache parity
-    [ ] parallel parity
-    [ ] report committed
+    [x] SOURCE pinned
+    [x] all test requirements mapped
+    [x] artifact parity
+    [x] animation parity
+    [x] cache parity
+    [x] parallel parity
+    [x] report committed
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

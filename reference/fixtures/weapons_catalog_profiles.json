@@ -1,0 +1,9 @@
+{
+  "schema": "weapons-catalog-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "entries": ["knife", "grenade", "sidearm", "carbine", "rifle", "marksman_rifle", "support_gun", "heavy_support_gun"],
+  "entryCount": 8,
+  "nonFirearms": ["knife", "grenade"],
+  "invariants": ["stable-id", "firearm-ammunition", "finite-dimensions", "attachment-landmarks", "artifact-cache-key"],
+  "evidenceClass": "DiagnosticNativeContract"
+}

@@ -1,0 +1,21 @@
+{
+  "domain": "combat.influence_field",
+  "version": 1,
+  "profiles": [
+    {
+      "name": "cpu_reference_default",
+      "kernel": "radial_smoothstep01",
+      "confidence_decay_per_tick": 0.995,
+      "max_source_age_ticks": 120,
+      "disabled_mode": "zero_advisory_field"
+    }
+  ],
+  "contracts": {
+    "sources": "known_to_faction_only",
+    "source_provenance": ["stable_id", "observed_tick", "confidence", "type"],
+    "accumulation": "canonical_source_order",
+    "revision": ["field_revision", "world_field_revision", "source_snapshot_tick"],
+    "unknown_enemy_injection": "rejected",
+    "stale_source_policy": "ignore_after_max_source_age_ticks"
+  }
+}

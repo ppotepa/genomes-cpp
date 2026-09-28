@@ -1,0 +1,10 @@
+{
+  "schema": "infantry-equipment-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "slotCount": 22,
+  "itemCount": 61,
+  "loadoutCount": 10,
+  "loadouts": ["RIFLEMAN", "ASSAULT", "LIGHT_SUPPORT", "HEAVY_SUPPORT", "MARKSMAN", "SCOUT", "MEDIC", "ENGINEER", "RADIO_OPERATOR", "SQUAD_LEADER"],
+  "seedDomain": "EQUIPMENT/v1",
+  "note": "Diagnostic inventory and seed-domain fixture. Native catalog contracts are authoritative."
+}

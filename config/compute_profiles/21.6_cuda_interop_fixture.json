@@ -1,0 +1,21 @@
+{
+  "chapter": "21.6",
+  "contract": "cuda_diligent_interop",
+  "mode": "capability_only",
+  "cuda_runtime_required_for_acceptance": true,
+  "render_backend_required_for_acceptance": true,
+  "identity": ["uuid", "luid"],
+  "identity_match_policy": "exact_type_and_bytes",
+  "external_memory": {
+    "requires_export_and_import": true,
+    "resource_types": ["buffer", "image"],
+    "handle_types": ["opaque_file_descriptor", "opaque_win32_handle"]
+  },
+  "external_semaphore": {
+    "requires_export_and_import": true,
+    "requires_explicit_queue_order": true,
+    "timeline_optional_when_binary_supported": true
+  },
+  "fallback": "diligent_compute",
+  "hardware_integration": "deferred"
+}

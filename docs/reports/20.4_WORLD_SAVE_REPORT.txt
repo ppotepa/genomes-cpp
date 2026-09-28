@@ -1,0 +1,23 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.4 SAVE_LOAD_AND_ARTIFACT_PACKAGES
+
+IMPLEMENTATION:
+    engine/world/include/genomes/world/WorldSave.hpp
+    engine/world/src/WorldSave.cpp
+
+VALIDATION:
+    integration.world_save: PASS
+    versioned header, canonical region/entity ordering, stable IDs, checksum
+    rejection, bounded parsing and file roundtrip: PASS
+
+FORMAT:
+    GSV1, schema 1, little-endian fixed header plus bounded typed payload.
+    Renderer/physics pointers are not serialized. Atomic publication uses a
+    temporary file followed by rename; an existing destination is preserved
+    when replacement is rejected by the platform.
+
+FIXTURE:
+    reference/fixtures/world/save_schema_v1.json

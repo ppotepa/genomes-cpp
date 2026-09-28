@@ -1,0 +1,35 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.4 PROCEDURAL_SURFACE_AND_APPEARANCE
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/AppearanceArtifact.hpp
+    modules/infantry/src/AppearanceCompiler.cpp
+
+CONTRACT:
+    AppearanceCompiler consumes phenotype and SkeletonData and emits immutable,
+    renderer-independent CPU arrays. No Diligent, Three.js or equipment state
+    enters the semantic body/face artifact.
+
+FEATURES:
+    body/limb/head mesh, topological eye and mouth opening loops, seven hair
+    style identities including bald, four named morph targets, material regions,
+    four-slot normalized skin influences and exact-key synchronized cache.
+
+VALIDATION:
+    infantry.appearance: PASS
+    dev-debug native tests: PASS 35/35
+    dev-release build: PASS (previous release verification plus source rebuild)
+    GENOMES_ENABLE_INFANTRY=OFF menu build: PASS
+    appearance benchmark: 8 builds / 3904 body vertices,
+        build_us=3786, repeated-cache_us=525, cache_hits=7, cache_misses=1
+
+FIXTURE:
+    reference/fixtures/infantry/appearance_profiles.json
+
+LIMITS:
+    This is the first native surface slice. Equipment geometry, runtime pose
+    evaluation, detailed facial sculpting and renderer upload belong to later
+    chapters; the artifact boundary is already stable for those consumers.

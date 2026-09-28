@@ -1,0 +1,13 @@
+{
+  "schema": "ballistics-fixtures-1",
+  "case": "flight_profiles",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "seed": 305419896,
+  "profiles": [
+    {"name": "vacuum", "gravity": [0.0, 0.0, 0.0], "density": 0.0},
+    {"name": "gravity", "gravity": [0.0, -9.81, 0.0], "density": 0.0},
+    {"name": "drag", "gravity": [0.0, -9.81, 0.0], "density": 1.225}
+  ],
+  "adaptive": {"projectileMaxDistance": 12.0, "fragmentMaxDistance": 6.0,
+                "sagittaMinimum": 0.00035, "sagittaMaximum": 0.003}
+}

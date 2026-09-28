@@ -1,0 +1,8 @@
+{
+  "schema": "ballistics-fixtures-1",
+  "case": "trace_profiles",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "seed": 11259375,
+  "tree": {"rootTraceEqualsShot": true, "childCarriesParentTrace": true,
+            "lateFragmentKeepsParentGroup": true}
+}

@@ -1,0 +1,12 @@
+{
+  "schema": "ballistics-fixtures-1",
+  "case": "contact_profiles",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "seed": 701,
+  "contacts": [
+    {"name": "thin_foliage", "expected": "penetrated"},
+    {"name": "grazing_plate", "expected": "ricochet_or_glance"},
+    {"name": "thick_concrete", "expected": "stopped"}
+  ],
+  "ordering": "tick_projectileId_localSequence"
+}

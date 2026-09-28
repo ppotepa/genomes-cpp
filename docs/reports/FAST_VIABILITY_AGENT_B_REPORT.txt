@@ -1,0 +1,41 @@
+FAST VIABILITY — AGENT B PROCEDURAL WORLD
+==========================================
+
+viability: runnable (CPU/headless)
+
+The deterministic WorldScenario now commits one backend-neutral artifact:
+WorldPlan (terrain patch, hydrology, roads/city parcels, building sites and
+vegetation), a matching terrain HeightField/TerrainMesh, and a canonical empty
+entity WorldSave package. WorldStreamer preloads one adjacent region through
+the same request/seed path while the first artifact remains immediately usable.
+ProcViewer and the optional headless --world path print the semantic counts,
+terrain mesh size, save package size and streaming residency.
+
+Build:
+  cmake --preset dev-debug -DGENOMES_BUILD_TESTS=ON -DGENOMES_BUILD_BENCHMARKS=OFF
+  cmake --build build/dev-debug --target genomes_headless genomes_proc_viewer
+
+Run:
+  build/dev-debug/apps/headless/genomes_headless.exe --world
+  build/dev-debug/apps/proc_viewer/genomes_proc_viewer.exe
+
+Observed headless artifact (seed 0x5EED2026):
+  hash=13611054276740462697, terrain_samples=5776, roads=6, parcels=12,
+  buildings=12, sites=12, vegetation=446, streamed_resident=1,
+  streamed_pending=0, terrain_mesh_vertices=5776, terrain_mesh_triangles=11250.
+
+Smoke checks:
+  integration.native_world_assembly: PASS
+  integration.world_parity: PASS
+  integration.world_streaming: PASS
+  integration.world_save: PASS
+  tools.proc_viewer: PASS
+  genomes_headless.exe (default 25x25 battle): PASS (11 impacts, 1 death)
+  no-infantry CPU build + `genomes_headless.exe --world`: PASS
+
+BattlefieldScene now consumes the committed WorldScenarioArtifact (including
+its terrain mesh) on the normal JobSystem path; the old WorldRegionStreamer
+remains as a compatibility surface for future no-jobs/region fallback work.
+No graphical backend was required or validated in this CPU/headless pass, and
+the adjacent streamed plan is not yet merged into Battlefield presentation
+beyond the first region.

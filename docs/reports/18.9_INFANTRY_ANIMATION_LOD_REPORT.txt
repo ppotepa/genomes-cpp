@@ -1,0 +1,25 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.9 ANIMATION_LOD_AND_PARALLEL_EVALUATION
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/AnimationLOD.hpp
+    modules/infantry/include/genomes/infantry/AnimationSystem.hpp
+    modules/infantry/src/AnimationSystem.cpp
+
+CONTRACT:
+    AnimationSystem evaluates disjoint entity chunks, preserves logical phase
+    and face timers across presentation LOD changes, and publishes previous /
+    current renderer-independent pose snapshots. LOD transitions schedule a
+    resynchronization sample without resetting identity or simulation state.
+
+VALIDATION:
+    infantry.animation_parallel: PASS
+    genomes_bench_infantry_animation: PASS for 100, 1000 and 10000 entities
+    sequential/parallel channel parity, mid-tier cadence, interpolation and
+    LOD transition preservation: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/animation_lod_profiles.json

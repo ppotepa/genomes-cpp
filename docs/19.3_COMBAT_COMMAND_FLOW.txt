@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.3 - COMBAT_COMMAND_FLOW
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -176,12 +176,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] typed pipeline
-    [ ] explicit phases
-    [ ] authoritative muzzle
-    [ ] impact routing
-    [ ] presentation decoupled
-    [ ] headless end-to-end
+    [x] typed pipeline
+    [x] explicit phases
+    [x] authoritative muzzle
+    [x] impact routing
+    [x] presentation decoupled
+    [x] headless end-to-end
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -194,12 +194,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] typed pipeline
-    [ ] explicit phases
-    [ ] authoritative muzzle
-    [ ] impact routing
-    [ ] presentation decoupled
-    [ ] headless end-to-end
+    [x] typed pipeline
+    [x] explicit phases
+    [x] authoritative muzzle
+    [x] impact routing
+    [x] presentation decoupled
+    [x] headless end-to-end
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

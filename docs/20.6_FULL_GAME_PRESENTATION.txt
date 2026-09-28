@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.6 - FULL_GAME_PRESENTATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -201,12 +201,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] full snapshot-driven render
-    [ ] quality budgets
-    [ ] GPU culling/LOD
-    [ ] skinning
-    [ ] world representations
-    [ ] render independence benchmark
+    [x] full snapshot-driven render
+    [x] quality budgets
+    [x] GPU culling/LOD
+    [x] skinning
+    [x] world representations
+    [x] render independence benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -219,12 +219,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] full snapshot-driven render
-    [ ] quality budgets
-    [ ] GPU culling/LOD
-    [ ] skinning
-    [ ] world representations
-    [ ] render independence benchmark
+    [x] full snapshot-driven render
+    [x] quality budgets
+    [x] GPU culling/LOD
+    [x] skinning
+    [x] world representations
+    [x] render independence benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

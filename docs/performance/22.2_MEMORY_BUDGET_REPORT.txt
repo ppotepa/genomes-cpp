@@ -1,0 +1,34 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    22.2 MEMORY_BUDGETS_AND_HIGH_WATER_LIMITS
+
+IMPLEMENTATION:
+    engine/foundation/include/genomes/foundation/MemoryTelemetry.hpp
+    engine/foundation/src/MemoryTelemetry.cpp
+    config/memory_budgets/22.2_reference.json
+    tests/native/stress/memory_budget_tests.cpp
+
+CONTRACT:
+    MemoryTelemetry records ownership transitions by semantic category. CPU and
+    VRAM counters are separate, with VRAM split into estimated and
+    driver-reported bytes. Transient and cache lifetimes have independent
+    counters and high-water marks. The API never treats process heap bytes as
+    VRAM.
+
+PROFILE:
+    22.2_reference.json is a versioned reference-tier declaration. It defines
+    steady-state targets, warning high-water limits, hard test ceilings, and
+    explicit teardown/cache regression allowances. The foundation default is
+    unbounded until a hardware-tier profile is selected.
+
+REGRESSION CHECKS:
+    The focused test covers category accounting, transient high-water warning,
+    estimated/driver-reported VRAM distinction, move-only scratch leases,
+    underflow/double-release protection, transient reclamation, and bounded
+    cache growth. A snapshot compares current ownership after teardown; high
+    water remains available for peak-generation diagnostics.
+
+RESULT:
+    PASS (foundation.memory_budget)

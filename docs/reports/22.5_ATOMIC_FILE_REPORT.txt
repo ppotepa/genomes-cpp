@@ -1,0 +1,21 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    22.5 CRASH_RECOVERY_AND_CORRUPT_ARTIFACTS (partial)
+
+IMPLEMENTATION:
+    engine/io/include/genomes/io/AtomicFile.hpp
+    engine/io/src/AtomicFile.cpp
+    engine/world/src/WorldSave.cpp
+
+VALIDATION:
+    AtomicFile writes a bounded payload to a temporary sibling, flushes and
+    publishes it through rename with cleanup on failure. Reads check the file
+    size before allocation. WorldSaveCodec now uses this shared primitive for
+    save/load. Focused atomic-file and world-save tests pass.
+
+REMAINING CHAPTER WORK:
+    Cache regeneration, failure injection and broader startup/device recovery
+    gates still need their own implementation and acceptance evidence. The
+    parent chapter remains READY until those contracts are complete.

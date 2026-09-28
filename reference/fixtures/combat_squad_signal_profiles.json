@@ -1,0 +1,20 @@
+{
+  "domain": "combat.squad_signal",
+  "version": 1,
+  "profiles": [
+    {
+      "name": "default_radio",
+      "communication_delay_ticks": 3,
+      "max_hops": 1,
+      "max_range_m": 150.0,
+      "confidence_decay_per_tick": 0.995,
+      "disabled_mode": "drop_without_global_state"
+    }
+  ],
+  "contracts": {
+    "delivery": "simulation_tick",
+    "merge_key": ["squad", "signal_type", "subject"],
+    "provenance": "source_entity_and_sequence",
+    "reported_contact_is_los": false
+  }
+}

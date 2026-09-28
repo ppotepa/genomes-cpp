@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.4 - PERCEPTION_SPATIAL_BROADPHASE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -186,12 +186,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] no all-unit scan
-    [ ] spatial candidates
-    [ ] cheap filter order
-    [ ] stable output
-    [ ] benchmark scaling
-    [ ] naive parity small scenes
+    [x] no all-unit scan
+    [x] spatial candidates
+    [x] cheap filter order
+    [x] stable output
+    [x] benchmark scaling
+    [x] naive parity small scenes
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -204,12 +204,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] no all-unit scan
-    [ ] spatial candidates
-    [ ] cheap filter order
-    [ ] stable output
-    [ ] benchmark scaling
-    [ ] naive parity small scenes
+    [x] no all-unit scan
+    [x] spatial candidates
+    [x] cheap filter order
+    [x] stable output
+    [x] benchmark scaling
+    [x] naive parity small scenes
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

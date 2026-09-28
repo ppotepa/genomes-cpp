@@ -1,0 +1,19 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.2 WEAPON_HANDLING_AND_ANIMATION
+
+IMPLEMENTATION:
+    modules/weapons/include/genomes/weapons/WeaponState.hpp
+    modules/weapons/include/genomes/weapons/WeaponPoseTasks.hpp
+    modules/weapons/include/genomes/weapons/WeaponHandlingSystem.hpp
+    modules/weapons/src/WeaponHandlingSystem.cpp
+
+VALIDATION:
+    weapons.handling: PASS
+    fixed-tick draw/holster, 1H/2H ownership, bounded aim, sprint guard,
+    readiness/recoil and typed FireIntent: PASS
+
+FIXTURE:
+    reference/fixtures/weapons_handling_profiles.json

@@ -1,0 +1,16 @@
+{
+  "profile_id": "default-conservative",
+  "version": 1,
+  "selection": "ordered_policy_then_capability_then_crossover",
+  "kernels": {
+    "generic": { "cuda_min_workload": 8192, "diligent_min_workload": 2048 },
+    "threat_influence": { "cuda_min_workload": 16384, "diligent_min_workload": 4096 },
+    "visibility_batch": { "cuda_min_workload": 8192, "diligent_min_workload": 2048 },
+    "flow_field": { "cuda_min_workload": 16384, "diligent_min_workload": 8192 },
+    "field_atlas": { "cuda_min_workload": 8192, "diligent_min_workload": 4096 }
+  },
+  "fallback": "cpu",
+  "cuda_requirements": ["cuda_compute", "cuda_device_match"],
+  "forced_backend_policy": "error_unless_explicit_fallback",
+  "authoritative_semantics": "backend_independent"
+}

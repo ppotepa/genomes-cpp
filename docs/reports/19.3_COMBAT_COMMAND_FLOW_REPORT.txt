@@ -1,0 +1,19 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.3 COMBAT_COMMAND_FLOW
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/CombatCommands.hpp
+    modules/combat/include/genomes/combat/CombatEvents.hpp
+    modules/combat/src/CombatSystem.cpp
+
+VALIDATION:
+    combat.command_flow: PASS
+    typed FireIntent -> FireRequest conversion, stable ordering, deterministic
+    shot seed, duplicate rejection, Infantry impact routing and presentation
+    event isolation: PASS
+
+FIXTURE:
+    reference/fixtures/combat_command_flow_profiles.json

@@ -1,0 +1,39 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    21.1 GPU_FIELD_ATLAS
+
+IMPLEMENTATION:
+    engine/render/compute/include/genomes/compute/FieldAtlas.hpp
+    engine/render/compute/src/FieldAtlas.cpp
+    shaders/compute/field_atlas_clear.hlsl
+    tests/native/render/field_atlas_tests.cpp
+    benchmarks/render/field_atlas_benchmark.cpp
+
+VALIDATION:
+    CPU reference atlas supports layered R32/R16 float and R32 uint fields,
+    stable descriptors, explicit world-to-cell mapping, multi-layer regions,
+    world-space sampling, revisioned writes and dirty upload regions. Explicit
+    readback tokens snapshot a source revision and report stale data after a
+    newer write or atlas recreation, so a future GPU fence path can preserve
+    the same contract.
+
+    The native focused test covers coordinate mapping, partial/multi-layer
+    reads, dirty records, stale readback, uint fields and removal. The native
+    benchmark reports full writes, 64x64 partial writes and readback latency
+    for 1024^2, 2048^2 and 4096^2 reference fields.
+
+    The API is backend independent and does not expose Diligent or CUDA types;
+    CMake exposes the clear shader as a header-only asset for backend-specific
+    compilation.
+
+RESULT:
+    PASS (CPU reference, dirty upload and revisioned readback contract)
+
+LIMITATION:
+    No GPU resource allocation is performed in this chapter. Diligent/HLSL
+    resource allocation, queue fences, format capability checks and optional
+    CUDA paths are backend work in later chapters and must retain this CPU
+    representation as their correctness fallback. The clear shader is a
+    backend-neutral asset and is not compiled by the native CMake target.

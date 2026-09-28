@@ -1,0 +1,53 @@
+GENOMES NATIVE DESTRUCTION VALIDATION REPORT
+============================================
+
+REPORT SCHEMA: destruction-validation-1
+TARGET: ppotepa/genomes-cpp
+TARGET REVISION: working-tree (uncommitted native implementation)
+SOURCE: ppotepa/genomes
+SOURCE COMMIT: da885ca68b2ae63154a004574fed00eb9dfeb458
+FIXTURE SCHEMA: destruction-fixtures-1
+
+RUN
+---
+Command: ctest --preset dev-debug --output-on-failure
+Focused executable: genomes_test_destruction_validation
+Result: PASS 21/21
+
+CASES
+-----
+PASS  materials.forward_traversal       ordered solid/void traversal
+PASS  materials.reverse_traversal       reverse interval order and direction
+PASS  impact.relative_velocity           moving target relative velocity
+PASS  impact.energy_balance              void-contact energy ledger tolerance
+PASS  damage.create                      bounded damage field creation
+PASS  damage.local_hole                  local damage and removed volume
+PASS  damage.idempotent_event            duplicate event does not duplicate hole
+PASS  structural.create                  stable structural graph creation
+PASS  structural.detach_component       support-loss component detachment
+PASS  lifecycle.create                   bounded debris lifecycle creation
+PASS  lifecycle.settle_commit            two-phase settle eligibility/commit
+PASS  lifecycle.volume_conservation      represented debris volume accounting
+PASS  rubble.create                      persistent rubble field creation
+PASS  rubble.mixed_material_remove       mixed-material removal conservation
+PASS  rubble.relax_conservation          bounded slope relaxation conservation
+PASS  rubble.negative_coordinates        floor/floorMod negative tile mapping
+PASS  integration.rubble_physics_create  semantic rubble + physics setup
+PASS  integration.physics_replacement   replacement-before-retirement ordering
+PASS  integration.single_impact          one application per impact event ID
+PASS  invalidation.region_boundary       dirty bounds partition across regions
+PASS  invalidation.retryable_ack         failed consumer item remains retryable
+
+CLASSIFICATION
+--------------
+Semantic invariants and explicit numeric tolerances are validated natively.
+Physics trajectories are not compared bit-for-bit; only handle lifecycle,
+ordering and impulse idempotence are required. Renderer pixels and SOURCE
+browser timing are intentionally outside this report.
+
+STATUS
+------
+PASS for the TARGET cases listed above.
+The source fixture exporter remains diagnostic-only; the native build does not
+require the SOURCE checkout. Stage 16 is eligible to continue with ballistics
+integration after any additional SOURCE fixture categories are exported.

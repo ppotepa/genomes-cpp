@@ -1,0 +1,9 @@
+{
+  "schema": "ballistics-fixtures-1",
+  "case": "batch_profiles",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "seed": 9001,
+  "workerCounts": [1, 2, 4, 8],
+  "comparison": "scalar_equals_batch_within_tolerance",
+  "noPerProjectileJobs": true
+}

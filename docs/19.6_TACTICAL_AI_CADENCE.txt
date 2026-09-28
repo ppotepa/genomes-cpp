@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.6 - TACTICAL_AI_CADENCE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -192,12 +192,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] observation->intent model
-    [ ] integer cadence
-    [ ] memory
-    [ ] target hysteresis
-    [ ] passive safe failure
-    [ ] benchmark
+    [x] observation->intent model
+    [x] integer cadence
+    [x] memory
+    [x] target hysteresis
+    [x] passive safe failure
+    [x] benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -210,12 +210,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] observation->intent model
-    [ ] integer cadence
-    [ ] memory
-    [ ] target hysteresis
-    [ ] passive safe failure
-    [ ] benchmark
+    [x] observation->intent model
+    [x] integer cadence
+    [x] memory
+    [x] target hysteresis
+    [x] passive safe failure
+    [x] benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

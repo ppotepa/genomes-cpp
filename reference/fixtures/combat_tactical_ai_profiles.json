@@ -1,0 +1,26 @@
+{
+  "domain": "combat.tactical_ai",
+  "version": 1,
+  "clock_hz": 60,
+  "profiles": [
+    {
+      "name": "simple_combat_default",
+      "observation_period_ticks": 12,
+      "memory_ticks": 150,
+      "target_switch_ratio": 0.85,
+      "fire_alignment_degrees": 4.0,
+      "unknown_model": "passive",
+      "intent_contract": "observation_to_intent"
+    }
+  ],
+  "determinism": {
+    "cadence": "integer_tick_stable_phase",
+    "target_order": "distance_then_entity_id",
+    "memory_expiry": "tick_delta_greater_than_memory_ticks"
+  },
+  "source": [
+    "reference/source/js/ai/aiModelRegistry.js",
+    "reference/source/js/ai/simpleCombatModel.js",
+    "reference/source/js/ai/battlefieldAIManager.js"
+  ]
+}

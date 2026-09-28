@@ -1,0 +1,17 @@
+{
+  "schema": "destruction-fixtures-1",
+  "id": "impact.moving_target.relative_velocity",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "input": {
+    "massKg": 0.01,
+    "diameterM": 0.00556,
+    "projectileVelocityY": 120.0,
+    "targetVelocityY": 20.0,
+    "solidThicknessM": 0.50
+  },
+  "targetPolicy": {
+    "relativeIncomingVelocityY": 100.0,
+    "energyBalanceTolerance": 0.001
+  },
+  "validation": "numeric-with-tolerance"
+}

@@ -1,0 +1,45 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    21.5 CUDA_BACKEND_SPIKE
+
+IMPLEMENTATION:
+    engine/compute/cuda/CMakeLists.txt
+    engine/compute/cuda/include/genomes/compute/CudaComputeBackend.hpp
+    engine/compute/cuda/CudaComputeBackend.cpp
+    engine/compute/cuda/CudaComputeBackendStub.cpp
+    tests/native/compute/cuda_optional_tests.cpp
+    benchmarks/compute/cuda_backend_benchmark.cpp
+
+CONTRACT:
+    GENOMES_ENABLE_CUDA accepts AUTO, OFF, and ON. AUTO and OFF always configure and
+    build without CUDA. AUTO uses a backend stub when CUDA::cudart is unavailable. ON
+    fails at configure time with an actionable toolkit error. The public API contains
+    no CUDA handles, stream types, device pointers, or CUDA headers.
+
+KERNEL SPIKE:
+    submitFieldFill performs a byte field fill through a private CUDA stream and records
+    a private event. Host-device transfer and event synchronization are part of the
+    measured operation. CPU remains the semantic reference and authoritative fallback.
+
+VALIDATION:
+    The focused optional test passes in a CUDA-free build and when CUDA is enabled but no
+    NVIDIA device is visible. With a device it submits the field operation, waits on the
+    opaque completion token, and checks every byte against the CPU result.
+
+MEASUREMENTS:
+    The benchmark emits CPU fill and CUDA end-to-end timings for 4 KiB, 64 KiB, and 1 MiB.
+    This checkout has no recorded NVIDIA-device run; the fixture intentionally reports
+    CUDA timing as unavailable rather than inventing a crossover threshold. Run
+    genomes_bench_cuda_backend on a target machine and review transfer/synchronization
+    cost before enabling any production fast path.
+
+DECISION:
+    PASS for optional infrastructure, capability/status reporting, typed asynchronous
+    submission, and CPU fallback. No CUDA production dependency or 21.6 interop decision
+    is justified by this host-only result. CUDA remains opt-in and generic Diligent/CPU
+    paths remain the production choices.
+
+RESULT:
+    PASS (CUDA-free configure/build/test and honest no-device fallback)

@@ -1,0 +1,12 @@
+{
+  "domain": "combat.ai_pipeline",
+  "version": 1,
+  "batch_size": 128,
+  "stages": ["broadphase", "line_of_sight", "squad", "model", "stable_commit"],
+  "worker_counts": [1, 2, 4, 8],
+  "determinism": {
+    "merge": "entity_id_then_tick",
+    "scratch": "batch_local",
+    "cancellation": "no_partial_intent_publication"
+  }
+}

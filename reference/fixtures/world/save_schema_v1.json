@@ -1,0 +1,9 @@
+{
+  "domain": "world.save",
+  "schema_version": 1,
+  "magic": "GSV1",
+  "sections": ["header", "regions", "entities"],
+  "authoritative": ["seed", "tick", "content_hash", "destroyed_objects", "entity_ids", "equipment_ids"],
+  "excluded": ["renderer", "physics_backend", "raw_pointers"],
+  "corruption_policy": "reject_without_partial_commit"
+}

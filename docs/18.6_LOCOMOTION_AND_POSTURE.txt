@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.6 - LOCOMOTION_AND_POSTURE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -189,12 +189,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] requested/actual separation
-    [ ] phase continuity
-    [ ] continuous profile
-    [ ] family guards
-    [ ] fixed-tick deterministic
-    [ ] SOURCE tests translated
+    [x] requested/actual separation
+    [x] phase continuity
+    [x] continuous profile
+    [x] family guards
+    [x] fixed-tick deterministic
+    [x] SOURCE tests translated
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -208,12 +208,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] requested/actual separation
-    [ ] phase continuity
-    [ ] continuous profile
-    [ ] family guards
-    [ ] fixed-tick deterministic
-    [ ] SOURCE tests translated
+    [x] requested/actual separation
+    [x] phase continuity
+    [x] continuous profile
+    [x] family guards
+    [x] fixed-tick deterministic
+    [x] SOURCE tests translated
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

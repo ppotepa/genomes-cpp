@@ -1,0 +1,32 @@
+GENOMES REFERENCE EVIDENCE LEDGER
+=================================
+
+TARGET AUTHORITY:
+    ppotepa/genomes-cpp native modules and tests
+
+SOURCE BASELINE:
+    ppotepa/genomes @ 16fdd7b7f56504fa05a1bf5c48d58fb715f21b6d
+
+STATUS VOCABULARY:
+    IMPORTED_FIXTURE
+    OPTIONAL_EXPORTER
+    REFERENCE_LAB
+    RESEARCH_DOCUMENT
+    REDUNDANT_EVIDENCE
+    DO_NOT_DELETE_EVIDENCE
+
+IMPORTED_FIXTURE | reference/fixtures/infantry/* | 18.x | seed/parity contracts | SOURCE baseline above; semantic fixture manifest | native infantry tests
+IMPORTED_FIXTURE | reference/fixtures/weapons_* | 19.1-19.3 | catalog/handling contracts | SOURCE baseline above; exported schema | native weapons tests
+IMPORTED_FIXTURE | reference/fixtures/combat_* | 19.4-19.8 | perception/LOS/AI contracts | TARGET-owned translated fixtures | native combat tests
+IMPORTED_FIXTURE | reference/fixtures/world/* | 20.1-20.4 | world/stream/save contracts | TARGET schema fixtures; SOURCE is provenance only | native world tests
+IMPORTED_FIXTURE | reference/fixtures/viewer/* | 20.5 | viewer mode contract | TARGET viewer schema | proc viewer smoke
+IMPORTED_FIXTURE | reference/fixtures/render/* | 20.6 | presentation quality contract | TARGET render schema | render smoke
+REFERENCE_LAB | reference/prototypes/* | 10.x/20.5 | research and manual inspection | SOURCE provenance retained | no automated golden
+RESEARCH_DOCUMENT | reference/source/docs/* | architecture/calibration | historical evidence | never runtime input
+OPTIONAL_EXPORTER | tools/reference/* | parity workflows | development-only | TARGET tests run without SOURCE
+DO_NOT_DELETE_EVIDENCE | reference/source/* | all migration chapters | complete SOURCE snapshot | no runtime dependency
+
+RULES:
+    Native runtime targets do not link, execute or parse SOURCE.
+    An imported fixture is an expectation only when its provenance and TARGET
+    owner/test are listed above. Unclassified evidence remains reference-only.

@@ -1,0 +1,12 @@
+{
+  "domain": "world.streaming_residency",
+  "version": 1,
+  "axes": ["semantic", "simulation", "render", "physics", "navigation"],
+  "reasons": ["camera", "simulation", "path_corridor", "combat", "preload", "persistence"],
+  "contracts": {
+    "camera_can_release": ["render"],
+    "camera_cannot_release": ["semantic", "simulation"],
+    "pinned_eviction": "forbidden",
+    "stale_generation": "discard"
+  }
+}

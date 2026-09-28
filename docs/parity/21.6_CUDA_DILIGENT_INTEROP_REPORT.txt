@@ -1,0 +1,55 @@
+GENOMES NATIVE VALIDATION REPORT
+======================================================================
+CHAPTER: 21.6 CUDA_DILIGENT_INTEROP
+STATUS: IMPLEMENTED (CAPABILITY CONTRACT; HARDWARE ADAPTER DEFERRED)
+FIXTURE: config/compute_profiles/21.6_cuda_interop_fixture.json
+
+SCOPE
+----------------------------------------------------------------------
+The implementation is a pure, backend-neutral gate in
+engine/compute/cuda/CudaInterop.*.  The public header contains value types
+for device identities, external memory/semaphore capabilities, resource
+requirements, and explicit rejection reasons.  It includes no CUDA,
+Diligent, Vulkan, D3D12, or native OS handle type.  Generic compute and
+render APIs therefore remain unchanged.
+
+DEVICE IDENTITY
+----------------------------------------------------------------------
+UUID and LUID identities are compared by exact type and bytes.  Missing
+identities, UUID/LUID type mismatch, and differing values reject interop.
+Device ordinal, display name, or PCI position is not an acceptance key.
+The resource device generation must match the current capability snapshot;
+stale-generation resources reject after a reset/reinitialization boundary.
+
+CAPABILITY GATE
+----------------------------------------------------------------------
+Acceptance requires the contract to be enabled, both runtime sides and
+identity queries to be available, export/import support for external memory,
+a supported opaque handle transport, resource type/format support, and
+export/import support for an explicitly ordered external semaphore.  Timeline
+semaphores are required only when requested; binary semaphores are otherwise
+valid.  Rejection returns a stable reason and selects Diligent compute as
+the portable fallback.
+
+FOCUSED EVIDENCE
+----------------------------------------------------------------------
+tests/native/compute/cuda_interop_tests.cpp runs with GENOMES_ENABLE_CUDA=OFF
+and GENOMES_ENABLE_DILIGENT=OFF.  It covers UUID/LUID matching, mismatches,
+runtime and contract gates, generation invalidation, memory and semaphore
+handle/capability rejection, timeline requirements, and accepted zero-copy /
+externally ordered planning.  The test exercises no hardware and opens no
+native handle.
+
+HARDWARE INTEGRATION LIMIT
+----------------------------------------------------------------------
+Native Diligent resource export, CUDA external-memory import, semaphore
+queue/stream handshakes, destruction ordering, and end-to-end no-copy
+roundtrip measurements are intentionally deferred.  This checkout records
+no hardware timing and makes no claim that interop is enabled on any GPU.
+Those adapters must be added behind the same gate and benchmarked against
+ordinary Diligent compute/copy before production selection.
+
+RESULT
+----------------------------------------------------------------------
+PASS for the capability-gated contract, identity safety, fallback behavior,
+and native-type isolation.  HARDWARE INTEGRATION DEFERRED.

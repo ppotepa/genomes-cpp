@@ -1,0 +1,7 @@
+{
+  "schema": "combat-los-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "invariants": ["snapshot-authoritative", "target-hit-visible", "self-origin-skip", "stale-not-visible", "first-blocker"],
+  "sources": ["TERRAIN", "STATIC", "DYNAMIC", "RUBBLE"],
+  "evidenceClass": "DiagnosticNativeContract"
+}

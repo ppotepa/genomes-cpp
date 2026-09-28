@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.2 - WEAPON_HANDLING_AND_ANIMATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -188,12 +188,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] state machine
-    [ ] pose-task overlay
-    [ ] hand ownership
-    [ ] canFire policy
-    [ ] no renderer dependency
-    [ ] SOURCE tests
+    [x] state machine
+    [x] pose-task overlay
+    [x] hand ownership
+    [x] canFire policy
+    [x] no renderer dependency
+    [x] SOURCE tests
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -206,12 +206,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] state machine
-    [ ] pose-task overlay
-    [ ] hand ownership
-    [ ] canFire policy
-    [ ] no renderer dependency
-    [ ] SOURCE tests
+    [x] state machine
+    [x] pose-task overlay
+    [x] hand ownership
+    [x] canFire policy
+    [x] no renderer dependency
+    [x] SOURCE tests
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

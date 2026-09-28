@@ -1,0 +1,11 @@
+{
+  "schema": "infantry-face-expression-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "expressions": ["NEUTRAL", "ALERT", "FEAR", "ANGER", "PAIN", "FATIGUE", "EYES_CLOSED"],
+  "channels": ["EYE_OPEN", "EYE_SQUINT", "BROW_INNER_UP", "BROW_OUTER_UP", "BROW_DOWN", "JAW_OPEN", "MOUTH_OPEN", "MOUTH_STRETCH", "MOUTH_CORNER_UP", "MOUTH_CORNER_DOWN", "LIP_PRESS", "CHEEK_RAISE"],
+  "fixedDt": 0.0166666667,
+  "blink": {"durationSeconds": 0.14, "eventDomain": "face-event/blink"},
+  "saccade": {"eventDomain": "face-event/saccade", "yawLimit": 0.95, "pitchLimit": 0.60},
+  "invariants": ["identity-immutable", "event-indexed-rng", "bounded-gaze", "finite-output", "cadence-independent-event-order"],
+  "note": "Diagnostic fixture. Runtime FaceState and FaceOutput are authoritative; appearance geometry is not rebuilt per event."
+}

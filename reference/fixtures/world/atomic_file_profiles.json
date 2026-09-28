@@ -1,0 +1,11 @@
+{
+  "schema": "genomes.io.atomic_file_profiles.v1",
+  "max_bytes": 67108928,
+  "invariants": [
+    "write completes in a temporary sibling before publication",
+    "flush or rename failure removes the temporary artifact",
+    "read is bounded before allocation",
+    "world save/load uses the same bounded atomic file primitive"
+  ],
+  "status": "chapter_22.5_partial_atomic_artifact_contract"
+}

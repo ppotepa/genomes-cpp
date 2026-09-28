@@ -1,0 +1,24 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.5 NATIVE_PROC_VIEWER
+
+IMPLEMENTATION:
+    apps/proc_viewer/ProcViewerApp.hpp
+    apps/proc_viewer/ProcViewerApp.cpp
+    apps/proc_viewer/main.cpp
+
+VALIDATION:
+    tools.proc_viewer: PASS
+    seven mode descriptors, async regeneration through WorldScenario,
+    immutable semantic artifact snapshot, trace entry and failed-request
+    rollback: PASS
+
+NOTE:
+    The current target is a headless-compatible viewer model and CLI. SDL/
+    Diligent panels can consume this model without adding UI dependencies to
+    generators.
+
+FIXTURE:
+    reference/fixtures/viewer/proc_viewer_modes.json

@@ -1,0 +1,8 @@
+{
+  "schema": "infantry-damage-ragdoll-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "regions": ["HEAD", "TORSO", "PELVIS", "UPPER_ARM_LEFT", "FORE_ARM_LEFT", "HAND_LEFT", "UPPER_ARM_RIGHT", "FORE_ARM_RIGHT", "HAND_RIGHT", "THIGH_LEFT", "SHIN_LEFT", "FOOT_LEFT", "THIGH_RIGHT", "SHIN_RIGHT", "FOOT_RIGHT"],
+  "invariants": ["semantic-not-triangle-authority", "single-reindex-barrier", "lazy-physics", "stable-body-order", "partial-failure-cleanup"],
+  "ragdollBodies": 16,
+  "note": "Diagnostic fixture. Physics adapter remains behind PhysicsWorld; ordinary living units have no active ragdoll bodies."
+}

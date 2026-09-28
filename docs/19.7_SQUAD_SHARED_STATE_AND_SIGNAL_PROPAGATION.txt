@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.7 - SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -172,11 +172,11 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] squad state
-    [ ] explicit signal events
-    [ ] delayed imperfect awareness
-    [ ] dedupe/provenance
-    [ ] shared computation benchmark
+    [x] squad state
+    [x] explicit signal events
+    [x] delayed imperfect awareness
+    [x] dedupe/provenance
+    [x] shared computation benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -189,11 +189,11 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] squad state
-    [ ] explicit signal events
-    [ ] delayed imperfect awareness
-    [ ] dedupe/provenance
-    [ ] shared computation benchmark
+    [x] squad state
+    [x] explicit signal events
+    [x] delayed imperfect awareness
+    [x] dedupe/provenance
+    [x] shared computation benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

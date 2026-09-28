@@ -1,0 +1,17 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.2 FINAL_WORLD_REFERENCE_VALIDATION
+
+IMPLEMENTATION:
+    gameplay::WorldSemanticSnapshot over deterministic WorldPlan content and
+    feature counts.
+
+VALIDATION:
+    integration.world_parity: PASS
+    same seed/request in headless and graphical semantic assembly produces
+    identical authoritative snapshot; presentation data is excluded: PASS
+
+FIXTURE:
+    reference/fixtures/world/world_parity_scenario.json

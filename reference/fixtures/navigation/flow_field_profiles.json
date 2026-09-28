@@ -1,0 +1,16 @@
+{
+  "schema": "genomes.navigation.flow_field_profiles.v1",
+  "cpu_reference": {
+    "algorithm": "ordered_dijkstra",
+    "neighbor_order": [[1, 0], [0, 1], [-1, 0], [0, -1]],
+    "unreachable_cost": "INF",
+    "blocked_direction": [0, 0]
+  },
+  "key_fields": ["navigation_revision", "cost_profile", "goal_set_hash", "width", "height"],
+  "invariants": [
+    "blocked cells are never traversed",
+    "fields are shared by complete semantic key",
+    "stale navigation revisions are invalidated",
+    "agents may fall back when a field is unavailable"
+  ]
+}

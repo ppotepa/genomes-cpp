@@ -1,0 +1,25 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.11 INFANTRY_REFERENCE_VALIDATION
+
+IMPLEMENTATION:
+    tests/native/infantry_reference_parity_tests.cpp
+    reference/fixtures/infantry/README.txt
+
+CONTRACT:
+    A fixed seed matrix covers genome/phenotype identity, the canonical
+    69-bone rig, four-morph appearance, all loadouts, locomotion, face output,
+    semantic damage volumes and ragdoll schema validity. Parallel pose parity
+    is covered by infantry.animation_parallel; fixtures are classified as
+    semantic diagnostic evidence rather than unpinned visual goldens.
+
+VALIDATION:
+    infantry.reference_parity: PASS
+    seed matrix: 0, 1, 0x12345678, 0xDEADBEEF, 0xFFFFFFFF
+    deterministic generation, all loadouts, canonical rig and artifact
+    invariants: PASS
+
+FIXTURE ROOT:
+    reference/fixtures/infantry/

@@ -1,0 +1,57 @@
+GENOMES NATIVE IMPLEMENTATION REPORT
+======================================================================
+CHAPTER: 21.7 CUDA_FAST_PATH_SELECTION
+STATUS: IMPLEMENTED
+PROFILE: config/compute_profiles/21.7_default.json
+
+SCOPE
+----------------------------------------------------------------------
+The selector is a backend-neutral policy layer over ComputeBackend.  It
+contains no CUDA, Diligent or renderer headers.  CPU remains the declared
+portable fallback and backend selection never enters saved/network identity.
+
+POLICY MATRIX
+----------------------------------------------------------------------
+Kernel              CPU fallback  Diligent crossover  CUDA crossover
+generic             always        2,048               8,192
+threat_influence    always        4,096               16,384
+visibility_batch    always        2,048               8,192
+flow_field          always        8,192               16,384
+field_atlas         always        4,096               8,192
+
+CAPABILITY MATRIX
+----------------------------------------------------------------------
+CPU-only/headless    CPU; no accelerator capability is required.
+AMD/Intel + Diligent Diligent only at/above its profile crossover; CPU below.
+NVIDIA + CUDA        CUDA only when cuda_compute and cuda_device_match are true
+                     and the versioned profile approves the crossover; otherwise
+                     Diligent/CPU according to the same table.
+Unmatched CUDA       CUDA rejected even when cuda_compute is true.
+
+FORCED / FAILURE RULES
+----------------------------------------------------------------------
+An explicitly forced backend bypasses workload crossover but never capability,
+profile approval or correctness checks.  Unsupported forced backends return
+ErrorCode::Unsupported unless fallback_when_forced_unavailable is explicitly
+enabled.  Runtime failure uses the policy's declared CPU fallback before output
+commit; it does not silently retry a different accelerator.
+
+TELEMETRY
+----------------------------------------------------------------------
+Dispatch owners call recordTelemetry(selection, dispatch_size, latency_ns).
+Events include selected backend, dispatch size, measured end-to-end latency,
+selection reason and fallback reason.  Selection itself is read-only.
+
+FOCUSED EVIDENCE
+----------------------------------------------------------------------
+tests/native/compute/backend_selector_tests.cpp covers CPU-only, Diligent
+crossover, CUDA capability/device-match gating, forced backend/error and
+explicit fallback, runtime fallback, and telemetry.  The test is compiled
+against genomes::compute with no CUDA toolkit or native CUDA symbols.
+
+LIMITS
+----------------------------------------------------------------------
+This report records the deterministic selector contract and conservative
+profile.  It is not a claim that CUDA is available on the build host or that
+the crossover values replace end-to-end benchmark refreshes.
+

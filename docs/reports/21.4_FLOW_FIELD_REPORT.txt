@@ -1,0 +1,23 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    21.4 FLOW_FIELD_COMPUTE
+
+IMPLEMENTATION:
+    engine/navigation/include/genomes/navigation/FlowField.hpp
+    engine/navigation/src/FlowFieldCPU.cpp
+
+VALIDATION:
+    The CPU reference builds deterministic multi-goal integration costs with
+    ordered Dijkstra propagation, stable direction tie-breaks, explicit blocked
+    and unreachable samples, complete revision keys, and a cache that removes
+    fields from obsolete navigation revisions. Focused test passed and the
+    256x256 benchmark produced a shared field in 18 ms on the debug profile.
+
+GPU POLICY:
+    GPU relaxation remains an optional derived accelerator. The CPU field is
+    authoritative for correctness and is always available as the fallback.
+
+RESULT:
+    PASS (CPU reference, cache, fallback and benchmark)

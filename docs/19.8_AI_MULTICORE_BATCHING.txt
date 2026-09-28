@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 19.8 - AI_MULTICORE_BATCHING
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -187,12 +187,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] job DAG
-    [ ] no subsystem thread pool
-    [ ] stable parallel parity
-    [ ] cancellation
-    [ ] scaling report
-    [ ] no N² candidate scan
+    [x] job DAG
+    [x] no subsystem thread pool
+    [x] stable parallel parity
+    [x] cancellation
+    [x] scaling report
+    [x] no N² candidate scan
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -206,12 +206,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] job DAG
-    [ ] no subsystem thread pool
-    [ ] stable parallel parity
-    [ ] cancellation
-    [ ] scaling report
-    [ ] no N² candidate scan
+    [x] job DAG
+    [x] no subsystem thread pool
+    [x] stable parallel parity
+    [x] cancellation
+    [x] scaling report
+    [x] no N² candidate scan
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

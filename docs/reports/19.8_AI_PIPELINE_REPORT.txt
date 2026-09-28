@@ -1,0 +1,24 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.8 AI_MULTICORE_BATCHING
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/AIJobPipeline.hpp
+    modules/combat/src/AIJobPipeline.cpp
+
+VALIDATION:
+    combat.ai_parallel: PASS
+    serial/parallel intent parity, stable batch merge, broadphase/LOS/squad
+    stage barriers, cancellation without partial publication: PASS
+
+BENCHMARK:
+    genomes_bench_ai_pipeline, dev-debug (milliseconds):
+    workers 1/2/4/8 on 1k/10k/50k entities respectively:
+    0/0/0, 1/1/1, 6/5/5, 0/0/0, 1/1/1, 7/5/7, 0/0/0, 1/1/1,
+    5/5/5, 0/0/0, 1/1/1, 7/5/7.
+    Release timing and hardware-specific scaling remain performance gates.
+
+FIXTURE:
+    reference/fixtures/combat_ai_pipeline_profiles.json

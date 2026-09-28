@@ -1,0 +1,7 @@
+{
+  "schema": "combat-command-flow-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "phases": ["ORDERS", "POSE", "WEAPON", "FIRE_COMMIT", "BALLISTICS", "IMPACT", "DAMAGE", "PRESENTATION"],
+  "invariants": ["stable-phase-order", "authoritative-fire-origin", "duplicate-idempotency", "renderer-independent-outcome", "stable-event-sort"],
+  "evidenceClass": "DiagnosticNativeContract"
+}

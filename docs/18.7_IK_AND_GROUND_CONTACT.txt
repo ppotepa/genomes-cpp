@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.7 - IK_AND_GROUND_CONTACT
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -181,12 +181,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] generic TwoBoneIK
-    [ ] batched ground query
-    [ ] revision cache
-    [ ] gear support limited scope
-    [ ] no mesh scan
-    [ ] fixtures
+    [x] generic TwoBoneIK
+    [x] batched ground query
+    [x] revision cache
+    [x] gear support limited scope
+    [x] no mesh scan
+    [x] fixtures
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -199,12 +199,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] generic TwoBoneIK
-    [ ] batched ground query
-    [ ] revision cache
-    [ ] gear support limited scope
-    [ ] no mesh scan
-    [ ] fixtures
+    [x] generic TwoBoneIK
+    [x] batched ground query
+    [x] revision cache
+    [x] gear support limited scope
+    [x] no mesh scan
+    [x] fixtures
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

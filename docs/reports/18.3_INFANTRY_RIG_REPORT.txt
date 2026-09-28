@@ -1,0 +1,38 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.3 RIG_AND_SKELETON
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/RigSchema.hpp
+    modules/infantry/include/genomes/infantry/SkeletonData.hpp
+    modules/infantry/include/genomes/infantry/RigBuilder.hpp
+    modules/infantry/src/RigBuilder.cpp
+
+CONTRACT:
+    One backend-independent 69-bone schema is shared by body, face controls
+    and fingers. Bind transforms are derived once from BodyPhenotype and
+    FacePhenotype; equipment is not an input to schema or bind generation.
+
+SCHEMA:
+    body=22
+    faceController=17
+    finger=30
+    total=69
+    hierarchy=one root, parent index before child
+
+VALIDATION:
+    infantry.rig: PASS
+    dev-debug native tests: PASS 34/34
+    dev-release build: PASS
+    GENOMES_ENABLE_INFANTRY=OFF menu build: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/rig_profiles.json
+
+NOTES:
+    This report validates schema, hierarchy, finite transforms, inverse-bind
+    translation for the identity bind rotation, attachment points, deterministic
+    cache identity and stable repeated construction. Body mesh, skin weights and
+    runtime animation remain chapters 18.4 and 18.6-18.9.

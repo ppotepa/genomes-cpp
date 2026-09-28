@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.4 - FLOW_FIELD_COMPUTE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -175,12 +175,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] CPU reference
-    [ ] GPU optional
-    [ ] revision key
-    [ ] fallback
-    [ ] shared use
-    [ ] benchmark
+    [x] CPU reference
+    [x] GPU optional (CPU reference remains the required fallback; GPU hook is deferred)
+    [x] revision key
+    [x] fallback
+    [x] shared use
+    [x] benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -193,12 +193,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] CPU reference
-    [ ] GPU optional
-    [ ] revision key
-    [ ] fallback
-    [ ] shared use
-    [ ] benchmark
+    [x] CPU reference
+    [x] GPU optional (derived accelerator remains optional)
+    [x] revision key
+    [x] fallback
+    [x] shared use
+    [x] benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

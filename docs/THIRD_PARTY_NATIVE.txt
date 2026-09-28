@@ -1,0 +1,55 @@
+GENOMES NATIVE THIRD-PARTY REGISTER
+===================================
+
+The native build keeps third-party source revisions explicit.  The parent
+repository will carry gitlinks under external/ once a dependency is adopted.
+Until then, the dependency remains disabled by default and no configure step
+downloads it.
+
+DEPENDENCY: Diligent Engine
+SOURCE: https://github.com/DiligentGraphics/DiligentEngine
+PIN: 5301bfd3bb36fe231fee31ae2a28a4e5175a7551 (meta repository, v2.5.6)
+NESTED_PIN: DiligentCore b036337d68be2353c9950a85929acf796b9a6d50
+VERSION: v2.5.6
+LICENSE: Apache-2.0
+LOCAL_LICENSE: external/DiligentEngine/License.txt
+USED_BY: engine/render/diligent
+OPTIONAL: no (for windowed renderer builds; disabled in headless configuration)
+NOTES:
+    Core only in the normal Genomes build.
+    Tools, FX, Samples and Tests are disabled.
+    Windows keeps D3D12 and Vulkan; non-Windows keeps Vulkan.
+    The revision was audited from the official upstream repository on
+    2026-09-28.  The SHA is authoritative; the tag is descriptive metadata.
+
+DEPENDENCY: SDL3
+SOURCE: https://github.com/libsdl-org/SDL
+PIN: fa2c02bb6e21974a89ea9824bc53c9932abe5f9c (release-3.4.16)
+VERSION: 3.4.16
+LICENSE: Zlib
+LOCAL_LICENSE: external/SDL/LICENSE.txt
+USED_BY: engine/platform
+OPTIONAL: no (for windowed application builds; disabled in headless configuration)
+NOTES:
+    Static SDL3 is built only when GENOMES_ENABLE_SDL=ON.
+    SDL tests, examples and installation targets are disabled.
+    The revision was audited from the official upstream repository on
+    2026-09-28.  The SHA is authoritative; the tag is descriptive metadata.
+
+DEPENDENCY: Jolt Physics
+SOURCE: https://github.com/jrouwe/JoltPhysics
+PIN: pending Chapter 1.2 integration
+VERSION: pending
+LICENSE: MIT
+LOCAL_LICENSE: external/JoltPhysics/LICENSE
+USED_BY: engine/physics/jolt (future)
+OPTIONAL: no (once physics integration starts)
+
+DEPENDENCY: Recast / Detour
+SOURCE: https://github.com/recastnavigation/recastnavigation
+PIN: pending Chapter 1.2 integration
+VERSION: pending
+LICENSE: Zlib
+LOCAL_LICENSE: external/recastnavigation/License.txt
+USED_BY: engine/navigation/recast (future)
+OPTIONAL: no (once navigation integration starts)

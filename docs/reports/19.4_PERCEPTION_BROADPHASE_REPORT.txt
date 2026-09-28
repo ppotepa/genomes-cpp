@@ -1,0 +1,24 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.4 PERCEPTION_SPATIAL_BROADPHASE
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/PerceptionBroadphase.hpp
+    modules/combat/src/PerceptionBroadphase.cpp
+
+VALIDATION:
+    combat.perception_broadphase: PASS
+    spatial candidate query, team/alive/range/FOV filtering, deterministic
+    nearest ordering, duplicate rejection and explicit budget truncation: PASS
+
+BENCHMARK (dev-debug, diagnostic):
+    1000  -> 80 ms / 1000 queries
+    10000 -> 7974 ms / 10000 queries
+    50000 -> 5684 ms / 1563 sampled queries
+    The 50k run is sampled to keep debug smoke execution bounded; release
+    profiling remains a separate performance gate.
+
+FIXTURE:
+    reference/fixtures/combat_perception_profiles.json

@@ -1,0 +1,8 @@
+{
+  "domain": "proc_viewer",
+  "version": 1,
+  "modes": ["terrain_hydrology", "roads_city", "buildings", "vegetation", "destruction_ballistics", "infantry_animation", "world_diagnostics"],
+  "presentation_independent": true,
+  "regeneration": "async_candidate_commit",
+  "failure_policy": "retain_previous_artifact"
+}

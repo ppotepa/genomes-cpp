@@ -1,0 +1,13 @@
+{
+  "schema": "infantry-appearance-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "morphTargets": ["eyelidsClose", "eyelidsArc", "neckFlex", "handsRelax"],
+  "hairStyles": ["bald", "short", "long", "braids", "bun", "mohawk", "curly"],
+  "skinInfluenceLimit": 4,
+  "cases": [
+    {"name": "average-short", "seed": 101, "detail": 2, "hair": "short"},
+    {"name": "tall-bald", "seed": 102, "detail": 3, "hair": "bald"},
+    {"name": "small-braids", "seed": 103, "detail": 1, "hair": "braids"}
+  ],
+  "note": "Diagnostic invariant fixture. Native appearance topology and bind coordinates are authoritative."
+}

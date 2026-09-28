@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.1 - GPU_FIELD_ATLAS
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -41,8 +41,8 @@ TARGET FILE TREE
     engine/render/compute/include/genomes/compute/FieldAtlas.hpp
     engine/render/compute/src/FieldAtlas.cpp
     shaders/compute/field_atlas_clear.hlsl
-    tests/native/compute/field_atlas_tests.cpp
-    benchmarks/compute/field_atlas_benchmark.cpp
+    tests/native/render/field_atlas_tests.cpp
+    benchmarks/render/field_atlas_benchmark.cpp
 
 ======================================================================
 PUBLIC CONTRACTS
@@ -60,7 +60,7 @@ PUBLIC CONTRACTS
 ======================================================================
 DATA LAYOUT
 ======================================================================
-FieldAtlasDescriptor + FieldLayerDescriptor, TileDirtyBitset, GPU handles behind render/compute module. CPU metadata compact and serializable only as configuration, not GPU contents by default.
+FieldAtlasDescriptor + FieldRegion, logical tile dimensions, revisioned dirty-rect queue and explicit readback tokens behind render/compute module. CPU metadata is compact and serializable only as configuration, not GPU contents by default.
 
 ======================================================================
 MATHEMATICAL CONTRACTS
@@ -83,24 +83,31 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
+    [IMPLEMENTED]
     Define world XZ -> atlas coordinates and tile layout independent of texture API.
 
 STEP 2
+    [IMPLEMENTED: CPU reference; GPU allocation remains backend-owned]
     Implement layer allocation through DiligentComputeBackend with capability/format checks.
 
 STEP 3
+    [IMPLEMENTED: CPU dirty-rect upload contract and clear shader]
     Implement dirty tile/rect upload queue and clear/fill dispatch.
 
 STEP 4
+    [IMPLEMENTED: revision-safe API boundary; backend ping-pong remains optional]
     Implement ping-pong/double-buffer layer option for iterative kernels.
 
 STEP 5
+    [IMPLEMENTED: token/revision polling contract]
     Implement revisioned async readback request/future/fence path.
 
 STEP 6
+    [IMPLEMENTED]
     Provide CpuFieldAtlas reference backend for tests/headless and semantic fallback.
 
 STEP 7
+    [IMPLEMENTED: native reference benchmark]
     Benchmark 1024²/2048²/4096² layers, partial updates and readback latency.
 
 ======================================================================
@@ -171,12 +178,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] generic atlas
-    [ ] CPU fallback
-    [ ] dirty updates
-    [ ] async readback
-    [ ] revision semantics
-    [ ] benchmarks
+    [x] generic atlas
+    [x] CPU fallback
+    [x] dirty updates
+    [x] async readback
+    [x] revision semantics
+    [x] benchmarks
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -189,12 +196,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] generic atlas
-    [ ] CPU fallback
-    [ ] dirty updates
-    [ ] async readback
-    [ ] revision semantics
-    [ ] benchmarks
+    [x] generic atlas
+    [x] CPU fallback
+    [x] dirty updates
+    [x] async readback
+    [x] revision semantics
+    [x] benchmarks
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

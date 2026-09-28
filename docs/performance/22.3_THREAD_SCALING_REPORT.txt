@@ -1,0 +1,43 @@
+GENOMES NATIVE VALIDATION REPORT
+======================================================================
+CHAPTER: 22.3 THREAD_SCALING_REGRESSION_GATES
+STATUS: IMPLEMENTED
+PROFILE: config/performance/thread_scaling_baselines/job_system_reference.json
+
+SCOPE
+----------------------------------------------------------------------
+The portable gate library runs the same deterministic workload seed at each
+worker count, measures complete callbacks (including merge/barrier work), and
+checks semantic hashes before accepting performance data.  It does not impose
+linear speedup: each worker count is compared only with its own machine-keyed
+baseline and explicit median/p95 limits.
+
+PUBLIC IMPLEMENTATION
+----------------------------------------------------------------------
+tools/benchmark/thread_scaling_gate.hpp/.cpp provide deterministic seeded
+sampling, warmups, median/p95/p99 and variance statistics, strict versioned
+baseline JSON parsing, exact machine/compiler/dependency matching, scheduler
+telemetry fields, correctness status, and text/JSON reports.  The
+genomes_thread_scaling_gate CLI executes a portable partitioned batch and can
+write either report format.
+
+GATE POLICY
+----------------------------------------------------------------------
+Matching baselines become hard gates.  Unknown fingerprints report
+no_baseline; semantic hash mismatch is correctness_failure; excessive
+coefficient of variation is noisy_run; median and p95 limits produce an
+explicit regression.  Expected qualitative trend is retained as metadata and
+is not converted into an unjustified speedup requirement.
+
+FOCUSED EVIDENCE
+----------------------------------------------------------------------
+tests/native/stress/thread_scaling_smoke.cpp covers percentile calculation,
+fixture parsing, semantic parity, machine mismatch, noisy input, regression,
+and a flat/no-speedup workload that still passes its per-worker budgets.
+
+LIMITS
+----------------------------------------------------------------------
+The checked-in numbers are a deterministic parser/test fixture, not a claim
+about every host.  Dedicated runners must record refreshed profiles before
+enabling a production timing gate; hosted CI should use the smoke/scaling
+shape policy.

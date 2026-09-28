@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.9 - ANIMATION_LOD_AND_PARALLEL_EVALUATION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -184,12 +184,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] batch animation jobs
-    [ ] LOD/cadence
-    [ ] double pose snapshot
-    [ ] GPU handoff contract
-    [ ] phase/timer preserve
-    [ ] benchmark
+    [x] batch animation jobs
+    [x] LOD/cadence
+    [x] double pose snapshot
+    [x] GPU handoff contract
+    [x] phase/timer preserve
+    [x] benchmark
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -203,12 +203,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] batch animation jobs
-    [ ] LOD/cadence
-    [ ] double pose snapshot
-    [ ] GPU handoff contract
-    [ ] phase/timer preserve
-    [ ] benchmark
+    [x] batch animation jobs
+    [x] LOD/cadence
+    [x] double pose snapshot
+    [x] GPU handoff contract
+    [x] phase/timer preserve
+    [x] benchmark
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

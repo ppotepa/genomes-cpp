@@ -1,0 +1,25 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.7 SQUAD_SHARED_STATE_AND_SIGNAL_PROPAGATION
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/SquadState.hpp
+    modules/combat/include/genomes/combat/TacticalSignal.hpp
+    modules/combat/src/SquadSystem.cpp
+
+VALIDATION:
+    combat.squad_signal: PASS
+    explicit delayed delivery, squad membership validation, deterministic
+    contact merge/deduplication, provenance, confidence decay, order delivery,
+    member removal and disabled propagation baseline: PASS
+
+BENCHMARK:
+    genomes_bench_squad_signal (dev-debug):
+    1000 -> 1 ms / 1000 delivered;
+    10000 -> 71 ms / 10000 delivered.
+    Release timing is a separate performance gate.
+
+FIXTURE:
+    reference/fixtures/combat_squad_signal_profiles.json

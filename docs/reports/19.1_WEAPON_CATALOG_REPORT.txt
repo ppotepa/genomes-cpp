@@ -1,0 +1,18 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    19.1 WEAPON_CATALOG_AND_GEOMETRY
+
+IMPLEMENTATION:
+    modules/weapons/include/genomes/weapons/WeaponCatalog.hpp
+    modules/weapons/src/WeaponCatalog.cpp
+    modules/weapons/src/WeaponGeometryGenerator.cpp
+
+VALIDATION:
+    weapons.catalog_geometry: PASS
+    pinned 8-entry catalog, non-firearm knife/grenade, deterministic box
+    artifact, attachment landmarks and cache sharing: PASS
+
+FIXTURE:
+    reference/fixtures/weapons_catalog_profiles.json

@@ -1,0 +1,13 @@
+build/
+.codegraph/
+out/
+.vs/
+cmake-build-*/
+CMakeUserPresets.json
+*.exe
+*.pdb
+*.obj
+*.lib
+*.a
+*.dll
+*.dylib

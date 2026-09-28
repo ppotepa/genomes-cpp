@@ -1,0 +1,27 @@
+{
+  "schema": "genomes.render.field_atlas_profiles.v1",
+  "authority": "derived_advisory_or_cpu_fallback",
+  "cpu_reference": {
+    "field": "test.threat",
+    "width": 4,
+    "height": 3,
+    "layers": 2,
+    "cell_size": [2.0, 2.0],
+    "tile_size": [32, 32],
+    "dirty_revisions": [1, 2],
+    "region_order": "layer,y,x",
+    "readback": {
+      "source_revision": 2,
+      "stale_after_write": true,
+      "stale_after_recreate": true,
+      "state_values": ["pending", "ready", "stale"]
+    }
+  },
+  "benchmark_profiles": [1024, 2048, 4096],
+  "invariants": [
+    "field ids are stable and backend independent",
+    "world sampling rejects positions outside the declared atlas",
+    "gpu uploaders consume dirty regions; cpu storage remains valid fallback",
+    "derived fields are never authoritative gameplay truth"
+  ]
+}

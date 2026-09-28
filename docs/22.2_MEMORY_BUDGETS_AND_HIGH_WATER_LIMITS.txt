@@ -5,8 +5,8 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 22.2 - MEMORY_BUDGETS_AND_HIGH_WATER_LIMITS
-STATUS: READY
-VERSION: 0.1
+STATUS: IMPLEMENTED
+VERSION: 1.0
 
 ======================================================================
 GOAL
@@ -182,12 +182,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] category telemetry
-    [ ] budget profiles
-    [ ] steady/high-water limits
-    [ ] teardown plateau tests
-    [ ] VRAM distinction
-    [ ] report
+    [x] category telemetry
+    [x] budget profiles
+    [x] steady/high-water limits
+    [x] teardown plateau tests
+    [x] VRAM distinction
+    [x] report
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -200,12 +200,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] category telemetry
-    [ ] budget profiles
-    [ ] steady/high-water limits
-    [ ] teardown plateau tests
-    [ ] VRAM distinction
-    [ ] report
+    [x] category telemetry
+    [x] budget profiles
+    [x] steady/high-water limits
+    [x] teardown plateau tests
+    [x] VRAM distinction
+    [x] report
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

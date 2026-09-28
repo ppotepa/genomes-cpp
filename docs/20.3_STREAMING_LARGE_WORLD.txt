@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.3 - STREAMING_LARGE_WORLD
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -184,12 +184,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] multi-axis residency
-    [ ] async/cancel
-    [ ] memory eviction
-    [ ] semantic identity preserve
-    [ ] stress benchmark
-    [ ] no camera authority
+    [x] multi-axis residency
+    [x] async/cancel
+    [x] memory eviction
+    [x] semantic identity preserve
+    [x] stress benchmark
+    [x] no camera authority
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -202,12 +202,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] multi-axis residency
-    [ ] async/cancel
-    [ ] memory eviction
-    [ ] semantic identity preserve
-    [ ] stress benchmark
-    [ ] no camera authority
+    [x] multi-axis residency
+    [x] async/cancel
+    [x] memory eviction
+    [x] semantic identity preserve
+    [x] stress benchmark
+    [x] no camera authority
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

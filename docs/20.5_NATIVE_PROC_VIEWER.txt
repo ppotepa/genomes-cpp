@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.5 - NATIVE_PROC_VIEWER
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -183,12 +183,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] major domain modes
-    [ ] generic generation diagnostics
-    [ ] cancel/rollback
-    [ ] fixture parity view
-    [ ] no generator UI coupling
-    [ ] resource cleanup
+    [x] major domain modes
+    [x] generic generation diagnostics
+    [x] cancel/rollback
+    [x] fixture parity view
+    [x] no generator UI coupling
+    [x] resource cleanup
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -201,12 +201,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] major domain modes
-    [ ] generic generation diagnostics
-    [ ] cancel/rollback
-    [ ] fixture parity view
-    [ ] no generator UI coupling
-    [ ] resource cleanup
+    [x] major domain modes
+    [x] generic generation diagnostics
+    [x] cancel/rollback
+    [x] fixture parity view
+    [x] no generator UI coupling
+    [x] resource cleanup
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    18.10 INFANTRY_DAMAGE_AND_RAGDOLL
+
+IMPLEMENTATION:
+    modules/infantry/include/genomes/infantry/InfantryDamage.hpp
+    modules/infantry/include/genomes/infantry/RagdollSchema.hpp
+    modules/infantry/src/InfantryDamage.cpp
+    modules/infantry/src/RagdollController.cpp
+
+CONTRACT:
+    Infantry hit volumes are semantic skeleton regions updated from an
+    authoritative pose and reindexed once per batch barrier. Damage applies
+    region protection without exposing render triangles. Ragdoll schemas are
+    cached and immutable; PhysicsWorld bodies are created only at transition,
+    with deterministic order and cleanup on disposal or partial failure.
+
+VALIDATION:
+    infantry.damage_ragdoll: PASS
+    semantic volume update, grid deduplication, damage protection, schema
+    cache, lazy body creation, velocity handoff and disposal: PASS
+
+FIXTURE:
+    reference/fixtures/infantry/damage_ragdoll_profiles.json

@@ -1,0 +1,9 @@
+{
+  "schema": "combat-perception-broadphase-fixtures-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "default": {"rangeMeters": 100.0, "horizontalHalfFovDegrees": 70.0, "maxCandidates": 64},
+  "filters": ["alive", "team", "squared-range", "horizontal-fov"],
+  "invariants": ["no-all-unit-scan", "stable-distance-id-order", "explicit-truncation", "negative-coordinates"],
+  "benchmarkCounts": [1000, 10000, 50000],
+  "evidenceClass": "DiagnosticNativeContract"
+}

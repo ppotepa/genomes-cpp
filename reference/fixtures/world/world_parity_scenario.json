@@ -1,0 +1,8 @@
+{
+  "domain": "world.final_parity",
+  "version": 1,
+  "seed": "0xCAFEBABE",
+  "authoritative_hash": "world_plan.content_hash",
+  "presentation_excluded": true,
+  "modes": ["headless", "graphical"]
+}

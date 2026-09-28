@@ -1,0 +1,29 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    21.2_THREAT_INFLUENCE_FIELDS
+
+IMPLEMENTATION:
+    modules/combat/include/genomes/combat/InfluenceField.hpp
+    modules/combat/src/InfluenceFieldCPU.cpp
+
+VALIDATION:
+    combat.influence_field: PASS
+    radial smoothstep kernel, confidence/timestamp decay, stale-source policy,
+    deterministic source ordering, type-layer filtering, disabled baseline,
+    revision/snapshot tick reporting and rejection of unmarked/future sources: PASS
+
+FIXTURE:
+    reference/fixtures/combat_influence_field_profiles.json
+
+COMMANDS:
+    cmake --preset dev-debug
+    cmake --build --preset dev-debug --target genomes_test_influence_field
+    ctest --preset dev-debug -R '^combat\.influence_field$' --output-on-failure
+
+SCOPE / LIMITATIONS:
+    This staging increment is the backend-neutral CPU semantic reference. It
+    intentionally does not add a GPU shader, tiled source binning, terrain or
+    cover modifiers, or tactical-AI consumption. Those remain follow-up work;
+    callers can disable the field and retain direct/local logic.

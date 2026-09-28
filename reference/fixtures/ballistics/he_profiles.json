@@ -1,0 +1,11 @@
+{
+  "schema": "ballistics-fixtures-1",
+  "case": "he_profiles",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "seed": 4660,
+  "requestedFragmentCounts": [20, 30, 40, 105],
+  "capacity": {"maxProjectiles": 256, "maxFragments": 2048},
+  "selection": "complete_opposite_pairs",
+  "ledger": ["explosiveEnergy", "blastEnergy", "representedMass",
+              "omittedMass", "representedFragmentEnergy", "unrepresentedEnergy"]
+}

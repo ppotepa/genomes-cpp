@@ -1,0 +1,489 @@
+function(genomes_enable_test_assertions target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(${target} PRIVATE -UNDEBUG)
+    endif()
+endfunction()
+
+add_executable(genomes_test_foundation_smoke foundation_smoke.cpp)
+target_link_libraries(genomes_test_foundation_smoke PRIVATE genomes::foundation)
+genomes_set_project_warnings(genomes_test_foundation_smoke)
+genomes_enable_test_assertions(genomes_test_foundation_smoke)
+
+add_test(NAME foundation_smoke COMMAND genomes_test_foundation_smoke)
+
+add_executable(genomes_test_memory_budget
+    stress/memory_budget_tests.cpp)
+target_link_libraries(genomes_test_memory_budget PRIVATE genomes::foundation)
+genomes_set_project_warnings(genomes_test_memory_budget)
+genomes_enable_test_assertions(genomes_test_memory_budget)
+add_test(NAME foundation.memory_budget COMMAND genomes_test_memory_budget)
+
+add_executable(genomes_test_menu_smoke menu_smoke.cpp)
+target_link_libraries(genomes_test_menu_smoke PRIVATE genomes::runtime)
+genomes_set_project_warnings(genomes_test_menu_smoke)
+genomes_enable_test_assertions(genomes_test_menu_smoke)
+
+add_test(NAME menu_smoke COMMAND genomes_test_menu_smoke)
+
+add_executable(genomes_test_unit_lab_smoke unit_lab_smoke.cpp)
+target_link_libraries(genomes_test_unit_lab_smoke PRIVATE genomes::runtime)
+genomes_set_project_warnings(genomes_test_unit_lab_smoke)
+genomes_enable_test_assertions(genomes_test_unit_lab_smoke)
+add_test(NAME runtime.unit_lab_smoke COMMAND genomes_test_unit_lab_smoke)
+
+add_executable(genomes_test_foundation_primitives
+    foundation/primitives_smoke.cpp)
+target_link_libraries(genomes_test_foundation_primitives PRIVATE genomes::foundation)
+genomes_set_project_warnings(genomes_test_foundation_primitives)
+genomes_enable_test_assertions(genomes_test_foundation_primitives)
+add_test(NAME foundation.primitives COMMAND genomes_test_foundation_primitives)
+
+add_executable(genomes_test_atomic_file
+    io/atomic_file_tests.cpp)
+target_link_libraries(genomes_test_atomic_file PRIVATE genomes::io)
+genomes_set_project_warnings(genomes_test_atomic_file)
+genomes_enable_test_assertions(genomes_test_atomic_file)
+add_test(NAME io.atomic_file COMMAND genomes_test_atomic_file)
+
+add_executable(genomes_test_simulation_fixed_step
+    simulation/fixed_step_clock_smoke.cpp)
+target_link_libraries(genomes_test_simulation_fixed_step PRIVATE genomes::simulation)
+genomes_set_project_warnings(genomes_test_simulation_fixed_step)
+genomes_enable_test_assertions(genomes_test_simulation_fixed_step)
+add_test(NAME simulation.fixed_step COMMAND genomes_test_simulation_fixed_step)
+
+add_executable(genomes_test_jobs_smoke
+    jobs/job_system_smoke.cpp)
+target_link_libraries(genomes_test_jobs_smoke PRIVATE genomes::jobs)
+genomes_set_project_warnings(genomes_test_jobs_smoke)
+genomes_enable_test_assertions(genomes_test_jobs_smoke)
+add_test(NAME jobs.core COMMAND genomes_test_jobs_smoke)
+
+add_executable(genomes_test_thread_scaling_gate
+    stress/thread_scaling_smoke.cpp)
+target_link_libraries(genomes_test_thread_scaling_gate PRIVATE
+    genomes::thread_scaling_gate)
+target_compile_definitions(genomes_test_thread_scaling_gate PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_thread_scaling_gate)
+genomes_enable_test_assertions(genomes_test_thread_scaling_gate)
+add_test(NAME stress.thread_scaling_gate COMMAND genomes_test_thread_scaling_gate)
+
+add_executable(genomes_test_proc_seed_stream
+    proc/seed_stream_smoke.cpp)
+target_link_libraries(genomes_test_proc_seed_stream PRIVATE genomes::proc)
+genomes_set_project_warnings(genomes_test_proc_seed_stream)
+genomes_enable_test_assertions(genomes_test_proc_seed_stream)
+add_test(NAME proc.seed_stream COMMAND genomes_test_proc_seed_stream)
+
+add_executable(genomes_test_proc_registry
+    proc/generator_registry_smoke.cpp)
+target_link_libraries(genomes_test_proc_registry PRIVATE genomes::proc)
+genomes_set_project_warnings(genomes_test_proc_registry)
+genomes_enable_test_assertions(genomes_test_proc_registry)
+add_test(NAME proc.registry COMMAND genomes_test_proc_registry)
+
+add_executable(genomes_test_world_coordinates
+    world/world_coordinates_smoke.cpp)
+target_link_libraries(genomes_test_world_coordinates PRIVATE genomes::world)
+genomes_set_project_warnings(genomes_test_world_coordinates)
+genomes_enable_test_assertions(genomes_test_world_coordinates)
+add_test(NAME world.coordinates COMMAND genomes_test_world_coordinates)
+
+add_executable(genomes_test_flow_field
+    navigation/flow_field_tests.cpp)
+target_link_libraries(genomes_test_flow_field PRIVATE genomes::navigation)
+genomes_set_project_warnings(genomes_test_flow_field)
+genomes_enable_test_assertions(genomes_test_flow_field)
+add_test(NAME navigation.flow_field COMMAND genomes_test_flow_field)
+
+add_executable(genomes_test_world_query
+    world/world_query_tests.cpp)
+target_link_libraries(genomes_test_world_query PRIVATE genomes::world)
+genomes_set_project_warnings(genomes_test_world_query)
+genomes_enable_test_assertions(genomes_test_world_query)
+add_test(NAME world.query COMMAND genomes_test_world_query)
+
+add_executable(genomes_test_terrain_model
+    terrain/terrain_model_smoke.cpp)
+target_link_libraries(genomes_test_terrain_model PRIVATE genomes::terrain)
+genomes_set_project_warnings(genomes_test_terrain_model)
+genomes_enable_test_assertions(genomes_test_terrain_model)
+add_test(NAME terrain.model COMMAND genomes_test_terrain_model)
+
+add_executable(genomes_test_render_backend
+    render/render_backend_smoke.cpp)
+target_link_libraries(genomes_test_render_backend PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_render_backend)
+genomes_enable_test_assertions(genomes_test_render_backend)
+add_test(NAME render.backend COMMAND genomes_test_render_backend)
+
+add_executable(genomes_test_skinned_deformer
+    render/skinned_deformer_tests.cpp)
+target_link_libraries(genomes_test_skinned_deformer PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_skinned_deformer)
+genomes_enable_test_assertions(genomes_test_skinned_deformer)
+add_test(NAME render.skinned_deformer COMMAND genomes_test_skinned_deformer)
+
+add_executable(genomes_test_gpu_scene
+    render/gpu_scene_smoke.cpp)
+target_link_libraries(genomes_test_gpu_scene PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_gpu_scene)
+genomes_enable_test_assertions(genomes_test_gpu_scene)
+add_test(NAME render.gpu_scene COMMAND genomes_test_gpu_scene)
+
+add_executable(genomes_test_render_extraction
+    render/render_extraction_smoke.cpp)
+target_link_libraries(genomes_test_render_extraction PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_render_extraction)
+genomes_enable_test_assertions(genomes_test_render_extraction)
+add_test(NAME render.extraction COMMAND genomes_test_render_extraction)
+
+add_executable(genomes_test_render_graph
+    render/render_graph_smoke.cpp)
+target_link_libraries(genomes_test_render_graph PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_render_graph)
+genomes_enable_test_assertions(genomes_test_render_graph)
+add_test(NAME render.graph COMMAND genomes_test_render_graph)
+
+add_executable(genomes_test_render_handles
+    render/render_handles_smoke.cpp)
+target_link_libraries(genomes_test_render_handles PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_render_handles)
+genomes_enable_test_assertions(genomes_test_render_handles)
+add_test(NAME render.handles COMMAND genomes_test_render_handles)
+
+add_executable(genomes_test_shader_assets
+    render/shader_asset_smoke.cpp)
+target_link_libraries(genomes_test_shader_assets PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_shader_assets)
+genomes_enable_test_assertions(genomes_test_shader_assets)
+add_test(NAME render.shader_assets COMMAND genomes_test_shader_assets)
+
+add_executable(genomes_test_field_atlas
+    render/field_atlas_tests.cpp)
+target_link_libraries(genomes_test_field_atlas PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_field_atlas)
+genomes_enable_test_assertions(genomes_test_field_atlas)
+add_test(NAME render.field_atlas COMMAND genomes_test_field_atlas)
+
+add_executable(genomes_test_compute_backend_selector
+    compute/backend_selector_tests.cpp)
+target_link_libraries(genomes_test_compute_backend_selector PRIVATE genomes::compute)
+genomes_set_project_warnings(genomes_test_compute_backend_selector)
+genomes_enable_test_assertions(genomes_test_compute_backend_selector)
+add_test(NAME compute.backend_selector COMMAND genomes_test_compute_backend_selector)
+
+add_executable(genomes_test_compute_cuda_optional
+    compute/cuda_optional_tests.cpp)
+target_link_libraries(genomes_test_compute_cuda_optional PRIVATE genomes::compute_cuda)
+genomes_set_project_warnings(genomes_test_compute_cuda_optional)
+genomes_enable_test_assertions(genomes_test_compute_cuda_optional)
+add_test(NAME compute.cuda_optional COMMAND genomes_test_compute_cuda_optional)
+
+add_executable(genomes_test_compute_cuda_interop
+    compute/cuda_interop_tests.cpp)
+target_link_libraries(genomes_test_compute_cuda_interop PRIVATE genomes::compute_cuda)
+genomes_set_project_warnings(genomes_test_compute_cuda_interop)
+genomes_enable_test_assertions(genomes_test_compute_cuda_interop)
+add_test(NAME compute.cuda_interop COMMAND genomes_test_compute_cuda_interop)
+
+add_executable(genomes_test_destruction_materials
+    destruction/material_solid_tests.cpp)
+target_link_libraries(genomes_test_destruction_materials PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_materials)
+genomes_enable_test_assertions(genomes_test_destruction_materials)
+add_test(NAME destruction.materials COMMAND genomes_test_destruction_materials)
+
+add_executable(genomes_test_destruction_impact
+    destruction/impact_solver_tests.cpp)
+target_link_libraries(genomes_test_destruction_impact PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_impact)
+genomes_enable_test_assertions(genomes_test_destruction_impact)
+add_test(NAME destruction.impact COMMAND genomes_test_destruction_impact)
+
+add_executable(genomes_test_destruction_damage_field
+    destruction/damage_field_tests.cpp)
+target_link_libraries(genomes_test_destruction_damage_field PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_damage_field)
+genomes_enable_test_assertions(genomes_test_destruction_damage_field)
+add_test(NAME destruction.damage_field COMMAND genomes_test_destruction_damage_field)
+
+add_executable(genomes_test_destruction_structural_graph
+    destruction/structural_graph_tests.cpp)
+target_link_libraries(genomes_test_destruction_structural_graph PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_structural_graph)
+genomes_enable_test_assertions(genomes_test_destruction_structural_graph)
+add_test(NAME destruction.structural_graph COMMAND genomes_test_destruction_structural_graph)
+
+add_executable(genomes_test_destruction_debris
+    destruction/debris_lifecycle_tests.cpp)
+target_link_libraries(genomes_test_destruction_debris PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_debris)
+genomes_enable_test_assertions(genomes_test_destruction_debris)
+add_test(NAME destruction.debris COMMAND genomes_test_destruction_debris)
+
+add_executable(genomes_test_destruction_rubble_field
+    destruction/rubble_field_tests.cpp)
+target_link_libraries(genomes_test_destruction_rubble_field PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_rubble_field)
+genomes_enable_test_assertions(genomes_test_destruction_rubble_field)
+add_test(NAME destruction.rubble_field COMMAND genomes_test_destruction_rubble_field)
+
+add_executable(genomes_test_destruction_physics
+    destruction/destruction_physics_tests.cpp)
+target_link_libraries(genomes_test_destruction_physics PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_physics)
+genomes_enable_test_assertions(genomes_test_destruction_physics)
+add_test(NAME destruction.physics COMMAND genomes_test_destruction_physics)
+
+add_executable(genomes_test_destruction_invalidation
+    destruction/destruction_invalidation_tests.cpp)
+target_link_libraries(genomes_test_destruction_invalidation PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_invalidation)
+genomes_enable_test_assertions(genomes_test_destruction_invalidation)
+add_test(NAME destruction.invalidation COMMAND genomes_test_destruction_invalidation)
+
+add_executable(genomes_test_destruction_validation
+    validation/destruction_validation_tests.cpp)
+target_link_libraries(genomes_test_destruction_validation PRIVATE genomes::destruction)
+genomes_set_project_warnings(genomes_test_destruction_validation)
+genomes_enable_test_assertions(genomes_test_destruction_validation)
+add_test(NAME destruction.validation COMMAND genomes_test_destruction_validation)
+
+add_executable(genomes_test_ballistics_projectile_state
+    ballistics_projectile_state_tests.cpp)
+target_link_libraries(genomes_test_ballistics_projectile_state PRIVATE genomes::ballistics)
+genomes_set_project_warnings(genomes_test_ballistics_projectile_state)
+genomes_enable_test_assertions(genomes_test_ballistics_projectile_state)
+add_test(NAME ballistics.projectile_state COMMAND genomes_test_ballistics_projectile_state)
+
+add_executable(genomes_test_ballistics_flight
+    ballistics_flight_tests.cpp)
+target_link_libraries(genomes_test_ballistics_flight PRIVATE genomes::ballistics)
+genomes_set_project_warnings(genomes_test_ballistics_flight)
+genomes_enable_test_assertions(genomes_test_ballistics_flight)
+add_test(NAME ballistics.flight COMMAND genomes_test_ballistics_flight)
+
+add_executable(genomes_test_ballistics_contact
+    ballistics_contact_resolution_tests.cpp)
+target_link_libraries(genomes_test_ballistics_contact PRIVATE genomes::ballistics)
+genomes_set_project_warnings(genomes_test_ballistics_contact)
+genomes_enable_test_assertions(genomes_test_ballistics_contact)
+add_test(NAME ballistics.contact COMMAND genomes_test_ballistics_contact)
+
+add_executable(genomes_test_ballistics_he_fragmentation
+    ballistics_he_fragmentation_tests.cpp)
+target_link_libraries(genomes_test_ballistics_he_fragmentation PRIVATE genomes::ballistics)
+genomes_set_project_warnings(genomes_test_ballistics_he_fragmentation)
+genomes_enable_test_assertions(genomes_test_ballistics_he_fragmentation)
+add_test(NAME ballistics.he_fragmentation COMMAND genomes_test_ballistics_he_fragmentation)
+
+add_executable(genomes_test_ballistics_batch_parity
+    ballistics_batch_parity_tests.cpp)
+target_link_libraries(genomes_test_ballistics_batch_parity PRIVATE genomes::ballistics)
+genomes_set_project_warnings(genomes_test_ballistics_batch_parity)
+genomes_enable_test_assertions(genomes_test_ballistics_batch_parity)
+add_test(NAME ballistics.batch_parity COMMAND genomes_test_ballistics_batch_parity)
+
+add_executable(genomes_test_ballistics_validation
+    validation/ballistics_validation_tests.cpp)
+target_link_libraries(genomes_test_ballistics_validation PRIVATE genomes::ballistics)
+target_compile_definitions(genomes_test_ballistics_validation PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_ballistics_validation)
+genomes_enable_test_assertions(genomes_test_ballistics_validation)
+add_test(NAME ballistics.validation COMMAND genomes_test_ballistics_validation)
+
+add_executable(genomes_test_weapon_catalog_geometry
+    weapon_catalog_geometry_tests.cpp)
+target_link_libraries(genomes_test_weapon_catalog_geometry PRIVATE genomes::weapons)
+genomes_set_project_warnings(genomes_test_weapon_catalog_geometry)
+genomes_enable_test_assertions(genomes_test_weapon_catalog_geometry)
+add_test(NAME weapons.catalog_geometry COMMAND genomes_test_weapon_catalog_geometry)
+
+add_executable(genomes_test_weapon_handling
+    weapon_handling_tests.cpp)
+target_link_libraries(genomes_test_weapon_handling PRIVATE genomes::weapons)
+genomes_set_project_warnings(genomes_test_weapon_handling)
+genomes_enable_test_assertions(genomes_test_weapon_handling)
+add_test(NAME weapons.handling COMMAND genomes_test_weapon_handling)
+
+add_executable(genomes_test_combat_command_flow
+    combat_command_flow_tests.cpp)
+target_link_libraries(genomes_test_combat_command_flow PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_combat_command_flow)
+genomes_enable_test_assertions(genomes_test_combat_command_flow)
+add_test(NAME combat.command_flow COMMAND genomes_test_combat_command_flow)
+
+add_executable(genomes_test_perception_broadphase
+    perception_broadphase_tests.cpp)
+target_link_libraries(genomes_test_perception_broadphase PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_perception_broadphase)
+genomes_enable_test_assertions(genomes_test_perception_broadphase)
+add_test(NAME combat.perception_broadphase COMMAND genomes_test_perception_broadphase)
+
+add_executable(genomes_test_los_batch
+    los_batch_tests.cpp)
+target_link_libraries(genomes_test_los_batch PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_los_batch)
+genomes_enable_test_assertions(genomes_test_los_batch)
+add_test(NAME combat.los_batch COMMAND genomes_test_los_batch)
+
+add_executable(genomes_test_visibility_batch
+    visibility_batch_tests.cpp)
+target_link_libraries(genomes_test_visibility_batch PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_visibility_batch)
+genomes_enable_test_assertions(genomes_test_visibility_batch)
+add_test(NAME combat.visibility_batch COMMAND genomes_test_visibility_batch)
+
+add_executable(genomes_test_tactical_ai
+    tactical_ai_tests.cpp)
+target_link_libraries(genomes_test_tactical_ai PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_tactical_ai)
+genomes_enable_test_assertions(genomes_test_tactical_ai)
+add_test(NAME combat.tactical_ai COMMAND genomes_test_tactical_ai)
+
+add_executable(genomes_test_squad_signal
+    squad_signal_tests.cpp)
+target_link_libraries(genomes_test_squad_signal PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_squad_signal)
+genomes_enable_test_assertions(genomes_test_squad_signal)
+add_test(NAME combat.squad_signal COMMAND genomes_test_squad_signal)
+
+add_executable(genomes_test_ai_parallel
+    ai_parallel_tests.cpp)
+target_link_libraries(genomes_test_ai_parallel PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_ai_parallel)
+genomes_enable_test_assertions(genomes_test_ai_parallel)
+add_test(NAME combat.ai_parallel COMMAND genomes_test_ai_parallel)
+
+add_executable(genomes_test_influence_field
+    influence_field_tests.cpp)
+target_link_libraries(genomes_test_influence_field PRIVATE genomes::combat)
+genomes_set_project_warnings(genomes_test_influence_field)
+genomes_enable_test_assertions(genomes_test_influence_field)
+add_test(NAME combat.influence_field COMMAND genomes_test_influence_field)
+
+add_executable(genomes_test_native_world_assembly
+    native_world_assembly_tests.cpp)
+target_link_libraries(genomes_test_native_world_assembly PRIVATE genomes::gameplay)
+genomes_set_project_warnings(genomes_test_native_world_assembly)
+genomes_enable_test_assertions(genomes_test_native_world_assembly)
+add_test(NAME integration.native_world_assembly COMMAND genomes_test_native_world_assembly)
+
+add_executable(genomes_test_world_parity
+    world_parity_tests.cpp)
+target_link_libraries(genomes_test_world_parity PRIVATE genomes::gameplay)
+genomes_set_project_warnings(genomes_test_world_parity)
+genomes_enable_test_assertions(genomes_test_world_parity)
+add_test(NAME integration.world_parity COMMAND genomes_test_world_parity)
+
+add_executable(genomes_test_world_streaming
+    world_streaming_tests.cpp)
+target_link_libraries(genomes_test_world_streaming PRIVATE genomes::world)
+genomes_set_project_warnings(genomes_test_world_streaming)
+genomes_enable_test_assertions(genomes_test_world_streaming)
+add_test(NAME integration.world_streaming COMMAND genomes_test_world_streaming)
+
+add_executable(genomes_test_world_save
+    world_save_tests.cpp)
+target_link_libraries(genomes_test_world_save PRIVATE genomes::world)
+genomes_set_project_warnings(genomes_test_world_save)
+genomes_enable_test_assertions(genomes_test_world_save)
+add_test(NAME integration.world_save COMMAND genomes_test_world_save)
+
+add_executable(genomes_test_proc_viewer
+    proc_viewer_smoke_tests.cpp)
+target_link_libraries(genomes_test_proc_viewer PRIVATE genomes::proc_viewer_core)
+genomes_set_project_warnings(genomes_test_proc_viewer)
+genomes_enable_test_assertions(genomes_test_proc_viewer)
+add_test(NAME tools.proc_viewer COMMAND genomes_test_proc_viewer)
+
+add_executable(genomes_test_full_presentation
+    full_presentation_smoke_tests.cpp)
+target_link_libraries(genomes_test_full_presentation PRIVATE genomes::render_core)
+genomes_set_project_warnings(genomes_test_full_presentation)
+genomes_enable_test_assertions(genomes_test_full_presentation)
+add_test(NAME render.full_presentation COMMAND genomes_test_full_presentation)
+
+if(GENOMES_ENABLE_INFANTRY)
+    add_executable(genomes_test_infantry_boundary
+        infantry_boundary_tests.cpp)
+    target_link_libraries(genomes_test_infantry_boundary PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_boundary)
+    genomes_enable_test_assertions(genomes_test_infantry_boundary)
+    add_test(NAME infantry.boundary COMMAND genomes_test_infantry_boundary)
+
+    add_executable(genomes_test_infantry_genome_phenotype
+        infantry_genome_phenotype_tests.cpp)
+    target_link_libraries(genomes_test_infantry_genome_phenotype PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_genome_phenotype)
+    genomes_enable_test_assertions(genomes_test_infantry_genome_phenotype)
+    add_test(NAME infantry.genome_phenotype COMMAND genomes_test_infantry_genome_phenotype)
+
+    add_executable(genomes_test_infantry_rig
+        infantry_rig_tests.cpp)
+    target_link_libraries(genomes_test_infantry_rig PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_rig)
+    genomes_enable_test_assertions(genomes_test_infantry_rig)
+    add_test(NAME infantry.rig COMMAND genomes_test_infantry_rig)
+
+    add_executable(genomes_test_infantry_appearance
+        infantry_appearance_tests.cpp)
+    target_link_libraries(genomes_test_infantry_appearance PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_appearance)
+    genomes_enable_test_assertions(genomes_test_infantry_appearance)
+    add_test(NAME infantry.appearance COMMAND genomes_test_infantry_appearance)
+
+    add_executable(genomes_test_infantry_equipment
+        infantry_equipment_tests.cpp)
+    target_link_libraries(genomes_test_infantry_equipment PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_equipment)
+    genomes_enable_test_assertions(genomes_test_infantry_equipment)
+    add_test(NAME infantry.equipment COMMAND genomes_test_infantry_equipment)
+
+    add_executable(genomes_test_infantry_locomotion
+        infantry_locomotion_posture_tests.cpp)
+    target_link_libraries(genomes_test_infantry_locomotion PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_locomotion)
+    genomes_enable_test_assertions(genomes_test_infantry_locomotion)
+    add_test(NAME infantry.locomotion COMMAND genomes_test_infantry_locomotion)
+
+    add_executable(genomes_test_infantry_ik
+        infantry_ik_ground_contact_tests.cpp)
+    target_link_libraries(genomes_test_infantry_ik PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_ik)
+    genomes_enable_test_assertions(genomes_test_infantry_ik)
+    add_test(NAME infantry.ik_ground_contact COMMAND genomes_test_infantry_ik)
+
+    add_executable(genomes_test_infantry_face
+        infantry_face_animation_tests.cpp)
+    target_link_libraries(genomes_test_infantry_face PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_face)
+    genomes_enable_test_assertions(genomes_test_infantry_face)
+    add_test(NAME infantry.face_animation COMMAND genomes_test_infantry_face)
+
+    add_executable(genomes_test_infantry_animation_parallel
+        infantry_animation_parallel_tests.cpp)
+    target_link_libraries(genomes_test_infantry_animation_parallel PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_animation_parallel)
+    genomes_enable_test_assertions(genomes_test_infantry_animation_parallel)
+    add_test(NAME infantry.animation_parallel COMMAND genomes_test_infantry_animation_parallel)
+
+    add_executable(genomes_test_infantry_damage_ragdoll
+        infantry_damage_ragdoll_tests.cpp)
+    target_link_libraries(genomes_test_infantry_damage_ragdoll PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_damage_ragdoll)
+    genomes_enable_test_assertions(genomes_test_infantry_damage_ragdoll)
+    add_test(NAME infantry.damage_ragdoll COMMAND genomes_test_infantry_damage_ragdoll)
+
+    add_executable(genomes_test_infantry_reference_parity
+        infantry_reference_parity_tests.cpp)
+    target_link_libraries(genomes_test_infantry_reference_parity PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_reference_parity)
+    genomes_enable_test_assertions(genomes_test_infantry_reference_parity)
+    add_test(NAME infantry.reference_parity COMMAND genomes_test_infantry_reference_parity)
+endif()

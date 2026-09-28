@@ -1,0 +1,26 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.1 NATIVE_WORLD_ASSEMBLY
+
+IMPLEMENTATION:
+    modules/gameplay/include/genomes/gameplay/WorldScenario.hpp
+    modules/gameplay/src/WorldScenario.cpp
+    apps/game/GameApplication.hpp
+    apps/game/GameApplication.cpp
+    engine/world/include/genomes/world/WorldGenerationTask.hpp
+
+VALIDATION:
+    integration.native_world_assembly: PASS
+    headless generation, active-plan commit, invalid-request rollback and
+    pending-candidate discard: PASS
+
+GRAPHICAL COMPOSITION:
+    GameApplication is an explicit composition root for SDL, Diligent,
+    JobSystem, SceneDirector and fixed-step presentation. The default
+    dev-debug preset keeps SDL/Diligent disabled; the graphical profile is
+    compiled separately when those dependencies are enabled.
+
+FIXTURE:
+    reference/fixtures/world/native_world_assembly.json

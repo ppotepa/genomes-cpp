@@ -1,0 +1,21 @@
+{
+  "domain": "compute.cuda_backend_spike",
+  "version": 1,
+  "feature": "GENOMES_ENABLE_CUDA",
+  "modes": ["AUTO", "OFF", "ON"],
+  "workloads": [4096, 65536, 1048576],
+  "semantics": {
+    "operation": "byte_field_fill",
+    "cpu_authority": true,
+    "cuda_transfer_included": true,
+    "cuda_synchronization_included": true,
+    "fallback": "cpu_or_diligent"
+  },
+  "observed_environment": {
+    "cuda_toolkit": "not_recorded",
+    "nvidia_device": false,
+    "cuda_timings_us": null,
+    "crossover_elements": null
+  },
+  "decision": "CUDA infrastructure passes; production fast-path selection remains disabled until a device benchmark is captured."
+}

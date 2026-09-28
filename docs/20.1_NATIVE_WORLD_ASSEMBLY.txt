@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 20.1 - NATIVE_WORLD_ASSEMBLY
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -214,12 +214,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] composition root
-    [ ] transactional START NEW
-    [ ] headless/graphical shared semantics
-    [ ] all modules integrate
-    [ ] rollback/cancel
-    [ ] integration tests
+    [x] composition root
+    [x] transactional START NEW
+    [x] headless/graphical shared semantics
+    [x] all modules integrate
+    [x] rollback/cancel
+    [x] integration tests
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -233,12 +233,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] composition root
-    [ ] transactional START NEW
-    [ ] headless/graphical shared semantics
-    [ ] all modules integrate
-    [ ] rollback/cancel
-    [ ] integration tests
+    [x] composition root
+    [x] transactional START NEW
+    [x] headless/graphical shared semantics
+    [x] all modules integrate
+    [x] rollback/cancel
+    [x] integration tests
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

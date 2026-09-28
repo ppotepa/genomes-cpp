@@ -1,0 +1,700 @@
+#include <genomes/runtime/BattlefieldScene.hpp>
+
+#include <genomes/foundation/StableHash.hpp>
+#include <genomes/proc/SeedPath.hpp>
+#include <genomes/terrain/TerrainGenerator.hpp>
+#include <genomes/world_render/WorldMeshCompiler.hpp>
+#include <genomes/infantry/EquipmentCatalog.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <utility>
+
+namespace genomes::runtime {
+
+namespace {
+
+[[nodiscard]] float sample_ground(void* context, float x, float z) noexcept {
+    if (context == nullptr) {
+        return 0.0F;
+    }
+    const auto* height_field = static_cast<const terrain::HeightField*>(context);
+    return height_field->sampleBilinear(x, z);
+}
+
+[[nodiscard]] const char* kind_name(world::WorldFeatureKind kind) noexcept {
+    switch (kind) {
+    case world::WorldFeatureKind::TerrainPatch:
+        return "terrain";
+    case world::WorldFeatureKind::Road:
+        return "road";
+    case world::WorldFeatureKind::Parcel:
+        return "parcel";
+    case world::WorldFeatureKind::Building:
+        return "building";
+    case world::WorldFeatureKind::Vegetation:
+        return "vegetation";
+    case world::WorldFeatureKind::Fence:
+        return "fence";
+    }
+    return "unknown";
+}
+
+[[nodiscard]] foundation::StableId mesh_id(world::WorldFeatureKind kind) noexcept {
+    return foundation::stable_id(std::string("mesh.world.") + kind_name(kind));
+}
+
+[[nodiscard]] foundation::StableId material_id(world::WorldFeatureKind kind) noexcept {
+    return foundation::stable_id(std::string("material.world.") + kind_name(kind));
+}
+
+[[nodiscard]] std::string feature_summary(const world::WorldPlan& plan) {
+    return "Features: " + std::to_string(plan.features.size()) + "  Roads: " +
+           std::to_string(plan.count(world::WorldFeatureKind::Road)) + "  Buildings: " +
+           std::to_string(plan.count(world::WorldFeatureKind::Building)) + "  Vegetation: " +
+           std::to_string(plan.count(world::WorldFeatureKind::Vegetation)) + "  Parcels: " +
+           std::to_string(plan.city.parcels.size()) + "  Rivers: " +
+           std::to_string(plan.hydrology.rivers.size());
+}
+
+#if GENOMES_HAS_INFANTRY
+void build_infantry_prototype(render::RenderMesh& mesh,
+                              const infantry::InfantryModelArtifact& model) {
+    if (!mesh.vertices.empty() || !mesh.indices.empty()) {
+        return;
+    }
+    mesh.mesh_id = foundation::stable_id("mesh.infantry.unit");
+    mesh.revision = model.cache_key;
+    const auto append = [&mesh](const infantry::AppearanceMesh& source) {
+        const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
+        for (const auto& vertex : source.vertices) {
+            mesh.vertices.push_back({vertex.position, vertex.normal, vertex.uv, vertex.color});
+        }
+        for (const auto index : source.indices) {
+            mesh.indices.push_back(base + index);
+        }
+    };
+    append(model.appearance.body);
+    append(model.appearance.hair);
+    if (!mesh.vertices.empty()) {
+        return;
+    }
+    constexpr foundation::Vec3 corners[] = {
+        {-0.5F, -0.5F, -0.5F}, {0.5F, -0.5F, -0.5F},
+        {0.5F, 0.5F, -0.5F},   {-0.5F, 0.5F, -0.5F},
+        {-0.5F, -0.5F, 0.5F},  {0.5F, -0.5F, 0.5F},
+        {0.5F, 0.5F, 0.5F},    {-0.5F, 0.5F, 0.5F},
+    };
+    constexpr std::uint32_t faces[][4] = {
+        {0, 1, 2, 3}, {5, 4, 7, 6}, {4, 0, 3, 7},
+        {1, 5, 6, 2}, {3, 2, 6, 7}, {4, 5, 1, 0}};
+    constexpr foundation::Vec3 normals[] = {
+        {0.0F, 0.0F, -1.0F}, {0.0F, 0.0F, 1.0F}, {-1.0F, 0.0F, 0.0F},
+        {1.0F, 0.0F, 0.0F},  {0.0F, 1.0F, 0.0F},  {0.0F, -1.0F, 0.0F}};
+    constexpr foundation::Vec2 uv[] = {
+        {0.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 1.0F}, {0.0F, 1.0F}};
+    mesh.vertices.reserve(24);
+    mesh.indices.reserve(36);
+    for (std::size_t face = 0; face < 6; ++face) {
+        const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
+        for (std::size_t corner = 0; corner < 4; ++corner) {
+            mesh.vertices.push_back(
+                {corners[faces[face][corner]], normals[face], uv[corner],
+                 {1.0F, 1.0F, 1.0F, 1.0F}});
+        }
+        mesh.indices.insert(mesh.indices.end(),
+                             {base, base + 1, base + 2, base, base + 2, base + 3});
+    }
+}
+#endif
+
+} // namespace
+
+foundation::SceneId BattlefieldScene::id() const noexcept {
+    return foundation::scene_id("scene.battlefield");
+}
+
+void BattlefieldScene::on_enter(SceneContext& context) {
+    jobs_ = context.jobs;
+    if (context.world_config != nullptr) {
+        config_ = *context.world_config;
+    }
+    elapsed_seconds_ = 0.0;
+    generation_error_.clear();
+    plan_.reset();
+    scenario_.reset();
+#if GENOMES_HAS_INFANTRY
+    viability_scenario_.reset();
+    auto viability = gameplay::startBattlefieldScenario(
+        {.seed = config_.seed == 0U ? 0xC0FFEEU : config_.seed,
+         .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
+         .max_ticks = 240U},
+        jobs_);
+    if (viability) {
+        viability_scenario_ = std::move(viability.value());
+    } else {
+        generation_error_ = std::string(viability.error().message);
+    }
+#endif
+    terrain_.reset();
+    terrain_mesh_.reset();
+    render_terrain_mesh_.reset();
+    render_world_mesh_.reset();
+    render_infantry_mesh_.reset();
+    infantry_model_artifact_.reset();
+    infantry::InfantryModelRequest model_request{};
+    model_request.seed = config_.seed == 0U ? 0xC0FFEEU : config_.seed;
+    model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
+    if (auto model = infantry_model_compiler_.compile(model_request); model) {
+        infantry_model_artifact_ = std::move(model.value());
+    }
+    render_camera_ = {};
+    terrain_min_height_ = 0.0F;
+    terrain_max_height_ = 0.0F;
+    entities_.clear();
+    physics_ = physics::SimplePhysicsWorld{};
+#if GENOMES_HAS_INFANTRY
+    infantry_.reset();
+#endif
+    combat_.reset();
+    navigation_.reset();
+    damage_buffer_.clear();
+    command_buffers_.reset(0);
+    simulation_tick_ = {};
+    configure_simulation_graph();
+
+    if (context.jobs != nullptr) {
+        scenario_ = std::make_unique<gameplay::WorldScenario>(*context.jobs);
+        const auto requested = scenario_->requestNew(config_);
+        if (!requested) {
+            generation_error_ = std::string(requested.error().message);
+        }
+    } else {
+        const auto generated = world::WorldGenerator::generate(config_);
+        if (generated) {
+            finalize_plan(std::move(generated.value()));
+        } else {
+            generation_error_ = std::string(generated.error().message);
+        }
+    }
+    context.ui.clear();
+}
+
+void BattlefieldScene::on_exit(SceneContext&) {
+    plan_.reset();
+    terrain_.reset();
+    terrain_mesh_.reset();
+    render_terrain_mesh_.reset();
+    render_world_mesh_.reset();
+    render_infantry_mesh_.reset();
+    render_camera_ = {};
+#if GENOMES_HAS_INFANTRY
+    infantry_.reset();
+#endif
+    combat_.reset();
+    navigation_.reset();
+    damage_buffer_.clear();
+    simulation_graph_.clear();
+    command_buffers_.reset(0);
+    physics_ = physics::SimplePhysicsWorld{};
+    entities_.clear();
+    region_streamer_.reset();
+    scenario_.reset();
+#if GENOMES_HAS_INFANTRY
+    viability_scenario_.reset();
+#endif
+    jobs_ = nullptr;
+}
+
+void BattlefieldScene::handle_input(SceneContext& context, const input::InputFrame& input) {
+    if (input.cancel_pressed || input.confirm_pressed) {
+        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+    }
+}
+
+void BattlefieldScene::fixed_update(SceneContext&, double dt) {
+    elapsed_seconds_ += dt;
+    simulation_tick_.increment();
+#if !GENOMES_HAS_INFANTRY
+    (void)dt;
+    return;
+#else
+    if (viability_scenario_ != nullptr && !viability_scenario_->complete()) {
+        viability_scenario_->fixedUpdate(dt);
+    }
+    if (!infantry_) {
+        return;
+    }
+
+    if (simulation_graph_.compiled()) {
+        const auto result = simulation_graph_.run(simulation_tick_, dt, jobs_, &command_buffers_);
+        if (!result) {
+            generation_error_ = "Simulation graph failed: " +
+                                 std::string(result.error().message);
+            command_buffers_.reset(0);
+        } else {
+            const auto committed = simulation::CommandCommitter{}.commit(
+                entities_.ecs(), command_buffers_.buffers());
+            if (!committed) {
+                generation_error_ = "Simulation command commit failed: " +
+                                     std::string(committed.error().message);
+            }
+        }
+    } else {
+        // Keep a safe fallback for a partially constructed scene. Once the
+        // graph is compiled all authoritative updates go through its phases.
+        infantry_->fixedUpdate(dt, simulation_tick_);
+        if (combat_) {
+            infantry_->emitCombatEvents(simulation_tick_, damage_buffer_);
+            const combat::CombatApplyResult combat_result = combat_->apply(damage_buffer_);
+            (void)combat_result;
+        }
+    }
+#endif
+}
+
+void BattlefieldScene::configure_simulation_graph() {
+    simulation_graph_.clear();
+
+#if !GENOMES_HAS_INFANTRY
+    return;
+#else
+
+    const auto add_system = [this](simulation::SystemDescriptor descriptor) {
+        const auto result = simulation_graph_.add(std::move(descriptor));
+        if (!result) {
+            generation_error_ = "Simulation graph setup failed: " +
+                                 std::string(result.error().message);
+            return false;
+        }
+        return true;
+    };
+
+    constexpr simulation::CadencePolicy every_tick{simulation::CadenceKind::EveryTick};
+
+    simulation::SystemDescriptor infantry_update{};
+    infantry_update.id = foundation::stable_id("system.infantry.update");
+    infantry_update.phase = simulation::SystemPhase::MoveIntent;
+    infantry_update.access.reads = {
+        foundation::stable_id("component.entity.health"),
+        foundation::stable_id("resource.navigation"),
+    };
+    infantry_update.access.writes = {
+        foundation::stable_id("component.entity.position"),
+        foundation::stable_id("component.entity.velocity"),
+        foundation::stable_id("resource.physics.commands"),
+        foundation::stable_id("resource.infantry.state"),
+    };
+    infantry_update.cadence = every_tick;
+    infantry_update.callback = [this](simulation::SystemContext& context) {
+        if (infantry_) {
+            infantry_->fixedUpdate(context.fixed_dt, context.tick);
+        }
+    };
+    if (!add_system(std::move(infantry_update))) {
+        return;
+    }
+
+    simulation::SystemDescriptor emit_events{};
+    emit_events.id = foundation::stable_id("system.combat.emit-events");
+    emit_events.phase = simulation::SystemPhase::CombatBallistics;
+    emit_events.access.reads = {
+        foundation::stable_id("component.entity.position"),
+        foundation::stable_id("resource.infantry.state"),
+    };
+    emit_events.access.writes = {foundation::stable_id("resource.combat.events")};
+    emit_events.cadence = every_tick;
+    emit_events.callback = [this](simulation::SystemContext& context) {
+        if (infantry_) {
+            infantry_->emitCombatEvents(context.tick, damage_buffer_);
+        }
+    };
+    if (!add_system(std::move(emit_events))) {
+        return;
+    }
+
+    simulation::SystemDescriptor apply_damage{};
+    apply_damage.id = foundation::stable_id("system.combat.apply-damage");
+    apply_damage.phase = simulation::SystemPhase::DamageDestruction;
+    apply_damage.access.reads = {foundation::stable_id("resource.combat.events")};
+    apply_damage.access.writes = {
+        foundation::stable_id("component.entity.health"),
+        foundation::stable_id("component.entity.flags"),
+    };
+    apply_damage.cadence = every_tick;
+    apply_damage.callback = [this](simulation::SystemContext&) {
+        if (combat_) {
+            const combat::CombatApplyResult combat_result = combat_->apply(damage_buffer_);
+            (void)combat_result;
+        } else {
+            damage_buffer_.clear();
+        }
+    };
+    if (!add_system(std::move(apply_damage))) {
+        return;
+    }
+
+    const auto compiled = simulation_graph_.compile();
+    if (!compiled) {
+        generation_error_ = "Simulation graph compile failed: " +
+                            std::string(compiled.error().message);
+    }
+#endif
+}
+
+void BattlefieldScene::frame_update(SceneContext& context, double) {
+    if (scenario_) {
+        const auto generated = scenario_->poll();
+        if (!generated) {
+            generation_error_ = std::string(generated.error().message);
+        } else if (!plan_ && generated.value()) {
+            if (const gameplay::WorldScenarioArtifact* artifact = scenario_->activeArtifact();
+                artifact != nullptr) {
+                finalize_plan(artifact->plan);
+            }
+        }
+    } else if (!plan_ && region_streamer_) {
+        region_streamer_->poll();
+        auto ready_regions = region_streamer_->take_ready();
+        if (!ready_regions.empty()) {
+            finalize_plan(std::move(ready_regions.front().plan));
+        }
+    }
+
+    context.ui.clear();
+    context.ui.add({foundation::stable_id("battlefield.panel"), ui::UiNodeType::Panel,
+                    "BATTLEFIELD", true, false, 560.0F, 620.0F});
+    context.ui.add({foundation::stable_id("battlefield.description"), ui::UiNodeType::Label,
+                    "Procedural world plan", true, false, 0.0F, 0.0F});
+
+    if (plan_) {
+        context.ui.add({foundation::stable_id("battlefield.seed"), ui::UiNodeType::Label,
+                        "Seed: " + std::to_string(plan_->seed), true, false, 0.0F, 0.0F});
+        context.ui.add({foundation::stable_id("battlefield.size"), ui::UiNodeType::Label,
+                        "Map: " + std::to_string(plan_->map_size_m) + " x " +
+                            std::to_string(plan_->map_size_m) + " m",
+                        true, false, 0.0F, 0.0F});
+        context.ui.add({foundation::stable_id("battlefield.features"), ui::UiNodeType::Label,
+                        feature_summary(*plan_), true, false, 0.0F, 0.0F});
+#if GENOMES_HAS_INFANTRY
+        const std::size_t infantry_count = infantry_ ? infantry_->activeCount() : 0U;
+#else
+        constexpr std::size_t infantry_count = 0U;
+#endif
+        context.ui.add({foundation::stable_id("battlefield.units"), ui::UiNodeType::Label,
+                        "Infantry: " +
+                            std::to_string(infantry_count),
+                        true, false, 0.0F, 0.0F});
+#if GENOMES_HAS_INFANTRY
+        if (viability_scenario_ != nullptr) {
+            const auto& viability = viability_scenario_->snapshot();
+            context.ui.add({foundation::stable_id("battlefield.viability"), ui::UiNodeType::Label,
+                            "Combat slice: tick " + std::to_string(viability.tick) +
+                                "  fire " + std::to_string(viability.fired) +
+                                "  impact " + std::to_string(viability.impacts) +
+                                "  deaths " + std::to_string(viability.deaths),
+                            true, false, 0.0F, 0.0F});
+        }
+#endif
+        context.ui.add({foundation::stable_id("battlefield.terrain"), ui::UiNodeType::Label,
+                        "Terrain: " + std::to_string(terrain_->width()) + " x " +
+                            std::to_string(terrain_->height()) + " samples",
+                        true, false, 0.0F, 0.0F});
+        context.ui.add({foundation::stable_id("battlefield.mesh"), ui::UiNodeType::Label,
+                        "Mesh: " + std::to_string(terrain_mesh_->vertices.size()) +
+                            " vertices / " + std::to_string(terrain_mesh_->triangle_count()) +
+                            " triangles",
+                        true, false, 0.0F, 0.0F});
+        context.ui.add({foundation::stable_id("battlefield.elevation"), ui::UiNodeType::Label,
+                        "Elevation: " + std::to_string(terrain_min_height_) + " .. " +
+                            std::to_string(terrain_max_height_) + " m",
+                        true, false, 0.0F, 0.0F});
+        context.ui.add({foundation::stable_id("battlefield.hash"), ui::UiNodeType::Label,
+                        "Plan hash: " + std::to_string(plan_->content_hash), true, false, 0.0F,
+                        0.0F});
+        context.ui.add({foundation::stable_id("battlefield.status"), ui::UiNodeType::Label,
+                        "World plan ready for terrain, navigation and rendering.", true, false,
+                        0.0F, 0.0F});
+    } else if (scenario_ && scenario_->status().generation_pending) {
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+                        "Generating world on worker threads...", true, false, 0.0F, 0.0F});
+    } else if (scenario_ && scenario_->status().streaming_pending > 0U) {
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+                        "Streaming adjacent world region...", true, false, 0.0F, 0.0F});
+    } else if (region_streamer_ && region_streamer_->pending_count() > 0) {
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+                        "Generating world on worker threads...", true, false, 0.0F, 0.0F});
+    } else if (region_streamer_ && region_streamer_->failed()) {
+        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiNodeType::Label,
+                        "World generation failed: " +
+                            std::string(region_streamer_->error().message),
+                        true, false, 0.0F, 0.0F});
+    } else {
+        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiNodeType::Label,
+                        "World generation failed: " + generation_error_, true, false, 0.0F,
+                        0.0F});
+    }
+
+    context.ui.add({foundation::stable_id("battlefield.back"), ui::UiNodeType::Button,
+                    "Return to main menu", true, true, 600.0F, 48.0F});
+}
+
+void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
+    plan_ = std::move(plan);
+    terrain_.reset();
+    terrain_mesh_.reset();
+    render_terrain_mesh_.reset();
+    render_world_mesh_.reset();
+    render_infantry_mesh_.reset();
+    render_camera_ = {};
+    const gameplay::WorldScenarioArtifact* shared_artifact =
+        scenario_ != nullptr ? scenario_->activeArtifact() : nullptr;
+    if (shared_artifact != nullptr && shared_artifact->plan.content_hash == plan_->content_hash &&
+        shared_artifact->terrain.has_value() && shared_artifact->terrain_mesh.has_value()) {
+        terrain_ = shared_artifact->terrain;
+        terrain_mesh_ = shared_artifact->terrain_mesh;
+    } else {
+        terrain::TerrainSpec terrain_spec{};
+        terrain_spec.world_id = world::WorldId(foundation::stableHashU64(config_.seed));
+        terrain_spec.region = {0, 0, 0};
+        terrain_spec.coordinates.region_size_m = static_cast<double>(config_.map_size_m);
+        terrain_spec.seed_path = proc::SeedPath(config_.seed).child("terrain", 0);
+        terrain_spec.samples_x = std::max<std::uint32_t>(2, config_.map_size_m / 8 + 1);
+        terrain_spec.samples_z = terrain_spec.samples_x;
+        terrain_spec.cell_size_m = 8.0F;
+        terrain_spec.origin_offset_x = -static_cast<double>(config_.map_size_m) * 0.5;
+        terrain_spec.origin_offset_z = -static_cast<double>(config_.map_size_m) * 0.5;
+        const auto terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
+        if (!terrain_result) {
+            generation_error_ = std::string(terrain_result.error().message);
+            plan_.reset();
+            return;
+        }
+        terrain_ = std::move(terrain_result.value());
+        const auto mesh_result = terrain::TerrainMeshBuilder::build(*terrain_);
+        if (!mesh_result) {
+            generation_error_ = std::string(mesh_result.error().message);
+            plan_.reset();
+            terrain_.reset();
+            return;
+        }
+        terrain_mesh_ = std::move(mesh_result.value());
+    }
+    const float camera_map_size = static_cast<float>(config_.map_size_m);
+    render_camera_.enabled = true;
+    render_camera_.position = {camera_map_size * 0.78F, camera_map_size * 0.92F,
+                               camera_map_size * 0.82F};
+    render_camera_.target = {0.0F, 0.0F, 0.0F};
+    render_camera_.up = {0.0F, 1.0F, 0.0F};
+    render_camera_.vertical_fov = 0.9F;
+    render_camera_.near_plane = 0.2F;
+    render_camera_.far_plane = std::max(1000.0F, camera_map_size * 4.0F);
+    physics_.setGroundHeightQuery({&*terrain_, &sample_ground});
+    auto render_mesh = std::make_shared<render::RenderMesh>();
+    render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
+    render_mesh->vertices.reserve(terrain_mesh_->vertices.size());
+    render_mesh->indices = terrain_mesh_->indices;
+    for (const terrain::TerrainMeshVertex& vertex : terrain_mesh_->vertices) {
+        render_mesh->vertices.push_back({vertex.position, vertex.normal, vertex.uv,
+                                         {0.19F, 0.42F, 0.22F, 1.0F}});
+    }
+    render_terrain_mesh_ = std::move(render_mesh);
+    const auto world_mesh_result = world_render::WorldMeshCompiler::compile(*plan_, *terrain_);
+    if (!world_mesh_result) {
+        generation_error_ = std::string(world_mesh_result.error().message);
+        plan_.reset();
+        terrain_.reset();
+        terrain_mesh_.reset();
+        render_terrain_mesh_.reset();
+        return;
+    }
+    render_world_mesh_ = world_mesh_result.value();
+    entities_.clear();
+    const float map_size_f = static_cast<float>(config_.map_size_m);
+    const float half_map_f = map_size_f * 0.5F;
+    const std::uint32_t nav_cells =
+        std::max<std::uint32_t>(2U, config_.map_size_m / 8U);
+    navigation_ = std::make_unique<navigation::GridNavigationWorld>(
+        navigation::NavGridSpec{nav_cells, nav_cells, 8.0F,
+                                {-half_map_f, 0.0F, -half_map_f}});
+    if (navigation_ && navigation_->valid()) {
+        for (std::uint32_t z = 0; z < nav_cells; ++z) {
+            for (std::uint32_t x = 0; x < nav_cells; ++x) {
+                const foundation::Vec3 cell = {
+                    -half_map_f + (static_cast<float>(x) + 0.5F) * 8.0F, 0.0F,
+                    -half_map_f + (static_cast<float>(z) + 0.5F) * 8.0F};
+                if (plan_->hydrology.isWater(cell.x, cell.z)) {
+                    (void)navigation_->setBlocked(x, z, true);
+                }
+            }
+        }
+        for (const world::BuildingSiteRequest& site : plan_->building_sites) {
+            const float radius_x = site.preferred_footprint.x * 0.55F;
+            const float radius_z = site.preferred_footprint.z * 0.55F;
+            for (std::uint32_t z = 0; z < nav_cells; ++z) {
+                for (std::uint32_t x = 0; x < nav_cells; ++x) {
+                    const foundation::Vec3 cell = {
+                        -half_map_f + (static_cast<float>(x) + 0.5F) * 8.0F, 0.0F,
+                        -half_map_f + (static_cast<float>(z) + 0.5F) * 8.0F};
+                    if (std::abs(cell.x - site.preferred_position.x) <= radius_x &&
+                        std::abs(cell.z - site.preferred_position.z) <= radius_z) {
+                        (void)navigation_->setBlocked(x, z, true);
+                    }
+                }
+            }
+        }
+    }
+#if GENOMES_HAS_INFANTRY
+    infantry_ = std::make_unique<infantry::InfantrySimulation>(
+        entities_, navigation_.get(), &physics_, jobs_);
+    combat_ = std::make_unique<combat::CombatSystem>(entities_);
+    constexpr std::uint32_t units_per_team = 25;
+    const float map_size = static_cast<float>(config_.map_size_m);
+    const float half_map = map_size * 0.5F;
+    const auto spawn_infantry = [&](infantry::Team team, foundation::Vec3 position,
+                                    const infantry::InfantryGenome& genome,
+                                    std::uint32_t squad_id) {
+        const auto result = infantry_->spawn({team, position, genome, squad_id});
+        if (!result) {
+            generation_error_ = std::string(result.error().message);
+        }
+    };
+    for (std::uint32_t index = 0; index < units_per_team; ++index) {
+        const float lateral = 70.0F + static_cast<float>(index % 5) * 12.0F;
+        const float depth = 150.0F + static_cast<float>(index / 5) * 22.0F;
+        const infantry::InfantryGenome genome{
+            1.65F + static_cast<float>(index % 4) * 0.045F,
+            2.7F + static_cast<float>(index % 3) * 0.15F,
+            90.0F,
+            38.0F,
+            100.0F,
+            index % 4};
+        const foundation::Vec3 blue_position{-half_map + lateral, 0.0F, -half_map + depth};
+        const foundation::Vec3 red_position{half_map - lateral, 0.0F, half_map - depth};
+        const float blue_ground = terrain_->sampleBilinear(blue_position.x, blue_position.z);
+        const float red_ground = terrain_->sampleBilinear(red_position.x, red_position.z);
+        spawn_infantry(infantry::Team::Blue,
+                       {blue_position.x, blue_ground + 0.55F, blue_position.z}, genome,
+                       index / 5U);
+        spawn_infantry(infantry::Team::Red,
+                       {red_position.x, red_ground + 0.55F, red_position.z}, genome,
+                       100U + index / 5U);
+    }
+#endif
+    terrain_min_height_ = std::numeric_limits<float>::max();
+    terrain_max_height_ = std::numeric_limits<float>::lowest();
+    for (std::uint32_t z = 0; z < terrain_->height(); ++z) {
+        for (std::uint32_t x = 0; x < terrain_->width(); ++x) {
+            const float height = terrain_->at(x, z);
+            terrain_min_height_ = std::min(terrain_min_height_, height);
+            terrain_max_height_ = std::max(terrain_max_height_, height);
+        }
+    }
+}
+
+void BattlefieldScene::build_presentation(SceneContext& context) {
+    context.presentation.clear();
+    context.presentation.camera = render_camera_;
+    context.presentation.terrain_mesh = render_terrain_mesh_;
+    context.presentation.world_mesh = render_world_mesh_;
+    if (!plan_) {
+        render_infantry_mesh_.reset();
+        return;
+    }
+
+    context.presentation.instances.reserve(plan_->features.size());
+    for (const world::WorldFeature& feature : plan_->features) {
+        context.presentation.instances.push_back({feature.id, mesh_id(feature.kind),
+                                                   material_id(feature.kind), feature.position,
+                                                   feature.scale, feature.rotation_y});
+    }
+#if GENOMES_HAS_INFANTRY
+    if (infantry_) {
+        if (!context.render_capabilities.instanced_rendering) {
+            if (!render_infantry_mesh_) {
+                render_infantry_mesh_ = std::make_shared<render::RenderMesh>();
+                render_infantry_mesh_->mesh_id = foundation::stable_id("mesh.infantry.baked");
+            }
+            ++render_infantry_mesh_->revision;
+            render_infantry_mesh_->vertices.clear();
+            render_infantry_mesh_->indices.clear();
+            const auto append_box = [this](foundation::Vec3 center, float width,
+                                            float height, foundation::Color color) {
+                const float half_width = width * 0.5F;
+                const foundation::Vec3 corners[] = {
+                    {center.x - half_width, center.y, center.z - half_width},
+                    {center.x + half_width, center.y, center.z - half_width},
+                    {center.x + half_width, center.y, center.z + half_width},
+                    {center.x - half_width, center.y, center.z + half_width},
+                    {center.x - half_width, center.y + height, center.z - half_width},
+                    {center.x + half_width, center.y + height, center.z - half_width},
+                    {center.x + half_width, center.y + height, center.z + half_width},
+                    {center.x - half_width, center.y + height, center.z + half_width},
+                };
+                constexpr std::uint32_t faces[][4] = {
+                    {0, 1, 5, 4}, {1, 2, 6, 5}, {2, 3, 7, 6},
+                    {3, 0, 4, 7}, {4, 5, 6, 7}, {3, 2, 1, 0}};
+                constexpr foundation::Vec3 normals[] = {
+                    {0.0F, 0.0F, -1.0F}, {1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F},
+                    {-1.0F, 0.0F, 0.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, -1.0F, 0.0F}};
+                for (std::size_t face = 0; face < 6; ++face) {
+                    const std::uint32_t base = static_cast<std::uint32_t>(
+                        render_infantry_mesh_->vertices.size());
+                    for (std::size_t corner = 0; corner < 4; ++corner) {
+                        render_infantry_mesh_->vertices.push_back(
+                            {corners[faces[face][corner]], normals[face],
+                             {corner == 1 || corner == 2 ? 1.0F : 0.0F,
+                              corner >= 2 ? 1.0F : 0.0F},
+                             color});
+                    }
+                    render_infantry_mesh_->indices.insert(
+                        render_infantry_mesh_->indices.end(),
+                        {base, base + 1, base + 2, base, base + 2, base + 3});
+                }
+            };
+            for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+                const foundation::Color color = state.team == infantry::Team::Blue
+                                                    ? foundation::Color{0.18F, 0.42F, 0.88F, 1.0F}
+                                                    : foundation::Color{0.82F, 0.22F, 0.18F, 1.0F};
+                append_box(state.position, 0.75F, state.height, color);
+            }
+            context.presentation.infantry_mesh = render_infantry_mesh_;
+        } else {
+            // Dynamic actors share one immutable unit prototype. Their
+            // transforms and team material flags remain in GPUScene, so the
+            // CPU no longer rebuilds a mesh containing every unit each frame.
+            if (!render_infantry_mesh_) {
+                render_infantry_mesh_ = std::make_shared<render::RenderMesh>();
+                if (infantry_model_artifact_) {
+                    build_infantry_prototype(*render_infantry_mesh_, *infantry_model_artifact_);
+                }
+            }
+            context.presentation.infantry_mesh = render_infantry_mesh_;
+            context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
+        }
+        const foundation::StableId infantry_mesh = foundation::stable_id("mesh.infantry.unit");
+        const foundation::StableId blue_material = foundation::stable_id("material.infantry.blue");
+        const foundation::StableId red_material = foundation::stable_id("material.infantry.red");
+        context.presentation.instances.reserve(
+            context.presentation.instances.size() + infantry_->renderStates().size());
+        for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+            const foundation::StableId material =
+                state.team == infantry::Team::Blue ? blue_material : red_material;
+            const std::uint32_t instance_flags =
+                render::RenderInstanceFlagDynamic |
+                (state.team == infantry::Team::Red ? render::RenderInstanceFlagTeamRed : 0U);
+            context.presentation.instances.push_back(
+                {foundation::stable_id("entity.infantry") ^ state.entity.packed(), infantry_mesh,
+                 material,
+                 {state.position.x, state.position.y + state.height * 0.5F, state.position.z},
+                 {0.8F, state.height, 0.8F}, state.heading, 0,
+                 instance_flags});
+        }
+    }
+#endif
+}
+
+} // namespace genomes::runtime

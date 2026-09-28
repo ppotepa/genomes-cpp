@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 18.8 - FACE_AND_EXPRESSION
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -187,12 +187,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] identity/state split
-    [ ] event-index RNG
-    [ ] morph/bone channels
-    [ ] world look
-    [ ] sleep differential parity
-    [ ] parallel safe
+    [x] identity/state split
+    [x] event-index RNG
+    [x] morph/bone channels
+    [x] world look
+    [x] sleep differential parity
+    [x] parallel safe
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -206,12 +206,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] identity/state split
-    [ ] event-index RNG
-    [ ] morph/bone channels
-    [ ] world look
-    [ ] sleep differential parity
-    [ ] parallel safe
+    [x] identity/state split
+    [x] event-index RNG
+    [x] morph/bone channels
+    [x] world look
+    [x] sleep differential parity
+    [x] parallel safe
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

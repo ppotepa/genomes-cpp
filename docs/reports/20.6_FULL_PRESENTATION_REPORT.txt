@@ -1,0 +1,22 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.6 FULL_GAME_PRESENTATION
+
+IMPLEMENTATION:
+    engine/render/core/include/genomes/render/PresentationPipeline.hpp
+    engine/render/core/src/PresentationPipeline.cpp
+    existing RenderGraph/GpuScene/PresentationSnapshot contracts
+
+VALIDATION:
+    render.full_presentation: PASS
+    immutable snapshot extraction, quality-only instance budget/culling,
+    debug-toggle semantic independence and deterministic nearest selection: PASS
+
+BENCHMARK:
+    genomes_bench_full_scene (dev-debug): 100000 input instances,
+    25000 output instances, 16 ms CPU preparation.
+
+FIXTURE:
+    reference/fixtures/render/full_presentation_profiles.json

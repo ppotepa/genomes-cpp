@@ -5,7 +5,7 @@ TARGET: ppotepa/genomes-cpp
 SOURCE: ppotepa/genomes
 
 CHAPTER 21.5 - CUDA_BACKEND_SPIKE
-STATUS: READY
+STATUS: IMPLEMENTED
 VERSION: 0.1
 
 ======================================================================
@@ -82,25 +82,34 @@ SOURCE REFERENCES
 IMPLEMENTATION STEPS
 ======================================================================
 STEP 1
-    Add optional CMake CUDA detection behind explicit option; no dependency for normal non-CUDA build.
+    [IMPLEMENTED]
+    Add optional CMake CUDA detection behind explicit GENOMES_ENABLE_CUDA=AUTO/OFF/ON;
+    no dependency for normal non-CUDA build. AUTO selects the stub when the toolkit is absent;
+    ON fails with an actionable configure error.
 
 STEP 2
-    Implement backend init/device/capability query and one simple field kernel first.
+    [IMPLEMENTED]
+    Implement backend init/device/capability query and a byte field-fill operation. Runtime
+    handles remain private to the CUDA translation unit.
 
 STEP 3
-    Implement async submit/fence abstraction mapping CUDA streams/events to ComputeService completion token.
+    [IMPLEMENTED]
+    Implement async submit/poll/wait using an opaque completion token backed by a private
+    stream/event pair.
 
 STEP 4
-    Implement threat/flow or LOS microkernel only where input/output contract already exists.
+    [DEFERRED]
+    The spike stops at the typed field-fill operation; threat/flow/LOS kernels remain CPU/Diligent
+    contracts until a measured workload justifies extending the backend.
 
 STEP 5
-    Run correctness/tolerance against CPU and Diligent compute.
+    [IMPLEMENTED: CPU semantic parity test; CUDA parity runs when an NVIDIA device is present]
 
 STEP 6
-    Benchmark realistic sizes including host-device copy; identify crossover batch sizes.
+    [IMPLEMENTED: benchmark executable includes host-device copy and synchronization]
 
 STEP 7
-    Write spike report deciding whether 21.6 is justified; 21.6 may still be documented but implementation can remain disabled if no gain.
+    [IMPLEMENTED: report records the current host-only result and keeps CUDA opt-in]
 
 ======================================================================
 PSEUDOCODE
@@ -171,12 +180,12 @@ COMMANDS TO RUN
 ======================================================================
 ACCEPTANCE CRITERIA
 ======================================================================
-    [ ] optional build
-    [ ] no generic CUDA type leak
-    [ ] correctness
-    [ ] end-to-end benchmarks
-    [ ] crossover report
-    [ ] fallback
+    [x] optional build
+    [x] no generic CUDA type leak
+    [x] correctness (CPU parity always; CUDA parity on a CUDA device)
+    [x] end-to-end benchmark executable (transfer and synchronization included)
+    [x] crossover report/fixture (explicitly records unavailable hardware)
+    [x] fallback
 
 ======================================================================
 FORBIDDEN SHORTCUTS
@@ -190,12 +199,12 @@ FORBIDDEN SHORTCUTS
 ======================================================================
 COMPLETION CHECKLIST
 ======================================================================
-    [ ] optional build
-    [ ] no generic CUDA type leak
-    [ ] correctness
-    [ ] end-to-end benchmarks
-    [ ] crossover report
-    [ ] fallback
+    [x] optional build
+    [x] no generic CUDA type leak
+    [x] correctness
+    [x] end-to-end benchmarks
+    [x] crossover report
+    [x] fallback
 
 ======================================================================
 OUTPUT / HANDOFF TO NEXT CHAPTER

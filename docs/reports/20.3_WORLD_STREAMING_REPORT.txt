@@ -1,0 +1,24 @@
+GENOMES NATIVE VALIDATION REPORT
+================================
+
+CHAPTER:
+    20.3 STREAMING_LARGE_WORLD
+
+IMPLEMENTATION:
+    engine/world/include/genomes/world/WorldStreamer.hpp
+    engine/world/src/WorldStreamer.cpp
+
+VALIDATION:
+    integration.world_streaming: PASS
+    independent residency axes, async generation, stale-load discard,
+    pin-protected eviction, semantic identity and camera-independent
+    simulation residency: PASS
+
+BENCHMARK:
+    genomes_bench_world_streaming (dev-debug, four workers):
+    32 -> 6 ms / 32 resident;
+    128 -> 24 ms / 128 resident;
+    256 -> 49 ms / 256 resident.
+
+FIXTURE:
+    reference/fixtures/world/streaming_residency_profiles.json
