@@ -4,6 +4,7 @@
 #include <genomes/infantry/RigBuilder.hpp>
 
 #include <cassert>
+#include <array>
 #include <cmath>
 
 int main() {
@@ -28,6 +29,25 @@ int main() {
     assert(!artifact.value().body.indices.empty());
     assert(artifact.value().hair.vertices.size() > 0U);
     assert(artifact.value().morphs.size() == 4U);
+
+    genomes::infantry::AppearanceOptions short_hair = options;
+    short_hair.hair_style = genomes::infantry::HairStyle::Short;
+    const auto short_artifact = genomes::infantry::AppearanceCompiler::build(
+        phenotype.value(), rig.value(), short_hair);
+    assert(short_artifact);
+    for (const auto style : std::array{
+             genomes::infantry::HairStyle::Braids,
+             genomes::infantry::HairStyle::Bun,
+             genomes::infantry::HairStyle::Mohawk,
+             genomes::infantry::HairStyle::Curly}) {
+        genomes::infantry::AppearanceOptions variant = options;
+        variant.hair_style = style;
+        const auto variant_artifact = genomes::infantry::AppearanceCompiler::build(
+            phenotype.value(), rig.value(), variant);
+        assert(variant_artifact && variant_artifact.value().valid(rig.value()));
+        assert(variant_artifact.value().hair.vertices.size() !=
+               short_artifact.value().hair.vertices.size());
+    }
 
     for (const auto& vertex : artifact.value().body.vertices) {
         assert(vertex.influence_count <= 4U);

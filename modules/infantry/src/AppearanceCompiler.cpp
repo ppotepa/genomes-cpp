@@ -761,6 +761,71 @@ foundation::Result<AppearanceArtifact, foundation::Error> AppearanceCompiler::bu
                        head_weights, hair_count, hair_skirt);
             bridge(hair_builder, hair_skirt, hair_first);
         }
+
+        // The reference does not represent every hairstyle as a scaled copy
+        // of one cap. Add the characteristic silhouette pieces here while
+        // keeping them on the head bone and inside the same immutable hair
+        // artifact. These are deliberately low-level surface primitives so
+        // detail level still controls their cost.
+        const float scalp_z = face.section(face.hairline_y).center_z;
+        const std::size_t style_segments = options.detail_level >= 3U ? 12U : 8U;
+        // Use the already resolved head influence rather than assuming the
+        // head is always bone zero.
+        const auto hair_weights = head_weights;
+        const auto addStyledHair = [&hair_builder, &hair_color, &hair_weights,
+                                    hair_count, style_segments](Vec3 center, Vec3 radii,
+                                                                 std::uint16_t region) {
+            appendEllipsoid(hair_builder, center, radii, style_segments, 5U,
+                            hair_color, region, hair_weights, hair_count);
+        };
+        switch (options.hair_style) {
+        case HairStyle::Long:
+            for (const float side : {-1.0F, 1.0F}) {
+                addStyledHair({side * face.section(face.hairline_y).radius_x * 0.82F,
+                               face.hairline_y - 0.040F, scalp_z},
+                              {0.030F * style_scale, 0.105F * style_scale,
+                               0.040F * style_scale}, 14U);
+            }
+            break;
+        case HairStyle::Braids:
+            for (const float side : {-1.0F, 1.0F}) {
+                for (std::size_t segment = 0U; segment < 5U; ++segment) {
+                    const float y = face.hairline_y + 0.012F -
+                                    static_cast<float>(segment) * 0.026F;
+                    addStyledHair({side * face.section(face.hairline_y).radius_x * 0.86F,
+                                   y, scalp_z - 0.004F},
+                                  {0.022F, 0.031F, 0.026F},
+                                  static_cast<std::uint16_t>(15U + segment));
+                }
+            }
+            break;
+        case HairStyle::Bun:
+            addStyledHair({0.0F, face.hairline_y + 0.074F, scalp_z - 0.004F},
+                          {0.060F, 0.057F, 0.052F}, 20U);
+            break;
+        case HairStyle::Mohawk:
+            for (std::size_t segment = 0U; segment < 5U; ++segment) {
+                const float z = scalp_z - 0.040F + static_cast<float>(segment) * 0.020F;
+                addStyledHair({0.0F, face.hairline_y + 0.070F, z},
+                              {0.020F, 0.070F, 0.026F},
+                              static_cast<std::uint16_t>(21U + segment));
+            }
+            break;
+        case HairStyle::Curly:
+            for (std::size_t segment = 0U; segment < 8U; ++segment) {
+                const float angle = 6.28318530718F * static_cast<float>(segment) / 8.0F;
+                addStyledHair({std::cos(angle) * face.section(face.hairline_y).radius_x * 0.76F,
+                               face.hairline_y + 0.060F +
+                                   0.012F * std::sin(angle * 2.0F),
+                               scalp_z + std::sin(angle) * face.section(face.hairline_y).radius_z * 0.72F},
+                              {0.026F, 0.030F, 0.026F},
+                              static_cast<std::uint16_t>(26U + segment));
+            }
+            break;
+        case HairStyle::Bald:
+        case HairStyle::Short:
+            break;
+        }
         result.hair = std::move(hair_builder.mesh);
     }
 
