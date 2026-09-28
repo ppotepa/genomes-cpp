@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "id": "core",
+  "version": "1.0.0",
+  "load_priority": 0,
+  "dependencies": [],
+  "scenes": [
+    "scenes/main-menu",
+    "scenes/settings",
+    "scenes/world-config",
+    "scenes/battlefield",
+    "scenes/building-lab",
+    "scenes/unit-lab",
+    "scenes/world-lab",
+    "scenes/pause"
+  ]
+}

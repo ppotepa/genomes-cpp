@@ -27,6 +27,24 @@ genomes_enable_test_assertions(genomes_test_menu_smoke)
 
 add_test(NAME menu_smoke COMMAND genomes_test_menu_smoke)
 
+add_executable(genomes_test_ui_content_registry ui_content_registry_tests.cpp)
+target_link_libraries(genomes_test_ui_content_registry PRIVATE genomes::ui)
+target_compile_definitions(genomes_test_ui_content_registry PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_ui_content_registry)
+genomes_enable_test_assertions(genomes_test_ui_content_registry)
+add_test(NAME ui.content_registry COMMAND genomes_test_ui_content_registry)
+
+if(GENOMES_ENABLE_RMLUI)
+    add_executable(genomes_test_ui_rml_smoke ui_rml_smoke.cpp)
+    target_link_libraries(genomes_test_ui_rml_smoke PRIVATE genomes::ui_rml)
+    target_compile_definitions(genomes_test_ui_rml_smoke PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    genomes_set_project_warnings(genomes_test_ui_rml_smoke)
+    genomes_enable_test_assertions(genomes_test_ui_rml_smoke)
+    add_test(NAME ui.rml_smoke COMMAND genomes_test_ui_rml_smoke)
+endif()
+
 add_executable(genomes_test_unit_lab_smoke unit_lab_smoke.cpp)
 target_link_libraries(genomes_test_unit_lab_smoke PRIVATE genomes::runtime)
 genomes_set_project_warnings(genomes_test_unit_lab_smoke)

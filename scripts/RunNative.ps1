@@ -92,7 +92,8 @@ if ($env:OS -eq 'Windows_NT' -and -not (Get-Command fxc.exe -ErrorAction Silentl
 $requiredDependencies = @(
     (Join-Path $repoRoot 'external/DiligentEngine/CMakeLists.txt'),
     (Join-Path $repoRoot 'external/DiligentEngine/DiligentCore/CMakeLists.txt'),
-    (Join-Path $repoRoot 'external/SDL/CMakeLists.txt')
+    (Join-Path $repoRoot 'external/SDL/CMakeLists.txt'),
+    (Join-Path $repoRoot 'external/RmlUi/CMakeLists.txt')
 )
 
 $missingDependency = $requiredDependencies | Where-Object { -not (Test-Path $_) } | Select-Object -First 1
@@ -108,6 +109,7 @@ $configureArguments = @(
     '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
     '-DGENOMES_ENABLE_SDL=ON',
     '-DGENOMES_ENABLE_DILIGENT=ON',
+    '-DGENOMES_ENABLE_RMLUI=ON',
     '-DGENOMES_BUILD_TESTS=OFF',
     '-DGENOMES_BUILD_BENCHMARKS=OFF',
     '-DGENOMES_WARNINGS_AS_ERRORS=ON'
@@ -162,6 +164,7 @@ $fingerprintPayload = @(
     "ninja=$((Get-Command ninja).Source)"
     'GENOMES_ENABLE_SDL=ON'
     'GENOMES_ENABLE_DILIGENT=ON'
+    'GENOMES_ENABLE_RMLUI=ON'
     'GENOMES_BUILD_TESTS=OFF'
     'GENOMES_BUILD_BENCHMARKS=OFF'
     'GENOMES_WARNINGS_AS_ERRORS=ON'

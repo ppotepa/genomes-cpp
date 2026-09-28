@@ -1,0 +1,1 @@
+body { background-color: #08101c; color: #d5e2f2; font-family: LatoLatin; } .panel { width: 720px; margin: 48px; padding: 48px; background-color: #101b2c; }

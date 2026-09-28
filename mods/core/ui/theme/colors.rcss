@@ -1,0 +1,4 @@
+:root { color: #edf4ff; background-color: #08111d; }
+.muted { color: #9fb0c2; }
+.accent { color: #8bd1ff; }
+.danger { color: #ff9b8c; }

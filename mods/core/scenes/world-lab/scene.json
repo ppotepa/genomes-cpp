@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "scene.world-lab",
+  "controller": "builtin.world-lab",
+  "document": "screen.rml",
+  "stylesheets": ["screen.rcss"],
+  "overlays": [],
+  "action_namespace": "scene.world-lab"
+}

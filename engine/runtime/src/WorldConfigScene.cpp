@@ -118,11 +118,11 @@ void WorldConfigScene::fixed_update(SceneContext&, double dt) {
 
 void WorldConfigScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
-    context.ui.add({foundation::stable_id("world-config.panel"), ui::UiNodeType::Panel,
+    context.ui.add({foundation::stable_id("world-config.panel"), ui::UiWidgetType::Panel,
                     "WORLD-GENERATION-1", true, false, 720.0F, 760.0F});
-    context.ui.add({foundation::stable_id("world-config.title"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("world-config.title"), ui::UiWidgetType::Label,
                     "New world", true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("world-config.description"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("world-config.description"), ui::UiWidgetType::Label,
                     "A deterministic settlement, roads, parcels and vegetation.", true, false,
                     0.0F, 0.0F});
 
@@ -130,13 +130,13 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
         const auto entry = static_cast<WorldConfigEntry>(index);
         context.ui.add({foundation::stable_id("world-config." + std::to_string(index)),
                         entry == WorldConfigEntry::Start || entry == WorldConfigEntry::Back
-                            ? ui::UiNodeType::Button
-                            : ui::UiNodeType::Label,
+                            ? ui::UiWidgetType::Button
+                            : ui::UiWidgetType::Label,
                         entryLabel(entry, state_.config), true, entry == state_.selected,
                         600.0F, 48.0F});
     }
 
-    context.ui.add({foundation::stable_id("world-config.note"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("world-config.note"), ui::UiWidgetType::Label,
                     "The same seed and settings produce the same world plan.", true, false,
                     0.0F, 0.0F});
 }

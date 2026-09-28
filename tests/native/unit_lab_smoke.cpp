@@ -10,7 +10,7 @@
 
 int main() {
     genomes::render::NullRenderer renderer;
-    genomes::ui::UiDocument ui;
+    genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
@@ -76,17 +76,17 @@ int main() {
     assert(has_equipment_material);
 
     director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                           .mouse_y = 386.0F}); // camera preset
+                           .mouse_y = 386.0F, .events = {}}); // camera preset
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() == stable_prototype);
 
     director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                           .mouse_y = 276.0F}); // regenerate
+                           .mouse_y = 276.0F, .events = {}}); // regenerate
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() != stable_prototype);
     const auto regenerated_prototype = presentation.skinned_prototypes.front();
 
-    director.handle_input({.right_pressed = true});
+    director.handle_input({.right_pressed = true, .events = {}});
     for (int tick = 0; tick < 30; ++tick) {
         director.fixed_update(1.0 / 60.0);
     }
@@ -104,7 +104,7 @@ int main() {
     assert(has_pose_rotation);
 
     genomes::runtime::SceneCommandQueue gpu_commands;
-    genomes::ui::UiDocument gpu_ui;
+    genomes::ui::UiRuntime gpu_ui;
     genomes::render::PresentationSnapshot gpu_presentation;
     genomes::runtime::SceneContext gpu_context{gpu_commands, gpu_ui, gpu_presentation};
     gpu_context.render_capabilities.gpu_skinning = true;
@@ -116,24 +116,33 @@ int main() {
     assert(gpu_presentation.instance_prototypes.empty());
     const auto initial_camera_position = gpu_presentation.camera.position;
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 506.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 506.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 566.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 566.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 626.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 626.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 686.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 686.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 866.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 866.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_down = true,
                                          .mouse_x = 700.0F, .mouse_delta_x = 22.0F,
-                                         .mouse_delta_y = -8.0F, .mouse_wheel_y = 1.0F});
+                                         .mouse_delta_y = -8.0F, .mouse_wheel_y = 1.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 926.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 926.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 986.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 986.0F,
+                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 1046.0F});
+                                         .mouse_x = 100.0F, .mouse_y = 1046.0F,
+                                         .events = {}});
     gpu_scene.build_presentation(gpu_context);
     assert(!gpu_presentation.debug_lines.empty());
     assert(std::abs(gpu_presentation.camera.position.x - initial_camera_position.x) > 0.0001F ||

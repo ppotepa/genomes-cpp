@@ -5,7 +5,9 @@
 #include <genomes/proc/SeedPath.hpp>
 #include <genomes/terrain/TerrainGenerator.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
+#if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/EquipmentCatalog.hpp>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -94,6 +96,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
+#if GENOMES_HAS_INFANTRY
     render_infantry_mesh_.reset();
     infantry_skinned_prototype_.reset();
     infantry_model_artifact_.reset();
@@ -103,6 +106,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     if (auto model = infantry_model_compiler_.compile(model_request); model) {
         infantry_model_artifact_ = std::move(model.value());
     }
+#endif
     render_camera_ = {};
     terrain_min_height_ = 0.0F;
     terrain_max_height_ = 0.0F;
@@ -425,33 +429,33 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
     }
 
     context.ui.clear();
-    context.ui.add({foundation::stable_id("battlefield.panel"), ui::UiNodeType::Panel,
+    context.ui.add({foundation::stable_id("battlefield.panel"), ui::UiWidgetType::Panel,
                     "BATTLEFIELD", true, false, 560.0F, 620.0F});
-    context.ui.add({foundation::stable_id("battlefield.description"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("battlefield.description"), ui::UiWidgetType::Label,
                     "Procedural world plan", true, false, 0.0F, 0.0F});
 
     if (plan_) {
-        context.ui.add({foundation::stable_id("battlefield.seed"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.seed"), ui::UiWidgetType::Label,
                         "Seed: " + std::to_string(plan_->seed), true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("battlefield.size"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.size"), ui::UiWidgetType::Label,
                         "Map: " + std::to_string(plan_->map_size_m) + " x " +
                             std::to_string(plan_->map_size_m) + " m",
                         true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("battlefield.features"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.features"), ui::UiWidgetType::Label,
                         feature_summary(*plan_), true, false, 0.0F, 0.0F});
 #if GENOMES_HAS_INFANTRY
         const std::size_t infantry_count = infantry_ ? infantry_->activeCount() : 0U;
 #else
         constexpr std::size_t infantry_count = 0U;
 #endif
-        context.ui.add({foundation::stable_id("battlefield.units"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.units"), ui::UiWidgetType::Label,
                         "Infantry: " +
                             std::to_string(infantry_count),
                         true, false, 0.0F, 0.0F});
 #if GENOMES_HAS_INFANTRY
         if (viability_scenario_ != nullptr) {
             const auto& viability = viability_scenario_->snapshot();
-            context.ui.add({foundation::stable_id("battlefield.viability"), ui::UiNodeType::Label,
+            context.ui.add({foundation::stable_id("battlefield.viability"), ui::UiWidgetType::Label,
                             "Combat slice: tick " + std::to_string(viability.tick) +
                                 "  fire " + std::to_string(viability.fired) +
                                 "  impact " + std::to_string(viability.impacts) +
@@ -459,46 +463,46 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
                             true, false, 0.0F, 0.0F});
         }
 #endif
-        context.ui.add({foundation::stable_id("battlefield.terrain"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.terrain"), ui::UiWidgetType::Label,
                         "Terrain: " + std::to_string(terrain_->width()) + " x " +
                             std::to_string(terrain_->height()) + " samples",
                         true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("battlefield.mesh"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.mesh"), ui::UiWidgetType::Label,
                         "Mesh: " + std::to_string(terrain_mesh_->vertices.size()) +
                             " vertices / " + std::to_string(terrain_mesh_->triangle_count()) +
                             " triangles",
                         true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("battlefield.elevation"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.elevation"), ui::UiWidgetType::Label,
                         "Elevation: " + std::to_string(terrain_min_height_) + " .. " +
                             std::to_string(terrain_max_height_) + " m",
                         true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("battlefield.hash"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.hash"), ui::UiWidgetType::Label,
                         "Plan hash: " + std::to_string(plan_->content_hash), true, false, 0.0F,
                         0.0F});
-        context.ui.add({foundation::stable_id("battlefield.status"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.status"), ui::UiWidgetType::Label,
                         "World plan ready for terrain, navigation and rendering.", true, false,
                         0.0F, 0.0F});
     } else if (scenario_ && scenario_->status().generation_pending) {
-        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiWidgetType::Label,
                         "Generating world on worker threads...", true, false, 0.0F, 0.0F});
     } else if (scenario_ && scenario_->status().streaming_pending > 0U) {
-        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiWidgetType::Label,
                         "Streaming adjacent world region...", true, false, 0.0F, 0.0F});
     } else if (region_streamer_ && region_streamer_->pending_count() > 0) {
-        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.generating"), ui::UiWidgetType::Label,
                         "Generating world on worker threads...", true, false, 0.0F, 0.0F});
     } else if (region_streamer_ && region_streamer_->failed()) {
-        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiWidgetType::Label,
                         "World generation failed: " +
                             std::string(region_streamer_->error().message),
                         true, false, 0.0F, 0.0F});
     } else {
-        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("battlefield.error"), ui::UiWidgetType::Label,
                         "World generation failed: " + generation_error_, true, false, 0.0F,
                         0.0F});
     }
 
-    context.ui.add({foundation::stable_id("battlefield.back"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("battlefield.back"), ui::UiWidgetType::Button,
                     "Return to main menu", true, true, 600.0F, 48.0F});
 }
 

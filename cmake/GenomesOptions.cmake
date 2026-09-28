@@ -18,6 +18,10 @@ option(GENOMES_ENABLE_SDL
     "Configure the pinned SDL3 dependency and the desktop platform module"
     OFF)
 
+option(GENOMES_ENABLE_RMLUI
+    "Build the RmlUi-backed UI runtime"
+    OFF)
+
 option(GENOMES_ENABLE_INFANTRY
     "Build and compose the optional infantry domain module"
     ON)

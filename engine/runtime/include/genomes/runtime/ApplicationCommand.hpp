@@ -13,6 +13,7 @@ enum class ApplicationCommandKind {
     OpenBuildingLab,
     OpenWorldLab,
     OpenSettings,
+    OpenPause,
     ReturnToMainMenu,
     Quit
 };

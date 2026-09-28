@@ -10,7 +10,7 @@ class DiligentSceneRenderer final : public IRenderer {
 public:
     explicit DiligentSceneRenderer(DiligentBackend& backend) noexcept : backend_{backend} {}
     void begin_frame() override;
-    void submit(const PresentationSnapshot&, const ui::UiDocument&) override;
+    void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) override;
     void end_frame() override;
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override {
         return backend_.capabilities();

@@ -1,0 +1,2 @@
+<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>SETTINGS</h1><button data-action="scene.return-main-menu">Back</button></section></body></rml>
+

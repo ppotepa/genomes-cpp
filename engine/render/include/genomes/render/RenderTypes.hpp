@@ -2,7 +2,7 @@
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/render/RenderCapabilities.hpp>
-#include <genomes/ui/UiDocument.hpp>
+#include <genomes/ui/UiRuntime.hpp>
 
 #include <array>
 #include <cmath>
@@ -159,7 +159,7 @@ class IRenderer {
 public:
     virtual ~IRenderer() = default;
     virtual void begin_frame() = 0;
-    virtual void submit(const PresentationSnapshot&, const ui::UiDocument&) = 0;
+    virtual void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) = 0;
     virtual void end_frame() = 0;
     [[nodiscard]] virtual RenderCapabilities capabilities() const noexcept { return {}; }
     [[nodiscard]] virtual RenderUploadTelemetry uploadTelemetry() const noexcept { return {}; }

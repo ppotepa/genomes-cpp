@@ -324,11 +324,11 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
 void UnitLabScene::frame_update(SceneContext& context, double) {
     ui_dirty_ = false;
     context.ui.clear();
-    context.ui.add({foundation::stable_id("unit-lab.panel"), ui::UiNodeType::Panel,
+    context.ui.add({foundation::stable_id("unit-lab.panel"), ui::UiWidgetType::Panel,
                     "UNIT LAB", true, false, 520.0F, 1240.0F});
-    context.ui.add({foundation::stable_id("unit-lab.title"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("unit-lab.title"), ui::UiWidgetType::Label,
                     "Procedural infantry prototypes", true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("unit-lab.description"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("unit-lab.description"), ui::UiWidgetType::Label,
                     "Native procedural body, face, hair and equipment preview.", true,
                     false, 0.0F, 0.0F});
     std::string metrics = model_artifact_
@@ -367,46 +367,46 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         metrics += " | EXPRESSION " + std::to_string(static_cast<int>(expression_)) +
                    "@" + std::to_string(expression_intensity_);
     }
-    context.ui.add({foundation::stable_id("unit-lab.metrics"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("unit-lab.metrics"), ui::UiWidgetType::Label,
                     std::move(metrics),
                     true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("unit-lab.regenerate"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.regenerate"), ui::UiWidgetType::Button,
                     "Regenerate seed", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.detail"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.detail"), ui::UiWidgetType::Button,
                     "Cycle detail level", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.camera"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.camera"), ui::UiWidgetType::Button,
                     "Cycle camera preset", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.surface"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.surface"), ui::UiWidgetType::Button,
                     show_surface_ ? "Surface: ON" : "Surface: OFF", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.wireframe"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.wireframe"), ui::UiWidgetType::Button,
                     show_wireframe_ ? "Wireframe: ON" : "Wireframe: OFF", true, false,
                     420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.skeleton"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.skeleton"), ui::UiWidgetType::Button,
                     show_skeleton_ ? "Skeleton: ON" : "Skeleton: OFF", true, false,
                     420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.bounds"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.bounds"), ui::UiWidgetType::Button,
                     show_bounds_ ? "Bounds: ON" : "Bounds: OFF", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.normals"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.normals"), ui::UiWidgetType::Button,
                     show_normals_ ? "Normals: ON" : "Normals: OFF", true, false,
                     420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.pause"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.pause"), ui::UiWidgetType::Button,
                     animation_paused_ ? "Animation: PAUSED" : "Animation: PLAYING", true,
                     false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.expression"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.expression"), ui::UiWidgetType::Button,
                     "Cycle expression", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.weight"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.weight"), ui::UiWidgetType::Button,
                     debug_weight_bone_
                         ? "Cycle weight bone (" + std::to_string(
                             static_cast<std::uint16_t>(*debug_weight_bone_)) + ")"
                         : "Weight heatmap: OFF",
                     true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.variation"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.variation"), ui::UiWidgetType::Button,
                     "Cycle phenotype variation", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.loadout"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.loadout"), ui::UiWidgetType::Button,
                     "Cycle equipment loadout", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.overrides"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.overrides"), ui::UiWidgetType::Button,
                     "Cycle genome overrides", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.back"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("unit-lab.back"), ui::UiWidgetType::Button,
                     "Back to main menu", true, true, 420.0F, 48.0F});
 }
 

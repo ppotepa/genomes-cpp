@@ -93,24 +93,24 @@ void MainMenuScene::handle_input(SceneContext& context, const input::InputFrame&
 void MainMenuScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
 
-    context.ui.add({foundation::stable_id("menu.panel"), ui::UiNodeType::Panel,
+    context.ui.add({foundation::stable_id("menu.panel"), ui::UiWidgetType::Panel,
                     "GENOMES", true, false, 420.0F, 640.0F});
-    context.ui.add({foundation::stable_id("menu.title"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("menu.title"), ui::UiWidgetType::Label,
                     "PROCEDURAL WORLD", true, false, 0.0F, 0.0F});
 
     for (const EntryDefinition& definition : entries) {
-        context.ui.add({foundation::stable_id(definition.label), ui::UiNodeType::Button,
+        context.ui.add({foundation::stable_id(definition.label), ui::UiWidgetType::Button,
                         std::string(definition.label), definition.enabled,
                         definition.entry == state_.selected, 360.0F, 48.0F});
     }
 
-    context.ui.add({foundation::stable_id("menu.separator"), ui::UiNodeType::Separator,
+    context.ui.add({foundation::stable_id("menu.separator"), ui::UiWidgetType::Separator,
                     {}, true, false, 360.0F, 1.0F});
-    context.ui.add({foundation::stable_id("menu.version"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("menu.version"), ui::UiWidgetType::Label,
                     "native runtime / scene architecture", true, false, 0.0F, 0.0F});
 
     if (state_.settings_open) {
-        context.ui.add({foundation::stable_id("menu.settings"), ui::UiNodeType::Panel,
+        context.ui.add({foundation::stable_id("menu.settings"), ui::UiWidgetType::Panel,
                         "Settings", true, false, 360.0F, 160.0F});
     }
 }

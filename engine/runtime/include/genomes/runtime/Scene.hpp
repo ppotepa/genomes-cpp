@@ -6,7 +6,7 @@
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/runtime/ApplicationCommand.hpp>
-#include <genomes/ui/UiDocument.hpp>
+#include <genomes/ui/UiRuntime.hpp>
 
 #include <cstdint>
 #include <deque>
@@ -35,7 +35,7 @@ private:
 
 struct SceneContext {
     SceneCommandQueue& commands;
-    ui::UiDocument& ui;
+    ui::UiRuntime& ui;
     render::PresentationSnapshot& presentation;
     const WorldGenerationConfig* world_config{nullptr};
     jobs::JobSystem* jobs{nullptr};

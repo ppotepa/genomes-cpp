@@ -6,7 +6,9 @@
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/Scene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
+#if GENOMES_HAS_INFANTRY
 #include <genomes/runtime/UnitLabScene.hpp>
+#endif
 #include <genomes/runtime/WorldConfigScene.hpp>
 
 #include <memory>
@@ -26,10 +28,10 @@ public:
 
     void frame_update(SceneContext& context, double) override {
         context.ui.clear();
-        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiNodeType::Panel,
+        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiWidgetType::Panel,
                         title_, true, false, 720.0F, 480.0F});
         context.ui.add({foundation::stable_id("placeholder.description"),
-                        ui::UiNodeType::Label,
+                        ui::UiWidgetType::Label,
                         "Scene registered; domain module will provide its content.", true, false,
                         0.0F, 0.0F});
     }
@@ -48,6 +50,8 @@ void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
     const auto unit_lab_id = foundation::scene_id("scene.unit-lab");
     const auto building_lab_id = foundation::scene_id("scene.building-lab");
     const auto world_lab_id = foundation::scene_id("scene.world-lab");
+    const auto settings_id = foundation::scene_id("scene.settings");
+    const auto pause_id = foundation::scene_id("scene.pause");
 
     director.register_scene(menu_id, [] { return std::make_unique<MainMenuScene>(); });
     director.register_scene(world_config_id,
@@ -61,11 +65,23 @@ void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
                                                       "Battlefield loading boundary");
         });
     }
+#if GENOMES_HAS_INFANTRY
     director.register_scene(unit_lab_id, [] { return std::make_unique<UnitLabScene>(); });
+#else
+    director.register_scene(unit_lab_id, [unit_lab_id] {
+        return std::make_unique<PlaceholderScene>(unit_lab_id, "Unit laboratory unavailable");
+    });
+#endif
     director.register_scene(building_lab_id,
                             [] { return std::make_unique<BuildingLabScene>(); });
     director.register_scene(world_lab_id, [world_lab_id] {
         return std::make_unique<PlaceholderScene>(world_lab_id, "World generator");
+    });
+    director.register_scene(settings_id, [settings_id] {
+        return std::make_unique<PlaceholderScene>(settings_id, "Settings");
+    });
+    director.register_scene(pause_id, [pause_id] {
+        return std::make_unique<PlaceholderScene>(pause_id, "Pause");
     });
 }
 

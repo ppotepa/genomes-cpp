@@ -3,6 +3,7 @@
 #include <genomes/runtime/MainMenuScene.hpp>
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 namespace genomes::runtime {
@@ -24,9 +25,9 @@ public:
 
     void frame_update(SceneContext& context, double) override {
         context.ui.clear();
-        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiNodeType::Panel,
+        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiWidgetType::Panel,
                         title_, true, false, 720.0F, 480.0F});
-        context.ui.add({foundation::stable_id("placeholder.description"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("placeholder.description"), ui::UiWidgetType::Label,
                         "Scene registered; domain module will provide its content.",
                         true, false, 0.0F, 0.0F});
     }
@@ -39,7 +40,7 @@ private:
 } // namespace
 
 SceneDirector::SceneDirector(render::IRenderer& renderer,
-                             ui::UiDocument& ui,
+                             ui::UiRuntime& ui,
                              render::PresentationSnapshot& presentation,
                              jobs::JobSystem* jobs)
     : renderer_(renderer), ui_(ui), presentation_(presentation), jobs_{jobs} {}
@@ -61,9 +62,63 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
     if (!current_) {
         return;
     }
+    if (ui_.process_input(input)) {
+        return;
+    }
     SceneContext context = make_context();
     current_->handle_input(context, input);
     process_commands();
+}
+
+ui::UiActionResult SceneDirector::dispatch_ui_action(
+    ui::UiActionId action, const ui::UiActionArguments&) {
+    const auto push = [this](ApplicationCommandKind kind) {
+        commands_.push({kind, {}});
+        return ui::UiActionResult::Handled;
+    };
+    if (action == foundation::stable_id("scene.start-battlefield"))
+        return push(ApplicationCommandKind::StartScenario);
+    if (action == foundation::stable_id("scene.open-unit-lab"))
+        return push(ApplicationCommandKind::OpenUnitLab);
+    if (action == foundation::stable_id("scene.open-building-lab"))
+        return push(ApplicationCommandKind::OpenBuildingLab);
+    if (action == foundation::stable_id("scene.open-world-config"))
+        return push(ApplicationCommandKind::OpenWorldConfig);
+    if (action == foundation::stable_id("scene.open-settings")) {
+        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) return ui::UiActionResult::Rejected;
+        ui_.routes().push({foundation::scene_id("scene.settings"), {}, "builtin.settings", "scene.settings", true});
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("scene.open-pause")) {
+        if (current_ == nullptr || current_->id() != foundation::scene_id("scene.battlefield") ||
+            (ui_.routes().top() != nullptr && ui_.routes().top()->overlay)) return ui::UiActionResult::Rejected;
+        ui_.routes().push({foundation::scene_id("scene.pause"), {}, "builtin.pause", "scene.pause", true});
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("scene.return-main-menu")) {
+        if (ui_.routes().top() != nullptr && ui_.routes().top()->scene == foundation::scene_id("scene.pause")) {
+            return push(ApplicationCommandKind::ReturnToMainMenu);
+        } else if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) {
+            ui_.routes().pop();
+            return ui::UiActionResult::Handled;
+        }
+        return push(ApplicationCommandKind::ReturnToMainMenu);
+    }
+    if (action == foundation::stable_id("scene.resume")) {
+        if (ui_.routes().top() != nullptr && ui_.routes().top()->scene == foundation::scene_id("scene.pause")) {
+            ui_.routes().pop();
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("scene.close-overlay")) {
+        if (ui_.routes().top() == nullptr || !ui_.routes().top()->overlay) return ui::UiActionResult::Rejected;
+        ui_.routes().pop();
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("application.quit"))
+        return push(ApplicationCommandKind::Quit);
+    return ui::UiActionResult::Unknown;
 }
 
 bool SceneDirector::change_to(foundation::SceneId id) {
@@ -76,6 +131,7 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     if (current_) {
         current_->on_exit(context);
     }
+    ui_.routes().replace({id, {}, {}, {}, false});
     current_ = factory->second();
     current_->on_enter(context);
     return true;
@@ -103,6 +159,7 @@ void SceneDirector::frame_update(double dt) {
     presentation_.simulation_tick = next_presentation_tick_.value;
     presentation_.interpolation_alpha = interpolation_alpha_;
     current_->frame_update(context, dt);
+    ui_.update(dt);
     current_->build_presentation(context);
     process_commands();
 
@@ -131,12 +188,12 @@ void SceneDirector::present() {
     renderer_.begin_frame();
     auto read = presentation_exchange_.acquireLatestRead();
     if (read) {
-        renderer_.submit(read.value().snapshot(), ui_);
+        renderer_.submit(read.value().snapshot(), ui_.frame());
     } else {
         // A full exchange is a normal non-blocking backpressure outcome. The
         // compatibility mirror still lets single-threaded/headless callers
         // present the current frame while the next slot becomes available.
-        renderer_.submit(presentation_, ui_);
+        renderer_.submit(presentation_, ui_.frame());
     }
     renderer_.end_frame();
 }
@@ -166,6 +223,10 @@ void SceneDirector::process_commands() {
             change_to(foundation::scene_id("scene.main-menu"));
             break;
         case ApplicationCommandKind::OpenSettings:
+            change_to(foundation::scene_id("scene.settings"));
+            break;
+        case ApplicationCommandKind::OpenPause:
+            ui_.routes().push({foundation::scene_id("scene.pause"), {}, "builtin.pause", "scene.pause", true});
             break;
         case ApplicationCommandKind::Quit:
             quit_requested_ = true;

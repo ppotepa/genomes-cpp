@@ -1,0 +1,1 @@
+body { background-color: transparent; color: #d5e2f2; font-family: LatoLatin; } #hud { position: absolute; left: 24px; top: 24px; padding: 20px; background-color: #101b2ccc; }

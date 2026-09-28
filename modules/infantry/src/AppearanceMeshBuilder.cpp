@@ -32,10 +32,7 @@ NormalizedInfluences normalizeTopFour(std::span<const SkinInfluence> candidates)
     }
     std::stable_sort(combined.begin(), combined.begin() + combined_count,
                      [](SkinInfluence left, SkinInfluence right) {
-                         if (left.weight != right.weight) {
-                             return left.weight > right.weight;
-                         }
-                         return left.bone_index < right.bone_index;
+                         return left.weight > right.weight;
                      });
     result.count = static_cast<std::uint8_t>(std::min<std::size_t>(4U, combined_count));
     float total = 0.0F;
@@ -98,6 +95,10 @@ void AppearanceMeshBuilder::triangle(VertexIndex a, VertexIndex b, VertexIndex c
         edge_a.y * edge_b.z - edge_a.z * edge_b.y,
         edge_a.z * edge_b.x - edge_a.x * edge_b.z,
         edge_a.x * edge_b.y - edge_a.y * edge_b.x};
+    const float area_squared = face.x * face.x + face.y * face.y + face.z * face.z;
+    if (area_squared < 1.0e-18F) {
+        return;
+    }
     const foundation::Vec3 average{
         (vertices[a].normal.x + vertices[b].normal.x + vertices[c].normal.x) / 3.0F,
         (vertices[a].normal.y + vertices[b].normal.y + vertices[c].normal.y) / 3.0F,

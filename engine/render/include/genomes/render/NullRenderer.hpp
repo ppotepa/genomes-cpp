@@ -16,9 +16,9 @@ public:
     }
 
     void submit(const PresentationSnapshot& snapshot,
-                const ui::UiDocument& document) override {
+                const ui::UiRenderFrame& frame) override {
         submitted_instances_ += snapshot.instances.size();
-        submitted_ui_nodes_ += document.nodes.size();
+        submitted_ui_nodes_ += frame.commands.size();
     }
 
     void end_frame() override {}

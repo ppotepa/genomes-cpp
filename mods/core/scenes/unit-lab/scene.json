@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "scene.unit-lab",
+  "controller": "builtin.unit-lab",
+  "document": "screen.rml",
+  "stylesheets": ["screen.rcss"],
+  "overlays": [],
+  "action_namespace": "scene.unit-lab"
+}

@@ -1,0 +1,14 @@
+<rml>
+  <head><title>Genomes</title><link type="text/rcss" href="screen.rcss" /></head>
+  <body id="main-menu">
+    <section class="panel">
+      <h1>PROCEDURAL WORLD</h1>
+      <button data-action="scene.start-battlefield">Battlefield</button>
+      <button data-action="scene.open-unit-lab">Unit laboratory</button>
+      <button data-action="scene.open-building-lab">Building laboratory</button>
+      <button data-action="scene.open-world-config">World configuration</button>
+      <button data-action="scene.open-settings">Settings</button>
+      <button data-action="application.quit">Quit</button>
+    </section>
+  </body>
+</rml>

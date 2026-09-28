@@ -1,0 +1,1 @@
+<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>UNIT LAB</h1><p data-bind="text: seed">Seed: 0</p><button data-action="unit.regenerate">Regenerate</button><button data-action="scene.return-main-menu">Back</button></section></body></rml>

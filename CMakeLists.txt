@@ -14,6 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 genomes_configure_cuda()
 genomes_configure_diligent()
+genomes_configure_rmlui()
 genomes_configure_sdl()
 
 add_subdirectory(engine)

@@ -17,13 +17,15 @@ public:
     using Factory = std::function<std::unique_ptr<Scene>()>;
 
     SceneDirector(render::IRenderer& renderer,
-                  ui::UiDocument& ui,
+                  ui::UiRuntime& ui,
                   render::PresentationSnapshot& presentation,
                   jobs::JobSystem* jobs = nullptr);
 
     void register_scene(foundation::SceneId id, Factory factory);
     bool start(foundation::SceneId id);
     void handle_input(const input::InputFrame&);
+    [[nodiscard]] ui::UiActionResult dispatch_ui_action(
+        ui::UiActionId action, const ui::UiActionArguments& arguments);
     void fixed_update(double dt);
     void frame_update(double dt);
     void present();
@@ -50,7 +52,7 @@ private:
     bool change_to(foundation::SceneId id);
 
     render::IRenderer& renderer_;
-    ui::UiDocument& ui_;
+    ui::UiRuntime& ui_;
     render::PresentationSnapshot& presentation_;
     SceneCommandQueue commands_;
     std::unordered_map<foundation::SceneId, Factory> factories_;

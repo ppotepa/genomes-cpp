@@ -56,3 +56,29 @@ function(genomes_configure_diligent)
     set(GENOMES_DILIGENT_CONFIGURED TRUE CACHE INTERNAL
         "Diligent was configured by Genomes")
 endfunction()
+
+function(genomes_configure_rmlui)
+    if(NOT GENOMES_ENABLE_RMLUI)
+        return()
+    endif()
+
+    genomes_require_file("${CMAKE_CURRENT_SOURCE_DIR}/external/RmlUi/CMakeLists.txt" "RmlUi")
+    genomes_require_file("${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/CMakeLists.txt" "FreeType")
+
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static third-party libraries" FORCE)
+    set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "Disable optional FreeType HarfBuzz support" FORCE)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/freetype"
+        "${CMAKE_BINARY_DIR}/_deps/freetype-build" EXCLUDE_FROM_ALL)
+    if(TARGET freetype AND NOT TARGET Freetype::Freetype)
+        add_library(Freetype::Freetype ALIAS freetype)
+    endif()
+
+    set(RMLUI_SAMPLES OFF CACHE BOOL "Build RmlUi samples" FORCE)
+    set(RMLUI_TESTS OFF CACHE BOOL "Build RmlUi tests" FORCE)
+    set(RMLUI_LUA_BINDINGS OFF CACHE BOOL "Build RmlUi Lua bindings" FORCE)
+    set(RMLUI_FONT_ENGINE "freetype" CACHE STRING "RmlUi font engine" FORCE)
+    set(RMLUI_PRECOMPILED_HEADERS OFF CACHE BOOL "RmlUi precompiled headers" FORCE)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external/RmlUi"
+        "${CMAKE_BINARY_DIR}/_deps/rmlui-build" EXCLUDE_FROM_ALL)
+    set(GENOMES_RMLUI_CONFIGURED TRUE CACHE INTERNAL "RmlUi was configured by Genomes")
+endfunction()

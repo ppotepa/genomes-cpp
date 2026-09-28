@@ -91,6 +91,15 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
             height_ = frame.height;
             break;
         case SDL_EVENT_KEY_DOWN:
+            frame.input.events.push_back({input::EventType::KeyDown,
+                                          event.key.scancode,
+                                          static_cast<std::int32_t>(event.key.key),
+                                          0,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          {}});
             if (event.key.repeat) {
                 break;
             }
@@ -118,7 +127,38 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
                 break;
             }
             break;
+        case SDL_EVENT_KEY_UP:
+            frame.input.events.push_back({input::EventType::KeyUp,
+                                          event.key.scancode,
+                                          static_cast<std::int32_t>(event.key.key),
+                                          0,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          {}});
+            break;
+        case SDL_EVENT_TEXT_INPUT:
+            frame.input.events.push_back({input::EventType::TextInput,
+                                          0,
+                                          0,
+                                          0,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          0.0F,
+                                          event.text.text != nullptr ? event.text.text : ""});
+            break;
         case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            frame.input.events.push_back({input::EventType::MouseButtonDown,
+                                          0,
+                                          0,
+                                          event.button.button,
+                                          event.button.x,
+                                          event.button.y,
+                                          0.0F,
+                                          0.0F,
+                                          {}});
             if (event.button.button == SDL_BUTTON_LEFT) {
                 frame.input.mouse_left_pressed = true;
                 frame.input.mouse_left_down = true;
@@ -130,6 +170,15 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
             }
             break;
         case SDL_EVENT_MOUSE_BUTTON_UP:
+            frame.input.events.push_back({input::EventType::MouseButtonUp,
+                                          0,
+                                          0,
+                                          event.button.button,
+                                          event.button.x,
+                                          event.button.y,
+                                          0.0F,
+                                          0.0F,
+                                          {}});
             if (event.button.button == SDL_BUTTON_LEFT) {
                 mouse_left_down_ = false;
                 frame.input.mouse_x = event.button.x;
@@ -139,6 +188,15 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
             }
             break;
         case SDL_EVENT_MOUSE_MOTION:
+            frame.input.events.push_back({input::EventType::MouseMove,
+                                          0,
+                                          0,
+                                          0,
+                                          event.motion.x,
+                                          event.motion.y,
+                                          event.motion.xrel,
+                                          event.motion.yrel,
+                                          {}});
             frame.input.mouse_x = event.motion.x;
             frame.input.mouse_y = event.motion.y;
             frame.input.mouse_delta_x += event.motion.xrel;
@@ -147,6 +205,15 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
             last_mouse_y_ = event.motion.y;
             break;
         case SDL_EVENT_MOUSE_WHEEL:
+            frame.input.events.push_back({input::EventType::MouseWheel,
+                                          0,
+                                          0,
+                                          0,
+                                          event.wheel.x,
+                                          event.wheel.y,
+                                          event.wheel.x,
+                                          event.wheel.y,
+                                          {}});
             frame.input.mouse_wheel_y += event.wheel.y;
             break;
         default:
@@ -156,6 +223,8 @@ PlatformFrame SdlPlatform::poll_events() noexcept {
     frame.input.mouse_left_down = mouse_left_down_;
     frame.input.mouse_x = last_mouse_x_;
     frame.input.mouse_y = last_mouse_y_;
+    frame.input.viewport_width = static_cast<std::uint32_t>(width_);
+    frame.input.viewport_height = static_cast<std::uint32_t>(height_);
     return frame;
 }
 

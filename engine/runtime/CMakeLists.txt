@@ -2,11 +2,16 @@ add_library(genomes_runtime STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
 src/BuiltinScenes.cpp
-src/InfantryPresentation.cpp
+    
 src/MainMenuScene.cpp
-    src/UnitLabScene.cpp
-    src/WorldConfigScene.cpp
+src/WorldConfigScene.cpp
     src/SceneDirector.cpp)
+
+if(GENOMES_ENABLE_INFANTRY)
+    target_sources(genomes_runtime PRIVATE
+        src/InfantryPresentation.cpp
+        src/UnitLabScene.cpp)
+endif()
 
 target_include_directories(genomes_runtime PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")

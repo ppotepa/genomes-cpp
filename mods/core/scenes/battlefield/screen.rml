@@ -1,0 +1,1 @@
+<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section id="hud"><h1>BATTLEFIELD</h1><p data-bind="text: status">Preparing presentation...</p><button data-action="scene.open-pause">Pause</button></section></body></rml>

@@ -154,29 +154,29 @@ void BuildingLabScene::fixed_update(SceneContext&, double dt) {
 
 void BuildingLabScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
-    context.ui.add({foundation::stable_id("building-lab.panel"), ui::UiNodeType::Panel,
+    context.ui.add({foundation::stable_id("building-lab.panel"), ui::UiWidgetType::Panel,
                     "BUILDING LAB", true, false, 620.0F, 650.0F});
-    context.ui.add({foundation::stable_id("building-lab.title"), ui::UiNodeType::Label,
+    context.ui.add({foundation::stable_id("building-lab.title"), ui::UiWidgetType::Label,
                     "Procedural building plan and damage runtime", true, false, 0.0F, 0.0F});
     if (!error_.empty()) {
-        context.ui.add({foundation::stable_id("building-lab.error"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("building-lab.error"), ui::UiWidgetType::Label,
                         "Generation failed: " + error_, true, false, 0.0F, 0.0F});
     } else if (!plan_.parts.empty() && runtime_) {
         const auto& selected = plan_.parts[selected_part_];
         const auto& state = runtime_->parts()[selected_part_];
-        context.ui.add({foundation::stable_id("building-lab.selected"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("building-lab.selected"), ui::UiWidgetType::Label,
                         "Selected: " + std::string(part_name(selected.kind)) + "  integrity " +
                             std::to_string(static_cast<int>(state.integrity * 100.0F)) + "%",
                         true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("building-lab.help"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("building-lab.help"), ui::UiWidgetType::Label,
                         "Up/Down select part, Left/Right apply damage", true, false, 0.0F,
                         0.0F});
-        context.ui.add({foundation::stable_id("building-lab.parts"), ui::UiNodeType::Label,
+        context.ui.add({foundation::stable_id("building-lab.parts"), ui::UiWidgetType::Label,
                         "Parts: " + std::to_string(plan_.parts.size()) + "  Rooms: " +
                             std::to_string(plan_.rooms.size()),
                         true, false, 0.0F, 0.0F});
     }
-    context.ui.add({foundation::stable_id("building-lab.back"), ui::UiNodeType::Button,
+    context.ui.add({foundation::stable_id("building-lab.back"), ui::UiWidgetType::Button,
                     "Back to main menu", true, true, 500.0F, 48.0F});
 }
 

@@ -1,6 +1,14 @@
-add_library(genomes_ui INTERFACE)
-target_link_libraries(genomes_ui INTERFACE genomes::foundation)
-target_include_directories(genomes_ui INTERFACE
+add_library(genomes_ui STATIC
+    src/UiRuntime.cpp
+    src/UiContentRegistry.cpp
+    src/UiNativePluginManager.cpp)
+target_link_libraries(genomes_ui PUBLIC genomes::foundation)
+target_include_directories(genomes_ui PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_features(genomes_ui PUBLIC cxx_std_20)
+target_include_directories(genomes_ui PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../external/json/single_include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../input/include")
+genomes_set_project_warnings(genomes_ui)
 
 add_library(genomes::ui ALIAS genomes_ui)

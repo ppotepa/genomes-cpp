@@ -2,7 +2,7 @@
 #include <genomes/runtime/BuiltinScenes.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/simulation/FixedStepClock.hpp>
-#include <genomes/ui/UiDocument.hpp>
+#include <genomes/ui/UiRuntime.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -10,7 +10,7 @@
 
 int main() {
     genomes::render::NullRenderer renderer;
-    genomes::ui::UiDocument ui;
+    genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
 
@@ -33,10 +33,10 @@ int main() {
     director.present();
 
     std::cout << "GENOMES\n\n";
-    for (const auto& node : ui.nodes) {
-        if (!node.text.empty()) {
-            std::cout << (node.type == genomes::ui::UiNodeType::Button ? "[ ] " : "    ")
-                      << node.text << (node.enabled ? "" : " (coming soon)") << '\n';
+    for (const auto& command : ui.frame().commands) {
+        if (!command.text.empty()) {
+            std::cout << (command.primitive == genomes::ui::UiDrawPrimitive::Quad ? "[ ] " : "    ")
+                      << command.text << (command.enabled ? "" : " (coming soon)") << '\n';
         }
     }
     std::cout << "\nscene instances: " << presentation.instances.size()
@@ -45,16 +45,16 @@ int main() {
 
     // The real SDL adapter will produce this same input frame. The scene
     // remains unaware of the platform and only receives semantic actions.
-    director.handle_input({.confirm_pressed = true});
+    director.handle_input({.confirm_pressed = true, .events = {}});
     director.frame_update(1.0 / 60.0);
     std::cout << "after confirm: scene "
               << (director.current() ? director.current()->id() : 0) << '\n';
-    std::cout << "world config ui nodes: " << ui.nodes.size()
+    std::cout << "world config ui nodes: " << ui.frame().commands.size()
               << ", preview instances: " << presentation.instances.size() << '\n';
 
     // The default world-config selection is Start game. Confirming it carries
     // the seed and generation controls through the application command queue.
-    director.handle_input({.confirm_pressed = true});
+    director.handle_input({.confirm_pressed = true, .events = {}});
     director.frame_update(1.0 / 60.0);
     std::cout << "after world start: scene "
               << (director.current() ? director.current()->id() : 0) << '\n';

@@ -21,7 +21,7 @@ public:
 
     void frame_update(genomes::runtime::SceneContext& context, double) override {
         context.ui.add({genomes::foundation::stable_id("test.scene.panel"),
-                        genomes::ui::UiNodeType::Panel, "test scene", true, false, 1.0F,
+                        genomes::ui::UiWidgetType::Panel, "test scene", true, false, 1.0F,
                         1.0F});
     }
 
@@ -34,7 +34,7 @@ private:
 int main() {
     genomes::jobs::JobSystem jobs{2};
     genomes::render::NullRenderer renderer;
-    genomes::ui::UiDocument ui;
+    genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
 
@@ -60,30 +60,30 @@ int main() {
     director.frame_update(1.0 / 60.0);
     director.present();
 
-    assert(ui.nodes.size() == 10);
+    assert(ui.frame().commands.size() == 10);
     assert(presentation.instances.size() == 3);
     assert(renderer.submitted_ui_nodes() == 10);
 
-    director.handle_input({.down_pressed = true, .confirm_pressed = true});
+    director.handle_input({.down_pressed = true, .confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == unit_lab_id);
 
     director.frame_update(1.0 / 60.0);
     director.present();
-    assert(ui.nodes.size() == 1);
+    assert(ui.frame().commands.size() == 1);
     assert(presentation.instances.empty());
     assert(renderer.frames_started() == 2);
     assert(renderer.submitted_instances() == 3);
     assert(renderer.submitted_ui_nodes() == 11);
 
     assert(director.start(menu_id));
-    director.handle_input({.confirm_pressed = true});
+    director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == world_config_id);
     director.frame_update(1.0 / 60.0);
-    assert(ui.nodes.size() == 13);
+    assert(ui.frame().commands.size() == 13);
     assert(presentation.instances.size() == 2);
-    director.handle_input({.confirm_pressed = true});
+    director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == battlefield_id);
     assert(director.active_world_config() != nullptr);

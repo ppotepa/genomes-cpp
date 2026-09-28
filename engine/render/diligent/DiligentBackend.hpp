@@ -2,7 +2,12 @@
 
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
+<<<<<<< HEAD
 #include <genomes/ui/UiDocument.hpp>
+=======
+#include <genomes/ui/UiRuntime.hpp>
+
+>>>>>>> 13868ba (update mesh rendering)
 #include <cstdint>
 #include <memory>
 
@@ -22,7 +27,7 @@ public:
     [[nodiscard]] RenderResult begin_frame() noexcept override;
     [[nodiscard]] RenderResult draw_meshes(const PresentationSnapshot&) noexcept;
     [[nodiscard]] RenderResult draw_instances(const PresentationSnapshot&) noexcept;
-    [[nodiscard]] RenderResult draw_ui(const ui::UiDocument&) noexcept;
+    [[nodiscard]] RenderResult draw_ui(const ui::UiRenderFrame&) noexcept;
     [[nodiscard]] RenderResult end_frame() noexcept override;
     [[nodiscard]] RenderResult resize(std::uint32_t width, std::uint32_t height) noexcept;
     [[nodiscard]] RenderResult wait_idle() noexcept override;

@@ -1,0 +1,1 @@
+<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>WORLD CONFIGURATION</h1><button data-action="scene.start-battlefield">Start scenario</button><button data-action="scene.return-main-menu">Back</button></section></body></rml>
