@@ -1847,14 +1847,14 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
             impl_->skinned_srb && impl_->skinned_pass_constants &&
             !snapshot.skinned_prototypes.empty() &&
             !snapshot.skinned_palettes.empty()) {
-            const auto find_instance = [&snapshot](foundation::StableId mesh_id)
-                -> const RenderInstance* {
+            const auto find_instances = [&snapshot](foundation::StableId mesh_id) {
+                std::vector<const RenderInstance*> result;
                 for (const RenderInstance& instance : snapshot.instances) {
                     if (instance.mesh_id == mesh_id) {
-                        return &instance;
+                        result.push_back(&instance);
                     }
                 }
-                return nullptr;
+                return result;
             };
             const auto find_palette = [&snapshot](foundation::StableId instance_id)
                 -> const SkinnedBonePalette* {
@@ -1872,10 +1872,9 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     prototype_owner->indices.empty()) {
                     continue;
                 }
-                const RenderInstance* instance = find_instance(prototype_owner->mesh_id);
-                const SkinnedBonePalette* palette =
-                    instance == nullptr ? nullptr : find_palette(instance->object_id);
-                if (instance == nullptr || palette == nullptr) {
+                const std::vector<const RenderInstance*> instances =
+                    find_instances(prototype_owner->mesh_id);
+                if (instances.empty()) {
                     return RenderResult::failure(
                         {foundation::ErrorCode::InvalidState,
                          "skinned prototype has no matching instance palette"});
@@ -1883,7 +1882,9 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                 if (prototype_owner->indices.size() >
                         std::numeric_limits<std::uint32_t>::max() ||
                     prototype_owner->indices.size() % 3U != 0U ||
-                    palette->matrices.size() < kInfantryBonePaletteSize) {
+                    find_palette(instances.front()->object_id) == nullptr ||
+                    find_palette(instances.front()->object_id)->matrices.size() <
+                        kInfantryBonePaletteSize) {
                     return RenderResult::failure(
                         {foundation::ErrorCode::InvalidArgument,
                          "skinned infantry data exceeds Diligent limits"});
@@ -2007,44 +2008,54 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
                     perspective(vertical_fov, aspect, near_plane, far_plane),
                     look_at(eye, target, up));
 
-                SkinnedPassConstants pass_constants{};
-                std::memcpy(pass_constants.view_projection, view_projection.values,
-                            sizeof(pass_constants.view_projection));
-                pass_constants.object_position_scale[0] = instance->position.x;
-                pass_constants.object_position_scale[1] = instance->position.y;
-                pass_constants.object_position_scale[2] = instance->position.z;
-                pass_constants.object_position_scale[3] = 1.0F;
-                pass_constants.object_scale_rotation[0] = instance->scale.x;
-                pass_constants.object_scale_rotation[1] = instance->scale.y;
-                pass_constants.object_scale_rotation[2] = instance->scale.z;
-                pass_constants.object_scale_rotation[3] = instance->rotation_y;
-                for (std::size_t index = 0U; index < 4U; ++index) {
-                    pass_constants.morph_weights[index] = prototype_owner->morph_weights[index];
+                for (const RenderInstance* draw_instance : instances) {
+                    const SkinnedBonePalette* draw_palette =
+                        find_palette(draw_instance->object_id);
+                    if (draw_palette == nullptr ||
+                        draw_palette->matrices.size() < kInfantryBonePaletteSize) {
+                        return RenderResult::failure(
+                            {foundation::ErrorCode::InvalidState,
+                             "skinned instance has no complete bone palette"});
+                    }
+                    SkinnedPassConstants pass_constants{};
+                    std::memcpy(pass_constants.view_projection, view_projection.values,
+                                sizeof(pass_constants.view_projection));
+                    pass_constants.object_position_scale[0] = draw_instance->position.x;
+                    pass_constants.object_position_scale[1] = draw_instance->position.y;
+                    pass_constants.object_position_scale[2] = draw_instance->position.z;
+                    pass_constants.object_position_scale[3] = 1.0F;
+                    pass_constants.object_scale_rotation[0] = draw_instance->scale.x;
+                    pass_constants.object_scale_rotation[1] = draw_instance->scale.y;
+                    pass_constants.object_scale_rotation[2] = draw_instance->scale.z;
+                    pass_constants.object_scale_rotation[3] = draw_instance->rotation_y;
+                    for (std::size_t index = 0U; index < 4U; ++index) {
+                        pass_constants.morph_weights[index] = prototype_owner->morph_weights[index];
+                    }
+                    for (std::size_t bone = 0U; bone < kInfantryBonePaletteSize; ++bone) {
+                        std::memcpy(pass_constants.bone_palette[bone],
+                                    draw_palette->matrices[bone].data(),
+                                    sizeof(pass_constants.bone_palette[bone]));
+                    }
+                    impl_->context->UpdateBuffer(
+                        impl_->skinned_pass_constants, 0, sizeof(pass_constants), &pass_constants,
+                        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+                    impl_->context->SetPipelineState(impl_->skinned_pipeline);
+                    impl_->context->CommitShaderResources(
+                        impl_->skinned_srb,
+                        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+                    Diligent::IBuffer* vertex_buffers[] = {prototype_gpu.vertex_buffer};
+                    const Diligent::Uint64 vertex_offsets[] = {0};
+                    impl_->context->SetVertexBuffers(
+                        0, 1, vertex_buffers, vertex_offsets,
+                        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+                        Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+                    impl_->context->SetIndexBuffer(
+                        prototype_gpu.index_buffer, 0,
+                        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+                    impl_->context->DrawIndexed(Diligent::DrawIndexedAttribs{
+                        static_cast<Diligent::Uint32>(prototype_owner->indices.size()),
+                        Diligent::VT_UINT32, Diligent::DRAW_FLAG_NONE});
                 }
-                for (std::size_t bone = 0U; bone < kInfantryBonePaletteSize; ++bone) {
-                    std::memcpy(pass_constants.bone_palette[bone], palette->matrices[bone].data(),
-                                sizeof(pass_constants.bone_palette[bone]));
-                }
-                impl_->context->UpdateBuffer(
-                    impl_->skinned_pass_constants, 0, sizeof(pass_constants.view_projection),
-                    &pass_constants,
-                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-                impl_->context->SetPipelineState(impl_->skinned_pipeline);
-                impl_->context->CommitShaderResources(
-                    impl_->skinned_srb,
-                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-                Diligent::IBuffer* vertex_buffers[] = {prototype_gpu.vertex_buffer};
-                const Diligent::Uint64 vertex_offsets[] = {0};
-                impl_->context->SetVertexBuffers(
-                    0, 1, vertex_buffers, vertex_offsets,
-                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
-                    Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
-                impl_->context->SetIndexBuffer(
-                    prototype_gpu.index_buffer, 0,
-                    Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-                impl_->context->DrawIndexed(Diligent::DrawIndexedAttribs{
-                    static_cast<Diligent::Uint32>(prototype_owner->indices.size()),
-                    Diligent::VT_UINT32, Diligent::DRAW_FLAG_NONE});
             }
         }
 
@@ -2062,7 +2073,7 @@ RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapsho
             RenderInstanceFlagPreview | RenderInstanceFlagDynamic;
         const auto has_gpu_skinned_prototype = [this, &snapshot](
             foundation::StableId mesh_id) {
-            if (impl_->skinned_pipeline == nullptr || !gpu_skinning_enabled) {
+            if (impl_->skinned_pipeline == nullptr) {
                 return false;
             }
             return std::any_of(

@@ -59,7 +59,11 @@ namespace {
     }
     return result;
 }
-std::shared_ptr<const render::SkinnedMeshPrototype> makeSkinnedPrototype(
+} // namespace
+
+namespace infantry_presentation {
+
+std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model,
     const infantry::FaceOutput* face_output) {
     auto mesh = std::make_shared<render::SkinnedMeshPrototype>();
@@ -292,7 +296,31 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeSkinnedPrototype(
     }
     return mesh;
 }
-} // namespace
+
+std::vector<std::array<float, 16U>> makePalette(
+    const infantry::SkeletonData& skeleton,
+    std::span<const infantry::RigTransform> pose_bones) {
+    const auto bones = skeleton.bones();
+    std::vector<std::array<float, 16U>> palette;
+    palette.reserve(bones.size());
+    std::array<std::array<float, 16U>, infantry::kRigBoneCount> world_matrices{};
+    for (std::size_t index = 0U; index < bones.size(); ++index) {
+        const auto& bone = bones[index];
+        const auto& local = pose_bones.empty() ? bone.local_bind : pose_bones[index];
+        const auto local_matrix = transformMatrix(local);
+        world_matrices[index] = bone.parent == infantry::kInvalidBoneIndex
+            ? local_matrix
+            : multiply(world_matrices[bone.parent], local_matrix);
+        palette.push_back(multiply(world_matrices[index], transformMatrix(bone.inverse_bind)));
+    }
+    return palette;
+}
+
+std::vector<std::array<float, 16U>> makeBindPalette(const infantry::SkeletonData& skeleton) {
+    return makePalette(skeleton, {});
+}
+
+} // namespace infantry_presentation
 
 foundation::SceneId UnitLabScene::id() const noexcept {
     return foundation::scene_id("scene.unit-lab");
@@ -420,30 +448,16 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 void UnitLabScene::build_presentation(SceneContext& context) {
     context.presentation.clear();
     if (model_artifact_) {
-        const auto skinned = makeSkinnedPrototype(
+        const auto skinned = infantry_presentation::makePrototype(
             *model_artifact_, face_animator_ ? &face_animator_->output() : nullptr);
         context.presentation.skinned_prototypes.push_back(skinned);
         render::SkinnedBonePalette palette{};
         palette.instance_id = foundation::stable_id("unit-lab.infantry.instance");
-        palette.matrices.reserve(model_artifact_->skeleton.bones().size());
-        std::array<std::array<float, 16U>, infantry::kRigBoneCount> world_matrices{};
         const auto pose_bones = animation_pose_
             ? std::span<const infantry::RigTransform>(animation_pose_->bones)
             : std::span<const infantry::RigTransform>{};
-        const auto bones = model_artifact_->skeleton.bones();
-        for (std::size_t index = 0U; index < bones.size(); ++index) {
-            const auto& bone = bones[index];
-            const auto& local = pose_bones.empty() ? bone.local_bind : pose_bones[index];
-            const auto local_matrix = transformMatrix(local);
-            world_matrices[index] = bone.parent == infantry::kInvalidBoneIndex
-                ? local_matrix
-                : multiply(world_matrices[bone.parent], local_matrix);
-            // Bind-space vertices must remain unchanged in the bind pose. The
-            // palette is therefore world pose multiplied by inverse bind,
-            // not the local bind transform itself.
-            palette.matrices.push_back(multiply(world_matrices[index],
-                                                transformMatrix(bone.inverse_bind)));
-        }
+        palette.matrices = infantry_presentation::makePalette(model_artifact_->skeleton,
+                                                               pose_bones);
         context.presentation.skinned_palettes.push_back(std::move(palette));
         auto render_mesh = std::make_shared<render::RenderMesh>(
             render::deformSkinnedCPU(*skinned, context.presentation.skinned_palettes.back().matrices));

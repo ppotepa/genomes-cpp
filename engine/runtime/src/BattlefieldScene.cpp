@@ -1,6 +1,7 @@
 #include <genomes/runtime/BattlefieldScene.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/runtime/InfantryPresentation.hpp>
 #include <genomes/proc/SeedPath.hpp>
 #include <genomes/terrain/TerrainGenerator.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
@@ -144,6 +145,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     render_infantry_mesh_.reset();
+    infantry_skinned_prototype_.reset();
     infantry_model_artifact_.reset();
     infantry::InfantryModelRequest model_request{};
     model_request.seed = config_.seed == 0U ? 0xC0FFEEU : config_.seed;
@@ -190,6 +192,7 @@ void BattlefieldScene::on_exit(SceneContext&) {
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     render_infantry_mesh_.reset();
+    infantry_skinned_prototype_.reset();
     render_camera_ = {};
 #if GENOMES_HAS_INFANTRY
     infantry_.reset();
@@ -613,6 +616,60 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
     }
 #if GENOMES_HAS_INFANTRY
     if (infantry_) {
+        if (infantry_model_artifact_) {
+            if (!infantry_skinned_prototype_) {
+                infantry_skinned_prototype_ = infantry_presentation::makePrototype(
+                    *infantry_model_artifact_);
+            }
+            if (infantry_skinned_prototype_) {
+                context.presentation.skinned_prototypes.push_back(infantry_skinned_prototype_);
+                const auto bind_palette = infantry_presentation::makeBindPalette(
+                    infantry_model_artifact_->skeleton);
+                if (!render_infantry_mesh_) {
+                    render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
+                        render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
+                    render_infantry_mesh_->mesh_id = infantry_skinned_prototype_->mesh_id;
+                    render_infantry_mesh_->revision = infantry_skinned_prototype_->revision;
+                }
+                context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
+
+                const float model_height =
+                    std::max(0.01F, infantry_model_artifact_->phenotype.body.height);
+                const foundation::StableId blue_material =
+                    foundation::stable_id("material.infantry.blue");
+                const foundation::StableId red_material =
+                    foundation::stable_id("material.infantry.red");
+                context.presentation.instances.reserve(
+                    context.presentation.instances.size() + infantry_->renderStates().size());
+                context.presentation.skinned_palettes.reserve(
+                    context.presentation.skinned_palettes.size() +
+                    infantry_->renderStates().size());
+                for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+                    const foundation::StableId object_id =
+                        foundation::stable_id("entity.infantry") ^ state.entity.packed();
+                    render::SkinnedBonePalette palette{};
+                    palette.instance_id = object_id;
+                    palette.matrices = bind_palette;
+                    context.presentation.skinned_palettes.push_back(std::move(palette));
+                    const std::uint32_t instance_flags =
+                        render::RenderInstanceFlagDynamic |
+                        (state.team == infantry::Team::Red
+                             ? render::RenderInstanceFlagTeamRed
+                             : 0U);
+                    context.presentation.instances.push_back(
+                        {object_id,
+                         infantry_skinned_prototype_->mesh_id,
+                         state.team == infantry::Team::Blue ? blue_material : red_material,
+                         state.position,
+                         {state.height / model_height, state.height / model_height,
+                          state.height / model_height},
+                         state.heading,
+                         simulation_tick_.value,
+                         instance_flags});
+                }
+                return;
+            }
+        }
         if (!context.render_capabilities.instanced_rendering) {
             if (!render_infantry_mesh_) {
                 render_infantry_mesh_ = std::make_shared<render::RenderMesh>();

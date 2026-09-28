@@ -13,6 +13,7 @@
 #include <genomes/navigation/NavigationWorld.hpp>
 #include <genomes/physics/PhysicsWorld.hpp>
 #include <genomes/render/RenderTypes.hpp>
+#include <genomes/render/SkinnedDeformer.hpp>
 #include <genomes/runtime/Scene.hpp>
 #include <genomes/runtime/WorldConfig.hpp>
 #include <genomes/simulation/EntityStore.hpp>
@@ -56,6 +57,7 @@ private:
     std::shared_ptr<const render::RenderMesh> render_terrain_mesh_;
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
+    std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
     render::RenderCamera render_camera_{};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_;
