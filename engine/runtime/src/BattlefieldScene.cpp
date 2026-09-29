@@ -765,6 +765,8 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     context.presentation.skinned_palettes.push_back(std::move(palette));
                     const std::uint32_t instance_flags =
                         render::RenderInstanceFlagDynamic |
+                        render::RenderInstanceFlagCastShadow |
+                        render::RenderInstanceFlagReceiveShadow |
                         (state.team == infantry::Team::Red
                              ? render::RenderInstanceFlagTeamRed
                              : 0U);

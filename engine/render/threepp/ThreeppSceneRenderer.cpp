@@ -7,6 +7,7 @@
 #include <genomes/platform/Platform.hpp>
 
 #include <threepp/cameras/PerspectiveCamera.hpp>
+#include <threepp/cameras/OrthographicCamera.hpp>
 #include <threepp/controls/OrbitControls.hpp>
 #include <threepp/core/BufferAttribute.hpp>
 #include <threepp/core/BufferGeometry.hpp>
@@ -439,6 +440,17 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
         impl->hemisphere = threepp::HemisphereLight::create(0xffffff, 0x201812, 0.8F);
         impl->key = threepp::DirectionalLight::create(0xffe0b8, 2.0F);
         impl->fill = threepp::DirectionalLight::create(0x8fb8ff, 0.55F);
+        impl->key->castShadow = true;
+        impl->key->shadow->mapSize.set(2048, 2048);
+        impl->key->shadow->bias = -0.00035F;
+        if (auto* shadow_camera =
+                impl->key->shadow->camera->as<threepp::OrthographicCamera>()) {
+            shadow_camera->left = shadow_camera->bottom = -12.0F;
+            shadow_camera->right = shadow_camera->top = 12.0F;
+            shadow_camera->nearPlane = 0.25F;
+            shadow_camera->farPlane = 80.0F;
+            shadow_camera->updateProjectionMatrix();
+        }
         impl->key_target = threepp::Object3D::create();
         impl->fill_target = threepp::Object3D::create();
         impl->key->setTarget(*impl->key_target);
@@ -561,25 +573,46 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
         impl_->hemisphere->color = color(lights.hemisphere.sky);
         impl_->hemisphere->groundColor = color(lights.hemisphere.ground);
         impl_->hemisphere->intensity = lights.hemisphere.intensity;
-        const auto setDirectional = [](threepp::DirectionalLight& light,
-                                       threepp::Object3D& target,
-                                       const DirectionalLight& source) {
+        const foundation::Vec3 light_target = camera.enabled && camera.valid()
+            ? camera.target : foundation::Vec3{0.0F, 1.0F, 0.0F};
+        const auto setDirectional = [&light_target](threepp::DirectionalLight& light,
+                                                    threepp::Object3D& target,
+                                                    const DirectionalLight& source,
+                                                    float distance) {
             light.color = color(source.color);
             light.intensity = source.intensity;
-            target.position.set(0.0F, 1.0F, 0.0F);
-            light.position.set(-source.direction.x * 8.0F,
-                               1.0F - source.direction.y * 8.0F,
-                               -source.direction.z * 8.0F);
+            target.position.set(light_target.x, light_target.y, light_target.z);
+            // Direction is defined from target toward the light. The previous
+            // sign placed the default +Y key below the character/world.
+            light.position.set(light_target.x + source.direction.x * distance,
+                               light_target.y + source.direction.y * distance,
+                               light_target.z + source.direction.z * distance);
         };
-        setDirectional(*impl_->key, *impl_->key_target, lights.key);
-        setDirectional(*impl_->fill, *impl_->fill_target, lights.fill);
+        const float camera_dx = camera.position.x - light_target.x;
+        const float camera_dy = camera.position.y - light_target.y;
+        const float camera_dz = camera.position.z - light_target.z;
+        const float camera_distance = std::sqrt(
+            camera_dx * camera_dx + camera_dy * camera_dy + camera_dz * camera_dz);
+        const float shadow_extent = std::clamp(camera_distance * 0.80F, 8.0F, 180.0F);
+        const float light_distance = std::max(24.0F, shadow_extent * 1.75F);
+        setDirectional(*impl_->key, *impl_->key_target, lights.key, light_distance);
+        setDirectional(*impl_->fill, *impl_->fill_target, lights.fill, light_distance * 0.8F);
+        if (auto* shadow_camera =
+                impl_->key->shadow->camera->as<threepp::OrthographicCamera>()) {
+            shadow_camera->left = shadow_camera->bottom = -shadow_extent;
+            shadow_camera->right = shadow_camera->top = shadow_extent;
+            shadow_camera->nearPlane = 0.25F;
+            shadow_camera->farPlane = light_distance * 2.5F;
+            shadow_camera->updateProjectionMatrix();
+        }
         impl_->scene->add(impl_->hemisphere);
         impl_->scene->add(impl_->key_target);
         impl_->scene->add(impl_->key);
         impl_->scene->add(impl_->fill_target);
         impl_->scene->add(impl_->fill);
 
-        const auto addStandalone = [&](const std::shared_ptr<const RenderMesh>& mesh) {
+        const auto addStandalone = [&](const std::shared_ptr<const RenderMesh>& mesh,
+                                       bool cast_shadow, bool receive_shadow) {
             if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) return;
             RenderInstance source{};
             source.object_id = foundation::stableHashCombine(
@@ -587,11 +620,13 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
             source.mesh_id = mesh->mesh_id;
             source.material_id = foundation::stable_id("material.render.default");
             auto& instance = impl_->ensureOrdinaryInstance(source, mesh);
+            instance.mesh->castShadow = cast_shadow;
+            instance.mesh->receiveShadow = receive_shadow;
             impl_->scene->add(instance.mesh);
             ++impl_->telemetry.draw_calls;
         };
-        addStandalone(snapshot.terrain_mesh);
-        addStandalone(snapshot.world_mesh);
+        addStandalone(snapshot.terrain_mesh, false, true);
+        addStandalone(snapshot.world_mesh, true, true);
 
         for (const auto& instance_data : snapshot.instances) {
             if (const auto* skinned_owner = impl_->skinnedPrototype(snapshot, instance_data.mesh_id)) {
@@ -695,6 +730,10 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
                     ++impl_->telemetry.palette_updates;
                 }
                 setTransform(*instance.mesh, instance_data);
+                instance.mesh->castShadow =
+                    (instance_data.flags & RenderInstanceFlagCastShadow) != 0U;
+                instance.mesh->receiveShadow =
+                    (instance_data.flags & RenderInstanceFlagReceiveShadow) != 0U;
                 instance.mesh->frustumCulled =
                     (instance_data.flags & RenderInstanceFlagPreview) == 0U;
                 impl_->scene->add(instance.mesh);
@@ -703,6 +742,10 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
             }
             if (const auto* ordinary_owner = impl_->ordinaryPrototype(snapshot, instance_data.mesh_id)) {
                 auto& instance = impl_->ensureOrdinaryInstance(instance_data, *ordinary_owner);
+                instance.mesh->castShadow =
+                    (instance_data.flags & RenderInstanceFlagCastShadow) != 0U;
+                instance.mesh->receiveShadow =
+                    (instance_data.flags & RenderInstanceFlagReceiveShadow) != 0U;
                 impl_->scene->add(instance.mesh);
                 ++impl_->telemetry.draw_calls;
             }

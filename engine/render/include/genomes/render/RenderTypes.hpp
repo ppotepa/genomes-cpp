@@ -20,6 +20,8 @@ namespace genomes::render {
 inline constexpr std::uint32_t RenderInstanceFlagPreview = 1U << 1U;
 inline constexpr std::uint32_t RenderInstanceFlagDynamic = 1U << 2U;
 inline constexpr std::uint32_t RenderInstanceFlagTeamRed = 1U << 3U;
+inline constexpr std::uint32_t RenderInstanceFlagCastShadow = 1U << 4U;
+inline constexpr std::uint32_t RenderInstanceFlagReceiveShadow = 1U << 5U;
 
 struct DirectionalLight final {
     foundation::Vec3 direction{-0.35F, 0.80F, -0.25F};

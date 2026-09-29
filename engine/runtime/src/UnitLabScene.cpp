@@ -690,7 +690,9 @@ void UnitLabScene::build_presentation(SceneContext& context) {
                 {1.0F, 1.0F, 1.0F},
                 model_rotation,
                 fixed_tick_,
-                render::RenderInstanceFlagPreview});
+                render::RenderInstanceFlagPreview |
+                    render::RenderInstanceFlagCastShadow |
+                    render::RenderInstanceFlagReceiveShadow});
         }
         return;
     }
