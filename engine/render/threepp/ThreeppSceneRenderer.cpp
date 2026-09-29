@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
@@ -79,21 +80,15 @@ GeometryPtr regularGeometry(const RenderMesh& source) {
     geometry->setAttribute("uv", share(threepp::FloatBufferAttribute::create(std::move(uvs), 2)));
     geometry->setAttribute("color", share(threepp::FloatBufferAttribute::create(std::move(colors), 3)));
     geometry->setIndex(std::move(indices));
+    for (const auto& group : source.material_groups) {
+        if (group.valid(source.indices.size(), source.materials.size())) {
+            geometry->addGroup(static_cast<int>(group.first_index),
+                               static_cast<int>(group.index_count), group.material_index);
+        }
+    }
     geometry->computeBoundingBox();
     geometry->computeBoundingSphere();
     return geometry;
-}
-
-std::uint16_t triangleRegion(const SkinnedMeshPrototype& source, std::size_t offset) {
-    const auto i0 = source.indices[offset];
-    const auto i1 = source.indices[offset + 1U];
-    const auto i2 = source.indices[offset + 2U];
-    const auto a = source.vertices[i0].material_region;
-    const auto b = source.vertices[i1].material_region;
-    const auto c = source.vertices[i2].material_region;
-    if (a == b || a == c) return a;
-    if (b == c) return b;
-    return a;
 }
 
 GeometryPtr skinnedGeometry(const SkinnedMeshPrototype& source) {
@@ -146,20 +141,11 @@ GeometryPtr skinnedGeometry(const SkinnedMeshPrototype& source) {
             share(threepp::FloatBufferAttribute::create(std::move(delta_normal), 3)));
     }
 
-    // Preserve source index order. Groups only describe contiguous material runs.
-    if (source.indices.size() >= 3U) {
-        std::size_t run_start = 0U;
-        std::uint16_t run_region = triangleRegion(source, 0U);
-        for (std::size_t offset = 3U; offset < source.indices.size(); offset += 3U) {
-            const auto region = triangleRegion(source, offset);
-            if (region == run_region) continue;
-            geometry->addGroup(static_cast<int>(run_start),
-                               static_cast<int>(offset - run_start), run_region);
-            run_start = offset;
-            run_region = region;
+    for (const auto& group : source.material_groups) {
+        if (group.valid(source.indices.size(), source.materials.size())) {
+            geometry->addGroup(static_cast<int>(group.first_index),
+                               static_cast<int>(group.index_count), group.material_index);
         }
-        geometry->addGroup(static_cast<int>(run_start),
-                           static_cast<int>(source.indices.size() - run_start), run_region);
     }
     geometry->computeBoundingBox();
     geometry->computeBoundingSphere();
@@ -167,59 +153,68 @@ GeometryPtr skinnedGeometry(const SkinnedMeshPrototype& source) {
 }
 
 std::shared_ptr<threepp::MeshStandardMaterial> standardMaterial(
-    const threepp::Color& tint, float roughness, float metalness, bool morphs) {
+    const MaterialDescriptor& descriptor, foundation::Color tint, bool morphs) {
+    const foundation::Color applied = descriptor.instance_tint
+        ? foundation::Color{descriptor.base_color.r * tint.r,
+                            descriptor.base_color.g * tint.g,
+                            descriptor.base_color.b * tint.b,
+                            descriptor.base_color.a * tint.a}
+        : descriptor.base_color;
     auto material = threepp::MeshStandardMaterial::create(
         threepp::MeshStandardMaterial::Params{}
-            .color(tint)
-            .roughness(roughness)
-            .metalness(metalness));
-    material->vertexColors = true;
+            .color(color(applied))
+            .roughness(descriptor.roughness)
+            .metalness(descriptor.metalness));
+    material->vertexColors = descriptor.vertex_color;
     material->morphTargets = morphs;
     material->morphNormals = morphs;
+    material->opacity = descriptor.opacity * applied.a;
+    material->transparent = descriptor.alpha_mode == MaterialAlphaMode::Blend ||
+                            material->opacity < 0.999F;
+    material->alphaTest = descriptor.alpha_mode == MaterialAlphaMode::Mask
+        ? descriptor.alpha_cutoff : 0.0F;
+    material->side = descriptor.double_sided ? threepp::Side::Double : threepp::Side::Front;
     return material;
 }
 
-[[nodiscard]] bool tintableCharacterRegion(std::uint16_t region) noexcept {
-    return region == 0U || region == 11U || region == 14U || region == 17U;
+MaterialDescriptor fallbackMaterial(foundation::StableId id) {
+    MaterialDescriptor material{};
+    material.material_id = id != 0 ? id : foundation::stable_id("material.render.default");
+    material.revision = 1U;
+    material.base_color = {1.0F, 1.0F, 1.0F, 1.0F};
+    material.roughness = 0.82F;
+    material.vertex_color = true;
+    return material;
 }
 
-threepp::Color characterTint(std::uint16_t region, foundation::StableId material_id) {
-    if (!tintableCharacterRegion(region)) return {1.0F, 1.0F, 1.0F};
-    if (material_id == foundation::stable_id("material.infantry.blue"))
-        return {0.78F, 0.87F, 1.0F};
-    if (material_id == foundation::stable_id("material.infantry.red"))
-        return {1.0F, 0.78F, 0.72F};
-    return {1.0F, 1.0F, 1.0F};
+foundation::StableId materialSetKey(foundation::StableId mesh_id,
+                                    std::uint64_t mesh_revision,
+                                    const RenderInstance& instance) noexcept {
+    auto key = foundation::stableHashCombine(mesh_id, mesh_revision);
+    key = foundation::stableHashCombine(key, instance.material_id);
+    key = foundation::stableHashCombine(key, std::bit_cast<std::uint32_t>(instance.tint.r));
+    key = foundation::stableHashCombine(key, std::bit_cast<std::uint32_t>(instance.tint.g));
+    key = foundation::stableHashCombine(key, std::bit_cast<std::uint32_t>(instance.tint.b));
+    key = foundation::stableHashCombine(key, std::bit_cast<std::uint32_t>(instance.tint.a));
+    return key;
 }
 
-std::vector<std::shared_ptr<threepp::Material>> characterMaterials(
-    foundation::StableId material_id) {
+std::vector<std::shared_ptr<threepp::Material>> createMaterialSet(
+    const std::vector<MaterialDescriptor>& descriptors,
+    foundation::StableId fallback_id,
+    foundation::Color tint,
+    bool morphs) {
     std::vector<std::shared_ptr<threepp::Material>> result;
-    result.reserve(18U);
-    for (std::uint16_t region = 0U; region < 18U; ++region) {
-        float roughness = 0.82F, metalness = 0.0F;
-        switch (region) {
-        case 1U: case 2U: case 8U: case 9U: case 10U: case 12U:
-            roughness = 0.68F; break;
-        case 4U: roughness = 0.55F; break;
-        case 5U: case 6U: case 7U:
-            roughness = 0.22F; break;
-        case 13U: case 15U:
-            roughness = 0.46F; break;
-        case 16U:
-            roughness = 0.28F; metalness = 0.72F; break;
-        case 17U:
-            roughness = 0.52F; metalness = 0.08F; break;
-        default: break;
-        }
-        result.push_back(standardMaterial(
-            characterTint(region, material_id), roughness, metalness, true));
+    if (descriptors.empty()) {
+        result.push_back(standardMaterial(fallbackMaterial(fallback_id), tint, morphs));
+        return result;
+    }
+    result.reserve(descriptors.size());
+    for (const auto& descriptor : descriptors) {
+        const auto value = descriptor.valid() ? descriptor : fallbackMaterial(fallback_id);
+        result.push_back(standardMaterial(value, tint, morphs));
     }
     return result;
-}
-
-std::shared_ptr<threepp::Material> ordinaryMaterial() {
-    return standardMaterial({1.0F, 1.0F, 1.0F}, 0.82F, 0.0F, false);
 }
 
 } // namespace
@@ -234,13 +229,16 @@ struct ThreeppSceneRenderer::Impl final {
     struct OrdinaryInstance final {
         foundation::StableId mesh_id{0U};
         std::uint64_t mesh_revision{0U};
+        foundation::StableId material_set_key{0U};
         std::shared_ptr<threepp::Mesh> mesh;
         std::uint64_t last_seen{0U};
     };
     struct SkinnedInstance final {
         foundation::StableId mesh_id{0U};
         foundation::StableId material_id{0U};
+        foundation::StableId material_set_key{0U};
         std::uint64_t mesh_revision{0U};
+        std::uint64_t pose_revision{~std::uint64_t{0}};
         std::shared_ptr<threepp::SkinnedMesh> mesh;
         std::shared_ptr<threepp::Skeleton> skeleton;
         std::vector<std::shared_ptr<threepp::Bone>> bones;
@@ -258,8 +256,7 @@ struct ThreeppSceneRenderer::Impl final {
     std::shared_ptr<threepp::Object3D> fill_target;
     std::shared_ptr<threepp::LineBasicMaterial> debug_material;
     std::unordered_map<foundation::StableId,
-        std::vector<std::shared_ptr<threepp::Material>>> character_material_sets;
-    std::shared_ptr<threepp::Material> ordinary_material;
+        std::vector<std::shared_ptr<threepp::Material>>> material_sets;
     ThreeppUiPass ui;
     std::unordered_map<foundation::StableId, GeometryCache> ordinary_geometry;
     std::unordered_map<foundation::StableId, GeometryCache> skinned_geometry;
@@ -321,14 +318,6 @@ struct ThreeppSceneRenderer::Impl final {
         return nullptr;
     }
 
-    const std::vector<std::shared_ptr<threepp::Material>>& materialSet(
-        foundation::StableId material_id) {
-        const auto found = character_material_sets.find(material_id);
-        if (found != character_material_sets.end()) return found->second;
-        return character_material_sets.emplace(
-            material_id, characterMaterials(material_id)).first->second;
-    }
-
     const std::shared_ptr<const SkinnedMeshPrototype>* skinnedPrototype(
         const PresentationSnapshot& snapshot, foundation::StableId mesh_id) const noexcept {
         for (const auto& value : snapshot.skinned_prototypes)
@@ -349,11 +338,22 @@ struct ThreeppSceneRenderer::Impl final {
                                              const std::shared_ptr<const RenderMesh>& prototype) {
         auto geometry = ensureOrdinary(prototype);
         auto& instance = ordinary_instances[source.object_id];
+        const auto set_key = materialSetKey(source.mesh_id, prototype->revision, source);
         if (!instance.mesh || instance.mesh_id != source.mesh_id ||
-            instance.mesh_revision != prototype->revision) {
-            instance.mesh = threepp::Mesh::create(geometry, ordinary_material);
+            instance.mesh_revision != prototype->revision ||
+            instance.material_set_key != set_key) {
+            auto found = material_sets.find(set_key);
+            if (found == material_sets.end()) {
+                found = material_sets.emplace(
+                    set_key, createMaterialSet(prototype->materials, source.material_id,
+                                               source.tint, false)).first;
+            }
+            instance.mesh = found->second.size() == 1U
+                ? threepp::Mesh::create(geometry, found->second.front())
+                : threepp::Mesh::create(geometry, found->second);
             instance.mesh_id = source.mesh_id;
             instance.mesh_revision = prototype->revision;
+            instance.material_set_key = set_key;
         }
         instance.last_seen = telemetry.frame;
         setTransform(*instance.mesh, source);
@@ -409,7 +409,6 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
         impl->fill_target = threepp::Object3D::create();
         impl->key->setTarget(*impl->key_target);
         impl->fill->setTarget(*impl->fill_target);
-        impl->ordinary_material = ordinaryMaterial();
         impl->debug_material = threepp::LineBasicMaterial::create(
             threepp::LineBasicMaterial::Params{}.color(threepp::Color(1.0F,1.0F,1.0F)));
         impl->debug_material->vertexColors = true;
@@ -513,20 +512,12 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
 
         const auto addStandalone = [&](const std::shared_ptr<const RenderMesh>& mesh) {
             if (!mesh || mesh->vertices.empty() || mesh->indices.empty()) return;
-            auto geometry = impl_->ensureOrdinary(mesh);
-            const auto object_id = foundation::stableHashCombine(
+            RenderInstance source{};
+            source.object_id = foundation::stableHashCombine(
                 foundation::stable_id("threepp.direct-mesh"), mesh->mesh_id);
-            auto& instance = impl_->ordinary_instances[object_id];
-            if (!instance.mesh || instance.mesh_id != mesh->mesh_id ||
-                instance.mesh_revision != mesh->revision) {
-                instance.mesh = threepp::Mesh::create(geometry, impl_->ordinary_material);
-                instance.mesh_id = mesh->mesh_id;
-                instance.mesh_revision = mesh->revision;
-            }
-            instance.last_seen = impl_->telemetry.frame;
-            instance.mesh->position.set(0,0,0);
-            instance.mesh->scale.set(1,1,1);
-            instance.mesh->rotation.set(0,0,0);
+            source.mesh_id = mesh->mesh_id;
+            source.material_id = foundation::stable_id("material.render.default");
+            auto& instance = impl_->ensureOrdinaryInstance(source, mesh);
             impl_->scene->add(instance.mesh);
             ++impl_->telemetry.draw_calls;
         };
@@ -542,27 +533,48 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
                                 "threepp skinned instance has no local pose");
                     return;
                 }
+                if (!prototype_owner->skeleton || !prototype_owner->skeleton->valid() ||
+                    pose->skeleton_id != prototype_owner->skeleton->skeleton_id) {
+                    impl_->fail(foundation::ErrorCode::InvalidState,
+                                "threepp skinned instance has incompatible skeleton metadata");
+                    return;
+                }
                 auto geometry = impl_->ensureSkinned(prototype_owner);
                 auto& instance = impl_->skinned_instances[instance_data.object_id];
+                const auto set_key = materialSetKey(
+                    prototype_owner->mesh_id, prototype_owner->revision, instance_data);
                 if (!instance.mesh || instance.mesh_id != prototype_owner->mesh_id ||
                     instance.mesh_revision != prototype_owner->revision) {
                     instance = {};
                     instance.mesh_id = prototype_owner->mesh_id;
                     instance.mesh_revision = prototype_owner->revision;
-                    const auto& materials = impl_->materialSet(instance_data.material_id);
-                    instance.mesh = threepp::SkinnedMesh::create(geometry, materials.front());
-                    instance.mesh->setMaterials(materials);
+                    auto found = impl_->material_sets.find(set_key);
+                    if (found == impl_->material_sets.end()) {
+                        found = impl_->material_sets.emplace(
+                            set_key, createMaterialSet(prototype_owner->materials,
+                                                       instance_data.material_id,
+                                                       instance_data.tint, true)).first;
+                    }
+                    instance.mesh = threepp::SkinnedMesh::create(geometry, found->second.front());
+                    instance.mesh->setMaterials(found->second);
                     instance.material_id = instance_data.material_id;
-                    instance.bones.reserve(prototype_owner->bones.size());
-                    for (std::size_t bone = 0U; bone < prototype_owner->bones.size(); ++bone) {
+                    instance.material_set_key = set_key;
+                    instance.bones.reserve(prototype_owner->skeleton->bones.size());
+                    std::vector<threepp::Matrix4> inverse_binds;
+                    inverse_binds.reserve(prototype_owner->skeleton->bones.size());
+                    for (std::size_t bone = 0U; bone < prototype_owner->skeleton->bones.size(); ++bone) {
+                        const auto& source_bone = prototype_owner->skeleton->bones[bone];
                         auto node = threepp::Bone::create();
                         node->name = "bone-" + std::to_string(bone);
-                        setBoneTransform(*node, prototype_owner->bones[bone].local_bind);
+                        setBoneTransform(*node, source_bone.local_bind);
                         instance.bones.push_back(std::move(node));
+                        threepp::Matrix4 inverse;
+                        inverse.fromArray(source_bone.inverse_bind);
+                        inverse_binds.push_back(inverse);
                     }
-                    for (std::size_t bone = 0U; bone < prototype_owner->bones.size(); ++bone) {
-                        const auto parent = prototype_owner->bones[bone].parent;
-                        if (parent == 0xffffU) {
+                    for (std::size_t bone = 0U; bone < prototype_owner->skeleton->bones.size(); ++bone) {
+                        const auto parent = prototype_owner->skeleton->bones[bone].parent;
+                        if (parent == kInvalidRenderBoneIndex) {
                             instance.mesh->add(instance.bones[bone]);
                         } else if (parent < instance.bones.size()) {
                             instance.bones[parent]->add(instance.bones[bone]);
@@ -573,16 +585,22 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
                         }
                     }
                     instance.mesh->updateMatrixWorld(true);
-                    instance.skeleton = threepp::Skeleton::create(instance.bones);
+                    instance.skeleton = threepp::Skeleton::create(instance.bones, inverse_binds);
                     threepp::Matrix4 bind;
                     bind.identity();
                     instance.mesh->bind(instance.skeleton, bind);
                     instance.mesh->morphTargetInfluences().assign(
                         prototype_owner->morph_target_count, 0.0F);
-                }
-                if (instance.material_id != instance_data.material_id) {
-                    const auto& materials = impl_->materialSet(instance_data.material_id);
-                    instance.mesh->setMaterials(materials);
+                } else if (instance.material_set_key != set_key) {
+                    auto found = impl_->material_sets.find(set_key);
+                    if (found == impl_->material_sets.end()) {
+                        found = impl_->material_sets.emplace(
+                            set_key, createMaterialSet(prototype_owner->materials,
+                                                       instance_data.material_id,
+                                                       instance_data.tint, true)).first;
+                    }
+                    instance.mesh->setMaterials(found->second);
+                    instance.material_set_key = set_key;
                     instance.material_id = instance_data.material_id;
                 }
                 instance.last_seen = impl_->telemetry.frame;
@@ -592,19 +610,25 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
                                 "threepp local pose does not match skeleton");
                     return;
                 }
-                for (std::size_t bone = 0U; bone < instance.bones.size(); ++bone) {
-                    const auto& transform = pose->local_poses.empty()
-                        ? prototype_owner->bones[bone].local_bind
-                        : pose->local_poses[bone];
-                    setBoneTransform(*instance.bones[bone], transform);
+                if (instance.pose_revision != pose->pose_revision) {
+                    for (std::size_t bone = 0U; bone < instance.bones.size(); ++bone) {
+                        const auto& transform = pose->local_poses.empty()
+                            ? prototype_owner->skeleton->bones[bone].local_bind
+                            : pose->local_poses[bone];
+                        setBoneTransform(*instance.bones[bone], transform);
+                    }
+                    auto& influences = instance.mesh->morphTargetInfluences();
+                    for (std::size_t morph = 0U; morph < influences.size(); ++morph) {
+                        influences[morph] = morph < pose->morph_weights.size()
+                            ? pose->morph_weights[morph] : 0.0F;
+                    }
+                    instance.pose_revision = pose->pose_revision;
+                    ++impl_->telemetry.palette_updates;
                 }
-                auto& influences = instance.mesh->morphTargetInfluences();
-                for (std::size_t morph = 0U; morph < influences.size(); ++morph)
-                    influences[morph] = morph < pose->morph_weights.size()
-                        ? pose->morph_weights[morph] : 0.0F;
                 setTransform(*instance.mesh, instance_data);
+                instance.mesh->frustumCulled =
+                    (instance_data.flags & RenderInstanceFlagPreview) == 0U;
                 impl_->scene->add(instance.mesh);
-                ++impl_->telemetry.palette_updates;
                 ++impl_->telemetry.draw_calls;
                 continue;
             }
@@ -717,8 +741,7 @@ void ThreeppSceneRenderer::shutdown() noexcept {
         impl_->key_target.reset();
         impl_->fill_target.reset();
         impl_->debug_material.reset();
-        impl_->character_material_sets.clear();
-        impl_->ordinary_material.reset();
+        impl_->material_sets.clear();
         impl_->renderer.reset();
     }
     impl_.reset();
