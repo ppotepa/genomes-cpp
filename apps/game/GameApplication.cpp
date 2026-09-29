@@ -204,9 +204,11 @@ int GameApplication::run(int argc, char** argv) {
         const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - previous);
         previous = now;
 #if defined(GENOMES_HAS_RMLUI)
-        const bool rml_consumed = rml_ui_ && rml_ui_->process_input(platform_frame.input);
-        if (rml_consumed) director_.handle_input({.events = {}});
-        else director_.handle_input(platform_frame.input);
+        if (rml_ui_ && rml_ui_->valid()) {
+            director_.handle_input(rml_ui_->filter_input(platform_frame.input));
+        } else {
+            director_.handle_input(platform_frame.input);
+        }
 #else
         director_.handle_input(platform_frame.input);
 #endif

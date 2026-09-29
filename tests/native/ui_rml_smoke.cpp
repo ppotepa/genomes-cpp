@@ -37,8 +37,26 @@ int main() {
                             100.0F, 190.0F, 0.0F, 0.0F, {}});
     input.events.push_back({genomes::input::EventType::MouseButtonUp, 0, 0, 1,
                             100.0F, 190.0F, 0.0F, 0.0F, {}});
-    runtime.process_input(input);
+    input.mouse_left_pressed = true;
+    input.events.push_back({genomes::input::EventType::KeyDown, 4, 0, 0,
+                            0.0F, 0.0F, 0.0F, 0.0F, {}});
+    const auto filtered = runtime.filter_input(input);
     assert(router.calls > 0);
     assert(router.last_action == genomes::foundation::stable_id("scene.start-battlefield"));
+    assert(!filtered.mouse_left_pressed);
+    bool kept_key = false;
+    bool kept_release = false;
+    bool kept_press = false;
+    for (const auto& event : filtered.events) {
+        kept_key = kept_key ||
+            (event.type == genomes::input::EventType::KeyDown && event.scancode == 4);
+        kept_release = kept_release ||
+            event.type == genomes::input::EventType::MouseButtonUp;
+        kept_press = kept_press ||
+            event.type == genomes::input::EventType::MouseButtonDown;
+    }
+    assert(kept_key);
+    assert(kept_release);
+    assert(!kept_press);
     return 0;
 }

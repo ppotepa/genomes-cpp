@@ -92,6 +92,10 @@ public:
     [[nodiscard]] Rml::Context* context() noexcept { return context_; }
     [[nodiscard]] const UiRenderFrame& update(double delta_seconds);
     [[nodiscard]] UiRenderFrame& frame() noexcept { return frame_; }
+    // Dispatch each raw event to RmlUi and return only events that still belong
+    // to the scene/presentation layer. Release events are always forwarded so
+    // interrupted drags cannot leave controls stuck.
+    [[nodiscard]] input::InputFrame filter_input(const input::InputFrame& input);
     bool process_input(const input::InputFrame& input);
     void set_action_router(IUiActionRouter* router) noexcept;
     bool bind_text(std::string name, std::string* value);
@@ -101,6 +105,9 @@ public:
     void resize(std::uint32_t width, std::uint32_t height);
 
 private:
+    [[nodiscard]] bool process_event(const input::Event& event);
+    static void accumulate_event(input::InputFrame& frame, const input::Event& event);
+
     RenderAdapter renderer_;
     FileAdapter files_;
     SystemAdapter system_;
@@ -111,6 +118,7 @@ private:
     std::string selected_{"No selection"};
     std::string seed_{"Seed: 0"};
     UiRenderFrame frame_{};
+    bool ui_left_capture_{false};
 };
 
 } // namespace genomes::ui::rml

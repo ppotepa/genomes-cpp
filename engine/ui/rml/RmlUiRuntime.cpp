@@ -181,59 +181,131 @@ const UiRenderFrame& Runtime::update(double delta_seconds) {
     return frame_;
 }
 
-bool Runtime::process_input(const input::InputFrame& input) {
+bool Runtime::process_event(const input::Event& event) {
     if (context_ == nullptr) return false;
-    bool consumed = false;
-    for (const auto& event : input.events) {
-        switch (event.type) {
-        case input::EventType::KeyDown: {
-            Rml::Input::KeyIdentifier key = Rml::Input::KI_UNKNOWN;
-            switch (event.scancode) {
-            case 79: key = Rml::Input::KI_RIGHT; break;
-            case 80: key = Rml::Input::KI_LEFT; break;
-            case 81: key = Rml::Input::KI_DOWN; break;
-            case 82: key = Rml::Input::KI_UP; break;
-            case 40: key = Rml::Input::KI_RETURN; break;
-            case 41:
-                // Overlay dismissal is a UI action, so ESC must be consumed
-                // before the gameplay camera/controller sees the event.
-                if (action_listener_.dispatch(foundation::stable_id("scene.close-overlay")) ==
+    switch (event.type) {
+    case input::EventType::KeyDown:
+    case input::EventType::KeyUp: {
+        Rml::Input::KeyIdentifier key = Rml::Input::KI_UNKNOWN;
+        switch (event.scancode) {
+        case 79: key = Rml::Input::KI_RIGHT; break;
+        case 80: key = Rml::Input::KI_LEFT; break;
+        case 81: key = Rml::Input::KI_DOWN; break;
+        case 82: key = Rml::Input::KI_UP; break;
+        case 40: key = Rml::Input::KI_RETURN; break;
+        case 41:
+            if (event.type == input::EventType::KeyDown &&
+                action_listener_.dispatch(foundation::stable_id("scene.close-overlay")) ==
                     UiActionResult::Handled) {
-                    consumed = true;
-                    break;
-                }
-                key = Rml::Input::KI_ESCAPE;
-                break;
-            default: break;
+                return true;
             }
-            if (key != Rml::Input::KI_UNKNOWN) consumed |= !context_->ProcessKeyDown(key, 0);
+            key = Rml::Input::KI_ESCAPE;
             break;
+        default: break;
         }
-        case input::EventType::KeyUp:
-            break;
-        case input::EventType::TextInput:
-            consumed |= !context_->ProcessTextInput(event.text);
-            break;
-        case input::EventType::MouseMove:
-            consumed |= !context_->ProcessMouseMove(static_cast<int>(event.x),
-                                                    static_cast<int>(event.y), 0);
-            break;
-        case input::EventType::MouseButtonDown:
-            consumed |= !context_->ProcessMouseButtonDown(event.mouse_button - 1, 0);
-            break;
-        case input::EventType::MouseButtonUp:
-            consumed |= !context_->ProcessMouseButtonUp(event.mouse_button - 1, 0);
-            break;
-        case input::EventType::MouseWheel:
-            consumed |= !context_->ProcessMouseWheel({event.wheel_x, event.wheel_y}, 0);
-            break;
-        case input::EventType::WindowResize:
-        case input::EventType::TextInputStart:
-        case input::EventType::TextInputStop:
-            break;
+        if (key == Rml::Input::KI_UNKNOWN) return false;
+        return event.type == input::EventType::KeyDown
+            ? !context_->ProcessKeyDown(key, 0)
+            : !context_->ProcessKeyUp(key, 0);
+    }
+    case input::EventType::TextInput:
+        return !context_->ProcessTextInput(event.text);
+    case input::EventType::MouseMove:
+        return !context_->ProcessMouseMove(static_cast<int>(event.x),
+                                           static_cast<int>(event.y), 0);
+    case input::EventType::MouseButtonDown:
+        return !context_->ProcessMouseButtonDown(event.mouse_button - 1, 0);
+    case input::EventType::MouseButtonUp:
+        return !context_->ProcessMouseButtonUp(event.mouse_button - 1, 0);
+    case input::EventType::MouseWheel:
+        return !context_->ProcessMouseWheel({event.wheel_x, event.wheel_y}, 0);
+    case input::EventType::WindowResize:
+    case input::EventType::TextInputStart:
+    case input::EventType::TextInputStop:
+        return false;
+    }
+    return false;
+}
+
+void Runtime::accumulate_event(input::InputFrame& frame, const input::Event& event) {
+    frame.events.push_back(event);
+    switch (event.type) {
+    case input::EventType::KeyDown:
+        switch (event.scancode) {
+        case 79: frame.right_pressed = true; break;
+        case 80: frame.left_pressed = true; break;
+        case 81: frame.down_pressed = true; break;
+        case 82: frame.up_pressed = true; break;
+        case 40: frame.confirm_pressed = true; break;
+        case 41: frame.cancel_pressed = true; break;
+        default: break;
+        }
+        break;
+    case input::EventType::MouseButtonDown:
+        if (event.mouse_button == 1) frame.mouse_left_pressed = true;
+        break;
+    case input::EventType::MouseMove:
+        frame.mouse_delta_x += event.wheel_x;
+        frame.mouse_delta_y += event.wheel_y;
+        break;
+    case input::EventType::MouseWheel:
+        frame.mouse_wheel_y += event.wheel_y;
+        break;
+    case input::EventType::KeyUp:
+    case input::EventType::TextInput:
+    case input::EventType::MouseButtonUp:
+    case input::EventType::WindowResize:
+    case input::EventType::TextInputStart:
+    case input::EventType::TextInputStop:
+        break;
+    }
+}
+
+input::InputFrame Runtime::filter_input(const input::InputFrame& input) {
+    input::InputFrame filtered = input;
+    filtered.events.clear();
+    filtered.up_pressed = false;
+    filtered.down_pressed = false;
+    filtered.left_pressed = false;
+    filtered.right_pressed = false;
+    filtered.confirm_pressed = false;
+    filtered.cancel_pressed = false;
+    filtered.mouse_left_pressed = false;
+    filtered.mouse_delta_x = 0.0F;
+    filtered.mouse_delta_y = 0.0F;
+    filtered.mouse_wheel_y = 0.0F;
+
+    if (context_ == nullptr) return input;
+
+    for (const auto& event : input.events) {
+        bool consumed = process_event(event);
+        if (event.type == input::EventType::MouseButtonDown &&
+            event.mouse_button == 1 && consumed) {
+            ui_left_capture_ = true;
+        }
+        if (event.type == input::EventType::MouseMove && ui_left_capture_) {
+            consumed = true;
+        }
+
+        // Release must reach downstream controls even when RmlUi owned the
+        // press/drag, otherwise a control that began outside the UI can stick.
+        const bool release = event.type == input::EventType::MouseButtonUp ||
+                             event.type == input::EventType::KeyUp;
+        if (!consumed || release) accumulate_event(filtered, event);
+
+        if (event.type == input::EventType::MouseButtonUp && event.mouse_button == 1) {
+            ui_left_capture_ = false;
         }
     }
-    return consumed;
+    filtered.mouse_left_down = input.mouse_left_down && !ui_left_capture_;
+    return filtered;
+}
+
+bool Runtime::process_input(const input::InputFrame& input) {
+    const auto filtered = filter_input(input);
+    return filtered.events.size() != input.events.size() ||
+           filtered.mouse_left_pressed != input.mouse_left_pressed ||
+           filtered.mouse_wheel_y != input.mouse_wheel_y;
 }
 
 bool Runtime::load_document(const std::filesystem::path& relative_path) {
