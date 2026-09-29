@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -469,7 +470,7 @@ int main() {
                             <<" expected="<<reference<<" actual="<<actual;
                         if(name=="body.positions"||name=="body.normals"){const auto vertex=static_cast<std::uint32_t>(index/3U);for(const auto& tag:jacket.tags)
                             if(std::find(tag.vertices.begin(),tag.vertices.end(),vertex)!=tag.vertices.end())std::cerr<<" tag="<<tag.name;
-                            const auto& p=jacket.vertices[vertex].position;std::cerr<<" point="<<p.x<<','<<p.y<<','<<p.z;
+                            const auto& p=jacket.vertices[vertex].position;std::cerr<<std::setprecision(17)<<" point="<<p.x<<','<<p.y<<','<<p.z;
                             std::cerr<<" H="<<fit_phenotype.value().body.height<<" refH="<<fit_phenotype.value().body.reference_height
                                 <<" hip="<<fit_phenotype.value().body.hip_y<<" refHip="<<fit_phenotype.value().body.reference_hip_y;
                             if(const auto* expected_positions=avatar_fixture.find("body.positions")){

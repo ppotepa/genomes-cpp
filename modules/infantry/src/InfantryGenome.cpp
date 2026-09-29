@@ -43,8 +43,8 @@ constexpr std::array<std::string_view, GenomeGeneCount> kGenomeGeneNames{
     return std::clamp((value - minimum) / (maximum - minimum), 0.0F, 1.0F);
 }
 
-[[nodiscard]] float vary(float value, float scale) noexcept {
-    return std::clamp(0.5F + (value - 0.5F) * scale, 0.0F, 1.0F);
+[[nodiscard]] double vary(double value, double scale) noexcept {
+    return std::clamp(0.5 + (value - 0.5) * scale, 0.0, 1.0);
 }
 
 class ReferenceRandom final {
