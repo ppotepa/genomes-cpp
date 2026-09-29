@@ -33,6 +33,8 @@ struct RunOptions final {
     std::uint64_t max_frames{0U};
     bool deterministic{false};
     std::uint8_t unitlab_camera_steps{0U};
+    std::uint8_t unitlab_locomotion_steps{0U};
+    std::uint8_t unitlab_expression_steps{0U};
 };
 
 bool parse_u64(std::string_view text, std::uint64_t& value) {
@@ -60,6 +62,25 @@ std::optional<RunOptions> parse_options(int argc, char** argv) {
             else if (camera=="back") options.unitlab_camera_steps=3U;
             else if (camera=="face") options.unitlab_camera_steps=4U;
             else if (camera=="hands") options.unitlab_camera_steps=5U;
+            else return std::nullopt;
+        }
+        else if (argument=="--unitlab-locomotion" && index+1<argc && argv[index+1]!=nullptr) {
+            const std::string_view locomotion=argv[++index];
+            if (locomotion=="idle") options.unitlab_locomotion_steps=0U;
+            else if (locomotion=="walk") options.unitlab_locomotion_steps=1U;
+            else if (locomotion=="run") options.unitlab_locomotion_steps=2U;
+            else if (locomotion=="crouch") options.unitlab_locomotion_steps=3U;
+            else return std::nullopt;
+        }
+        else if (argument=="--unitlab-expression" && index+1<argc && argv[index+1]!=nullptr) {
+            const std::string_view expression=argv[++index];
+            if (expression=="neutral") options.unitlab_expression_steps=0U;
+            else if (expression=="alert") options.unitlab_expression_steps=1U;
+            else if (expression=="fear") options.unitlab_expression_steps=2U;
+            else if (expression=="anger") options.unitlab_expression_steps=3U;
+            else if (expression=="pain") options.unitlab_expression_steps=4U;
+            else if (expression=="fatigue") options.unitlab_expression_steps=5U;
+            else if (expression=="eyes-closed") options.unitlab_expression_steps=6U;
             else return std::nullopt;
         }
         else if (argument=="--capture" && index+1<argc && argv[index+1]!=nullptr) {
@@ -222,6 +243,8 @@ int GameApplication::run(int argc, char** argv) {
     if (!parsed) {
         std::cerr << "Usage: genomes_game [--battlefield|--unit-lab|--building-lab] "
                      "[--unitlab-camera 3q|front|side|back|face|hands] "
+                     "[--unitlab-locomotion idle|walk|run|crouch] "
+                     "[--unitlab-expression neutral|alert|fear|anger|pain|fatigue|eyes-closed] "
                      "[--frames N] [--deterministic] [--capture FILE --capture-frame N]\n";
         return 2;
     }
@@ -232,13 +255,18 @@ int GameApplication::run(int argc, char** argv) {
         return 1;
     }
     if (options.initial_scene == foundation::scene_id("scene.unit-lab")) {
-        for (std::uint8_t step=0U; step<options.unitlab_camera_steps; ++step) {
-            const auto result=director_.dispatch_ui_action(
-                foundation::stable_id("unit.camera"), {});
-            if (result != ui::UiActionResult::Handled) {
-                std::cerr << "Could not select UnitLab camera preset\n";
-                return 1;
+        const auto repeat_action = [this](std::string_view id, std::uint8_t count) {
+            for (std::uint8_t step=0U; step<count; ++step) {
+                if (director_.dispatch_ui_action(foundation::stable_id(id), {}) !=
+                    ui::UiActionResult::Handled) return false;
             }
+            return true;
+        };
+        if (!repeat_action("unit.camera", options.unitlab_camera_steps) ||
+            !repeat_action("unit.locomotion", options.unitlab_locomotion_steps) ||
+            !repeat_action("unit.expression", options.unitlab_expression_steps)) {
+            std::cerr << "Could not select UnitLab deterministic state\n";
+            return 1;
         }
     }
     if (options.capture_path && options.capture_path->has_parent_path()) {
