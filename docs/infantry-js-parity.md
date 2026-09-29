@@ -25,7 +25,7 @@ stage without its fixture cannot be marked parity.
 | 10 | Battlefield integration | integration fixtures | shared pipeline | partial | `3d2710f` |
 | 11 | damage/ragdoll adaptation | native invariants only | damage/ragdoll tests | implemented | `3d2710f` |
 | 12 | fixture breadth | catalog hashes + extreme samples | all 36 seed/LOD/gear full-buffer fixtures are checked and parsed; every GNIF stream carries a quantized FNV-1a 64 descriptor hash which the native reader recomputes and verifies; mesh manifests carry position/normal/index extrema and the reader checks position extrema against the buffers; the checked-in 1024-seed genome catalog is parsed and every gene is verified against native generation at `2e-6`. Manual capture review remains pending | partial | worktree |
-| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | parity — normal Debug passes 78/78; SDL+RmlUi Debug passes 79/79 including `ui.rml_smoke`; DiligentFX Debug and Release each pass 79/79, including `render.diligent_headless`; the no-infantry build completes without the infantry target. Manual graphical capture remains part of stage 14 | worktree |
+| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | partial — normal Debug builds with 77/78 tests (strict reference parity remains); Diligent Debug now builds cleanly and passes 78/79 for the same single parity failure. SDL/RmlUi, Release and manual graphical capture remain pending. | worktree |
 | 14 | final acceptance | capture matrix | all gates + manual review | pending | — |
 
 ## GNIF v1
@@ -85,6 +85,17 @@ groups, extrema, and quantized FNV-1a 64 hashes. Checked-in fixtures,
 - Remaining: close the final thin-surface normal ULP without relaxing the
   strict `2e-5` gate.
 - Status after: stages 2 and 4 remain `partial`.
+
+### 8/13 Diligent merge-conflict repair
+
+- Status before: the Diligent Debug build was blocked by committed conflict
+  markers in `DiligentBackend.*` and `DiligentSceneRenderer.*`.
+- Change: restored the coherent mesh-rendering versions and removed all
+  `<<<<<<<`/`=======`/`>>>>>>>` markers without modifying the DiligentEngine
+  submodule.
+- Test: fresh `verify-diligent-debug` build succeeds; 78/79 tests pass, with
+  only `infantry.reference_parity` still failing.
+- Commit: `5d8c81a`.
 
 Follow-up: the jacket profile now also retains exact mapped Y and radius
 values, and the reference builder uses the exact generated height. The strict
