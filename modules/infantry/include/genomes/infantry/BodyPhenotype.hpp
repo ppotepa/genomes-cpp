@@ -15,6 +15,7 @@ namespace genomes::infantry {
 struct BodyPhenotype final {
     std::uint32_t version{1};
     float height{1.75};
+    double reference_height{1.75};
     float speed_multiplier{1.0F};
     float walk_speed{1.4F};
     float run_speed{4.2F};

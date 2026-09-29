@@ -51,7 +51,7 @@ foundation::Result<ReferenceAvatarSurface,foundation::Error> ReferenceBodySurfac
     std::uint32_t detail_level) {
     if(detail_level<1U||detail_level>3U||!fit.valid(skeleton))return foundation::Result<ReferenceAvatarSurface,foundation::Error>::failure(
         {foundation::ErrorCode::InvalidArgument,"invalid reference avatar surface request"});
-    ReferenceSurfaceBuilder builder(fit.body.height,kRigBoneCount);builder.setOmitFacialMorphs(detail_level==1U);
+    ReferenceSurfaceBuilder builder(fit.body.reference_height,kRigBoneCount);builder.setOmitFacialMorphs(detail_level==1U);
     ReferenceJacketTopology topology{};(void)appendJacket(builder,fit,skeleton,uniform,detail_level,&topology);
     const auto skin=referenceRgb(fit.body.skin_color_hex),glove=referenceRgb(0x3d4136U),boot=referenceRgb(0x302d29U);
     const auto palm=fit.gloves_present?glove:skin,digit=fit.gloves_present&&!fit.gloves_fingerless?glove:skin;
@@ -490,9 +490,11 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendClothDetails(
         return std::array<double,2U>{mix(jacket[i][1],jacket[i+1U][1],t),mix(jacket[i][2],jacket[i+1U][2],t)};}
         return std::array<double,2U>{jacket.back()[1],jacket.back()[2]};};
     const auto profile=[&](double y){for(std::size_t i=0;i+1U<fit.jacket.size();++i)if(y<=fit.jacket[i+1U].reference_y){
-        const auto& a=fit.jacket[i];const auto& b=fit.jacket[i+1U];const double t=std::clamp((y-a.y)/(b.y-a.y),0.0,1.0);
-        return std::array<double,2U>{mix(a.half_width,b.half_width,t),mix(a.half_depth,b.half_depth,t)};}
-        return std::array<double,2U>{fit.jacket.back().half_width,fit.jacket.back().half_depth};};
+        const auto& a=fit.jacket[i];const auto& b=fit.jacket[i+1U];const double t=std::clamp((y-a.reference_y)/(b.reference_y-a.reference_y),0.0,1.0);
+        return std::array<double,2U>{mix(a.reference_half_width,b.reference_half_width,t),
+            mix(a.reference_half_depth,b.reference_half_depth,t)};}
+        return std::array<double,2U>{fit.jacket.back().reference_half_width,
+            fit.jacket.back().reference_half_depth};};
     const auto cloth_point=[&](double x,double y,double depth){
         // The JS fit maps the authoring-number y directly. Calling the public
         // float helper here quantizes y before the interpolation and creates
@@ -505,9 +507,10 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendClothDetails(
             if(yy<=fit.jacket[index+1U].reference_y){
                 const auto& a=fit.jacket[index];const auto& b=fit.jacket[index+1U];
                 const double t=std::clamp((yy-a.reference_y)/(b.reference_y-a.reference_y),0.0,1.0);
-                target={a.half_width+(b.half_width-a.half_width)*t,
-                        a.half_depth+(b.half_depth-a.half_depth)*t};found=true;break;}
-        if(!found)target={fit.jacket.back().half_width,fit.jacket.back().half_depth};
+                target={a.reference_half_width+(b.reference_half_width-a.reference_half_width)*t,
+                        a.reference_half_depth+(b.reference_half_depth-a.reference_half_depth)*t};found=true;break;}
+        if(!found)target={fit.jacket.back().reference_half_width,
+            fit.jacket.back().reference_half_depth};
         const double xx=x*(target[0]/std::max(.001,source[0]));
         return ReferenceVec3{xx,yy,target[1]*std::sqrt(std::max(0.0,1.0-xx*xx/(target[0]*target[0])))+depth};};
     builder.setTag("tailoring");

@@ -13,6 +13,8 @@ struct BodyCrossSection final {
     float half_depth{0.0F};
     float front_offset{0.0F};
     double reference_y{0.0};
+    double reference_half_width{0.0};
+    double reference_half_depth{0.0};
 };
 
 struct HeadCrossSection final {

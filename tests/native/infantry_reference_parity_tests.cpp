@@ -470,6 +470,8 @@ int main() {
                         if(name=="body.positions"||name=="body.normals"){const auto vertex=static_cast<std::uint32_t>(index/3U);for(const auto& tag:jacket.tags)
                             if(std::find(tag.vertices.begin(),tag.vertices.end(),vertex)!=tag.vertices.end())std::cerr<<" tag="<<tag.name;
                             const auto& p=jacket.vertices[vertex].position;std::cerr<<" point="<<p.x<<','<<p.y<<','<<p.z;
+                            std::cerr<<" H="<<fit_phenotype.value().body.height<<" refH="<<fit_phenotype.value().body.reference_height
+                                <<" hip="<<fit_phenotype.value().body.hip_y<<" refHip="<<fit_phenotype.value().body.reference_hip_y;
                             if(const auto* expected_positions=avatar_fixture.find("body.positions")){
                                 std::array<float,3U> expected_point{};
                                 std::memcpy(expected_point.data(),expected_positions->bytes.data()+vertex*3U*sizeof(float),3U*sizeof(float));

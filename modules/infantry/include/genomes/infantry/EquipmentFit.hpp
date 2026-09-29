@@ -46,6 +46,7 @@ struct EquipmentFit final {
     foundation::StableId identity{0};
     std::array<EquipmentFitSlot, kEquipmentSlotCount> slots{};
     float height{1.0F};
+    double reference_height{1.0};
     float hip_y{0.0F};
     double reference_hip_y{0.0};
     float armor_thickness{0.0F};

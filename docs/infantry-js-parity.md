@@ -85,3 +85,8 @@ groups, extrema, and quantized FNV-1a 64 hashes. Checked-in fixtures,
 - Remaining: retain all genome/phenotype authoring inputs as binary64 before
   the BufferAttribute boundary, then re-enable the `2e-5` gate permanently.
 - Status after: stages 2 and 4 remain `partial`.
+
+Follow-up: the jacket profile now also retains exact mapped Y and radius
+values, and the reference builder uses the exact generated height. The strict
+first difference is unchanged, so this is diagnostic progress rather than a
+closed gate.

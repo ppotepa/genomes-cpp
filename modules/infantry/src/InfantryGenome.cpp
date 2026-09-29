@@ -51,13 +51,13 @@ class ReferenceRandom final {
 public:
     explicit ReferenceRandom(std::uint32_t seed) noexcept : state_(seed) {}
 
-    [[nodiscard]] float uniform01() noexcept {
+    [[nodiscard]] double uniform01() noexcept {
         state_ += 0x6D2B79F5U;
         std::uint32_t t = state_;
         t = (t ^ (t >> 15U)) * (t | 1U);
         t ^= t + ((t ^ (t >> 7U)) * (t | 61U));
         const std::uint32_t result = t ^ (t >> 14U);
-        return static_cast<float>(result) / 4294967296.0F;
+        return static_cast<double>(result) / 4294967296.0;
     }
 
 private:
@@ -118,6 +118,7 @@ void applyGeneOverride(InfantryGenome& genome, GenomeGene gene, double value) no
     const auto index = static_cast<std::size_t>(gene);
     if (gene == GenomeGene::Height) {
         genome.height = 1.60F + value * 0.35F;
+        genome.reference_height = 1.60 + value * 0.35;
     } else if (gene == GenomeGene::Speed) {
         genome.move_speed = 2.6F + value;
     } else if (index >= static_cast<std::size_t>(GenomeGene::BodyFrame) &&
@@ -263,7 +264,8 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     result.seed = seed;
     result.diversity_scale = diversity_scale;
     ReferenceRandom base(static_cast<std::uint32_t>(seed));
-    result.height = 1.60F + 0.35F * base.uniform01();
+    result.reference_height = 1.60 + 0.35 * base.uniform01();
+    result.height = static_cast<float>(result.reference_height);
     result.move_speed = 2.6F + 1.0F * base.uniform01();
     result.perception_radius = 50.0F + 20.0F * base.uniform01();
     result.attack_range = 30.0F + 10.0F * base.uniform01();
@@ -367,7 +369,8 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::applyVaria
     InfantryGenome result = *this;
     result.diversity_scale = scale;
     const float height_gene = vary(normalizedGene(height, 1.60F, 1.95F), scale);
-    result.height = 1.60F + height_gene * 0.35F;
+    result.reference_height = 1.60 + height_gene * 0.35;
+    result.height = static_cast<float>(result.reference_height);
     const float speed_gene = vary(normalizedGene(move_speed, 2.60F, 3.60F), scale);
     result.move_speed = 2.60F + speed_gene;
     result.body.shoulder_width = vary(body.shoulder_width, scale);
@@ -471,6 +474,7 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::withOverri
     }
     if (overrides.height) {
         result.height = *overrides.height;
+        result.reference_height = *overrides.height;
     }
     if (overrides.shoulder_width) {
         result.body.shoulder_width = *overrides.shoulder_width;

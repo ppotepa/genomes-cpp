@@ -27,6 +27,10 @@ constexpr std::array<std::array<float, 3U>, 14U> kJacketProfile{{
     const float t = std::clamp(value, 0.0F, 1.0F);
     return t * t * (3.0F - 2.0F * t);
 }
+[[nodiscard]] double smoothExact(double value) noexcept {
+    const double t=std::clamp(value,0.0,1.0);
+    return t*t*(3.0-2.0*t);
+}
 
 [[nodiscard]] std::uint32_t materialRegionFor(EquipmentSlot slot) noexcept {
     switch (slot) {
@@ -312,6 +316,7 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
     if (!face_anatomy) return foundation::Result<EquipmentFit, foundation::Error>::failure(
         face_anatomy.error());
     result.height = body.height;
+    result.reference_height = body.reference_height;
     result.hip_y = body.hip_y;
     result.reference_hip_y = body.reference_hip_y;
     result.body = body;
@@ -352,23 +357,26 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
     }
     for (std::size_t index = 0U; index < kJacketProfile.size(); ++index) {
         const auto& source = kJacketProfile[index];
-        const float chest_t = smooth((source[0] - .60F) / .14F);
-        const float shoulder = std::exp(-std::pow((source[0] - .790F) / .060F, 2.0F));
-        float width_scale = mix(body.waist_width_scale, body.chest_width_scale, chest_t);
-        width_scale *= 1.0F + (body.shoulder_width_scale - 1.0F) * shoulder * .78F;
-        const float depth_scale = mix(body.waist_depth_scale, body.chest_depth_scale, chest_t);
+        const double chest_t = smoothExact((source[0] - .60) / .14);
+        const double shoulder = std::exp(-std::pow((source[0] - .790) / .060, 2.0));
+        double width_scale = static_cast<double>(body.waist_width_scale) * (1.0-chest_t) +
+            static_cast<double>(body.chest_width_scale)*chest_t;
+        width_scale *= 1.0 + (static_cast<double>(body.shoulder_width_scale) - 1.0) * shoulder * .78;
+        const double depth_scale = static_cast<double>(body.waist_depth_scale) * (1.0-chest_t) +
+            static_cast<double>(body.chest_depth_scale)*chest_t;
         const float mapped_y = result.mapTorsoY(source[0]);
-        float radius_x = source[1] * width_scale * shirt_ease;
-        float radius_z = source[2] * depth_scale * shirt_ease;
+        double radius_x = static_cast<double>(source[1]) * width_scale * shirt_ease;
+        double radius_z = static_cast<double>(source[2]) * depth_scale * shirt_ease;
         if (source[0] >= .841F) {
             const auto neck = FaceAnatomyEvaluator::sectionAt(result.face_anatomy,
                                                                mapped_y * body.height);
             const float t = smooth((source[0] - .825F) / .034F);
-            radius_x = mix(radius_x, neck.half_width / body.height + .0025F, t);
-            radius_z = mix(radius_z, neck.half_depth / body.height + .0025F, t);
+            radius_x = radius_x + (static_cast<double>(neck.half_width / body.height + .0025F)-radius_x)*t;
+            radius_z = radius_z + (static_cast<double>(neck.half_depth / body.height + .0025F)-radius_z)*t;
         }
-        result.jacket[index] = {mapped_y, radius_x, radius_z, 0.0F,
-                                result.mapTorsoYExact(static_cast<double>(source[0]))};
+        result.jacket[index] = {mapped_y, static_cast<float>(radius_x), static_cast<float>(radius_z), 0.0F,
+                                result.mapTorsoYExact(static_cast<double>(source[0])),
+                                static_cast<double>(radius_x), static_cast<double>(radius_z)};
     }
     if (const auto* pack = state.item(EquipmentSlot::Back)) {
         if (const auto* definition = EquipmentCatalog::findItem(pack->definition_id);

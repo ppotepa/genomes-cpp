@@ -238,6 +238,7 @@ struct InfantryGenome final {
     // biological domains are appended so old aggregate initializers remain
     // source-compatible while phenotype generation uses named genes.
     float height{1.75F};
+    double reference_height{1.75};
     float move_speed{3.0F};
     float perception_radius{60.0F};
     float attack_range{35.0F};

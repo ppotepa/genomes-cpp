@@ -195,6 +195,7 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
 
     BodyPhenotype body{};
     body.height = clampMetric(requested.height, 1.60F, 1.95F, artifact.diagnostics.height_clamped);
+    body.reference_height = std::clamp(requested.reference_height, 1.60, 1.95);
     const float speed_gene=std::clamp(requested.move_speed-2.6F,0.0F,1.0F);
     body.speed_multiplier=0.88F+0.24F*speed_gene;
     body.walk_speed=1.4F*body.speed_multiplier;
