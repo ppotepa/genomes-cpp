@@ -63,6 +63,9 @@ private:
     std::size_t loadout_index_{0U};
     std::uint8_t genome_override_mode_{0U};
     infantry::GenomeOverrides genome_overrides_{};
+    infantry::GenomeGene selected_genome_gene_{infantry::GenomeGene::Height};
+    std::size_t selected_equipment_slot_{0U};
+    infantry::EquipmentOverrideSet equipment_overrides_{};
     UnitLabCameraMode camera_mode_{UnitLabCameraMode::ThreeQuarter};
     infantry::FaceExpression expression_{infantry::FaceExpression::Neutral};
     float expression_intensity_{0.0F};

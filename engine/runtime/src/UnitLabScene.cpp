@@ -139,10 +139,13 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
     case 13:
         genome_override_mode_ = static_cast<std::uint8_t>((genome_override_mode_ + 1U) % 4U);
         genome_overrides_ = {};
-        if (genome_override_mode_ == 1U) genome_overrides_.height = 1.65F;
-        else if (genome_override_mode_ == 2U) genome_overrides_.height = 1.90F;
-        else if (genome_override_mode_ == 3U) {
-            genome_overrides_.shoulder_width = 1.0F; genome_overrides_.hip_width = 0.0F;
+        if (genome_override_mode_ == 1U) {
+            (void)genome_overrides_.set(infantry::GenomeGene::Height, (1.65 - 1.60) / 0.35);
+        } else if (genome_override_mode_ == 2U) {
+            (void)genome_overrides_.set(infantry::GenomeGene::Height, (1.90 - 1.60) / 0.35);
+        } else if (genome_override_mode_ == 3U) {
+            (void)genome_overrides_.set(infantry::GenomeGene::BodyShoulderBreadth, 1.0);
+            (void)genome_overrides_.set(infantry::GenomeGene::BodyHipBreadth, 0.0);
         }
         rebuildModel(&context); break;
     case 14: context.commands.push({ApplicationCommandKind::ReturnToMainMenu}); break;
@@ -164,6 +167,74 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
             markDirty(UnitLabDirtyFlag::Pose);
         }
+        break;
+    case 17: {
+        const auto next = (static_cast<std::size_t>(selected_genome_gene_) + 1U) %
+                          infantry::GenomeGeneCount;
+        selected_genome_gene_ = static_cast<infantry::GenomeGene>(next);
+        markDirty(UnitLabDirtyFlag::Ui);
+        break;
+    }
+    case 18:
+    case 19: {
+        double value = 0.5;
+        if (const auto override = genome_overrides_.get(selected_genome_gene_); override) {
+            value = *override;
+        } else if (model_artifact_) {
+            value = model_artifact_->genome.geneValue(selected_genome_gene_);
+        }
+        value = std::clamp(value + (control == 18 ? -0.10 : 0.10), 0.0, 1.0);
+        (void)genome_overrides_.set(selected_genome_gene_, value);
+        genome_override_mode_ = 0U;
+        rebuildModel(&context);
+        break;
+    }
+    case 20: {
+        const auto index = static_cast<std::size_t>(selected_genome_gene_);
+        if (index < genome_overrides_.genes.size()) genome_overrides_.genes[index].reset();
+        genome_override_mode_ = 0U;
+        rebuildModel(&context);
+        break;
+    }
+    case 21:
+        genome_overrides_ = {};
+        genome_override_mode_ = 0U;
+        rebuildModel(&context);
+        break;
+    case 22: {
+        const auto slots = infantry::EquipmentCatalog::slots();
+        if (!slots.empty()) selected_equipment_slot_ = (selected_equipment_slot_ + 1U) % slots.size();
+        markDirty(UnitLabDirtyFlag::Ui);
+        break;
+    }
+    case 23: {
+        const auto slots = infantry::EquipmentCatalog::slots();
+        const auto items = infantry::EquipmentCatalog::items();
+        if (slots.empty()) break;
+        const auto slot = slots[selected_equipment_slot_ % slots.size()].slot;
+        const auto slot_index = infantry::equipmentSlotIndex(slot);
+        std::vector<foundation::StableId> allowed;
+        allowed.reserve(items.size());
+        for (const auto& item : items) if (item.allows(slot)) allowed.push_back(item.id);
+        auto& current = equipment_overrides_.slots[slot_index];
+        if (!current.specified) {
+            current = infantry::EquipmentOverride::nullValue();
+        } else if (current.empty) {
+            current = allowed.empty() ? infantry::EquipmentOverride::absent()
+                                      : infantry::EquipmentOverride::item(allowed.front());
+        } else {
+            const auto found = std::find(allowed.begin(), allowed.end(), current.definition_id);
+            if (found == allowed.end() || std::next(found) == allowed.end())
+                current = infantry::EquipmentOverride::absent();
+            else
+                current = infantry::EquipmentOverride::item(*std::next(found));
+        }
+        rebuildModel(&context);
+        break;
+    }
+    case 24:
+        equipment_overrides_ = {};
+        rebuildModel(&context);
         break;
     default: return false;
     }
@@ -226,6 +297,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
     if (!loadouts.empty()) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
+    request.equipment_overrides = equipment_overrides_;
     // Every rebuild owns a revision.  A queued/older job can therefore not
     // publish a result after the preview has changed underneath it.
     const auto revision = model_compiler_.beginRevision();
@@ -337,7 +409,15 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         {foundation::stable_id("unit.weight"),10U}, {foundation::stable_id("unit.variation"),11U},
         {foundation::stable_id("unit.loadout"),12U}, {foundation::stable_id("unit.genome-preset"),13U},
         {foundation::stable_id("unit.back"),14U}, {foundation::stable_id("unit.locomotion"),15U},
-        {foundation::stable_id("unit.expression-intensity"),16U}
+        {foundation::stable_id("unit.expression-intensity"),16U},
+        {foundation::stable_id("unit.genome-next"),17U},
+        {foundation::stable_id("unit.genome-minus"),18U},
+        {foundation::stable_id("unit.genome-plus"),19U},
+        {foundation::stable_id("unit.genome-clear"),20U},
+        {foundation::stable_id("unit.genome-clear-all"),21U},
+        {foundation::stable_id("unit.equipment-slot"),22U},
+        {foundation::stable_id("unit.equipment-item"),23U},
+        {foundation::stable_id("unit.equipment-clear"),24U}
     };
     for (const auto& binding : bindings) if (action == binding.id)
         return activateControl(context, binding.control)
@@ -432,6 +512,24 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         metrics += " | CAMERA " + std::to_string(static_cast<int>(camera_mode_));
         metrics += " | VAR " + std::to_string(variation_);
         metrics += " | OVERRIDE " + std::to_string(genome_override_mode_);
+        metrics += " | GENE " + std::string(infantry::genomeGeneName(selected_genome_gene_));
+        const auto selected_override = genome_overrides_.get(selected_genome_gene_);
+        metrics += selected_override ? "=" + std::to_string(*selected_override) : "=seed";
+        const auto equipment_slots = infantry::EquipmentCatalog::slots();
+        if (!equipment_slots.empty()) {
+            const auto slot = equipment_slots[selected_equipment_slot_ % equipment_slots.size()];
+            metrics += " | SLOT " + std::string(slot.identifier);
+            const auto& selected_equipment =
+                equipment_overrides_.slots[infantry::equipmentSlotIndex(slot.slot)];
+            if (!selected_equipment.specified) {
+                metrics += "=loadout";
+            } else if (selected_equipment.empty) {
+                metrics += "=empty";
+            } else if (const auto* item =
+                           infantry::EquipmentCatalog::findItem(selected_equipment.definition_id)) {
+                metrics += "=" + std::string(item->identifier);
+            }
+        }
         if (!infantry::infantryLoadouts().empty()) {
             metrics += " | LOADOUT " + std::string(
                 infantry::infantryLoadouts()[loadout_index_ % infantry::infantryLoadouts().size()].identifier);

@@ -18,6 +18,14 @@
       <button data-action="unit.variation">Cycle phenotype variation</button>
       <button data-action="unit.loadout">Cycle equipment loadout</button>
       <button data-action="unit.genome-preset">Cycle genome preset</button>
+      <button data-action="unit.genome-next">Genome: select next gene</button>
+      <button data-action="unit.genome-minus">Genome: selected gene -0.10</button>
+      <button data-action="unit.genome-plus">Genome: selected gene +0.10</button>
+      <button data-action="unit.genome-clear">Genome: clear selected override</button>
+      <button data-action="unit.genome-clear-all">Genome: clear all overrides</button>
+      <button data-action="unit.equipment-slot">Equipment: select next slot</button>
+      <button data-action="unit.equipment-item">Equipment: cycle slot item / empty / loadout</button>
+      <button data-action="unit.equipment-clear">Equipment: clear all slot overrides</button>
       <button data-action="unit.surface">Toggle surface</button>
       <button data-action="unit.wireframe">Toggle wireframe</button>
       <button data-action="unit.skeleton">Toggle skeleton</button>

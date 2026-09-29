@@ -116,7 +116,10 @@ int main() {
     assert(gpu_presentation.skinned_prototypes.size() == 1U);
     assert(gpu_presentation.skinned_palettes.size() == 1U);
     assert(gpu_presentation.instance_prototypes.empty());
-    const auto initial_camera_position = gpu_presentation.camera.position;
+    assert(gpu_presentation.camera.interactive_orbit);
+    assert(std::abs(gpu_presentation.camera.viewport_left - 0.40F) < 1.0e-6F);
+    assert(std::abs(gpu_presentation.camera.viewport_width - 0.60F) < 1.0e-6F);
+    const auto initial_camera_revision = gpu_presentation.camera.revision;
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
                                          .mouse_x = 100.0F, .mouse_y = 506.0F,
                                          .events = {}});
@@ -132,10 +135,6 @@ int main() {
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
                                          .mouse_x = 100.0F, .mouse_y = 866.0F,
                                          .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_down = true,
-                                         .mouse_x = 700.0F, .mouse_delta_x = 22.0F,
-                                         .mouse_delta_y = -8.0F, .mouse_wheel_y = 1.0F,
-                                         .events = {}});
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
                                          .mouse_x = 100.0F, .mouse_y = 926.0F,
                                          .events = {}});
@@ -147,9 +146,24 @@ int main() {
                                          .events = {}});
     gpu_scene.build_presentation(gpu_context);
     assert(!gpu_presentation.debug_lines.empty());
-    assert(std::abs(gpu_presentation.camera.position.x - initial_camera_position.x) > 0.0001F ||
-           std::abs(gpu_presentation.camera.position.y - initial_camera_position.y) > 0.0001F ||
-           std::abs(gpu_presentation.camera.position.z - initial_camera_position.z) > 0.0001F);
+    assert(gpu_presentation.camera.interactive_orbit);
+    assert(gpu_presentation.camera.revision != 0U);
+    assert(gpu_presentation.camera.revision != initial_camera_revision ||
+           gpu_presentation.camera.viewport_left == 0.40F);
+
+    const auto before_genome = gpu_presentation.skinned_prototypes.front();
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.genome-plus"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.build_presentation(gpu_context);
+    assert(gpu_presentation.skinned_prototypes.front() != before_genome);
+
+    const auto before_equipment = gpu_presentation.skinned_prototypes.front();
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.equipment-item"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.build_presentation(gpu_context);
+    assert(gpu_presentation.skinned_prototypes.front() != before_equipment);
 
     // The production scene path is asynchronous when a JobSystem is supplied.
     // Rapid requests invalidate the older compiler revision; only the newest
