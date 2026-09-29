@@ -49,6 +49,15 @@ std::unordered_map<foundation::StableId,
         1.0F};
 }
 
+[[nodiscard]] render::SkinnedBoneTransform presentationTransform(
+    const infantry::RigTransform& source) noexcept {
+    render::SkinnedBoneTransform result{};
+    result.translation = source.translation;
+    result.rotation = {source.rotation.x, source.rotation.y, source.rotation.z, source.rotation.w};
+    result.scale = source.scale;
+    return result;
+}
+
 [[nodiscard]] std::array<float, 16U> multiply(
     const std::array<float, 16U>& left,
     const std::array<float, 16U>& right) noexcept {
@@ -83,6 +92,11 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     mesh->mesh_id = foundation::stableHashCombine(
         foundation::stable_id("mesh.infantry.prototype"), model.cache_key);
     mesh->revision = model.cache_key;
+    const auto skeleton_bones = model.skeleton.bones();
+    mesh->bones.reserve(skeleton_bones.size());
+    for (const auto& bone : skeleton_bones) {
+        mesh->bones.push_back({bone.parent, presentationTransform(bone.local_bind)});
+    }
     const auto append = [&mesh](const infantry::AppearanceMesh& source) {
         const auto base = static_cast<std::uint32_t>(mesh->vertices.size());
         for (const auto& source_vertex : source.vertices) {
@@ -145,6 +159,19 @@ std::vector<std::array<float, 16U>> makePalette(
 
 std::vector<std::array<float, 16U>> makeBindPalette(const infantry::SkeletonData& skeleton) {
     return makePalette(skeleton, {});
+}
+
+std::vector<render::SkinnedBoneTransform> makeLocalPoses(
+    const infantry::SkeletonData& skeleton,
+    std::span<const infantry::RigTransform> pose_bones) {
+    const auto bones = skeleton.bones();
+    std::vector<render::SkinnedBoneTransform> result;
+    result.reserve(bones.size());
+    for (std::size_t index = 0U; index < bones.size(); ++index) {
+        const auto& local = pose_bones.empty() ? bones[index].local_bind : pose_bones[index];
+        result.push_back(presentationTransform(local));
+    }
+    return result;
 }
 
 } // namespace genomes::runtime::infantry_presentation

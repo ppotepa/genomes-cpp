@@ -82,6 +82,24 @@ struct SkinnedMorphTarget final {
     std::vector<foundation::Vec3> position_deltas;
     std::vector<foundation::Vec3> normal_deltas;
 };
+
+// Backend-neutral local TRS used by skinned presentation backends. Keeping the
+// hierarchy and local pose in the snapshot avoids reconstructing a skeleton
+// from already-composed skin matrices (which loses bind-space information).
+struct SkinnedBoneTransform final {
+    foundation::Vec3 translation{};
+    struct Quaternion final {
+        float x{0.0F};
+        float y{0.0F};
+        float z{0.0F};
+        float w{1.0F};
+    } rotation{};
+    foundation::Vec3 scale{1.0F, 1.0F, 1.0F};
+};
+struct SkinnedBonePrototype final {
+    std::uint16_t parent{0xffffU};
+    SkinnedBoneTransform local_bind{};
+};
 struct SkinnedMeshPrototype final {
     foundation::StableId mesh_id{0};
     std::uint64_t revision{0};
@@ -91,10 +109,16 @@ struct SkinnedMeshPrototype final {
     // Default weights are retained for CPU tools; live state belongs to palette.
     std::array<float, 4U> morph_weights{};
     std::array<SkinnedMorphTarget, 4U> morphs{};
+    // Canonical bone order. Geometry bone indices address this array directly.
+    std::vector<SkinnedBonePrototype> bones;
 };
 struct SkinnedBonePalette final {
     foundation::StableId instance_id{0};
     std::vector<std::array<float, 16U>> matrices;
+    // Same canonical order as SkinnedMeshPrototype::bones. Threepp and other
+    // scene-graph renderers consume these directly; Diligent keeps using the
+    // precomposed matrix palette until the legacy backend is retired.
+    std::vector<SkinnedBoneTransform> local_poses;
     std::array<float, 4U> morph_weights{};
     // Presentation-only heatmap, -1 disables it. Never alters cached vertices.
     std::int32_t debug_weight_bone{-1};

@@ -502,6 +502,8 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             : std::span<const infantry::RigTransform>{};
         palette.matrices = infantry_presentation::makePalette(model_artifact_->skeleton,
                                                                pose_bones);
+        palette.local_poses = infantry_presentation::makeLocalPoses(model_artifact_->skeleton,
+                                                                    pose_bones);
         context.presentation.skinned_palettes.push_back(std::move(palette));
         if (!context.render_capabilities.gpu_skinning) {
             auto render_mesh = std::make_shared<render::RenderMesh>(

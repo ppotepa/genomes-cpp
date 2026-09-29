@@ -25,6 +25,10 @@ namespace genomes::runtime::infantry_presentation {
 [[nodiscard]] std::vector<std::array<float, 16U>> makePalette(
     const infantry::SkeletonData& skeleton,
     std::span<const infantry::RigTransform> pose_bones);
+
+[[nodiscard]] std::vector<render::SkinnedBoneTransform> makeLocalPoses(
+    const infantry::SkeletonData& skeleton,
+    std::span<const infantry::RigTransform> pose_bones);
 #endif
 
 } // namespace genomes::runtime::infantry_presentation
