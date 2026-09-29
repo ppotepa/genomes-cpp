@@ -1,106 +1,197 @@
-THREEPP — ODBIÓR PAKIETU BOOTSTRAP (G01 / CZĘŚĆ G02)
-===================================================
-Pierwszy kod: 25a661f343509f676e60d67be69846b40e3cc339
-Wszystkie poniższe komendy wykonuje UŻYTKOWNIK.
-Agent nie wykonał konfiguracji, kompilacji, CTest ani GPU.
+THREEPP / UNITLAB — FINAL ACCEPTANCE COMMANDS
+================================================
+Updated: 2026-09-29
+Implementation code head documented: e67d37dd48ffcf33c8d7ef1c33e6776238558c96
 
-A. PRZYGOTOWANIE
-Użyć istniejącego środowiska C++20/Ninja (np. odpowiedniej powłoki
-kompilatora na Windows). Nowe presety nie wymuszają llvm-rc ani FXC.
-CMake >=3.21. Nie używać build/diligent-config dla nowego backendu.
+The agent prepared code only. Run these commands locally and keep logs/captures.
+The ordinary game path is now THREEPP_GL; FXC/Diligent is not required.
 
+A. CHECKOUT AND DEPENDENCIES
+----------------------------
   git status --short
   git pull --ff-only
   git rev-parse HEAD
-  git submodule update --init --recursive external/threepp external/SDL external/json
+  git submodule update --init --recursive external/threepp external/SDL external/RmlUi external/freetype external/json
   git -C external/threepp rev-parse HEAD
 
-Ostatni SHA ma wynosić ad9571cbcbb5e27c4dd582d4810fb0b235534f60.
-Zachować swoje zmiany; nie stosować reset --hard. Przy brudnym drzewie
-najpierw uzgodnić/scommitować właściwe pliki, nie nadpisywać ich skryptem.
+Expected threepp SHA:
+  ad9571cbcbb5e27c4dd582d4810fb0b235534f60
 
-B. KONFIGURACJA — NOWY DEBUG
-  cmake --preset dev-threepp
+Do not reset user work. A clean tracked tree is strongly preferred for final evidence.
 
-Sprawdzić w logu:
-  presentation profile: THREEPP_GL
-  pin threepp i profil static / SDL host / bez GLFW/editor/Vulkan
-  brak konfiguracji Diligent/FXC/RmlUi w tym presecie.
+B. DEBUG CONFIGURE + FOCUSED BUILD
+----------------------------------
+  cmake --preset dev-debug
 
-C. BUILD KONKRETNYCH CELÓW
-  cmake --build --preset dev-threepp --target genomes_threepp_bootstrap genomes_threepp_window_contract_tests
+Expected configure messages include:
+  Genomes presentation profile: THREEPP_GL
+  Genomes threepp: ad9571...; static, SDL host, OpenGL, no GLFW/editor/Vulkan
 
-D. TEST KONTRAKTÓW CPU
-  ctest --preset dev-threepp -R "^threepp[.]window_contracts$" --output-on-failure
+Build the production game and migration contracts:
+  cmake --build --preset dev-debug --target ^
+    genomes_game ^
+    genomes_test_unit_lab_smoke ^
+    genomes_test_infantry_presentation ^
+    genomes_test_render_presentation_contract ^
+    genomes_test_ui_rml_smoke ^
+    genomes_threepp_input_adapter_tests
 
-Test jest aktywny również w Release (nie opiera się na assert).
-Nie jest dowodem poprawności GPU. Nie uruchamia okna.
+PowerShell may also use one line:
+  cmake --build --preset dev-debug --target genomes_game genomes_test_unit_lab_smoke genomes_test_infantry_presentation genomes_test_render_presentation_contract genomes_test_ui_rml_smoke genomes_threepp_input_adapter_tests
 
-E. PIERWSZE GPU — WINDOWS
+C. FOCUSED CPU/RML CONTRACTS
+----------------------------
+  ctest --preset dev-debug -R "^(runtime[.]unit_lab_smoke|infantry[.]presentation|render[.]presentation_contract|ui[.]rml_smoke|threepp[.]input_adapter)$" --output-on-failure
+
+For a wider infantry/render confidence pass:
+  ctest --preset dev-debug -R "^(infantry[.]|render[.]|geometry[.]|ui[.])" --output-on-failure
+
+D. DETERMINISTIC UNITLAB CAPTURES
+---------------------------------
+Create a directory:
+  mkdir artifacts
+
+Windows executable:
+  .\build\dev-debug\apps\game\genomes_game.exe
+
+Linux executable:
+  ./build/dev-debug/apps/game/genomes_game
+
+The following examples are Windows commands. Replace the executable path on Linux.
+
+Three-quarter:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera 3q --deterministic --frames 180 --capture artifacts/unitlab-3q.png --capture-frame 180
+
+Front:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera front --deterministic --frames 180 --capture artifacts/unitlab-front.png --capture-frame 180
+
+Side:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera side --deterministic --frames 180 --capture artifacts/unitlab-side.png --capture-frame 180
+
+Back:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera back --deterministic --frames 180 --capture artifacts/unitlab-back.png --capture-frame 180
+
+Face:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera face --deterministic --frames 180 --capture artifacts/unitlab-face.png --capture-frame 180
+
+Hands:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera hands --deterministic --frames 180 --capture artifacts/unitlab-hands.png --capture-frame 180
+
+E. DETERMINISTIC DEFORMATION CAPTURES
+-------------------------------------
+Run / elbow / knee:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera 3q --unitlab-locomotion run --deterministic --frames 137 --capture artifacts/unitlab-run.png --capture-frame 137
+
+Crouch:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera side --unitlab-locomotion crouch --deterministic --frames 121 --capture artifacts/unitlab-crouch.png --capture-frame 121
+
+Eyes / lids:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera face --unitlab-expression eyes-closed --deterministic --frames 90 --capture artifacts/unitlab-eyes-closed.png --capture-frame 90
+
+Jaw / face:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera face --unitlab-expression anger --deterministic --frames 120 --capture artifacts/unitlab-anger.png --capture-frame 120
+
+Pain:
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab --unitlab-camera face --unitlab-expression pain --deterministic --frames 120 --capture artifacts/unitlab-pain.png --capture-frame 120
+
+Every run should print:
+  Genomes build sha=<configured SHA> state=<clean|dirty> renderer=THREEPP_GL
+  threepp GL vendor=... renderer=... version=... GLSL=...
+  Capture complete frame=... path=...
+
+F. VISUAL REVIEW CHECKLIST
+--------------------------
+Compare the captures with the JS reference/prototype and inspect:
+  - silhouette and overall proportions
+  - shoulder/torso-arm transition
+  - elbow/knee continuity in run/crouch
+  - hand scale, fingers and wrist transition
+  - eye opening and eyelid closure direction
+  - nose/lips/ears/jaw silhouette
+  - neck/head deformation
+  - scalp coverage, temple recession, widow peak and crown volume
+  - hair from front/side/back
+  - separation of skin / cloth / hair / leather / metal / painted equipment
+  - key light from above, no inverted/below-ground character lighting
+  - contact shadows without obvious clipping at the active camera target
+  - no NaN/degenerate geometry artifacts
+
+G. LIVE UNITLAB INTERACTION
+---------------------------
+  .\build\dev-debug\apps\game\genomes_game.exe --unit-lab
+
+Check:
+  - left RmlUi panel receives clicks without rotating the character camera
+  - 3D viewport drag = OrbitControls rotate
+  - wheel over 3D viewport = zoom
+  - drag release outside viewport does not leave orbit stuck
+  - six camera presets
+  - locomotion / pause
+  - all expressions and intensity
+  - generic genome gene select, +/-0.10, selected clear, clear all
+  - generic equipment slot select, item/empty/loadout cycle, clear all
+  - skeleton / bounds / normals / wireframe / weight heatmap
+  - seed/detail/genome/equipment changes rebuild a prototype
+  - pose/expression-only changes do not rebuild immutable geometry
+
+H. TELEMETRY
+------------
+The UnitLab metrics line exposes:
+  GPU UPLOAD
+  PALETTE
+  DRAW
+  UI
+
+After the model is stable:
+  - animation/morph-only frames should normally show GPU UPLOAD 0
+  - pose_revision changes should increment palette work
+  - seed/detail/genome/equipment changes may upload a new immutable prototype
+  - UI texture uploads should not repeat every frame for unchanged textures
+
+I. RESIZE / DPI / MINIMIZE
+--------------------------
+With the live UnitLab open:
+  - resize repeatedly
+  - minimize/restore repeatedly
+  - move between monitors / DPI scales if available
+  - interact at UI and 3D viewport boundaries
+
+Expected:
+  - no swap while drawable size is zero
+  - no crash/recreated-GLAD corruption
+  - RmlUi pointer position tracks framebuffer-pixel mapping
+  - threepp viewport remains aligned with the right-side lab area
+
+J. RELEASE
+----------
+  cmake --preset dev-release
+  cmake --build --preset dev-release --target genomes_game
+  .\build\dev-release\apps\game\genomes_game.exe --unit-lab --unitlab-camera 3q --deterministic --frames 180 --capture artifacts/unitlab-release-3q.png --capture-frame 180
+
+K. OPTIONAL LOW-LEVEL GL LIFECYCLE PROBE
+----------------------------------------
+The old threepp bootstrap is retained only as a lifecycle diagnostic:
+  cmake --build --preset dev-threepp --target genomes_threepp_bootstrap
   .\build\dev-threepp\bin\genomes_threepp_bootstrap.exe --frames 180 --cycles 3
 
-LINUX
-  ./build/dev-threepp/bin/genomes_threepp_bootstrap --frames 180 --cycles 3
+It is no longer the primary migration executable.
 
-Oczekiwane do sprawdzenia, nie zgłoszone jako wykonane:
-  trzy kolejne konteksty/okna, po 180 wyrenderowanych klatek;
-  brak crash przy zwalnianiu/powtórnym ładowaniu GLAD;
-  jedno okno w danym momencie, jednolite tło — brak postaci jest celowy;
-  log GL/GPU/GLSL/limits, code SHA, trzy "cycle-complete".
+L. EVIDENCE TO REPORT BACK
+--------------------------
+  tested git SHA:
+  git status --short:
+  compiler/toolchain:
+  configure exit:
+  build exit:
+  focused CTest result:
+  wider CTest result if run:
+  GPU / driver / OpenGL / GLSL line:
+  deterministic capture filenames:
+  visual issues per capture:
+  live UI/orbit result:
+  resize/DPI/minimize result:
+  telemetry observations:
+  Release result:
+  overall: PASS / FAIL
 
-F. RĘCZNE RESIZE / DPI / MINIMALIZACJA
-  .\build\dev-threepp\bin\genomes_threepp_bootstrap.exe --frames 0
-
-Zmieniać rozmiar, minimalizować/przywracać, zmienić monitor/skale
-100/150/200% tam, gdzie dostępne; klikać w narożnikach. Log ma rozróżniać
-window i pixels. Sprawdzić, czy pointer-pixels odpowiada fizycznym pikselom.
-ESC lub zamknięcie kończy próbę. Podczas minimalizacji brak rysowania/swap;
-pętla zdarzeń nadal żyje. --no-vsync służy tylko diagnostyce prezentacji.
-
-G. RELEASE
-  cmake --preset release-threepp
-  cmake --build --preset release-threepp --target genomes_threepp_bootstrap genomes_threepp_window_contract_tests
-  ctest --preset release-threepp -R "^threepp[.]window_contracts$" --output-on-failure
-  .\build\release-threepp\bin\genomes_threepp_bootstrap.exe --frames 180 --cycles 3
-
-H. HEADLESS BEZ SDL / THREEPP
-  cmake --preset headless-threepp-migration
-  cmake --build --preset headless-threepp-migration --target genomes_threepp_window_contract_tests
-  ctest --preset headless-threepp-migration -R "^threepp[.]window_contracts$" --output-on-failure
-
-Ten profil nie ma pobierać threepp ani wymagać okna, OpenGL czy FXC.
-Pozostałe headless testy projektu można wykonać osobno; nie są zaliczone
-przez powyższy jeden cel. Nie uruchamiać CTest dla niezbudowanych celów
-bez filtra i nie przedstawiać tego jako awarii bootstrapu.
-
-I. SKRÓT POWERSHELL (OPCJONALNIE)
-  .\run-threepp.ps1 -BuildOnly
-  .\run-threepp.ps1
-  .\run-threepp.ps1 -Preset release-threepp
-
--NoBuild uruchamia istniejący executable i ostrzega o możliwej starej
-wersji. Argumenty bezpośredniego executable z E/F są podstawowym
-sposobem próby. Skrypty nie uruchamiają za użytkownika CTest.
-
-J. DOWODY DO TRACKERA
-  SHA main testowanego checkoutu:
-  tracked state / git status:
-  preset i toolchain:
-  system/GPU/driver/GL:
-  command + exit code:
-  log konfiguracji i buildu:
-  log CPU:
-  log --cycles 3:
-  resize/DPI/minimalizacja/reopen:
-  wynik: PASS / FAIL / NOT RUN, oddzielnie dla każdej próby.
-
-Log buildidentity wskazuje SHA z konfiguracji; zmiana lokalnych plików
-po configure nie aktualizuje magicznie tego dowodu. Zawsze zapisać stan
-roboczy i ponownie skonfigurować wersję przeznaczoną do odbioru.
-
-K. NIE ZMIENIONO DOMYŚLNEJ GRY
-  genomes_game i stare skrypty nadal korzystają z Diligent.
-  THREEPP_GL na tym etapie udostępnia bootstrap, nie --unit-lab.
-  Nie przekazywać --unit-lab do bootstrapu: parser jawnie go odrzuca.
-  Pełny adapter/UI/postać są następnymi etapami, nie ukrytą częścią tego
-  executable. Po odbiorze wracamy do TP-03, nie do nowego portu anatomii.
+Do not mark a gate VERIFIED from source inspection alone.

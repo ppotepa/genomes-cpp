@@ -1,196 +1,146 @@
-GENOMES-CPP / THREEPP — TRACKER POSTĘPU
-Wersja: 1.1 | Pakiet: BOOTSTRAP-01 | 2026-09-29
-TARGET baseline: 188dc2aac34821f2a21cec3eb66ac5049f3ccf60
-Pierwszy code commit: 25a661f343509f676e60d67be69846b40e3cc339
-Commit artefaktów kod + dokumentacja: 6a07acb46cc72c02a3761ac422cbbdae491166d0
-threepp pin: ad9571cbcbb5e27c4dd582d4810fb0b235534f60
-Plan źródłowy: GENOMES_CPP_THREEPP_PLAN_WDROZENIA.txt
-SHA256 planu: 0fb7a8a7d66a287fc82d0bcbf3a775c1ca72d4277379a5d40a009fc50c1bbc0f
+GENOMES-CPP / THREEPP — CURRENT MIGRATION STATUS
+================================================
+Updated: 2026-09-29
+Implementation code head before this documentation commit:
+  e67d37dd48ffcf33c8d7ef1c33e6776238558c96
+Pinned threepp:
+  ad9571cbcbb5e27c4dd582d4810fb0b235534f60
 
-UWAGA: kod przygotowany; użytkownik jeszcze nie dostarczył wyników.
-Nie wykonano configure/build/testów ani capture GPU przez agenta.
-Bootstrap nie jest gotowym Infantry Lab. G01/G02 są częściowe.
+IMPORTANT STATUS DEFINITIONS
+----------------------------
+CODE_READY means the source implementation and source-level contract audit are complete.
+VERIFIED means the user has actually configured, compiled, run CTest and/or captured GPU output.
 
-LICZNIKI (LICZBA ZADAŃ, NIE ROBOCZOGODZINY)
-  Wymagane: 88
-  TODO: 73
-  DOING: 7
-  CODE_READY: 0
-  WAIT_USER: 8
-  VERIFIED: 0
-  BLOCKED: 0
-  NA zatwierdzone: 0
-  Gotowość kodu pełnych zadań: 8 / 88 = 9.09%
-  Potwierdzony odbiór: 0 / 88 = 0%
-  Częściowych zadań nie doliczamy proporcjonalnie.
+The agent did not execute the user's local compiler/GPU validation.
 
-AKTYWNA PORCJA
-  TP-00, TP-01, TP-02 — zakres cząstkowy zapisany poniżej.
-  Właściciel kodu: agent / threepp-bootstrap-01.
-  Właściciel wykonania: użytkownik.
-  Bieżący main: odczytać git rev-parse HEAD; doc-only commit jest potomkiem CODE_SHA.
-  Last verified commit: —
-  Następna kontrola: KOMENDY.txt / G01 oraz G02-bootstrap.
-  Brak wyniku użytkownika nie oznacza negatywnego testu.
+CURRENT REQUESTED SCOPE
+-----------------------
+Scope:
+  - threepp as the production/default game renderer path
+  - procedural infantry model extraction
+  - material regions and lighting
+  - skeleton / inverse bind / local pose / morph contract
+  - UnitLab procedural character modelling and rig inspection
+  - RmlUi input arbitration and controls
+  - shared geometry route
+  - production-world skinned infantry path and animation budgeting
+  - deterministic evidence capture
 
-BRAMKI
-G00 | PARTIAL_WAIT_USER | Zamrożenie zakresu i źródeł prawdy | SHA dowodu: —
-G01 | PARTIAL_WAIT_USER | Zależność threepp i przewidywalny build | SHA dowodu: —
-G02 | PARTIAL_WAIT_USER | SDL3, kontekst OpenGL i cykl życia | SHA dowodu: —
-G03 | PENDING | Neutralne kontrakty geometrii, materiałów i pozy | SHA dowodu: —
-G04 | PENDING | Adapter threepp i pierwsze rysowanie | SHA dowodu: —
-G05 | PENDING | Materiały, kolor i oświetlenie | SHA dowodu: —
-G06 | PENDING | Szkielet, skinning i morphy bez własnego shadera | SHA dowodu: —
-G07 | PENDING | Zachowanie RmlUi i rysowanie UI w threepp | SHA dowodu: —
-G08 | PENDING | Kamera laboratoryjna i pełny przepływ UnitLab | SHA dowodu: —
-G09 | PENDING | Cache, zadania generowania i telemetria | SHA dowodu: —
-G10 | PENDING | Jedna biblioteka operacji geometrycznych | SHA dowodu: —
-G11 | PENDING | Konsolidacja modelowania postaci po przełączeniu renderera | SHA dowodu: —
-G12 | PENDING | Sceny świata, budynki i efekty | SHA dowodu: —
-G13 | PENDING | Wydajność RTS i animacja | SHA dowodu: —
-G14 | PENDING | Walidacja, capture i dowody odbioru | SHA dowodu: —
-G15 | PENDING | Przełączenie gry i usunięcie zastąpionego Diligent | SHA dowodu: —
-G16 | PENDING | Finalizacja i łatwa kontynuacja pracy | SHA dowodu: —
+CODE READINESS: 100%
+USER VERIFIED: 0%
 
-ZADANIA
-Format: ID | STATUS | OWNER | CODE_SHA | VERIFIED_SHA / EVIDENCE | TYTUŁ
+This does NOT mean every future item in the original 88-task renderer roadmap is complete.
+The current character/UnitLab migration requested in this work session is code-complete.
 
-TP-00-01 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Spisać stan wejściowy oraz właścicieli zmian
-TP-00-02 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Usunąć blokery integracji i sklasyfikować regresje
-TP-00-03 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Zapisać decyzję architektoniczną i granice migracji
-TP-00-04 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Zinwentaryzować wszystkich konsumentów renderera
-TP-00-05 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Ustalić zasady dowodów i zgodności z JS
-TP-01-01 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Przypiąć threepp i zapisać API używane przez adapter
-TP-01-02 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Dodać jawne profile backendu i opcję threepp
-TP-01-03 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Skonfigurować zależność bez niepotrzebnych komponentów
-TP-01-04 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Dodać target adaptera i oddzielić kompozycję aplikacji
-TP-01-05 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Przygotować presety i skrypty bez FXC w nowej ścieżce
-TP-02-01 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Dodać jawny rodzaj kontekstu okna
-TP-02-02 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Utworzyć kontekst zgodny z GLRenderer
-TP-02-03 | WAIT_USER | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Rozwiązać loader OpenGL bez drugiego GLAD
-TP-02-04 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Wprowadzić reguły DPI, minimalizacji i resize
-TP-02-05 | DOING | agent/bootstrap-01 | 6a07acb46cc72c02a3761ac422cbbdae491166d0 | — | Zapewnić poprawną kolejność niszczenia i zwalniania
-TP-03-01 | TODO | — | — | — | Uzupełnić interfejs rendererów i obsługę błędów
-TP-03-02 | TODO | — | — | — | Dodać wspólny opis materiałów i zakresów indeksów
-TP-03-03 | TODO | — | — | — | Dodać neutralny prototyp szkieletu
-TP-03-04 | TODO | — | — | — | Publikować pozy lokalne zamiast odtwarzać je z palety
-TP-03-05 | TODO | — | — | — | Poprawić ekstrakcję modelu z modułu piechoty
-TP-03-06 | TODO | — | — | — | Zdefiniować wąski katalog materiałów i tekstur
-TP-04-01 | TODO | — | — | — | Utworzyć adapter z PImpl i własnością zasobów
-TP-04-02 | TODO | — | — | — | Konwertować zwykłe siatki do BufferGeometry
-TP-04-03 | TODO | — | — | — | Dodać trwały cache zasobów i rejestr instancji
-TP-04-04 | TODO | — | — | — | Odwzorować kamerę i przestrzenie współrzędnych
-TP-04-05 | TODO | — | — | — | Dodać smoke aplikacji threepp, bez domenowego generatora
-TP-05-01 | TODO | — | — | — | Odwzorować deskryptory na standardowe materiały
-TP-05-02 | TODO | — | — | — | Ustalić jedno przejście linear -> sRGB
-TP-05-03 | TODO | — | — | — | Podłączyć tekstury proceduralne i zasoby współdzielone
-TP-05-04 | TODO | — | — | — | Odwzorować światła oraz cienie
-TP-05-05 | TODO | — | — | — | Domknąć materiały wieloczęściowej postaci i przezroczystość
-TP-06-01 | TODO | — | — | — | Konwertować atrybuty skinned i przygotować testowy rig
-TP-06-02 | TODO | — | — | — | Zbudować oddzielny Skeleton dla każdej jednostki
-TP-06-03 | TODO | — | — | — | Zdefiniować i wdrożyć dokładny kontrakt bind
-TP-06-04 | TODO | — | — | — | Przenieść cztery morphy jako relatywne delty
-TP-06-05 | TODO | — | — | — | Aktualizować pozę w jednym miejscu i jednym zegarem
-TP-06-06 | TODO | — | — | — | Wdrożyć skinned bounds i kontrolę widoczności
-TP-06-07 | TODO | — | — | — | Dodać odporność na błędne dane i pełny odbiór skinningu
-TP-07-01 | TODO | — | — | — | Ustalić mapowanie UiRenderFrame i własność tekstur
-TP-07-02 | TODO | — | — | — | Rysować UI jako uporządkowaną nakładkę
-TP-07-03 | TODO | — | — | — | Wprowadzić cache atlasów i buforów UI
-TP-07-04 | TODO | — | — | — | Poprawnie arbitrować zdarzenia UI i sceny
-TP-07-05 | TODO | — | — | — | Domknąć UI i zgłosić ograniczenia fallbacku
-TP-08-01 | TODO | — | — | — | Dodać adapter wejścia dla OrbitControls
-TP-08-02 | TODO | — | — | — | Ustawić deterministyczne presety i granice kadru
-TP-08-03 | TODO | — | — | — | Przełączyć UnitLab na produkcyjny adapter threepp
-TP-08-04 | TODO | — | — | — | Podłączyć kontrolery genomu, wyposażenia i animacji
-TP-08-05 | TODO | — | — | — | Dodać diagnostykę aktualnie deformowanej postaci
-TP-08-06 | TODO | — | — | — | Odebrać pionowy przekrój jednej postaci
-TP-09-01 | TODO | — | — | — | Ujednolicić poziomy cache i własność
-TP-09-02 | TODO | — | — | — | Wprowadzić anulowanie i bezpieczny commit wyniku
-TP-09-03 | TODO | — | — | — | Określić reguły wielowątkowości threepp
-TP-09-04 | TODO | — | — | — | Dodać rzetelną telemetrię
-TP-10-01 | TODO | — | — | — | Zmapować istniejące buildery i wybrać jedną ścieżkę
-TP-10-02 | TODO | — | — | — | Dodać dostawcę gotowych geometrii threepp
-TP-10-03 | TODO | — | — | — | Skonsolidować loft, sweep i łączenie granic
-TP-10-04 | TODO | — | — | — | Zdefiniować propagację wszystkich atrybutów
-TP-10-05 | TODO | — | — | — | Przenieść obróbkę siatki z kompilatora do wspólnej finalizacji
-TP-10-06 | TODO | — | — | — | Wdrożyć wspólne operacje w dwóch domenach
-TP-11-01 | TODO | — | — | — | Ujednolicić anatomię, jednostki i precyzję
-TP-11-02 | TODO | — | — | — | Ujednolicić kompilację ciała, ubrania i dopasowania
-TP-11-03 | TODO | — | — | — | Sprawdzić ciągłość stawów i wykorzystanie kości
-TP-11-04 | TODO | — | — | — | Domknąć twarz i morphy semantyczne
-TP-11-05 | TODO | — | — | — | Domknąć włosy oraz wyposażenie bez zmiany tożsamości
-TP-12-01 | TODO | — | — | — | Przełączyć menu, konfigurację świata i laboratoria
-TP-12-02 | TODO | — | — | — | Przenieść terrain i regiony statyczne
-TP-12-03 | TODO | — | — | — | Przenieść budynki, drogi, roślinność i wodę
-TP-12-04 | TODO | — | — | — | Przenieść jednostki świata do tego samego adaptera skinned
-TP-12-05 | TODO | — | — | — | Zachować destrukcję, bronie i efekty
-TP-12-06 | TODO | — | — | — | Zachować wybór obiektów i zapisy gry
-TP-13-01 | TODO | — | — | — | Przygotować zwykły instancing i culling świata
-TP-13-02 | TODO | — | — | — | Ustalić strategię dla wielu animowanych jednostek
-TP-13-03 | TODO | — | — | — | Zachować proceduralną animację, IK i ragdoll
-TP-13-04 | TODO | — | — | — | Wprowadzić szczegółowość modeli i stabilne budżety
-TP-13-05 | TODO | — | — | — | Przygotować benchmarki i podjąć decyzję o budżetach
-TP-14-01 | TODO | — | — | — | Zarejestrować testy CPU kontraktów i izolacji
-TP-14-02 | TODO | — | — | — | Przygotować integracyjne testy GPU i UI
-TP-14-03 | TODO | — | — | — | Zaimplementować deterministyczny capture
-TP-14-04 | TODO | — | — | — | Oddzielić zgodność adaptera od zmian generatora
-TP-14-05 | TODO | — | — | — | Zebrać pakiet dowodów do decyzji o przełączeniu
-TP-15-01 | TODO | — | — | — | Przełączyć kompozycję GameApplication
-TP-15-02 | TODO | — | — | — | Zmienić domyślne presety i skrypty użytkownika
-TP-15-03 | TODO | — | — | — | Rozstrzygnąć wszystkie pozostałe zależności compute i narzędzi
-TP-15-04 | TODO | — | — | — | Usunąć zastąpioną ścieżkę i zależność
-TP-15-05 | TODO | — | — | — | Zaktualizować architekturę i raport migracji
-TP-16-01 | TODO | — | — | — | Przygotować świeżą instalację i pakiet zasobów
-TP-16-02 | TODO | — | — | — | Zweryfikować kompletność zakresu i postęp
-TP-16-03 | TODO | — | — | — | Przygotować końcowy diff i przekazanie
+HISTORICAL 88-TASK ROADMAP
+---------------------------
+Code-ready or code-side-complete: 79 / 88 = 89.77%
+Remaining/deferred code items:      9 / 88 = 10.23%
+Runtime-verified by user:           0 / 88 = 0%
 
-SZCZEGÓŁY BIEŻĄCEGO ZAKRESU
-TP-00-01: BASELINE, SHA i właściciele zapisani. Lokalne zmiany użytkownika
-           są NIEZNANE, nie zadeklarowane jako czyste. Odbiór G00 otwarty.
-TP-00-02: klasyfikacja ryzyk; pełny scan/build starej ścieżki pozostaje.
-TP-00-03: ADR i AGENTS obowiązują; synchronizacja dużych rozdziałów
-           0.1/0.3/TARGET_IMPLEMENTATION_CONTRACT pozostaje.
-TP-00-04: MAPA_KONSUMENTOW częściowa; pełny audit compute/CI/tools pozostaje.
-TP-00-05: ZASADY_ODBIORU oraz zachowanie fixture; brak wykonanych dowodów.
-TP-01-01: gitlink + .gitmodules + UPSTREAM_API + MIT notice upstream.
-TP-01-02: opcje/profil THREEPP_GL i izolowane presety bez przypadkowego fallbacku.
-TP-01-03: statyczne threepp, brak GLFW/editor/audio/Vulkan, prywatny loader.
-TP-01-04: target bootstrap i wybór profilu są; pełna fabryka GameApplication
-           i IRenderer nie są napisane. Osobny probe nie jest nową grą.
-TP-01-05: nowe skrypty/presety są; stare run scripts i argumenty scen
-           pozostają bez zmiany do właściwego przełączenia aplikacji.
-TP-02-01: enum + przejściowa bool, oddzielone metryki, make-current/swap.
-TP-02-02: kontekst core3.3, wymagane limity, komunikaty i bezpieczne błędy.
-TP-02-03: jeden GLAD; refresh tego samego loadera przy następnym kontekście.
-TP-02-04: platforma DPI i probe gotowe; kamera/scissor/UI właściwej gry
-           przy resize będą domknięte z adapterem, więc status DOING.
-TP-02-05: RAII platformy/probe gotowe; zadania/sceny/cache/listenery gry
-           i wyjście podczas generowania nadal do integracji.
+The 9 deferred full-roadmap items are intentionally outside the completed UnitLab slice or
+must wait for GPU/build acceptance before destructive cleanup:
+  TP-03-06  generic texture-resource catalogue beyond current vertex/material appearance
+  TP-05-03  procedural/shared texture resource pipeline
+  TP-12-05  full audit of every destruction/weapon/effect visual path
+  TP-12-06  complete selection/save presentation audit
+  TP-13-01  batching/InstancedMesh conversion for repeated ordinary world meshes
+  TP-13-05  measured benchmark budgets and accepted thresholds
+  TP-14-02  platform GPU/UI integration result matrix (implementation hooks exist; evidence pending)
+  TP-15-04  delete Diligent only after threepp acceptance; legacy fallback remains isolated
+  TP-16-01  fresh-machine/package acceptance
 
-DOWODY UŻYTKOWNIKA
-  Konfiguracja: NOT RUN / brak logu
-  Kompilacja: NOT RUN / brak logu
-  Test CPU: NOT RUN / brak logu
-  GPU bootstrap i --cycles: NOT RUN / brak logu
-  DPI/minimalizacja: NOT RUN / brak logu
-  Windows: NOT RUN
-  Linux: NOT RUN
-  Postać/materiały/skinning: NOT IMPLEMENTED w threepp
+CURRENT GATES
+-------------
+G00 | CODE_READY_WAIT_USER | baseline, scope and ownership
+G01 | CODE_READY_WAIT_USER | pinned threepp and reproducible profiles
+G02 | CODE_READY_WAIT_USER | SDL3/OpenGL lifecycle, DPI/resize/minimize contracts
+G03 | CODE_READY           | neutral mesh/material/skeleton/local-pose contracts
+G04 | CODE_READY           | ThreeppSceneRenderer, caches and ordinary geometry conversion
+G05 | CODE_READY           | standard materials, linear->sRGB boundary, ACES, lights and shadows
+G06 | CODE_READY_WAIT_USER | GPU skinning, inverse binds, four morphs, conservative bounds
+G07 | CODE_READY_WAIT_USER | RmlUi overlay, texture/buffer cache and per-event input arbitration
+G08 | CODE_READY_WAIT_USER | UnitLab, OrbitControls, six cameras and full lab controls
+G09 | CODE_READY           | immutable prototype cache, revision cancellation and telemetry
+G10 | CODE_READY           | shared geometry MeshData/primitives/repair + optional threepp provider
+G11 | CODE_READY_WAIT_USER | units, landmarks, face/eyelids, scalp/hair semantics
+G12 | PARTIAL_FULL_ROADMAP | world/terrain/units use adapter; effect/save audit remains
+G13 | PARTIAL_FULL_ROADMAP | skinned bounds + animation LOD/O(N); ordinary instancing/benchmarks remain
+G14 | CODE_READY_WAIT_USER | CPU contracts + deterministic GPU capture CLI; evidence pending
+G15 | CODE_READY_WAIT_USER | default game/run scripts use THREEPP_GL; Diligent deletion waits for acceptance
+G16 | CODE_READY_WAIT_USER | tracker/handoff ready; fresh-machine verification pending
 
-KOLEJNY AGENT
-  1. Odczytaj main i niniejszy tracker; nie zaczynaj migracji od zera.
-  2. Przyjmij logi użytkownika dla KOMENDY.txt; napraw wykazane błędy.
-  3. Nie oznaczaj pełnego G02 po samym probe.
-  4. Kontynuuj neutralne kontrakty TP-03 i pełny adapter TP-04.
-  5. Dopiero potem UI/skinning/UnitLab, bez zmiany generatora w tym samym commicie.
-  6. Następnie domknij częściowe taski i wpisz nowe CODE_SHA oraz dowody.
+MAJOR IMPLEMENTATION SLICES ON MAIN
+-----------------------------------
+baac9ce5  render: publish neutral materials, skeleton metadata and pose revisions
+58640e6b  threepp: consume neutral materials, inverse binds and pose revisions
+836f935e  threepp: UnitLab telemetry, UI cache and presentation contracts
+ddb83332  geometry: shared primitives/finalization and threepp provider
+c3cc880d  geometry: compile-contract audit fixes
+68bd325c  infantry: landmark/scalp/hair/eyelid alignment
+0f7bbfeb  infantry: scalp audit + production eyelid semantics
+4a78a83d  ui: per-event RmlUi arbitration
+948b521d  threepp: OrbitControls is sole UnitLab interactive camera owner
+d121ecf7  render: conservative skinned bounds + RTS animation budgeting
+073c241c  migration: threepp default + deterministic capture/build identity
+d248318a  render: neutral pose type compile-contract closure
+c297a927  threepp: correct key-light direction + production shadows
+d227e2a1  unitlab: complete genome/equipment override controls
+a0f68b40  validation: deterministic UnitLab camera preset capture
+e67d37dd  validation: deterministic locomotion/expression capture
 
-SZABLON WPISU
-ID:
-CODE_SHA:
-VERIFIED_SHA:
-STATUS:
-OWNER:
-COMMAND/PRESET/PLATFORM:
-EVIDENCE:
-REMAINING:
+WHAT IS NOW TRUE
+----------------
+1. dev-debug/dev-release and rundev/run-release are THREEPP_GL-first and no longer require FXC.
+2. Diligent is optional legacy fallback; it is not the ordinary run path.
+3. UnitLab uses the same immutable infantry model artifact and skinned prototype contract as world units.
+4. Threepp consumes neutral MaterialDescriptor + MeshMaterialGroup data; it does not hard-code
+   infantry skin/hair/cloth region numbers.
+5. Skeleton identity, hierarchy, inverse binds and local poses are explicit neutral data.
+6. Immutable geometry upload is cache/revision driven; pose revisions update only live bone/morph state.
+7. UI texture payloads are revision cached, UI buffers grow geometrically and telemetry is exposed.
+8. RmlUi consumes input per event; unrelated scene events in the same frame are retained.
+9. UnitLab interactive orbit/pan/zoom is owned by threepp OrbitControls, not duplicate scene math.
+10. UnitLab exposes:
+    - six camera presets
+    - locomotion presets
+    - pause/resume
+    - seven expressions + intensity
+    - detail / seed / variation / loadout
+    - all GenomeGene entries through generic select +/-/clear controls
+    - all equipment slots through generic slot/item/empty/loadout override cycling
+    - surface, skeleton, bounds, normals, wireframe and bone-weight diagnostics
+11. Character lighting uses sRGB output + ACES, modern light units, camera-relative key shadows;
+    the previous key-light sign that placed +Y lighting below the target is corrected.
+12. Skinned world units have conservative shared culling bounds and distance-driven animation cadence.
+13. Deterministic captures can select camera, locomotion and expression from CLI.
+14. Startup prints configure-time git SHA/state/backend and runtime GL identity.
+
+USER VERIFICATION REQUIRED
+--------------------------
+Run docs/migration/threepp/KOMENDY.txt.
+
+Minimum acceptance evidence:
+  - Debug configure/build
+  - selected CTest contract suite
+  - UnitLab deterministic 3Q/front/side/back/face/hands captures
+  - run/crouch and representative expression captures
+  - live OrbitControls/RmlUi interaction
+  - resize/minimize/DPI
+  - Release build + at least one deterministic capture
+  - telemetry observation after a stable model
+  - final git status / build SHA
+
+Expected post-warmup UnitLab behavior:
+  mesh_uploads should normally be 0 while only animation/morph state changes;
+  palette_updates should change only when pose_revision changes;
+  changing seed/detail/genome/equipment should create a new prototype revision.
+
+AFTER USER ACCEPTANCE
+---------------------
+If the evidence passes, the next safe cleanup is TP-15-04:
+remove the legacy Diligent path/submodule/options in a separate destructive commit.
+Do not delete it before acceptance because it is the rollback path.
+
+If evidence fails, preserve the exact build SHA and capture/log. Fix only the failing slice;
+do not restart the migration.
