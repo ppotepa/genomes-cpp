@@ -265,13 +265,14 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
             (0.96F + requested.body.frame * 0.12F), 0.76F, 1.32F);
     body.leg_length_scale = 0.94F + requested.body.leg_length * 0.13F;
     body.arm_length_scale = 0.93F + requested.body.arm_length * 0.16F;
-    const double reference_leg_length_scale=0.94+
-        static_cast<double>(requested.body.leg_length)*0.13;
-    const double reference_torso_leg_bias=
-        static_cast<double>(requested.body.torso_leg_ratio)*2.0-1.0;
+    const auto mix_reference=[](double a,double b,double t){return a+(b-a)*t;};
+    const double reference_leg_length_scale=mix_reference(.94,1.07,
+        static_cast<double>(requested.body.leg_length));
+    const double reference_torso_leg_bias=mix_reference(-1.0,1.0,
+        static_cast<double>(requested.body.torso_leg_ratio));
     body.reference_hip_y = std::clamp(0.54+
-        (reference_leg_length_scale-1.0)*0.42-
-        reference_torso_leg_bias*0.020,0.502,0.579);
+        (reference_leg_length_scale-1.0)*.42-
+        reference_torso_leg_bias*.020,0.502,0.579);
     body.hip_y = static_cast<float>(body.reference_hip_y);
     body.head_scale = 0.93F + requested.body.head_scale * 0.14F;
     body.hand_scale = 0.88F + requested.body.hand_scale * 0.25F;

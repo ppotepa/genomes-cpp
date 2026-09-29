@@ -189,9 +189,7 @@ float EquipmentFit::mapTorsoY(float reference_y) const noexcept {
 }
 
 double EquipmentFit::mapTorsoYExact(double reference_y) const noexcept {
-    // The JS anatomy exposes hipY through the runtime Float32 phenotype;
-    // preserve that value before the Number-space interpolation.
-    const double start=static_cast<double>(hip_y)-.036;
+    const double start=reference_hip_y-.036;
     const double t=std::clamp((reference_y-.504)/.355,0.0,1.0);
     return start+(.859-start)*t;
 }
