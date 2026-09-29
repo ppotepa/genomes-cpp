@@ -25,7 +25,7 @@ stage without its fixture cannot be marked parity.
 | 10 | Battlefield integration | integration fixtures | shared pipeline | partial | `3d2710f` |
 | 11 | damage/ragdoll adaptation | native invariants only | damage/ragdoll tests | implemented | `3d2710f` |
 | 12 | fixture breadth | catalog hashes + extreme samples | all 36 seed/LOD/gear full-buffer fixtures are checked and parsed; every GNIF stream carries a quantized FNV-1a 64 descriptor hash which the native reader recomputes and verifies; mesh manifests carry position/normal/index extrema and the reader checks position extrema against the buffers; the checked-in 1024-seed genome catalog is parsed and every gene is verified against native generation at `2e-6`. Manual capture review remains pending | partial | worktree |
-| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | partial — normal Debug builds with 77/78 tests (strict reference parity remains); Diligent Debug now builds cleanly and passes 78/79 for the same single parity failure. SDL/RmlUi, Release and manual graphical capture remain pending. | worktree |
+| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | partial — normal Debug builds with 77/78 tests (strict reference parity remains); Diligent Debug builds cleanly and passes 78/79; SDL/RmlUi Debug builds cleanly and `ui.rml_smoke` plus fixture reader pass, with the same single reference-parity failure. Release and manual graphical capture remain pending. | worktree |
 | 14 | final acceptance | capture matrix | all gates + manual review | pending | — |
 
 ## GNIF v1
