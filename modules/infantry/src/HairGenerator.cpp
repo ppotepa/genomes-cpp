@@ -70,6 +70,7 @@ struct StyleShape final {
     case HairStyle::Fade: return {0.12F, 0.94F, 0.52F, 0.0F};
     case HairStyle::Messy: return {0.42F, 1.05F, 0.67F, 0.0F};
     case HairStyle::Bald: break;
+    default: break; // Legacy aliases are canonicalized before this helper.
     }
     return {};
 }

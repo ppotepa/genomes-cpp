@@ -111,8 +111,10 @@ FaceAnatomyEvaluator::resolve(const PhenotypeArtifact& phenotype) {
                              face.section(face.eye_y).center_z};
     // Scalp is anatomy, not hairstyle. Hair volume is an outward/lift
     // property and must never move the skull crown itself.
+    const float hair_floor_y = std::max(
+        lower_head_y, face.brow_y + body.height * 0.006F);
     result.scalp = {lower_head_y, face.hairline_y,
-                    result.head_sections.back().y,
+                    result.head_sections.back().y, hair_floor_y,
                     face.temple_recession, face.widow_peak};
     return foundation::Result<ResolvedAnatomy, foundation::Error>::success(std::move(result));
 }
@@ -163,8 +165,9 @@ float FaceAnatomyEvaluator::hairlineY(const ResolvedAnatomy& anatomy,
     const float resolved = anatomy.scalp.hairline_y +
         anatomy.scalp.temple_recession * temple -
         anatomy.scalp.widow_peak * center_front;
-    return std::clamp(resolved, anatomy.scalp.lower_y,
-                      std::max(anatomy.scalp.lower_y, anatomy.scalp.crown_y - 1.0e-4F));
+    return std::clamp(resolved, anatomy.scalp.hair_floor_y,
+                      std::max(anatomy.scalp.hair_floor_y,
+                               anatomy.scalp.crown_y - 1.0e-4F));
 }
 
 foundation::Vec3 FaceAnatomyEvaluator::scalpPoint(const ResolvedAnatomy& anatomy,

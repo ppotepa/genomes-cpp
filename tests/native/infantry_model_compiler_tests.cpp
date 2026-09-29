@@ -15,6 +15,33 @@ int main() {
     assert(first);
     const auto previous_key = first.value().cache_key;
 
+    const auto find_tag = [&](std::string_view name)
+        -> const AppearanceVertexTag* {
+        for (const auto& tag : first.value().appearance.body.tags) {
+            if (tag.name == name) return &tag;
+        }
+        return nullptr;
+    };
+    const auto* upper_left = find_tag("lidUpper.L");
+    const auto* lower_left = find_tag("lidLower.L");
+    const auto* upper_right = find_tag("lidUpper.R");
+    const auto* lower_right = find_tag("lidLower.R");
+    assert(upper_left && lower_left && upper_right && lower_right);
+    assert(first.value().appearance.morphs[0].name == "eyelidsClose");
+    const auto closes_in_direction = [&](const AppearanceVertexTag& tag, bool downward) {
+        bool found = false;
+        for (const auto index : tag.vertices) {
+            assert(index < first.value().appearance.morphs[0].position_deltas.size());
+            const float dy = first.value().appearance.morphs[0].position_deltas[index].y;
+            found = found || (downward ? dy < -1.0e-8F : dy > 1.0e-8F);
+        }
+        return found;
+    };
+    assert(closes_in_direction(*upper_left, true));
+    assert(closes_in_direction(*upper_right, true));
+    assert(closes_in_direction(*lower_left, false));
+    assert(closes_in_direction(*lower_right, false));
+
     InfantryModelRequest invalid = valid;
     invalid.variation = 4.0;
     const auto failed = compiler.compile(invalid);

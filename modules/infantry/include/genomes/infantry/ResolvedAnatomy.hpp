@@ -40,6 +40,8 @@ struct ScalpProfile final {
     float base_y{0.0F};
     float hairline_y{0.0F};
     float crown_y{0.0F};
+    // Lowest safe frontal hair boundary after brow/forehead constraints.
+    float hair_floor_y{0.0F};
     float temple_recession{0.0F};
     float widow_peak{0.0F};
 };
