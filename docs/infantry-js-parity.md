@@ -77,13 +77,13 @@ groups, extrema, and quantized FNV-1a 64 hashes. Checked-in fixtures,
   tailoring normal as required.
 - Build: normal Debug compiles; 77/78 tests pass, with only
   `infantry.reference_parity` exposing this strict mismatch.
-- First difference: seed `0`, High/default, `body.normals[10190]`, tag
-  `tailoring`, expected `-0.230349`, actual `-0.230385`.
-- Maximum error: the first observed error is approximately `3.6e-5`; the
-  corresponding authoring position differs by one Float32 ULP in Y
-  (`1.19209e-7`).
-- Remaining: retain all genome/phenotype authoring inputs as binary64 before
-  the BufferAttribute boundary, then re-enable the `2e-5` gate permanently.
+- First difference after the exact bind-point and reference-height fixes:
+  seed `0`, High/default, `body.normals[18732]`, tag `head`, expected
+  `-0.287462`, actual `-0.287419`.
+- Maximum error: approximately `4.3e-5`; the reported vertex position is
+  bit-identical while adjacent face positions still differ by isolated ULPs.
+- Remaining: reproduce the final JS face-shell trigonometric/normal
+  accumulation path before changing the strict `2e-5` gate.
 - Status after: stages 2 and 4 remain `partial`.
 
 Follow-up: the jacket profile now also retains exact mapped Y and radius
