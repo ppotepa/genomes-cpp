@@ -92,19 +92,10 @@ struct SkinnedMorphTarget final {
     std::vector<foundation::Vec3> normal_deltas;
 };
 
-// Backend-neutral local TRS used by skinned presentation backends. Keeping the
-// hierarchy and local pose in the snapshot avoids reconstructing a skeleton
-// from already-composed skin matrices (which loses bind-space information).
-struct SkinnedBoneTransform final {
-    foundation::Vec3 translation{};
-    struct Quaternion final {
-        float x{0.0F};
-        float y{0.0F};
-        float z{0.0F};
-        float w{1.0F};
-    } rotation{};
-    foundation::Vec3 scale{1.0F, 1.0F, 1.0F};
-};
+// One neutral local TRS contract is shared by the render skeleton, live pose
+// palettes and both backends. Do not duplicate this structure: that made the
+// threepp bind skeleton and live-pose path type-incompatible at compile time.
+using SkinnedBoneTransform = BoneLocalTransform;
 struct SkinnedBonePrototype final {
     std::uint16_t parent{0xffffU};
     SkinnedBoneTransform local_bind{};

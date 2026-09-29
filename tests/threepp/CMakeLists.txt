@@ -20,7 +20,8 @@ endif()
 
 if(TARGET genomes_render_threepp)
     add_executable(genomes_threepp_input_adapter_tests input_adapter_tests.cpp)
-    target_link_libraries(genomes_threepp_input_adapter_tests PRIVATE genomes::render_threepp)
+    target_link_libraries(genomes_threepp_input_adapter_tests
+        PRIVATE genomes::render_threepp threepp::threepp)
     target_compile_features(genomes_threepp_input_adapter_tests PRIVATE cxx_std_20)
     genomes_set_project_warnings(genomes_threepp_input_adapter_tests)
     add_test(NAME threepp.input_adapter COMMAND genomes_threepp_input_adapter_tests)
