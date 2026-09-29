@@ -296,6 +296,8 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                               (first_control_y + static_cast<float>(control) * control_step);
         if (control >= 0 && control <= 14 && local_y >= 0.0F && local_y <= 48.0F) {
             if (activateControl(context, static_cast<std::uint8_t>(control))) return;
+        }
+    }
 
     if (input.mouse_left_down && input.mouse_x > 570.0F) {
         camera_orbit_yaw_ += input.mouse_delta_x * 0.008F;
