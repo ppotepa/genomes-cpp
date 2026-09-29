@@ -45,6 +45,7 @@ struct BodyPhenotype final {
     double reference_chest_depth_scale{1.0};
     double reference_waist_width_scale{1.0};
     double reference_waist_depth_scale{1.0};
+    double reference_head_scale{1.0};
     std::uint32_t skin_color_hex{0};
     float shoulder_width{0.46};
     float chest_depth{0.24};

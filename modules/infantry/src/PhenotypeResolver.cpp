@@ -253,6 +253,7 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     body.reference_waist_depth_scale=std::clamp(
         0.82+(static_cast<double>(requested.body.adiposity)+static_cast<double>(requested.body.mass))*0.5*0.36,
         0.78,1.24);
+    body.reference_head_scale=.93+(1.07-.93)*static_cast<double>(requested.body.head_scale);
     const float limb_base = 0.76F + requested.body.limb_thickness * 0.49F;
     body.arm_thickness_scale = clampResolved(
         limb_base * (0.92F + requested.body.musculature * 0.20F) *
