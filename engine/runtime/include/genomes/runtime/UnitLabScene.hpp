@@ -40,12 +40,15 @@ public:
     void on_enter(SceneContext&) override;
     void on_exit(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;
+    ui::UiActionResult handle_ui_action(
+        SceneContext&, ui::UiActionId, const ui::UiActionArguments&) override;
     void fixed_update(SceneContext&, double) override;
     void frame_update(SceneContext&, double) override;
     void build_presentation(SceneContext&) override;
 
 private:
     void markDirty(UnitLabDirtyFlag flag) noexcept;
+    bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
     void publishModelResult(foundation::Result<infantry::InfantryModelArtifact,
                                                foundation::Error>&& result);

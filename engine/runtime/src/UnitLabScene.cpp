@@ -105,6 +105,72 @@ void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
     }
 }
 
+bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
+    switch (control) {
+    case 0: ++preview_seed_; rebuildModel(&context); break;
+    case 1: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
+    case 2:
+        camera_mode_ = static_cast<UnitLabCameraMode>((static_cast<std::uint8_t>(camera_mode_) + 1U) % 5U);
+        camera_orbit_yaw_ = 0.0F; camera_orbit_pitch_ = 0.0F; camera_distance_scale_ = 1.0F;
+        markDirty(UnitLabDirtyFlag::Ui); break;
+    case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case 5: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case 6: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case 7: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case 8: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
+    case 9:
+        expression_ = static_cast<infantry::FaceExpression>(
+            (static_cast<std::uint8_t>(expression_) + 1U) % infantry::kFaceExpressionCount);
+        expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
+        if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
+        markDirty(UnitLabDirtyFlag::Pose); break;
+    case 10:
+        debug_weight_bone_ = debug_weight_bone_
+            ? static_cast<infantry::BoneId>((static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) % infantry::kRigBoneCount)
+            : infantry::BoneId::Hips;
+        markDirty(UnitLabDirtyFlag::Ui); break;
+    case 11: variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 2.0F : 0.5F; rebuildModel(&context); break;
+    case 12:
+        if (!infantry::infantryLoadouts().empty()) {
+            loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
+            rebuildModel(&context);
+        }
+        break;
+    case 13:
+        genome_override_mode_ = static_cast<std::uint8_t>((genome_override_mode_ + 1U) % 4U);
+        genome_overrides_ = {};
+        if (genome_override_mode_ == 1U) genome_overrides_.height = 1.65F;
+        else if (genome_override_mode_ == 2U) genome_overrides_.height = 1.90F;
+        else if (genome_override_mode_ == 3U) {
+            genome_overrides_.shoulder_width = 1.0F; genome_overrides_.hip_width = 0.0F;
+        }
+        rebuildModel(&context); break;
+    case 14: context.commands.push({ApplicationCommandKind::ReturnToMainMenu}); break;
+    case 15:
+        if (locomotion_ && locomotion_state_) {
+            const auto p = locomotion_state_->preset;
+            const auto next = p == infantry::BipedPreset::Idle ? infantry::BipedPreset::Walk
+                : p == infantry::BipedPreset::Walk ? infantry::BipedPreset::Run
+                : p == infantry::BipedPreset::Run ? infantry::BipedPreset::Crouch
+                : infantry::BipedPreset::Idle;
+            (void)locomotion_->setPreset(*locomotion_state_, next);
+            markDirty(UnitLabDirtyFlag::Pose);
+        }
+        break;
+    case 16:
+        if (expression_ != infantry::FaceExpression::Neutral) {
+            expression_intensity_ += 0.25F;
+            if (expression_intensity_ > 1.001F) expression_intensity_ = 0.25F;
+            if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
+            markDirty(UnitLabDirtyFlag::Pose);
+        }
+        break;
+    default: return false;
+    }
+    return true;
+}
+
 void UnitLabScene::publishModelResult(
     foundation::Result<infantry::InfantryModelArtifact, foundation::Error>&& compiled) {
     if (!compiled) {
@@ -229,80 +295,8 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
         const float local_y = input.mouse_y -
                               (first_control_y + static_cast<float>(control) * control_step);
         if (control >= 0 && control <= 14 && local_y >= 0.0F && local_y <= 48.0F) {
-            switch (control) {
-            case 0:
-                ++preview_seed_;
-                rebuildModel(&context);
-                break;
-            case 1:
-                detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U;
-                rebuildModel(&context);
-                break;
-            case 2:
-                camera_mode_ = static_cast<UnitLabCameraMode>(
-                    (static_cast<std::uint8_t>(camera_mode_) + 1U) % 5U);
-                camera_orbit_yaw_ = 0.0F;
-                camera_orbit_pitch_ = 0.0F;
-                camera_distance_scale_ = 1.0F;
-                markDirty(UnitLabDirtyFlag::Ui);
-                break;
-            case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
-            case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
-            case 5: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
-            case 6: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
-            case 7: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
-            case 8: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
-            case 9:
-                expression_ = static_cast<infantry::FaceExpression>(
-                    (static_cast<std::uint8_t>(expression_) + 1U) %
-                    infantry::kFaceExpressionCount);
-                expression_intensity_ = expression_ == infantry::FaceExpression::Neutral
-                    ? 0.0F : 1.0F;
-                if (face_animator_) {
-                    (void)face_animator_->setExpression(expression_, expression_intensity_);
-                }
-                markDirty(UnitLabDirtyFlag::Pose);
-                break;
-            case 10:
-                debug_weight_bone_ = debug_weight_bone_
-                    ? static_cast<infantry::BoneId>(
-                        (static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) %
-                        infantry::kRigBoneCount)
-                    : infantry::BoneId::Hips;
-                markDirty(UnitLabDirtyFlag::Ui);
-                break;
-            case 11:
-                variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 2.0F : 0.5F;
-                rebuildModel(&context);
-                break;
-            case 12:
-                if (!infantry::infantryLoadouts().empty()) {
-                    loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
-                    rebuildModel(&context);
-                }
-                break;
-            case 13:
-                genome_override_mode_ = static_cast<std::uint8_t>(
-                    (genome_override_mode_ + 1U) % 4U);
-                genome_overrides_ = {};
-                if (genome_override_mode_ == 1U) {
-                    genome_overrides_.height = 1.65F;
-                } else if (genome_override_mode_ == 2U) {
-                    genome_overrides_.height = 1.90F;
-                } else if (genome_override_mode_ == 3U) {
-                    genome_overrides_.shoulder_width = 1.0F;
-                    genome_overrides_.hip_width = 0.0F;
-                }
-                rebuildModel(&context);
-                break;
-            case 14:
-                context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
-                break;
-            default: break;
-            }
-            return;
-        }
-    }
+            if (activateControl(context, static_cast<std::uint8_t>(control))) return;
+
     if (input.mouse_left_down && input.mouse_x > 570.0F) {
         camera_orbit_yaw_ += input.mouse_delta_x * 0.008F;
         camera_orbit_pitch_ = std::clamp(
@@ -341,6 +335,26 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
     if (input.cancel_pressed || input.confirm_pressed) {
         context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
     }
+}
+
+ui::UiActionResult UnitLabScene::handle_ui_action(
+    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments&) {
+    struct Binding { ui::UiActionId id; std::uint8_t control; };
+    static constexpr Binding bindings[] = {
+        {foundation::stable_id("unit.regenerate"),0U}, {foundation::stable_id("unit.detail"),1U},
+        {foundation::stable_id("unit.camera"),2U}, {foundation::stable_id("unit.surface"),3U},
+        {foundation::stable_id("unit.wireframe"),4U}, {foundation::stable_id("unit.skeleton"),5U},
+        {foundation::stable_id("unit.bounds"),6U}, {foundation::stable_id("unit.normals"),7U},
+        {foundation::stable_id("unit.pause"),8U}, {foundation::stable_id("unit.expression"),9U},
+        {foundation::stable_id("unit.weight"),10U}, {foundation::stable_id("unit.variation"),11U},
+        {foundation::stable_id("unit.loadout"),12U}, {foundation::stable_id("unit.genome-preset"),13U},
+        {foundation::stable_id("unit.back"),14U}, {foundation::stable_id("unit.locomotion"),15U},
+        {foundation::stable_id("unit.expression-intensity"),16U}
+    };
+    for (const auto& binding : bindings) if (action == binding.id)
+        return activateControl(context, binding.control)
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
+    return ui::UiActionResult::Unknown;
 }
 
 void UnitLabScene::fixed_update(SceneContext&, double dt) {

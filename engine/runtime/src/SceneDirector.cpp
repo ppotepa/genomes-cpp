@@ -71,7 +71,15 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
 }
 
 ui::UiActionResult SceneDirector::dispatch_ui_action(
-    ui::UiActionId action, const ui::UiActionArguments&) {
+    ui::UiActionId action, const ui::UiActionArguments& arguments) {
+    if (current_) {
+        SceneContext context = make_context();
+        const auto local = current_->handle_ui_action(context, action, arguments);
+        if (local != ui::UiActionResult::Unknown) {
+            process_commands();
+            return local;
+        }
+    }
     const auto push = [this](ApplicationCommandKind kind) {
         commands_.push({kind, {}});
         return ui::UiActionResult::Handled;

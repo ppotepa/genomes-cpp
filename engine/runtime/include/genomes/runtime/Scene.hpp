@@ -50,6 +50,10 @@ public:
     virtual void on_enter(SceneContext&) {}
     virtual void on_exit(SceneContext&) {}
     virtual void handle_input(SceneContext&, const input::InputFrame&) {}
+    virtual ui::UiActionResult handle_ui_action(
+        SceneContext&, ui::UiActionId, const ui::UiActionArguments&) {
+        return ui::UiActionResult::Unknown;
+    }
     virtual void fixed_update(SceneContext&, double) {}
     virtual void frame_update(SceneContext&, double) {}
     virtual void build_presentation(SceneContext&) {}
