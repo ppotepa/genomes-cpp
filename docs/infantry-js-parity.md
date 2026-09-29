@@ -77,13 +77,14 @@ groups, extrema, and quantized FNV-1a 64 hashes. Checked-in fixtures,
   tailoring normal as required.
 - Build: normal Debug compiles; 77/78 tests pass, with only
   `infantry.reference_parity` exposing this strict mismatch.
-- First difference after the exact bind-point and reference-height fixes:
-  seed `0`, High/default, `body.normals[18732]`, tag `head`, expected
-  `-0.287462`, actual `-0.287419`.
-- Maximum error: approximately `4.3e-5`; the reported vertex position is
-  bit-identical while adjacent face positions still differ by isolated ULPs.
-- Remaining: reproduce the final JS face-shell trigonometric/normal
-  accumulation path before changing the strict `2e-5` gate.
+- First difference after switching final normal accumulation to the JS
+  authoring-number position path: seed `0`, High/default,
+  `body.normals[10923]`, tag `tailoring`, expected `0.368780`, actual
+  `0.368759`.
+- Maximum error: approximately `2.1e-5`, down from `4.3e-5`; positions at
+  the reported vertex are bit-identical.
+- Remaining: close the final thin-surface normal ULP without relaxing the
+  strict `2e-5` gate.
 - Status after: stages 2 and 4 remain `partial`.
 
 Follow-up: the jacket profile now also retains exact mapped Y and radius

@@ -237,10 +237,11 @@ AppearanceMesh ReferenceSurfaceBuilder::finalize() {
             if((flips[triangle]^invert)!=0)std::swap(mesh.indices[triangle*3U+1U],mesh.indices[triangle*3U+2U]);}
 
     for(auto& vertex:mesh.vertices)vertex.normal={};
+    const auto jsSubtractDouble=[](double left,double right) noexcept {volatile double value=left-right;return static_cast<double>(value);};
     for(std::size_t offset=0U;offset<mesh.indices.size();offset+=3U){const auto a=mesh.indices[offset],b=mesh.indices[offset+1U],c=mesh.indices[offset+2U];
-        const auto& pa=mesh.vertices[a].position;const auto& pb=mesh.vertices[b].position;const auto& pc=mesh.vertices[c].position;
-        const auto normal=cross({jsSubtract(pc.x,pb.x),jsSubtract(pc.y,pb.y),jsSubtract(pc.z,pb.z)},
-                                {jsSubtract(pa.x,pb.x),jsSubtract(pa.y,pb.y),jsSubtract(pa.z,pb.z)});
+        const auto& pa=vertices_[a].position;const auto& pb=vertices_[b].position;const auto& pc=vertices_[c].position;
+        const auto normal=cross({jsSubtractDouble(pc.x,pb.x),jsSubtractDouble(pc.y,pb.y),jsSubtractDouble(pc.z,pb.z)},
+                                {jsSubtractDouble(pa.x,pb.x),jsSubtractDouble(pa.y,pb.y),jsSubtractDouble(pa.z,pb.z)});
         for(const auto index:{a,b,c}){addFloat32(mesh.vertices[index].normal.x,normal.x);
             addFloat32(mesh.vertices[index].normal.y,normal.y);addFloat32(mesh.vertices[index].normal.z,normal.z);}}
     for(auto& vertex:mesh.vertices){const double length=jsLength(vertex.normal.x,vertex.normal.y,vertex.normal.z);if(length>0.0){vertex.normal.x=static_cast<float>(vertex.normal.x/length);
