@@ -359,11 +359,11 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
         const auto& source = kJacketProfile[index];
         const double chest_t = smoothExact((source[0] - .60) / .14);
         const double shoulder = std::exp(-std::pow((source[0] - .790) / .060, 2.0));
-        double width_scale = static_cast<double>(body.waist_width_scale) * (1.0-chest_t) +
-            static_cast<double>(body.chest_width_scale)*chest_t;
-        width_scale *= 1.0 + (static_cast<double>(body.shoulder_width_scale) - 1.0) * shoulder * .78;
-        const double depth_scale = static_cast<double>(body.waist_depth_scale) * (1.0-chest_t) +
-            static_cast<double>(body.chest_depth_scale)*chest_t;
+        double width_scale = body.reference_waist_width_scale * (1.0-chest_t) +
+            body.reference_chest_width_scale*chest_t;
+        width_scale *= 1.0 + (body.reference_shoulder_width_scale - 1.0) * shoulder * .78;
+        const double depth_scale = body.reference_waist_depth_scale * (1.0-chest_t) +
+            body.reference_chest_depth_scale*chest_t;
         const float mapped_y = result.mapTorsoY(source[0]);
         double radius_x = static_cast<double>(source[1]) * width_scale * shirt_ease;
         double radius_z = static_cast<double>(source[2]) * depth_scale * shirt_ease;

@@ -237,6 +237,22 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     body.waist_depth_scale = clampResolved(
         0.82F + ((requested.body.adiposity + requested.body.mass) * 0.5F) * 0.36F,
         0.78F, 1.24F);
+    body.reference_shoulder_width_scale=std::clamp(
+        (0.82+static_cast<double>(requested.body.shoulder_width)*0.40)*
+        (0.96+static_cast<double>(requested.body.frame)*0.10)*
+        (0.96+static_cast<double>(requested.body.musculature)*0.11),0.78,1.28);
+    body.reference_chest_width_scale=std::clamp(
+        0.86+(static_cast<double>(requested.body.mass)+static_cast<double>(requested.body.musculature)+
+              static_cast<double>(requested.body.shoulder_width))/3.0*0.32,0.82,1.24);
+    body.reference_chest_depth_scale=std::clamp(
+        (0.82+static_cast<double>(requested.body.chest_depth)*0.40)*
+        (0.96+static_cast<double>(requested.body.mass)*0.12),0.80,1.28);
+    body.reference_waist_width_scale=std::clamp(
+        (0.78+static_cast<double>(requested.body.waist_width)*0.44)*
+        (0.93+static_cast<double>(requested.body.adiposity)*0.19),0.74,1.30);
+    body.reference_waist_depth_scale=std::clamp(
+        0.82+(static_cast<double>(requested.body.adiposity)+static_cast<double>(requested.body.mass))*0.5*0.36,
+        0.78,1.24);
     const float limb_base = 0.76F + requested.body.limb_thickness * 0.49F;
     body.arm_thickness_scale = clampResolved(
         limb_base * (0.92F + requested.body.musculature * 0.20F) *
