@@ -6,6 +6,7 @@ namespace genomes::render {
 
 enum class RenderBackendKind : std::uint8_t {
     Null,
+    OpenGL,
     D3D12,
     Vulkan,
 };

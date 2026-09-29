@@ -1,11 +1,13 @@
-# Bootstrap support first. IRenderer/scene adapters arrive after G02 is verified.
-add_library(genomes_render_threepp STATIC ThreeppGlBootstrap.cpp)
+add_library(genomes_render_threepp STATIC
+    ThreeppGlBootstrap.cpp
+    ThreeppSceneRenderer.cpp
+    ThreeppUiPass.cpp)
 target_link_libraries(genomes_render_threepp
     PUBLIC genomes::render
     PRIVATE genomes::platform threepp::threepp)
 target_include_directories(genomes_render_threepp PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-# The private loader header and its existing GLAD implementation come from the
-# exact pin. Never compile glad.c here and never export these include paths.
+# GLAD is compiled exactly once by the pinned threepp target. These private
+# include paths expose only its loader declarations/functions to the adapter.
 target_include_directories(genomes_render_threepp SYSTEM PRIVATE
     "${GENOMES_THREEPP_SOURCE_DIR}/src"
     "${GENOMES_THREEPP_SOURCE_DIR}/src/external/glad")
