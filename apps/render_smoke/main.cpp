@@ -18,11 +18,18 @@ int main() {
     }
 
     auto backend = std::move(created.value());
-    if (!backend->begin_frame() || !backend->end_frame() || !backend->wait_idle()) {
-        std::cerr << "Diligent frame smoke failed\n";
+    constexpr int frame_count=600;
+    for(int frame=0;frame<frame_count;++frame) {
+        if(!backend->begin_frame()||!backend->end_frame()) {
+            std::cerr << "Diligent frame smoke failed at frame " << frame << '\n';
+            return 1;
+        }
+    }
+    if(!backend->wait_idle()) {
+        std::cerr << "Diligent wait-idle smoke failed\n";
         return 1;
     }
-    std::cout << "Diligent headless backend initialized\n";
+    std::cout << "Diligent headless backend completed " << frame_count << " frames\n";
     backend->shutdown();
     return 0;
 }

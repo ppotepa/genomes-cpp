@@ -1,0 +1,739 @@
+RTS — PROJEKT CIĄGŁEJ POSTAWY I LOKOMOCJI
+=======================================
+Plan następnej iteracji na bazie v0.11.0; nie implementacja v0.12.
+Data: 24.09.2026
+Sugerowane miejsce w następnej paczce: docs/16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt
+
+Baza sprawdzonego kodu: rts_prototype_v11_postures.zip
+SHA-256: d88a71ae9ce410402946705a29dc72b50342a1b1ba109fd130a6dd8e75c24da4
+Ścieżki i numery linii poniżej dotyczą plików wewnątrz katalogu tej paczki.
+
+CEL
+Zastąpić pojedynczą głębokość CROUCH oraz sztywno wybierane szybkości systemem,
+w którym można płynnie regulować stopień obniżenia i prędkość. Maksymalne
+obniżenie ma być wyraźnie głębsze niż obecny CROUCH. Zachować genomy, sprzęt,
+rozglądanie, mimikę, PRONE, SITTING, edytor, skalę metrową i uruchamianie file://.
+
+STATUS DOWODÓW
+Przeczytano rzeczywisty kod v0.11 oraz dokumentację animatora i interfejsu.
+Nie uruchamiano nowego testu WebGL ani pomiarów pozy. Opis zachowania obecnego
+kodu jest audytem statycznym. Proponowane zakresy, timingi i krzywe są projektem
+do strojenia, nie wynikami testu nowej wersji ani normami biologicznymi.
+Odwołania [R1]–[R9] znajdują się w bibliografii. Ustalenia z kodu: [K1]–[K7].
+
+
+01. NAJWAŻNIEJSZA DECYZJA: DWA SUWAKI, NIE JEDEN ŁAŃCUCH STANÓW
+================================================================
+
+Nie tworzyć osi: IDLE -> WALK -> RUN -> CROUCH.
+Prędkość i obniżenie są różnymi parametrami. Jednostka może stać częściowo
+obniżona, chodzić na dowolnym obsługiwanym poziomie albo przyspieszać przy
+niewielkim pochyleniu.
+
+Sterowanie dla postawy na stopach:
+  crouchAmountRequested: 0..1
+  speedRequestedMps:    0..maksymalna żądana prędkość danej jednostki
+
+Znaczenie:
+  crouchAmount = 0   — wyprostowana postawa bazowa;
+  crouchAmount = 0.5 — stabilna pośrednia postawa, nie 50% czasu przejścia;
+  crouchAmount = 1   — najgłębsza obsługiwana postawa obunóż.
+
+Dowolną wartość, np. 0.37, można utrzymać przez dowolnie długi czas. Nie trzeba
+kończyć przejścia na najbliższym presecie. Prędkość może zmieniać się niezależnie.
+
+To koncepcyjnie dwuwymiarowa przestrzeń mieszania: głębokość x szybkość.
+Nie wymaga Unreal, Unity ani importowania ich klipów. Wzorzec przestrzeni
+parametrów jest opisany w [R2–R3]; nasze punkty wzorcowe będą proceduralnymi
+profilami i trajektoriami, nie zewnętrznymi assetami.
+
+
+02. CO JUŻ JEST W v0.11 I CZEGO JESZCZE BRAKUJE
+================================================
+
+[K1] infantryAnimator.js:82–95, 195–244, 566–593, 624–645.
+Obecnie istnieje interpolacja pozycji i kwaternionów, zachowanie fazy w części
+przejść, wygładzanie kości i przejścia trwające określony czas. Nie jest prawdą,
+że wszystko przeskakuje natychmiast albo że cała animacja to wyłącznie sinusy.
+
+Jednak podstawą sterowania nadal jest nazwa stanu. samplePose() kieruje do
+osobnych funkcji WALK/RUN oraz CROUCH/CROUCH_WALK. Brakuje ciągłego parametru
+obniżenia i możliwości zatrzymania się na dowolnej sylwetce pośredniej.
+
+[K2] infantryAnimator.js:435–472.
+sampleCrouch() ma jeden profil, w tym bazowe ustawienie:
+  hips.y = ankle + 0.765 * leg + 0.90 * hipOffset
+  hips.z = -0.080 * leg
+oraz ustalone rotacje bazowe tułowia. To punkt wyjściowy do zachowania jako
+jedna próbka nowej krzywej, a nie jej maksymalny możliwy koniec.
+
+[K3] infantryUnit.js:74–81.
+movementSpeed() wybiera osobno walkSpeed, runSpeed, proneSpeed lub crouchSpeed
+na podstawie animator.state. Nie ma ogólnej prędkości żądanej przez użytkownika.
+
+[K4] infantryUnit.js:224–225 oraz infantryAnimator.js:203–206, 240–244.
+WALK -> CROUCH_WALK ma inną restState, więc obecna logika zwalnia kontakty,
+a ruch na czas przejścia może być hamowany do zera. Nowy system musi uznać
+obie postawy za tę samą rodzinę podparcia na stopach. Nie trzeba stawać,
+żeby lekko obniżyć się podczas chodu.
+
+[K5] infantryAnimator.js:616–640.
+Faza wynika z dystansu, ale długość cyklu wybierana jest z nazwy stanu.
+Przejście miesza zapamiętaną poprzednią pozę z aktualnie próbkowanym celem.
+Przy częstym przeciąganiu suwaka nie należy wielokrotnie restartować takiej
+sekwencji, bo dałoby to ciągłe gonienie celu zamiast stabilnej kontroli.
+
+[K6] gaitProfile.js:sampleFoot(), sampleLowContact(), cycleFraction().
+Istnieją różne profile podporu, długości cyklu i trajektorie niskiego ruchu.
+Należy je wykorzystać, a nie pisać cały system kontaktu od zera.
+
+[K7] index.html:105–111; unitPreview.js:setState(), seek();
+infantryUnit.js:325–343.
+Podgląd ma pauzę i suwak fazy. Suwak fazy NIE jest suwakiem postawy.
+Prędkość przy seek() jest nadal wyprowadzana ze stanu. Nowe sterowanie wymaga
+zmiany zarówno próbkowania pozy, jak i kontekstu podglądu.
+
+
+03. NATURALNOŚĆ: CIĄGŁE PARAMETRY, ALE NIE DOWOLNA MIESZANKA
+===========================================================
+
+Badanie dobrowolnego chodu obniżonego [R1] obejmowało 19 zdrowych, aktywnych
+mężczyzn. Szli boso pod ograniczeniem wysokości 90%, 80% i 70% wzrostu.
+Przy niewielkim obniżeniu przeważała praca tułowia; przy większym wzrastał
+udział bioder i kolan. Nie była to jedna proporcja zgięcia wszystkich stawów.
+
+Przekład projektowy: osobne krzywe miednicy, tułowia, kolan i kostek. Wspólny
+suwak steruje ich współpracą, a nie jednym kątem albo tylko wysokością hips.
+
+Głęboki przysiad jest również ruchem powiązanych stawów. Abstrakt [R8] opisuje
+zależności zakresów ruchu i uzyskiwanej pozy u dziewięciu zdrowych mężczyzn
+wykonujących przysiad z uniesionymi rękami. Nie jest to wzorzec kucającego
+żołnierza ze sprzętem ani dowód jednakowej dostępnej głębokości dla wszystkich.
+
+Przejście chód–bieg także nie jest po prostu szybszym odtworzeniem tych samych
+obrotów. [R9] analizuje zmianę pracy kończyn i stawów w krokach przejściowych.
+Wniosek dla nas: zachować odmienny charakter biegu i harmonogram kontaktów,
+nawet gdy przejście między profilami jest wizualnie płynne.
+
+
+04. TRYBY PODPARCIA ZOSTAJĄ ODDZIELNE
+===================================
+
+Wewnętrzny podział projektu:
+  BIPED — postawa na stopach; tu działa ciągły crouch i prędkość;
+  PRONE — leżenie oraz czołganie;
+  SEATED — siedzenie z kontekstem siedziska;
+  REST — poza referencyjna do diagnostyki.
+
+CROUCH = 1 nie oznacza SITTING i nie oznacza PRONE.
+Przejście do leżenia nadal ma zmianę rodzaju podpory i etap pośredni.
+Siedzenie nadal wymaga świadomej obsługi siedziska, a nie jedynie niskiej głowy.
+
+Pozostawić nazwy IDLE, WALK, RUN, CROUCH, CROUCH_WALK jako presety zgodności.
+Docelowo ustawiają wartości sterowania, nie wybierają jedynej możliwej pozy.
+Proponowana mapa początkowa:
+  IDLE:         BIPED, c=0,    v=0
+  WALK:         BIPED, c=0,    v=phenotype.walkSpeed
+  RUN:          BIPED, c=0,    v=phenotype.runSpeed
+  CROUCH:       BIPED, c=0.60, v=0
+  CROUCH_WALK:  BIPED, c=0.60, v=phenotype.crouchSpeed
+
+Wartość 0.60 jest propozycją zgodności. Trzeba skalibrować ją wobec v0.11;
+nie zmierzono, że obecna poza leży dokładnie w tym punkcie nowego zakresu.
+
+
+05. ZAKRES OBNIŻENIA: NOWE MAKSIMUM WYRAŹNIE NIŻEJ
+=================================================
+
+Proponowane wzorce dla nieruchomej postaci na płaskim podłożu:
+
+  Suwak c   Charakter             Docelowa wysokość czubka głowy / H
+  -----------------------------------------------------------------
+  0.00      neutralnie            około 0.98–1.00
+  0.25      lekkie obniżenie       około 0.90–0.95
+  0.50      średnia postawa        około 0.78–0.85
+  0.75      niska postawa          około 0.65–0.73
+  1.00      bardzo niski crouch    około 0.55–0.62
+
+To cele artystyczne do strojenia naszego riga, NIE pięć progów przełączania,
+NIE kliniczne granice człowieka i NIE pomiary istniejącej paczki.
+Dolny zakres wykracza poza wysokości badanego chodu w [R1]. Nie przypisywać
+badaniu potwierdzenia ruchu ze sprintową prędkością na wysokości 55% wzrostu.
+
+Dla H=1.80 m dolny cel daje około 0.99–1.12 m do czubka głowy. Takie liczby
+określają intencję wizualną, nie gwarantowany wynik dla każdego genomu/gear.
+Gdy rig nie osiąga celu, zwracamy głębokość rzeczywiście osiągniętą i przyczynę.
+
+H oznacza wzrost jednostki, bez włosów i hełmu. Wysokość posturalną do strojenia
+liczyć z anatomicznego punktu głowy przy referencyjnym spojrzeniu; faktyczny
+najwyższy punkt sprzętu kontrolować osobno. Inaczej włosy albo spojrzenie w dół
+potrafiłyby zmieniać interpretację całego suwaka.
+
+Podczas ruchu na c=1 dopuszczamy tylko bardzo małe kroki, o ile są wykonalne.
+Nie podnosić postaci potajemnie do c=0.6, żeby udawać pełny zakres. Ograniczyć
+prędkość i zgłosić ewentualne ograniczenie osiągalności.
+
+
+06. JAK UZYSKAĆ GŁĘBSZĄ POZĘ BEZ POWROTU DO „SITTING”
+=====================================================
+
+Zaprojektować pięć powiązanych zestawów bazowych: neutralny, płytki, średni,
+niski i bardzo niski. Między nimi interpolować parametry, nie kopiować tych
+samych kątów przeskalowanych współczynnikiem c.
+
+Przy c bliskim zera: niewielka praca bioder i tułowia, miękkie kolana.
+Przy średniej wartości: miednica rzeczywiście schodzi niżej, kolana przesuwają
+się w spójnej płaszczyźnie, tułów kompensuje położenie bioder.
+Przy dużej wartości: głębsze ugięcie bioder i kolan, ograniczony dalszy wzrost
+pochylenia tułowia, dopasowanie kostek i ewentualna zmiana szerokości podparcia.
+
+Nie mnożyć pochylenia klatki przez c aż do poziomu leżącego człowieka.
+Nie cofać miednicy bez końca za pięty i nie podpierać jej niewidzialnym krzesłem.
+Nie wprowadzać sztywnej reguły „kolano nigdy nie może być przed palcami”.
+Kierunek i zasięg wynikają z geometrii nogi oraz całej kompozycji postawy.
+
+Kolana powinny rozchodzić się zgodnie z rozstawem bioder/stóp; nie obracać
+kolana dowolnie jak przegubu kulowego. Ręce zostają swobodne i odsunięte od ud
+oraz kamizelki. Nie dodawać pozy trzymania broni w tej iteracji.
+
+Pięty preferencyjnie pozostają podparte. Ich niewielkie uniesienie może być
+osobno zaprojektowanym wariantem na przodostopiu, ale nie ratunkiem stosowanym
+bez ograniczeń. Wariant musi mieć inny punkt kontaktu, nie tylko obrócony but.
+
+
+07. ANATOMIA WYZNACZA CEL, IK WYZNACZA KOŃCZYNY
+==============================================
+
+Używać rzeczywistych długości uda/podudzia, pozycji stawów, szerokości bioder,
+rozmiarów butów i długości tułowia z aktualnej anatomii. Bez nowych genów.
+
+Ważne: pivot hips nie jest środkiem stawu biodrowego. Po obrocie miednicy
+zmienia się także położenie jej offsetu do thigh:
+  hipJointWorld = hipsPivotWorld + QhipsWorld * hipOffsetLocal
+
+Cel miednicy należy zatem wyliczać z uwzględnieniem obróconego offsetu,
+a nie tylko dodawać niezmienną liczbę do osi Y przy każdym pochyleniu.
+
+Dla nogi o długościach L1 i L2 oraz odległości biodro–kostka d:
+  kneeFlex = PI - acos(clamp((L1²+L2²-d²)/(2*L1*L2), -1, 1))
+
+To relacja geometryczna; 0 oznacza prostą nogę. Osobno ograniczyć osiągalność d,
+osiowe ustawienie stawów i prześwit powierzchni. Cel osiągalny długością nie
+musi być poprawny dla grubego uda, dużego buta lub zakresu kostki.
+
+Przy głębokim crouch dodać uproszczone sprawdzanie uda–łydki, uda–brzucha,
+kolan–ładownic i obuwia. Nie potrzeba pełnej fizyki. Gdy ograniczenie zostanie
+osiągnięte: skrócić krok, nieco dostroić miednicę lub zmniejszyć obniżenie,
+zamiast rozciągać kości lub wyłączać test gruntu.
+
+W v0.11 część anatomii jest w metrach, a parametry Pose w ułamkach H.
+Nowy kontrakt publiczny i krzywe wymiarowe powinny używać metrów; konwersja
+na istniejącą Pose ma nastąpić jawnie w jednym miejscu. Nie mieszać A.points
+w metrach z A.hipY zapisanym jako współczynnik bez oznaczenia jednostek.
+
+
+08. PRĘDKOŚĆ I GŁĘBOKOŚĆ: DOZWOLONY OBSZAR, NIE CAŁY PROSTOKĄT
+==============================================================
+
+Dwa suwaki nie oznaczają, że pełne obniżenie i pełny bieg muszą tworzyć
+wiarygodną kombinację. Dla tej gry proponuję POSTURE_PRIORITY:
+  zachowujemy żądaną głębokość, a ograniczamy prędkość do jej profilu.
+
+Przykładowa ciągła krzywa vMaxBase(c), do strojenia:
+  c=0.00 -> 4.20 m/s
+  c=0.25 -> 3.00 m/s
+  c=0.50 -> 1.60 m/s
+  c=0.75 -> 0.80 m/s
+  c=1.00 -> 0.30 m/s
+
+Te limity są nową decyzją sterowania animacją gry, NIE normami ludzi.
+W [R1] nie wykazano istotnej różnicy prędkości między badanymi zadaniami;
+nie uzasadnia ono uniwersalnego spowolnienia o powyższe współczynniki.
+
+W naszej grze:
+  vMax(c) = vMaxBase(c) * phenotype.speedMultiplier
+  vGoal   = min(vRequested, vMax(cRequested))
+
+Potem, a nie przedtem, koordynować hamowanie i zmianę wysokości. Dla biegnącej
+jednostki nie wolno jedną klatką obciąć speed z 4 m/s do 0.3 m/s i zgiąć jej
+maksymalnie. Najpierw maleje prędkość; cActual narasta tylko tak szybko, jak
+pozwala bieżąca prędkość i podparcie. Ruch pozostaje ciągły.
+
+Przy wychodzeniu z niskiej pozy: sylwetka się podnosi, a dopuszczalna prędkość
+rośnie; jednostka przyspiesza zamiast sprintować w maksymalnym przysiadzie.
+Nie dodawać drugiej polityki ani nowych kontrolek tylko po to, by mnożyć opcje.
+
+Osobno przechowywać:
+  requested — żądanie;
+  planned   — wykonalny cel na najbliższe kroki;
+  actual    — faktyczne c oraz v po wygładzaniu i korektach.
+
+
+09. WALK–RUN: WSPÓLNE STEROWANIE, DWA CHARAKTERY RUCHU
+=====================================================
+
+Prędkość żądana nie powinna bezpośrednio ustawiać obrotów nóg. Użyć faktycznej
+prędkości przesunięcia, głębokości oraz aktywnego podparcia do wyznaczenia
+runWeight 0..1, długości cyklu, czasu kontaktu i pracy tułowia.
+
+Na początek przejście WALK–RUN stroić w okolicy 1.8–2.6 m/s dla neutralnej
+sylwetki i speedMultiplier=1. To projektowa strefa mieszania, nie uniwersalny
+próg człowieka. Próg można proporcjonalnie dopasować do obecnego phenotype,
+ale nie losować dodatkowych genów.
+
+W płytkim crouch dopuszczamy profil obniżonego biegu, bez pełnego bounce.
+W głębokim crouch runWeight płynnie wygaszamy; pozostaje krótki niski chód.
+Zdefiniować to razem z krzywą vMax, by nigdy nie wymuszać bardzo szybkiego WALK
+ze zbyt krótkim krokiem po wyłączeniu RUN.
+
+Proponowany wynik samplera:
+  hipHeight / hipOffset / torsoLean;
+  cycleDistanceM / cadence / duty;
+  footClearance / strideEnvelope;
+  armSwing / elbowFlex / pelvisBob;
+  runWeight / actualCrouch / activeContactMode.
+
+Nie traktować runWeight jak mnożnika rotacji wszystkich kości. Odpowiednio
+zmieniają się podparcie, wymach, łokcie, rytm miednicy i rozkład ruchu tułowia.
+
+
+10. KRZYWE PROFILI ZAMIAST LERPOWANIA CAŁEGO CZŁOWIEKA
+=====================================================
+
+Dla każdej głębokości opisać oddzielnie:
+  docelową kompozycję miednica–tułów;
+  preferowany rozstaw i obrót stóp;
+  zasięg kroku i prześwit wymachu;
+  zakres kostki oraz zachowanie pięty;
+  niewielką pracę głowy, barków i dłoni.
+
+Parametry monotoniczne, np. preferowaną wysokość, łączyć krzywą monotoniczną
+z kontrolą pochodnych. Nie używać nieograniczonej krzywej, która pomiędzy
+poprawnymi punktami potrafi zejść niżej od minimum. Kąty tułowia nie muszą być
+monotoniczne; muszą jedynie łączyć się gładko i zachowywać wykonalność.
+
+Wzorce nie mogą wszystkie dawać „równej ilości crouch” w każdym stawie.
+Właśnie różny udział stawów odpowiada za czytelną zmianę sylwetki.
+
+Pozycje i cele można mieszać liniowo tylko tam, gdzie nie łamie to kontaktu.
+Rotacje mieszać kwaternionami, z normalizacją i poprawną hemisferą; slerp
+jest operacją dostępną w Three.js [R7]. Samo jej użycie nie zapewnia kontaktu
+stóp, zachowania objętości skóry ani naturalnej postawy.
+
+Dla tułowia można mieszać najbliższe profile. Dla nóg najpierw wyznaczać wspólne
+cele kontaktowe i parametry kroku, a finalne kąty uzyskiwać przez IK.
+
+
+11. FAZA CYKLU NIE MOŻE PRZESKAKIWAĆ PRZY RUCHU SUWAKA
+======================================================
+
+Zachować jedną historię fazy i stronę aktualnego kroku. Zmiana c, v albo
+runWeight nie resetuje phase do zera. Sama równość liczby 0.4 w dwóch profilach
+nie wystarczy, jeśli oznacza w nich inny moment kontaktu. Wzorzec markerów
+podparcia i synchronizacji opisano w [R4].
+
+Dla stałego profilu:
+  phaseNext = wrap01(phase + deltaDistance / cycleDistance)
+
+Gdy profil się zmienia, całkować przyrost przy bieżącej długości cyklu.
+Nie liczyć phase = totalDistance / nowaDługośćCyklu, ponieważ sama zmiana
+mianownika przestawi fazę bez ruchu jednostki.
+
+Zmiana duty nie może przełączyć stopy ze swing w stance w środku powietrza.
+Zapisać parametry rozpoczętego kroku i marker następnego zdarzenia. Nową długość
+podporu stosować przy następnym zaplanowanym kontakcie, albo przeliczyć pozostały
+czas z zachowaniem aktualnej pozycji i prędkości stopy.
+
+Na potrzeby prototypu wystarczy niewielki harmonogram dwóch stóp. To nie jest
+pełny planner poruszania po mapie i nie wymaga pathfindingu.
+
+
+12. STOPY PRZY OBNIŻANIU MUSZĄ ZOSTAĆ NA ZIEMI
+=============================================
+
+Podparta stopa posiada światową kotwicę. Zmiana głębokości nie zwalnia jej
+z automatu: tułów i miednica poruszają się względem podparcia, a noga dopasowuje
+się przez IK. Dotyczy to także przejścia WALK -> CROUCH_WALK.
+
+Dlaczego samo mieszanie lokalnych trajektorii ślizga stopę:
+  xWorld = rootTransform * xLocal
+
+Przy stojącym kontakcie xWorld ma być stałe. Zmiana c i długości kroku zmienia
+xLocal niezależnie od ruchu roota; ta dodatkowa zmiana niszczy kompensację.
+Rozwiązanie: rozstrzyga światowa kotwica, a nie interpolowany wykres lokalny.
+
+Nie przesuwać na boki dwóch zakotwiczonych stóp, gdy niski crouch wymaga szerszego
+podparcia. Najpierw przenieść podporę, następnie wykonać niewielkie przestawienie
+jednej stopy i potem drugiej. Można chwilowo ograniczyć obniżanie do wykonalnej
+pozy. Nie udawać rozszerzania rozkroku przez przenikanie lub rozciąganie nóg.
+
+Wymach można przeliczyć do nowego celu, ale nowa trajektoria ma startować
+z aktualnej pozycji i prędkości kończyny. Zastosować ograniczoną trajektorię
+Hermite'a albo równoważne połączenie. Nie teleportować celu lądowania wraz
+z każdym eventem input suwaka.
+
+Obecny GroundContact ponownie kotwiczy zbyt odległy punkt [K6, kod modułu].
+To awaryjne zabezpieczenie powinno pozostać, lecz nie zastępować zwykłego
+planowanego przestawienia stopy. Raportować awaryjne reanchor w diagnostyce.
+
+
+13. PRĘDKOŚĆ, RYTM I DŁUGOŚĆ KROKU MUSZĄ BYĆ SPÓJNE
+===================================================
+
+Używać definicji:
+  cycleDistance = dystans pełnego cyklu tej samej nogi;
+  stepDistance  = około połowy cyklu przy symetrycznym chodzie;
+  cadenceCycles = vActual / cycleDistance.
+
+Gdy parametr postawy skraca krok, nie można pozostawić starego przyrostu fazy.
+Nie zwiększać też częstotliwości bez limitu: prowadzi to do szybkiego drobienia
+nogami. Dobierać długość cyklu i rytm razem w dopuszczalnym zakresie, a pozostałą
+niezgodność usuwać ograniczeniem prędkości.
+
+Dopasowanie długości kroku do rzeczywistego przesunięcia i ograniczona korekta
+miednicy odpowiadają problemowi opisanemu jako stride warping w [R5].
+Projekt zachowuje własny proceduralny solver; nie importuje wtyczki.
+
+W świecie faza korzysta z pokonanego dystansu na powierzchni ruchu, nie z ruchu
+oddechu czy pionowego bob miednicy. W podglądzie w miejscu należy używać
+jawnie wirtualnego dystansu vPreview * dt. Nie interpretować stojącego roota
+w laboratorium jako zakazu ruchu kończyn.
+
+
+14. START, STOP I BARDZO MAŁE PRĘDKOŚCI
+=======================================
+
+Przy speed=0 postać nadal może się obniżać, prostować, oddychać i rozglądać.
+To nie zeruje czasomierza całej animacji.
+
+Przy ruszaniu: wybór nogi, przejęcie ciężaru przez drugą, mały pierwszy krok,
+łagodny wzrost faktycznej prędkości. Przy bardzo małej szybkości skrócić krok
+zamiast odtwarzać pełny wymach przez kilkanaście sekund.
+
+Przy zatrzymaniu: domknąć trwający wymach przez lokalny czas lądowania,
+nawet jeżeli dystans roota jest już zerowy. Czysto dystansowa faza zatrzymałaby
+wtedy nogę w powietrzu. To krótki lokalny etap kończyny, nie kontynuowanie chodu
+na nieruchomym rootcie w nieskończoność.
+
+Po zatrzymaniu zachować cActual i wrócić do statycznej pozy tej samej głębokości.
+Nie wybierać na siłę IDLE albo sztywnego CROUCH. Dotyczy również postoju demo.
+
+
+15. PŁYNNOŚĆ W CZASIE: PARAMETR, NIE ODTWARZANIE PRZEJŚCIA OD NOWA
+================================================================
+
+Dla obniżenia przechowywać wartość, prędkość zmiany i cel. Dla ruchu zachować
+przyspieszanie/hamowanie, skoordynowane z wykonalnością postawy.
+
+Przykładowa baza filtra krytycznie tłumionego:
+  x'' + 2*omega*x' + omega²*(x-target) = 0
+
+Stosować rozwiązanie stabilne względem dt, np. analityczny krok dla celu
+stałego w danym ticku. [R6] opisuje implementacje sprężyn przydatne do takiego
+sterowania. Po zmianie celu zachować x i x', a nie resetować całą interpolację.
+
+Propozycje odczuwalnego strojenia:
+  mała zmiana postawy: reakcja rzędu 0.2–0.4 s;
+  pełny zejściowy zakres: rzędu 0.5–0.9 s przy braku ograniczeń ruchu;
+  zmiana charakteru chód–bieg: rozłożona na około 1–2 kroki.
+
+To zamierzone czasy odpowiedzi, nie ścisła obietnica settle time filtra.
+Parametr omega i ograniczenia tempa trzeba dobrać do definicji błędu oraz celu.
+Podczas biegu wejście w głęboki crouch potrwa dłużej z powodu hamowania.
+
+Zachować ciągłość położenia i prędkości. Sama sprężyna nie gwarantuje ciągłości
+przyspieszenia po skokowej zmianie target; mocniejsze ograniczenie jerk można
+dodać później, gdy faktycznie będzie potrzebne.
+
+Nie dokładać kilku mocnych filtrów jeden po drugim: wejście, każda waga,
+każda kość i wszystkie cele IK. Takie opóźnienia kumulują się. Najpierw
+kontrolujemy parametry ruchu; lekkie opóźnienie zostaje dla górnej części ciała.
+Po końcowym IK nie wygładzać kości nóg w sposób odklejający stopy od kotwic.
+
+Pełna inercjalizacja pozy nie jest konieczna do przesuwania tego suwaka.
+Zachować ją jako ewentualną metodę dla odrębnych zmian rodzaju podparcia,
+a nie nazywać zwykłego lerp inercjalizacją zachowującą prędkości wszystkich kości.
+
+
+16. GŁOWA, TWARZ I EKWIPUNEK POZOSTAJĄ WARSTWAMI DODATKOWYMI
+=============================================================
+
+Spojrzenie nie może kasować pochylenia nowej pozy ani łamać szyi przy głębokim
+crouch. Rozdzielić bazową kompensację posturalną oraz offset spojrzenia,
+i ograniczać ich końcową sumę w przestrzeni odpowiednich kości.
+
+Nie przywracać stojącego układu neck/head na końcu FaceAnimator. Po końcowym
+spojrzeniu kontrolować prześwit głowy i nakrycia, jak dotychczas, ale korekta
+nie powinna skokowo podnosić całego człowieka po każdym ruchu oka.
+
+Plecak, hełm, kamizelka i ładownice podążają za szkieletem. Uwzględnić ich
+geometrię w głębokiej pozie, bez automatycznego zdejmowania przedmiotów.
+Nie skalować sprzętu w czasie animacji tylko po to, by schować kolizję.
+
+Masa wyposażenia pozostaje informacyjna. Ograniczenie vMax przez postawę jest
+jawną nową decyzją tej iteracji; nie jest przy okazji systemem staminy,
+zmęczenia, ciężaru, obrażeń ani biologicznych genów ruchomości stawów.
+
+Zmiana c/v nie przebudowuje geometrii, anatomii, genomu, riga ani materiałów.
+Działa na istniejących kościach oraz celach kontaktów. Seed nie jest zmieniany.
+
+
+17. MINIMALNY MODEL DANYCH I PROPONOWANE API
+==========================================
+
+Poniżej kontrakt PROJEKTOWANY, nie funkcje istniejące w v0.11:
+
+  unit.setLocomotion({
+    crouch: 0.65,
+    speedMps: 0.70
+  });
+
+  unit.setLocomotion({ crouch: 0.20 }); // zachowuje poprzedni cel szybkości
+  unit.setLocomotion({ speedMps: 0 }); // postój na bieżącej żądanej głębokości
+
+Odczyt:
+  unit.locomotion.requestedCrouch
+  unit.locomotion.actualCrouch
+  unit.locomotion.requestedSpeedMps
+  unit.locomotion.actualSpeedMps
+  unit.locomotion.runWeight
+  unit.locomotion.limitReason
+
+Semantyka jednostkowa: zmienia się tylko pole przekazane w wywołaniu.
+Walidacja Number.isFinite; c w 0..1; szybkość nieujemna. Zero jest prawidłową
+wartością. Nie stosować value || default do tych pól.
+
+Suwaki działają wyłącznie w rodzinie BIPED. Wybranie PRONE albo SITTING nadal
+jest świadomą komendą postawy. Zapamiętać c/v do późniejszego powrotu;
+nie próbować w tej iteracji interpretować c=1 jako przewrotu do leżenia.
+
+Genom, przegląd sprzętu, zmiana LOD i mimika nie zerują sterowania, fazy ani
+kamery. Przy przebudowaniu anatomii należy przenieść żądane parametry i fazę,
+przeliczyć osiągalność, a nie przenosić bez sprawdzenia stare kotwice świata.
+
+
+18. INTERFEJS: WYŁĄCZNIE ISTNIEJĄCY UNIT EDITOR
+==============================================
+
+DEBUG -> UNITS -> Generator jednostek -> Animacja
+
+Dodać dwa suwaki:
+  Obniżenie postawy      0.00 .. 1.00
+  Żądana prędkość        0.00 .. phenotype.runSpeed [m/s]
+
+Zostawić istniejące: presety, pauzę, fazę, kamery, Genom, Twarz i Ekwipunek.
+Nie dodawać HUD-u na mapie, osobnych dużych przycisków ani obozów.
+
+Mały odczyt w istniejącym panelu:
+  żądane/osiągnięte c;
+  żądane/rzeczywiste m/s;
+  wysokość posturalna oraz obwiednia sprzętu;
+  wynik mieszania WALK/RUN;
+  rodzaj i stan kontaktu obu stóp;
+  przyczyna limitu, np. POSTURE_SPEED, LEG_REACH, BOOT_CLEARANCE.
+
+Presety ustawiają oba suwaki. Ręczna zmiana nie jest nadpisywana w kolejnym
+frame przez nadal zaznaczony preset. Można wyświetlić „Własne parametry” jako
+stan odczytu, bez tworzenia nowego gameplay state.
+
+Podczas pauzy zmiana suwaka pokazuje nową statycznie rozwiązaną pozę w tej samej
+fazie; nie czeka na historyczny filtr. Tę ścieżkę oddzielić od symulacji czasu.
+Po wznowieniu zsynchronizować snapshoty, aby nie było przeskoku do starej pozy.
+
+Suwak fazy zachowuje dotychczasowe znaczenie. Podgląd w miejscu pozostaje
+jawnie podglądem na wirtualnej bieżni, nie testem blokowania w świecie.
+
+
+19. KOLEJNOŚĆ OBLICZEŃ JEDNEGO TICKU
+===================================
+
+1. Odczytać cRequested, vRequested oraz tryb podparcia.
+2. Wyznaczyć wykonalny cel i wspólnie zaplanować hamowanie/obniżanie.
+3. Zaktualizować wygładzone parametry, bez resetu ich prędkości.
+4. Przesunąć root i odczytać faktyczny dystans albo dystans wirtualnego podglądu.
+5. Zaktualizować harmonogram kroków i wspólną fazę.
+6. Wyznaczyć bazową miednicę/tułów z anatomii oraz krzywych c i v.
+7. Utrzymać światowe podpory, zaplanować wymachy i ewentualne przestawienie stóp.
+8. Rozwiązać nogi, kostki i obuwie; ograniczyć lokalne konflikty geometrii.
+9. Wykonać ograniczoną korektę miednicy i ponowić zależne IK.
+10. Nałożyć mimikę/spojrzenie, skontrolować końcowy prześwit.
+11. Zapisać wynik do istniejących snapshotów i odczytów debug.
+
+Kroki 2–3 i 6–9 współpracują: przy niedopuszczalnym celu zostaje informacja dla
+następnego ticku. Dopuszczalna jest niewielka ustalona liczba prób, nie pętla
+iteracyjna bez limitu. To model kinematyczny, nie pełna symulacja równowagi.
+Zachować istniejący fixed timestep i interpolację obrazu.
+
+
+20. ZMIANY W PLIKACH — WYKONAWCZY PODZIAŁ
+========================================
+
+js/config.js
+Dodać krzywe próbek głębokości, vMax, przejścia WALK–RUN i ograniczenia tempa.
+Zachować genomy, prędkości bazowe, stały tick i nazwy presetów.
+
+js/animation/postureProfile.js [nowy, jeśli wydzielenie jest praktyczne]
+Jeden sampler parametryczny sylwetki na podstawie anatomii, c i v.
+Zwraca cele oraz preferencje; nie ustawia samodzielnie wszystkich kości.
+Tu wzorce pięciu głębokości i ich ograniczona interpolacja.
+
+js/animation/locomotionController.js [nowy moduł z realną odpowiedzialnością]
+requested/planned/actual, filtry, prędkość i głębokość, wybór runWeight.
+Bez generowania geometrii i bez logiki wyposażenia. Może być początkowo klasą
+obok animatora; nie tworzyć pustych warstw na przyszłość.
+
+js/animation/gaitProfile.js
+cycleLength(c,v), duty i clearance oraz parametry WALK–RUN.
+Dopilnować spójnego mapowania markerów. Zachować PRONE_MOVE osobno.
+
+js/animation/infantryAnimator.js
+Nie kierować wszystkich zmian przez setState i restart przejść.
+sampleCrouch i sampleLocomotion stają się punktami wejściowymi do wspólnego
+parametrycznego profilu BIPED. Pozostawić odrębne SITTING, SUPPORT, PRONE.
+Zachować phase. Przekazywać kontakty bez uśredniania niezgodnych podpór.
+Ograniczyć wielokrotne filtrowanie nóg i błędne korekty hips po finalnym IK.
+
+js/animation/groundContact.js
+Utrzymywać kotwice przy zmianie c. Rozróżnić zwykłe przestawienie od awaryjnego
+reanchor. Przechowywać zdarzenie rozpoczęcia/zakończenia podpory i parametry
+bieżącego kroku. Nie blokować w nieskończoność nieosiągalnej kotwicy.
+
+js/animation/twoBoneIK.js
+Nie zastępować poprawnej geometrii solvera. Dodać potrzebne ograniczenia i
+informację o nieosiągalności dla profilu. Uwzględnić skręt i limity głębokiej
+pozy, bez scale kości.
+
+js/units/infantryUnit.js
+Nowe API, faktyczna prędkość i koordynacja hamowania. BIPED nie zatrzymuje się
+z samego powodu zmiany IDLE/WALK/CROUCH. Postój patrolu zachowuje głębokość.
+seek() przyjmuje aktualne parametry i nie odczytuje szybkości wyłącznie z enum.
+Snapshoty zachowują płynność, a geometria nie jest tworzona ponownie co frame.
+
+js/animation/faceAnimator.js
+Tylko niezbędna integracja bazowej kompensacji szyi z rozglądaniem.
+Nie zmieniać genomu twarzy ani palety emocji.
+
+js/ui/unitPreview.js, js/ui/debugPanel.js, index.html
+Dwa suwaki w istniejącej zakładce; odczyt requested/actual; pauza i ręczne
+próbkowanie; zachowanie kamery, sprzętu i genomu. Żadnego resetowania modelu
+po każdej zmianie obniżenia lub prędkości.
+
+js/game.js
+Istniejące demo może zmieniać c płynnie na jednym odcinku patrolu, utrzymać
+pośredni poziom na postoju, następnie wrócić do wyprostu. Zachować dziesięć
+profili, nie tworzyć dodatkowego ekranu demonstracyjnego.
+
+js/loader.js
+Dopisać wyłącznie faktycznie utworzone moduły, w kolejności zależności.
+Nadal klasyczne skrypty, bez lokalnego import/export lub fetch wymagającego HTTP.
+
+docs/
+Zaktualizować 03_ANIMACJE_I_TEREN, 05_DEBUG_TESTY, 06_CHANGELOG_I_ITERACJE,
+07_OGRANICZENIA i 15_CRAWL_CROUCH_SITTING. Ten plan pozostaje planem do chwili
+wdrożenia; po implementacji zapisać faktyczny kontrakt, a nie deklarację zamiarów.
+
+
+21. LEKKIE KRYTERIA ODBIORU NASTĘPNEJ ITERACJI
+============================================
+
+A. Przy v=0 przesunąć c powoli 0 -> 1 -> 0. Brak przeskoku przy 0.5 i 0.75;
+można zatrzymać się na 0.37; stopy pozostają podparte albo jawnie się przestawiają.
+
+B. Przy c=0 przejść prędkością od postoju do RUN i z powrotem. Faza nie resetuje
+się, kroki nie ślizgają, końcowa stopa ląduje także po wyhamowaniu roota.
+
+C. Podczas chodu zmieniać c w obie strony. Nie ma obowiązkowego zatrzymania
+przy przekroczeniu dawnej granicy WALK/CROUCH_WALK.
+
+D. Z biegu zażądać c=1: jednostka hamuje i dopiero uzyskuje głębokość. Z c=1
+zażądać wyprostu i biegu: najpierw odzyskuje wykonalną postawę, potem szybkość.
+
+E. Ten sam seed, gear i kamera: nowy c=1 jest wyraźnie niższy od zapisanego
+CROUCH v0.11, bez przejścia do SITTING. Sprawdzić dwie kontrastowe sylwetki.
+
+F. Pauza, faza, głowa, mimika, wyposażenie i dwa widoki kamery działają jak
+wcześniej. Suwaki nie wywołują przebudowy modelu ani zmian seeda.
+
+G. Minimum techniczne: składnia, skończone transformacje, brak scale kości,
+normalizacja kwaternionów, uruchomienie file://, integralny ZIP i aktualne docs.
+Nie rozbudowywać teraz infrastruktury testowej. Kryteria wizualne sprawdzać
+w ruchu, a nie ogłaszać ich spełnienia na podstawie samych numerów IK.
+
+
+22. KOLEJNOŚĆ REALIZACJI
+========================
+
+Najpierw: oddzielić continuous input od presetów i doprowadzić do działającego
+c=0..1 na postoju. Nowa najniższa poza musi być poprawna przed animowaniem kroku.
+
+Potem: wspólny profil kroków, prędkość rzeczywista, kontakty i płynne obniżanie
+w czasie chodu. Następnie WALK–RUN, hamowanie, start i końcowy krok zatrzymania.
+
+Na końcu: suwaki, integracja z demo, sprzętem, głową, pauzą i dokumentacją.
+Nie dodawać przy okazji dalszych postaw, ragdolla, walki, pathfindingu ani AI.
+
+Najkrótsza definicja celu:
+  Nie odtwarzamy kolejnych nazw animacji.
+  Sterujemy poziomem sylwetki i ruchem, a animator wylicza wykonalną pozę.
+
+
+23. BIBLIOGRAFIA I GRANICE WYKORZYSTANIA
+=======================================
+
+[R1] Hora M., Struška M., Matějovská Z., Kubový P., Sládek V.
+Muscle activity during crouched walking. American Journal of Biological
+Anthropology 183(1), 79–91; 2024, online 2023. DOI: 10.1002/ajpa.24834
+https://onlinelibrary.wiley.com/doi/full/10.1002/ajpa.24834
+Dostęp: pełny tekst HTML; metody, wyniki i ograniczenia.
+Zastosowanie: różny udział stawów przy różnych stopniach obniżenia. Nie jest
+źródłem naszych limitów szybkości ani propozycji 55% wzrostu.
+
+[R2] Epic Games. Blend Spaces.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/blend-spaces-in-unreal-engine
+Dostęp: dokumentacja HTML. Koncepcja mieszania po jednym/dwóch parametrach,
+wzorców i wygładzania wejścia. Bez wymogu migracji na Unreal.
+
+[R3] Unity Technologies. 2D Blending — Unity 6.0 Manual.
+https://docs.unity3d.com/6000.0/Documentation/Manual/BlendTree-2DBlending.html
+Dostęp: dokumentacja. Dwa parametry mogą reprezentować różne wielkości,
+nie wyłącznie dwa kierunki. Nasza para to obniżenie i szybkość.
+
+[R4] Epic Games. Animation Sync Groups.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-sync-groups-in-unreal-engine
+Dostęp: dokumentacja HTML. Synchronizacja faz, wspólne momenty podparcia,
+markery i start/stop. Same liczby phase nie zapewniają zgodności zdarzeń.
+
+[R5] Epic Games. Pose Warping.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine
+Dostęp: dokumentacja HTML. Dopasowanie długości kroku i ograniczenia korekt
+miednicy/IK. Nie proponuje używania eksperymentalnego slope warping w naszej grze.
+
+[R6] Daniel Holden. Spring-It-On: The Game Developer's Spring-Roll-Call.
+https://theorangeduck.com/page/spring-roll-call
+Dostęp: materiał techniczny autora z implementacjami. Źródło koncepcji
+wygładzania wartości i prędkości; nie dowód biologicznej naturalności pozy.
+
+[R7] Three.js Authors. Quaternion.
+https://threejs.org/docs/pages/Quaternion.html
+Dostęp: dokumentacja. Operacje kwaternionowe, slerp, normalizacja.
+Projekt pozostaje przy przypiętej wersji CDN, bez automatycznej aktualizacji.
+
+[R8] Endo Y., Miura M., Sakamoto M. The relationship between the deep squat
+movement and the hip, knee and ankle range of motion and muscle strength.
+Journal of Physical Therapy Science 32(6), 391–394; 2020.
+DOI: 10.1589/jpts.32.391
+https://www.jstage.jst.go.jp/article/jpts/32/6/32_jpts-2020-010/_article
+https://pubmed.ncbi.nlm.nih.gov/32581431/
+Do wniosków tego planu wykorzystano abstrakt wydawcy. Dziewięciu uczestników,
+analiza 2D przysiadu z uniesionymi ramionami. Nie kopiujemy tabel kątów do riga.
+
+[R9] Pires N. J. i współautorzy. Modulation of joint and limb mechanical work
+in walk-to-run transition steps in humans. Journal of Experimental Biology,
+221(Pt 16), jeb174755; 2018. DOI: 10.1242/jeb.174755
+https://pubmed.ncbi.nlm.nih.gov/29903837/
+Dostęp: abstrakt. Wspiera rozróżnienie mechaniki kroku przejściowego od samej
+zmiany szybkości odtwarzania. Nie określa progu 1.8–2.6 m/s przyjętego w planie.
+
+Źródła sprawdzono 24.09.2026. Analiza pierwotnych badań i dokumentacji służy
+projektowaniu animacji, a nie udzielaniu zaleceń ćwiczeniowych lub medycznych.
+Koniec planu. Kod v0.11 pozostaje niezmieniony.

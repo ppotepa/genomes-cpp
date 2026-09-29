@@ -1,0 +1,76 @@
+{
+  "version": "0.11.0",
+  "environment": "Node + bundled numeric_math.cjs. Not a WebGL/browser test.",
+  "profiles": [
+    {
+      "role": "RIFLEMAN",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 16.35,
+      "baseTriangles": 16703,
+      "gearTriangles": 5450
+    },
+    {
+      "role": "ASSAULT",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 19.520000000000003,
+      "baseTriangles": 16777,
+      "gearTriangles": 6278
+    },
+    {
+      "role": "LIGHT_SUPPORT",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 23.689999999999998,
+      "baseTriangles": 16740,
+      "gearTriangles": 5754
+    },
+    {
+      "role": "HEAVY_SUPPORT",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 30.14,
+      "baseTriangles": 16875,
+      "gearTriangles": 6058
+    },
+    {
+      "role": "MARKSMAN",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 17.45,
+      "baseTriangles": 16700,
+      "gearTriangles": 5450
+    },
+    {
+      "role": "SCOUT",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 12.459999999999999,
+      "baseTriangles": 16767,
+      "gearTriangles": 3578
+    },
+    {
+      "role": "MEDIC",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 17.340000000000003,
+      "baseTriangles": 16787,
+      "gearTriangles": 5898
+    },
+    {
+      "role": "ENGINEER",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 22.47,
+      "baseTriangles": 16902,
+      "gearTriangles": 6822
+    },
+    {
+      "role": "RADIO_OPERATOR",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 16.650000000000002,
+      "baseTriangles": 16800,
+      "gearTriangles": 5730
+    },
+    {
+      "role": "SQUAD_LEADER",
+      "stage": "after head=beanie and back=pack_radio overrides",
+      "weightKg": 20.950000000000003,
+      "baseTriangles": 16757,
+      "gearTriangles": 6114
+    }
+  ]
+}

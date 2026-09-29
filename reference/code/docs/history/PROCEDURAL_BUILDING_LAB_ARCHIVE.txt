@@ -1,0 +1,97 @@
+GENOMES RTS — PROCEDURAL BUILDING LAB
+=====================================
+
+Aktualizacja implementacji: 25 września 2026 — generator v5
+
+Aktualny kontrakt: docs/research/building-generator.md.
+Nowa ścieżka: BuildingPlan niezależny od Three.js/DOM → walidacja → geometria → instancja.
+AUTO wybiera EURO_HOUSE, EURO_APARTMENT, EURO_OFFICE lub EURO_HALL.
+Manifest poprawionych wzorców: rts.procedural-building/4, wraz z planem, meblami, wallAssembly, stairType i proceduralnymi detalami.
+Skrypty modułów należy ładować w kolejności z building-lab/index.html.
+Zachowano generate(options), eksport, uszkodzenia i blokady parametrów.
+Dodano createPlan(options), furniture:false, randomSeeds.furniture i setVisibleFloor(floor|null).
+
+JAKOŚĆ V5
+----------
+- Cztery rodziny schodów: STRAIGHT, QUARTER_TURN, DOGLEG i OPEN_WELL; wybór jest częścią genomu poprawionych wzorców.
+- Schody zapisują flights, landings, openingBounds i ciągłą walkline. Geometria używa pełnych stopni oraz finalnej podstopnicy, dzięki czemu bieg styka się dokładnie z podestem i stropem.
+- Rdzeń komunikacyjny wynika z rzeczywistego obrysu schodów; asymetryczne schody L nie przecinają ścian pomieszczeń.
+- WallAssembly rozdziela rdzeń konstrukcyjny i wykończenia; nie ma już globalnego założenia ściany 0,30 m.
+- Okna mają rzeczywistą wnękę, zewnętrzną ramę, wariantowe słupki/poprzeczki, parapet, opcjonalne nadproże i drobną stolarkę. Drzwi mają ościeżnicę, próg, skrzydła i okucie.
+- Facade occupancy i rezerwacje otworów są używane przez detale oraz konstrukcję. Widoczne belki/zastrzały nie mogą przechodzić przez okna.
+- Proceduralne dachy otrzymują zależne od typologii kominy, odpowietrzenia, anteny, satelity, HVAC, świetliki, panele PV, włazy, rynny i rury spustowe.
+- Detale dachowe są osadzane na konkretnej płaszczyźnie roofFace; ich seed pochodzi z randomSeeds.details.
+- Eksperymentalny generator dostał bezkolizyjne timber-frame, poprawione styki starych schodów/stropów oraz dodatkowe detale dachowe.
+- Testy planu i geometrii iterują po wszystkich dopuszczonych rodzinach schodów i sprawdzają ciągłość oraz penetrację konstrukcji przez otwory.
+Pełne reguły, ograniczenia i odbiór: building-lab/RESEARCH.md.
+
+Poniższy opis dotyczy wcześniejszej ścieżki, dostępnej obecnie jako eksperymentalna.
+Nie opisuje zakresów ani gwarancji czterech poprawionych wzorców.
+
+Cel
+---
+Samodzielne laboratorium do strojenia budynków proceduralnych. Interfejs: building-lab/index.html. Generator Three.js znajduje się w js/buildings/proceduralBuildingGenerator.js i może być ładowany niezależnie przez runtime.
+
+Obecna wersja
+-------------
+- Seed 32-bit i manifest rts.procedural-building/2.
+- Katalog 24 archetypów: wiejskie, miejskie, bloki mieszkaniowe, przemysłowe i publiczne.
+- Geometrie rzutów: prostokąt, L, U, narożny, dziedziniec, segment, sklep z mieszkaniem, willa, blok, punktowiec, wieża z podstawą, hala, zagroda, szkoła i pawilon.
+- Główna część oraz skrzydła mają osobne ściany, podłogi, otwory i połączenia. Dziedziniec zachowuje pustą przestrzeń i bramę, a nie pełny prostokątny strop.
+- Rzuty L, U, narożne, dziedzińcowe i willowe wyznaczają portale z geometrii skrzydeł; manifest zapisuje osobno wejścia, otwarte połączenia i strefy.
+- Nieprzemysłowe rdzenie otrzymują prosty podział front/tył z otwartym przejściem; laboratorium pokazuje liczbę stref i połączeń, a przekrój odsłania przegrody.
+- Blok korytarzowy ma osobny plan: wspólny korytarz, powtarzalne lokale po obu stronach, wejściowe lobby i strefę pionu schodowego.
+- Galeriowiec dostaje powtarzalne lokale z drzwiami na zewnętrzną galerię, balustradę, podest galerii i graf dostępu z kondygnacji.
+- Kondygnacje do 12; szerokość i głębokość można podać ręcznie lub pobrać z zakresu archetypu.
+- Styl elewacji, materiał ściany, pokrycie dachu, rodzina okien i drzwi są niezależnymi ustawieniami.
+- 16 rodzin dachów: dwuspadowy, kopertowy, płaski, pulpitowy, mansardowy, łamany, naczółkowy, szedowy, motylkowy, kolebkowy, kopuła, namiotowy, stożkowy, hełm wieży, zielony i użytkowy.
+- Rzeczywiste przerwy w ścianach dla otworów; część przejść łączy skrzydła. Dodano detale zrębu, szkieletu drewnianego, kamiennych narożników, balkonów i usługowego parteru.
+- Manifest zawiera wejścia, okna, kondygnacje, strefy podłóg, strefy wnętrza, połączenia przestrzeni, schody i komponenty destrukcji.
+- Podgląd przekroju, trasy schodów, dachu, uszkodzeń i JSON.
+
+API
+---
+const gen = new RTS.ProceduralBuildingGenerator();
+const building = gen.generate({
+  seed: 1234,
+  buildingType: 'TOWNHOUSE_U', // lub AUTO; dostępne: RTS.ProceduralBuildingGenerator.buildingTypes
+  shape: 'AUTO',               // RECT, L, U, CORNER, COURTYARD itd.
+  style: 'AUTO',               // rodzina stylu elewacji
+  material: 'AUTO',            // brick, wood, stucco, concrete, stone, metal, glass
+  roof: 'AUTO',                // jedna z 16 rodzin dachu
+  roofCovering: 'AUTO',        // clay, slate, shingle, metal, corrugated, membrane, thatch
+  window: 'AUTO',
+  door: 'AUTO',
+  floors: 4,
+  width: 22,
+  depth: 18
+});
+scene.add(building.root);
+building.setCutaway(true);
+building.setRoofVisible(false);
+building.setNavVisible(true);
+const data = building.exportManifest();
+building.dispose();
+
+Zakres kontraktu
+----------------
+- `buildingType` wybiera program i bazowy archetyp. `style`, `material`, `roof`, `roofCovering`, `window` i `door` można nadpisać niezależnie.
+- `shape` nadpisuje rodzinę rzutu i wybiera dostępne skrzydła.
+- `dimensions.width/depth` opisują obwiednię; `coreWidth/coreDepth` opisują główną część. `transform.offset` pozwala powiązać lokalne geometrie z obwiednią.
+- `walkableSurfaces` i `spaces` to uproszczone obszary pięter oraz skrzydeł. `spaceConnections` zapisuje relacje wejść, schodów i połączeń skrzydeł; nie jest jeszcze navmeshem.
+- `entrances` zawiera położenie oraz część przejść między segmentami. Nie wszystkie archetypy mają pełny, osobny układ drzwi do każdej przestrzeni.
+- `components` opisują części rendererowe, nie fizyczny model konstrukcyjny. HP pozostaje parametrem gry.
+
+Ograniczenia przed wdrożeniem kolejnych etapów
+----------------------------------------------
+- Katalog zawiera 24 typy, lecz ich poziom geometrii jest nierówny. Część domów i bloków nadal korzysta z prostokątnego rdzenia z rodzinnymi detalami.
+- Wnętrza mają bazowy podział rdzenia na strefę frontową i tylną; osobne układy mieszkań istnieją dla bloku korytarzowego i galeriowca. Generator nie wyposaża ich i nie waliduje przejścia konkretnej jednostki; plany bloków klatkowych, szkół, kamienic i domów wymagają dalszego modelowania typologicznego.
+- Rodziny okien i drzwi są opisane w manifeście oraz częściowo wpływają na geometrię. Okrągłe okna, lukarny, mechanizmy drzwi i wiele detali wymagają dalszej geometrii.
+- Nie ma jeszcze biblioteki regionalnych modułów systemów prefabrykacji ani statystycznie skalibrowanych proporcji dla historycznych typologii.
+- Destrukcja ukrywa komponent; nie propaguje utraty podpór, nie tworzy gruzu i nie aktualizuje navmesha.
+- Nie sprawdzono wizualnie wszystkich kombinacji w przeglądarce. Kontrola składni JS przeszła; testów generatora i WebGL w tej aktualizacji nie uruchamiano.
+
+Punktem odniesienia dla dalszych etapów pozostają:
+- docs/30_RESEARCH_PROCEDURALNYCH_BUDYNKOW.md — analiza metod i kodu,
+- docs/31_ATLAS_ARCHITEKTURY_PROCEDURALNEJ.md — typologie i katalog form,
+- docs/32_ZRODLA_BUILDING_LAB.md — bibliografia i jawne ograniczenia researchu.

@@ -1,0 +1,54 @@
+{
+  "results": [
+    {
+      "species": "pebble",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "fieldstone",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "granite",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "basalt",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "limestone",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "sandstone",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "slate",
+      "triangles": 320,
+      "drawCalls": 1
+    },
+    {
+      "species": "outcrop",
+      "triangles": 320,
+      "drawCalls": 1
+    }
+  ],
+  "tests": [
+    "8 types",
+    "category controls",
+    "gene editing",
+    "LOD",
+    "DNA import",
+    "WebGL rendering"
+  ],
+  "baseRevision": "e40bf85",
+  "workingTree": true
+}

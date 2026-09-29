@@ -1,0 +1,24 @@
+RTS PROTOTYPE 0.9.0 | generator infantry-4.0.0 | 24.09.2026
+
+HEAD LOOK + DEMO IDLE
+=====================
+
+Zakres tej iteracji jest celowo mały. Nie dodano AI, obozów ani walki.
+
+1. FaceAnimator rozdziela teraz wolny kierunek uwagi (attention), szybkie ruchy
+   oczu i micro-saccades. Duże spojrzenie jest rozkładane na szyję, głowę i
+   pozostały ruch gałek ocznych. Dzięki temu głowa faktycznie obraca się i
+   pozostaje stabilna przy małych ruchach oczu.
+
+2. Gdy nie ma zewnętrznego lookTarget, seed jednostki determinuje kolejne
+   kierunki rozglądania. Zachowanie pozostaje deterministyczne.
+
+3. Demo używa krótkich odcinków ping-pong. Po dojściu do końca jednostka:
+   - przechodzi do prawdziwego IDLE,
+   - obraca ciało w kierunku powrotu,
+   - pozostaje przez krótki deterministyczny czas w IDLE,
+   - nadal mruga i rozgląda się,
+   - wraca w WALK/RUN/PRONE_MOVE zależnie od jednostki testowej.
+
+Generator geometrii nie zmienił się, dlatego GENERATOR_VERSION pozostaje
+infantry-4.0.0. Seed nadal generuje tę samą anatomię co w v0.8.

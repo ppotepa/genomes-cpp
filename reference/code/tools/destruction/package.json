@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "node run-suite.cjs",
+    "test:benchmark": "node ../../tests/building_v6.cjs",
+    "test:benchmark:ap": "node ../../tests/building_destruction_v6.cjs",
+    "test:effects-benchmark": "node effects-benchmark.cjs",
+    "test:browser": "node browser-check.cjs",
+    "bundle": "node bundle.cjs"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.19.3",
+    "esbuild": "0.25.5",
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "playwright": "^1.55.0"
+  }
+}

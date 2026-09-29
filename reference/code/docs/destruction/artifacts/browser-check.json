@@ -1,0 +1,274 @@
+{
+  "date": "2026-09-25T16:18:19.141Z",
+  "browser": "153.0.8010.53",
+  "protocol": "file:",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "three": "local route of pinned CDN scripts",
+  "physics": "local bundled Rapier/WASM",
+  "rendering": true,
+  "performanceClaim": "No 60 FPS claim: automated headless acceptance, not a target-GPU frame-time test.",
+  "before": {
+    "parts": 203,
+    "wall": "main/0/FRONT-0/wall/8/panel-1",
+    "bounds": {
+      "min": [
+        4.013750021457672,
+        1.4055,
+        4.643499998211861
+      ],
+      "max": [
+        5.027499978542328,
+        2.811000054359436,
+        4.98350000178814
+      ]
+    },
+    "material": "brick",
+    "renderer": {
+      "geometries": 433,
+      "textures": 2
+    }
+  },
+  "ap": {
+    "shots": 1,
+    "hits": [
+      {
+        "type": "hit",
+        "part": "main/0/FRONT-0/wall/8/panel-1",
+        "material": "brick",
+        "point": [
+          4.391464284096937,
+          2.093637083640485,
+          4.98350000178814
+        ],
+        "direction": [
+          0.5676352895589503,
+          0.10774388761154019,
+          -0.8161993829510523
+        ],
+        "diameter": 0.015,
+        "fragment": false,
+        "normal": [
+          0,
+          0,
+          1
+        ],
+        "ammoKind": "ap",
+        "ammoId": "30-ap",
+        "seed": 2026,
+        "result": "penetrated",
+        "energy": 216125.14617201893,
+        "lost": 4122.333142694087,
+        "entryEnergy": 220247.479314713,
+        "thickness": 0.41656488681353065,
+        "depth": 0.41656488681353104,
+        "response": "perforation",
+        "geometryChanged": true,
+        "radius": 0.03627317664113771,
+        "scarDepth": 0.41656488681353104
+      },
+      {
+        "type": "hit",
+        "part": "main/0/RIGHT-0/wall/6/panel-3",
+        "material": "brick",
+        "point": [
+          4.8574999982118605,
+          2.182095744564022,
+          4.313390039827696
+        ],
+        "direction": [
+          0.5676354144312963,
+          0.10774186953677925,
+          -0.8161995625042507
+        ],
+        "diameter": 0.015,
+        "fragment": false,
+        "normal": [
+          -1,
+          0,
+          0
+        ],
+        "ammoKind": "ap",
+        "ammoId": "30-ap",
+        "seed": 2026,
+        "result": "penetrated",
+        "energy": 212122.7154488135,
+        "lost": 3980.051592192795,
+        "entryEnergy": 216102.7670410063,
+        "thickness": 0.40218722835444554,
+        "depth": 0.40218722835444554,
+        "response": "perforation",
+        "geometryChanged": true,
+        "radius": 0.03595505998228957,
+        "scarDepth": 0.40218722835444554
+      },
+      {
+        "type": "hit",
+        "part": "main/0/RIGHT-0/wall/6/panel-2",
+        "material": "brick",
+        "point": [
+          5.085801388611955,
+          2.2254292258694406,
+          3.9851168380043753
+        ],
+        "direction": [
+          0.5676354144312963,
+          0.10774186953677924,
+          -0.8161995625042507
+        ],
+        "diameter": 0.015,
+        "fragment": false,
+        "normal": [
+          0,
+          1,
+          0
+        ],
+        "ammoKind": "ap",
+        "ammoId": "30-ap",
+        "seed": 2026,
+        "result": "penetrated",
+        "energy": 210175.38917037044,
+        "lost": 1947.3262784430503,
+        "entryEnergy": 212122.71544881348,
+        "thickness": 0.19677879557267047,
+        "depth": 0.19677879557267047,
+        "response": "perforation",
+        "geometryChanged": true,
+        "radius": 0.030559196970900926,
+        "scarDepth": 0.19677879557267047
+      }
+    ],
+    "originalPresent": false,
+    "parts": 212,
+    "diagnostics": {
+      "ready": true,
+      "preparing": false,
+      "paused": true,
+      "tick": 10,
+      "shots": 1,
+      "projectiles": 1,
+      "bodies": 0,
+      "queue": 0,
+      "ownedGeometry": 173,
+      "listeners": 10,
+      "visualTime": 0.20140000000000013,
+      "effects": {
+        "flash": 0,
+        "dust": 9,
+        "chips": 21,
+        "marks": 0,
+        "drawCalls": 2,
+        "capacity": 528
+      }
+    },
+    "visibleIntersections": 0
+  },
+  "heFlash": {
+    "effects": {
+      "flash": 2,
+      "dust": 27,
+      "chips": 99,
+      "marks": 0,
+      "drawCalls": 3,
+      "capacity": 528
+    },
+    "visualTime": 0.264,
+    "drawCalls": 266
+  },
+  "heDust": {
+    "effects": {
+      "flash": 0,
+      "dust": 27,
+      "chips": 89,
+      "marks": 0,
+      "drawCalls": 2,
+      "capacity": 528
+    },
+    "visualTime": 0.7640000000000006,
+    "drawCalls": 323
+  },
+  "he": {
+    "shots": 1,
+    "explosions": 1,
+    "wallRemoved": true,
+    "parts": 263,
+    "debris": 95,
+    "ownedGeometry": 236,
+    "drawCalls": 325,
+    "triangles": 4306,
+    "sourceUnchanged": true
+  },
+  "lifecycle": [
+    {
+      "active": false,
+      "canvases": 1,
+      "geometries": 256,
+      "textures": 1,
+      "sourceUnchanged": true
+    },
+    {
+      "active": false,
+      "canvases": 1,
+      "geometries": 256,
+      "textures": 1,
+      "sourceUnchanged": true
+    },
+    {
+      "active": false,
+      "canvases": 1,
+      "geometries": 256,
+      "textures": 1,
+      "sourceUnchanged": true
+    }
+  ],
+  "dent": {
+    "hit": {
+      "type": "hit",
+      "part": "main/0/FRONT-0/wall/8/panel-1",
+      "material": "steel",
+      "point": [
+        4.391464284096936,
+        2.093582569099967,
+        4.98350000178814
+      ],
+      "direction": [
+        0.5677470635431556,
+        0.10760681324550303,
+        -0.8161397218499239
+      ],
+      "diameter": 0.014,
+      "fragment": false,
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "ammoKind": "ap",
+      "ammoId": "20-ap",
+      "seed": 2026,
+      "result": "stopped",
+      "energy": 0,
+      "lost": 60308.28488952151,
+      "entryEnergy": 60308.28488952152,
+      "thickness": 0.4165953383638883,
+      "depth": 0.11193424664211785,
+      "response": "dent",
+      "geometryChanged": true,
+      "radius": 0.022346070748458974,
+      "scarDepth": 0.11193424664211785
+    },
+    "remainingDepth": 0.11193424664211613,
+    "effects": {
+      "flash": 0,
+      "dust": 0,
+      "chips": 0,
+      "marks": 0,
+      "drawCalls": 0,
+      "capacity": 528
+    },
+    "sourceUnchanged": true
+  },
+  "errors": []
+}

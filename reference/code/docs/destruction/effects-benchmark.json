@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-25T16:13:13.033Z",
+  "node": "v24.19.0",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12600K",
+  "rendering": false,
+  "scope": "Spawn and update CPU for pooled visual effects only; excludes rendering, GPU, audio, ballistics, building adapters and physics. Timing does not establish FPS.",
+  "scenarios": [
+    {
+      "quality": "normal",
+      "simulatedSeconds": 30,
+      "explosions": 300,
+      "impacts": 600,
+      "meanStepMs": 0.027744444444444516,
+      "p95StepMs": 0.041399999999995885,
+      "maxStepMs": 1.1985000000000028,
+      "peak": {
+        "flash": 6,
+        "dust": 128,
+        "chips": 256,
+        "marks": 128,
+        "drawCalls": 4
+      }
+    },
+    {
+      "quality": "low",
+      "simulatedSeconds": 30,
+      "explosions": 300,
+      "impacts": 600,
+      "meanStepMs": 0.008224111111111038,
+      "p95StepMs": 0.011700000000004707,
+      "maxStepMs": 0.1635999999999882,
+      "peak": {
+        "flash": 4,
+        "dust": 40,
+        "chips": 80,
+        "marks": 32,
+        "drawCalls": 4
+      }
+    }
+  ]
+}

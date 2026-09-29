@@ -1,0 +1,111 @@
+{
+  "version": "0.12.0",
+  "environment": "Node + numeric_math.cjs; NOT Three.js/WebGL",
+  "checks": [
+    {
+      "name": "static range, seed 1003",
+      "ok": true,
+      "samples": [
+        {
+          "requested": 0,
+          "actual": 0,
+          "headPivotRatio": 0.8933252661792284,
+          "hipY": 0.8504848762251106,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552965512
+        },
+        {
+          "requested": 0.25,
+          "actual": 0.25,
+          "headPivotRatio": 0.8550751194123065,
+          "hipY": 0.8045153131760897,
+          "groundLift": 0,
+          "minimumBoot": 0.001499999955296527
+        },
+        {
+          "requested": 0.5,
+          "actual": 0.5,
+          "headPivotRatio": 0.7720228088755388,
+          "hipY": 0.7158010626744302,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552964785
+        },
+        {
+          "requested": 0.75,
+          "actual": 0.75,
+          "headPivotRatio": 0.6620294555588843,
+          "hipY": 0.5552960137962224,
+          "groundLift": 0,
+          "minimumBoot": 0.001499999955296587
+        },
+        {
+          "requested": 1,
+          "actual": 1,
+          "headPivotRatio": 0.5329438894463244,
+          "hipY": 0.338899496068304,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552967075
+        }
+      ]
+    },
+    {
+      "name": "static range, seed 2003",
+      "ok": true,
+      "samples": [
+        {
+          "requested": 0,
+          "actual": 0,
+          "headPivotRatio": 0.8925893888249821,
+          "hipY": 0.9460677316530665,
+          "groundLift": 0,
+          "minimumBoot": 0.001499999955296529
+        },
+        {
+          "requested": 0.25,
+          "actual": 0.25,
+          "headPivotRatio": 0.852934222409313,
+          "hipY": 0.8943505382516633,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552964605
+        },
+        {
+          "requested": 0.5,
+          "actual": 0.5,
+          "headPivotRatio": 0.7684893042570533,
+          "hipY": 0.7946122438952968,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552967997
+        },
+        {
+          "requested": 0.75,
+          "actual": 0.75,
+          "headPivotRatio": 0.6504013243862758,
+          "hipY": 0.6139954583730454,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552963428
+        },
+        {
+          "requested": 1,
+          "actual": 1,
+          "headPivotRatio": 0.5076337876735436,
+          "hipY": 0.3703227593339086,
+          "groundLift": 0,
+          "minimumBoot": 0.0014999999552965189
+        }
+      ]
+    },
+    {
+      "name": "sprint->deep crouch, phase continuity",
+      "ok": true,
+      "highSpeedDepth": 0.1734863945640986,
+      "maxDepthJump": 0.03003895521103994,
+      "endSpeed": 0.1961196323353797
+    },
+    {
+      "name": "world contacts during depth change",
+      "ok": true,
+      "lockedFrames": 228,
+      "reanchors": 1
+    }
+  ]
+}

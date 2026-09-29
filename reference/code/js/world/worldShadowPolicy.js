@@ -1,0 +1,5 @@
+(function(){
+  'use strict';
+  const R=globalThis.RTS;
+  R.WorldShadowPolicy={buildingCategory(category,detail='world'){if(detail==='far'||detail==='FAR')return category==='wall'||category==='roof'||category==='foundation';return ['foundation','wall','party-wall','structure','floor','slab','roof','gable'].includes(category);},environment(kind,detail='world'){if(kind==='crop'||kind==='foliage'||kind==='wire')return false;return kind==='trunk'||kind==='rock'||(kind==='hay'&&detail==='near');},fence(type){return type==='wall';},apply(root){let casters=0;root.traverse(o=>{if(!o.isMesh)return;const n=String(o.name||'').toLowerCase(),allowed=n.includes('proxy envelope')||n.includes('proxy roof')||n.includes('world facade')||n.includes('wall')||n.includes('roof')||n.includes('foundation');o.castShadow=allowed&&casters<3;o.receiveShadow=true;if(o.castShadow)casters++;});return casters;},isCaster(name){const n=String(name||'').toLowerCase();return /proxy envelope|proxy roof|world facade|\bwall\b|\broof\b|foundation/.test(n);}};
+})();

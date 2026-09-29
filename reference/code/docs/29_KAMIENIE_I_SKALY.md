@@ -1,0 +1,15 @@
+# Proceduralne kamienie i skały
+
+Kategoria **Kamienie i skały** jest dostępna w prawym panelu mapy i w laboratorium otoczenia (`environment.html?category=rocks`). Zawiera osiem typów: otoczak, kamień polny, granit, bazalt, wapień, piaskowiec, łupek i wychodnia skalna.
+
+Genom `rocks-1.0.0` zapisuje typ, seed oraz geny: rozmiar, wydłużenie, spłaszczenie, nieregularność, zaokrąglenie, warstwy i mech. Import/eksport JSON oraz suwaki używają wspólnego interfejsu laboratorium; ustawienia sezonu i wieku są ukryte dla skał.
+
+Generator używa rzadkiej siatki dwudziestościanu, pięciu asymetrycznych wybrzuszeń/wgłębień, czterech kierunków przełamu i pochylenia zależnego od seeda. Przełamy ograniczają promień powierzchni w stronę płaszczyzn, z siłą zależną od zaokrąglenia; nie jest to symulacja pękania skały. Warstwowanie zmienia obrys wybranych skał i ich kolor, mech jest proceduralnym kolorem wierzchołków. Nie ma zewnętrznych modeli ani tekstur. Detale high/world/distant/far zawierają odpowiednio **320/80/20/20 trójkątów**, zamiast 2048/512/128/32. Dwa najdalsze poziomy celowo mają tę samą prostą bryłę. Każdy poziom korzysta z tej samej funkcji kształtu i pionowego zakotwiczenia; wspólne wierzchołki zachowują dokładnie te same pozycje. Zmiana algorytmu zmienia wygląd wcześniejszego DNA, ale zachowuje jego format i deterministyczność.
+
+START NEW buduje deterministyczne formacje: rodziny głazów, wychodnie, rumowiska i pasma. Każda grupa ma wspólną dominantę skalną; mniejsze kamienie i otoczaki rozkładają się bliżej lub na jej obrzeżach. Siedem suwaków w panelu mapy reguluje odstęp i promień skupisk, zagęszczenie (60–140 obiektów), nachodzenie brył, zagłębienie, jednorodność skał oraz udział uformowanych wychodni/rumowisk. Wartości są zapamiętywane lokalnie i trafiają do kolejnego START NEW. Seed nadal reprodukuje dokładny układ.
+
+Bryły mogą częściowo na siebie zachodzić, z ograniczeniem zależnym od obu promieni podstawy, więc mniejszy kamień nie znika łatwo wewnątrz dużego głazu. Każda skała ma niezależny rozmiar, obrót, niewielkie osadzenie i lekki przechył zgodny ze zboczem. Całkowita podstawa pozostaje poza pasem marszu; pnie roślin pozostają wolne. Skały są dekoracją, bez kolizji, wydobycia ani niszczenia.
+
+Świat ma osiem prototypów skał współdzielonych przez instancje, trzy poziomy LOD i regionalny culling. Cache identyfikuje cały genom i detal, liczy referencje i zwalnia geometrię oraz materiał po usunięciu ostatniego właściciela. Generowanie oddaje klatkę między prototypami/LOD i obsługuje anulowanie.
+
+Weryfikacja: `rocks_smoke.cjs` sprawdza wszystkie typy, skrajne geny, zamknięte siatki, deterministyczność, cache, anulowanie, 32 seedy i skrajne profile rozmieszczenia. Test porównuje liczbę grup, gęstość, dozwolone przecięcie brył i zagłębienie. `rocks_checks.js` w Chrome sprawdza edycję, import DNA, LOD i rendering. Test świata w Chrome ustawia suwaki, weryfikuje ich wpływ/persistencję, marsz 50 jednostek, pas marszu i restart. Podgląd pojedynczej skały: `docs/research/images/rocks.png`; mapa grup: `docs/research/images/battlefield.png`.

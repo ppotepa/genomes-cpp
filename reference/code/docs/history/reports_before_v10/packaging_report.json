@@ -1,0 +1,243 @@
+{
+  "version": "0.8.0",
+  "generatorVersion": "infantry-4.0.0",
+  "checks": {
+    "syntax": {
+      "scripts": 30,
+      "passed": true,
+      "node": "v22.16.0"
+    },
+    "localPaths": {
+      "html": [
+        "css/style.css",
+        "js/loader.js",
+        "tests/../js/loader.js"
+      ],
+      "loaderCount": 26,
+      "passed": true
+    },
+    "ui": {
+      "literalLookups": 6,
+      "missingIDs": [],
+      "passed": true
+    },
+    "numerical": {
+      "version": "0.8.0",
+      "environment": "Node + numeric_math.cjs; NOT Three.js/WebGL",
+      "browserExecuted": false,
+      "results": [
+        {
+          "name": "Anatomy / eye aperture / closed lids 0",
+          "ok": true,
+          "details": {
+            "vertices": 9393,
+            "triangles": 17538,
+            "neckConnectionEdges": 264,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Anatomy / eye aperture / closed lids 1001",
+          "ok": true,
+          "details": {
+            "vertices": 9359,
+            "triangles": 17484,
+            "neckConnectionEdges": 264,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Anatomy / eye aperture / closed lids 1003",
+          "ok": true,
+          "details": {
+            "vertices": 8959,
+            "triangles": 16740,
+            "neckConnectionEdges": 264,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Anatomy / eye aperture / closed lids 2002",
+          "ok": true,
+          "details": {
+            "vertices": 9435,
+            "triangles": 17648,
+            "neckConnectionEdges": 264,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Anatomy / eye aperture / closed lids 2003",
+          "ok": true,
+          "details": {
+            "vertices": 9427,
+            "triangles": 17620,
+            "neckConnectionEdges": 270,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Anatomy / eye aperture / closed lids 63",
+          "ok": true,
+          "details": {
+            "vertices": 9437,
+            "triangles": 17642,
+            "neckConnectionEdges": 264,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Extreme genes 0",
+          "ok": true,
+          "details": {
+            "vertices": 14468,
+            "triangles": 26802,
+            "neckConnectionEdges": 328,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Extreme genes 1",
+          "ok": true,
+          "details": {
+            "vertices": 15457,
+            "triangles": 28706,
+            "neckConnectionEdges": 328,
+            "eyes": [
+              {
+                "side": "L",
+                "open": true,
+                "closed": true
+              },
+              {
+                "side": "R",
+                "open": true,
+                "closed": true
+              }
+            ],
+            "morphTargets": 3
+          }
+        },
+        {
+          "name": "Variation zero",
+          "ok": true,
+          "details": true
+        },
+        {
+          "name": "Crouch/prone/run finite transforms + LOD + blink",
+          "ok": true,
+          "details": [
+            {
+              "state": "CROUCH",
+              "finite": true,
+              "closedEyesPreserved": true
+            },
+            {
+              "state": "PRONE",
+              "finite": true,
+              "closedEyesPreserved": true
+            },
+            {
+              "state": "RUN",
+              "finite": true,
+              "closedEyesPreserved": true
+            }
+          ]
+        }
+      ],
+      "passed": 10,
+      "failed": 0
+    }
+  },
+  "runtimeWebGLExecuted": false,
+  "notes": [
+    "Numerical tests use project numeric_math.cjs, not the real Three.js runtime.",
+    "Browser/GPU check is shipped in tests/index.html; it was not executed in this environment.",
+    "CDN libraries remain external; package is not offline."
+  ],
+  "errors": []
+}

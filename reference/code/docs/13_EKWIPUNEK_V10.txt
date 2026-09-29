@@ -1,0 +1,215 @@
+RTS PROTOTYPE 0.10.0 | generator infantry-5.0.0 | 24.09.2026
+
+SYSTEM WYPOSAŻENIA / ITERACJA v0.10
+=================================
+Podstawa: rts_prototype_v09_idlelook.zip. Zachowano obecny genom, poprawki
+anatomii, twarz, rozglądanie, ruch, świat i sposób uruchamiania.
+
+1. ZAKRES
+=========
+20 slotów, 59 definicji przedmiotów i 10 profili piechoty. Katalog i profile
+są danymi, a nie osobnymi modelami żołnierzy. Każdy nowy przedmiot powstaje
+proceduralnie z parametrów definicji, wariantu seeda oraz wymiarów anatomii.
+Nie ma importowanych modeli GLTF/FBX, tekstur wyposażenia ani ikon z internetu.
+
+Zaimplementowane kategorie:
+- czapki: polowa, patrolowa, dzianinowa, beret, kapelusz;
+- hełmy: lekki, standardowy, ciężki, z pokrowcem;
+- okulary, gogle, kominiarka, maska ochronna;
+- szalik, komin;
+- trzy bluzy, trzy spodnie, cztery buty, trzy rękawiczki;
+- trzy warianty ochrony tułowia i sześć oporządzeń;
+- mały/średni/duży plecak, medyczny, radio, narzędziowy;
+- dwa pasy, ładownice, manierka, apteczka, narzędzia, radio, mapnik, lornetka;
+- pięć uproszczonych rekwizytów broni głównej i kabura z bronią boczną.
+Wszystkie obsługiwane ID i dozwolone sloty: 14_KATALOG_EKWIPUNKU_V10.txt.
+
+2. DANE BAZOWEJ JEDNOSTKI
+========================
+R.Unit({ id, side, seed, category, type, slotSchema, equipmentOptions })
+  equipment: R.Equipment
+
+Equipment nie zależy od humanoidalnego skeletonu. Brak slotSchema oznacza
+pusty ekwipunek, nie automatyczny mundur piechoty. InfantryUnit przekazuje
+EquipmentSlots. Inny typ może zdefiniować własne punkty/sloty i generatory.
+Nie zaimplementowano pojazdów — dodano wspólny mechanizm dla przyszłych typów.
+
+Equipment
+  seed: uint32
+  loadout: ID profilu albo null
+  overrides: jawne nadpisania konkretnych slotów, także null
+  slots: resolved, zamrożone instancje przedmiotów
+  palette: side / sand / forest / graphite
+  wear: 0..1, subtelne spłowienie materiału
+  totalWeightKg: suma wartości z katalogu
+  revision: wersja lokalnego rozstrzygnięcia
+
+Instancja przedmiotu
+  definitionId
+  slot
+  seed
+  variant: { size, shade, detail }
+  weightKg
+
+Variant nie jest biologicznym genem i nie zmienia twarzy ani sylwetki człowieka.
+Size jest używany przy wybranych plecakach/kieszeniach; shade przy kolorze gear.
+Pole detail rezerwuje deterministyczny parametr przyszłego detalu — nie należy
+zakładać, że każda kategoria już go wykorzystuje.
+
+3. DETERMINIZM
+==============
+EquipmentSeed.fromUnit(unitSeed) = osobny hash domeny EQUIPMENT/v1.
+Wybór wariantu: hash(equipmentSeed, slot). Wariant przedmiotu:
+hash(equipmentSeed, slot + ID). Strumień nie zależy od kolejności innych slotów.
+Dodanie kieszeni nie losuje ponownie twarzy, hełmu ani pozostałych slotów.
+
+Genom pozostaje w swoim dotychczasowym strumieniu. Przełączenie roli to
+zmiana danych wyposażenia, nie mutacja biologiczna. Role nie narzucają masy,
+wzrostu, umięśnienia, płci, koloru skóry ani cech twarzy.
+
+Zmiana seeda wyposażenia w edytorze odtwarza profil i czyści override slotów.
+Zmiana profilu zachowuje seed wyposażenia, paletę i spłowienie, czyści sloty.
+Przycisk Przywróć sloty profilu zachowuje bieżący seed i materiały.
+Zmiana seeda jednostki wyprowadza nowy seed sprzętu i usuwa ręczne nadpisania.
+Zmiana strony zachowuje wybory przedmiotów i zmienia kolor uniformu/palety side.
+
+4. API
+======
+Tworzenie jednostki:
+
+const unit = new RTS.InfantryUnit({
+  id: 'A_011', side: game.sides.SIDE_A, seed: 1001,
+  state: 'IDLE', detail: 'world',
+  equipmentOptions: { loadout: 'RADIO_OPERATOR' }
+});
+
+Modyfikacja istniejącej jednostki:
+unit.equip('head', 'field_cap');
+unit.equip('back', 'pack_radio');
+unit.equip('face', 'glasses');
+unit.equip('head', null);             // bez nakrycia głowy
+unit.setLoadout('SCOUT');             // komplet profilu, usuwa override
+unit.setEquipmentSeed(888);          // odtwarza profil z osobnego seeda
+
+unit.setEquipment(unit.equipment.clone({ palette: 'sand', wear: 0.6 }));
+const description = unit.equipment.toJSON();
+
+toJSON zwraca dane możliwe do zapisania przez przyszły system save. Obecny UI
+nie dodaje importu/eksportu plików ani zapisu sceny. Edycja z popupu zmienia
+wyłącznie PREVIEW; API można wywołać na konkretnej jednostce świata.
+
+Walidacja:
+- uint32 dla seeda wyposażenia;
+- nieznane ID i niezgodny slot powodują czytelny błąd;
+- bluza/spodnie/buty są wymaganymi warstwami, null przywraca wariant bazowy;
+- brak wyposażenia w opcjonalnym slocie to null, nie losowy fallback;
+- kandydat danych i geometrii powstaje przed zatwierdzeniem zmiany.
+
+5. DOPASOWANIE / EQUIPMENT FIT
+==============================
+EquipmentFit używa tej samej tablicy przekrojów kurtki co powierzchnia ciała.
+Ubranie, panele kamizelki, szelki i kieszenie czytają wspólny finalny profil,
+zamiast zgadywać promień klatki z procentu wzrostu.
+
+Nakrycia głowy korzystają z FaceAnatomy.section/point i granicy nad brwiami.
+Hełm jest osobną skorupą z luzem, krawędzią i paskami. Czapka ma osobną
+koronę, otok i daszek; kapelusz dodatkowo obwodowe rondo. Beret ma asymetryczny
+kształt, czapka dzianinowa bardziej zaokrąglony profil. To stylizowane modele,
+nie kopie konkretnych produktów lub autentycznego umundurowania.
+
+HEAD, HEAD_FRONT, NECK, CHEST_CENTER, CHEST_LEFT, BACK_CENTER, WAIST,
+WAIST_FRONT/BACK, HIP_L/R, THIGH_L/R, HAND_L/R, FOOT_L/R, WEAPON_BACK/HIP
+są obliczanymi punktami w normalized bind space. Skalowanie do metrów następuje
+przy wpisie do bufora, tylko raz. Skeleton nie jest skalowany przez scale.
+
+Plecak ma projektowe wymiary w metrach, z umiarkowanym dopasowaniem do tułowia.
+Punkt mocowania cofa się o grubość pancerza; rekwizyt na plecach cofa się
+również o grubość wybranego plecaka. Nie powiększamy bez limitu wszystkich
+przedmiotów razem ze wzrostem żołnierza.
+
+6. WARSTWY I ZASŁANIANIE
+=======================
+Bluzy i spodnie zmieniają dopasowanie bazowej powierzchni. Buty mają różną
+szerokość/cholewkę, lecz podeszwa referencyjna pozostaje na y=0.
+Rękawiczki używają istniejącej geometrii dłoni. Wariant bez palców zachowuje
+skórę palców; nie ma dodatkowej nakładającej się kopii dłoni.
+
+Pod nakryciem głowy włosy są przycinane na poziomie trójkątów i kompresowane.
+Widoczne boki/tył pozostają, jeżeli znajdują się poniżej granicy nakrycia.
+Zmiana nie mutuje fryzury w genomie. Po zdjęciu czapki/hełmu włosy wracają.
+Kominiarka wykorzystuje dopasowany obszar skóry jako tkaninę, zachowuje otwory
+oczu/ust i ukrywa włosy. To wizualna warstwa, nie symulacja tkaniny.
+
+Okulary/gogle mają oprawki i mocowania. Soczewki pozostają optycznie otwarte,
+bez refrakcji i bez nieprzezroczystej płytki zasłaniającej oczy.
+
+Pod kamizelką zachowano bazowy mundur. Usuwanie całej zakrytej klatki byłoby
+ryzykowne przy kucaniu i skręcie. Celowo nie ukrywamy jej bez pełnej walidacji
+pokrycia przez wszystkie pozy. To koszt kilku dodatkowych powierzchni.
+
+7. ANIMACJA / FIZYKA
+===================
+Hełm podąża za głową, plecak za spineUpper, pas za hips, kieszeń udowa za
+thigh. Szelki i panele mogą mieć mieszane wagi zgodne z powierzchnią ubrania.
+Render wyposażenia wykorzystuje te same interpolowane kości co ciało.
+Edycja gear nie zatrzymuje i nie restartuje IDLE, rozglądania, mrugania ani fazy.
+
+Dodano ograniczoną korektę kontaktu sprzętu z terenem: próbki powierzchni
+wyposażenia rozszerzają istniejącą korektę wysokości miednicy i IK. Dzięki temu
+czołganie uwzględnia część grubości przednich kieszeni. To NIE solver kolizji:
+próbki nie gwarantują braku wszystkich przecięć sprzęt–ciało lub sprzęt–sprzęt.
+
+Nie ma secondary motion plecaka, fizyki pasków, anteny ani samokolizji.
+Nie dodano ragdolla wyposażenia. Dotychczasowe dane ragdolla ciała pozostają.
+Masa przedmiotów nie zmienia speedGene, prędkości, zmęczenia ani animacji.
+Wagi katalogowe są arbitralnymi parametrami prototypu, nie danymi producenta.
+
+Rekwizyty broni są przenoszone na plecach lub w kaburze. Nie ma obsługi chwytu,
+celowania, strzelania, pocisków, amunicji użytkowej ani obrażeń. Geometria nie
+stanowi odwzorowania mechanizmu prawdziwej broni.
+
+8. WYDAJNOŚĆ I ŻYCIE ZASOBÓW
+===========================
+Całe dodatkowe wyposażenie -> jeden SkinnedMesh / trzy grupy materiałów.
+Nie tworzymy draw call dla każdej klamry i kieszeni. Materiały wspólne.
+Geometria budowana tylko przy spawn, zmianie danych lub przełączeniu detalu.
+W każdej klatce zmieniają się macierze kości, nie losowanie i nie mesh builder.
+
+Odświeżenie slotu na razie przebudowuje cały appearance (ciało + gear), żeby
+zachować spójność ubrań, włosów i masek. Slidery zatwierdzają zmianę po puszczeniu.
+Nie ma jeszcze cache per-item ani częściowych aktualizacji jednego slotu.
+Nie deklaruje się skalowania do tysięcy jednostek.
+
+9. EDYTOR
+=========
+DEBUG -> UNITS -> Generator jednostek -> Ekwipunek.
+Profil / Seed wyposażenia / Przywróć sloty profilu / Paleta / Spłowienie.
+Grupy: Głowa, Ubranie, Tułów, Pas i kieszenie, Akcesoria, Rekwizyty.
+Ręcznie nadpisane sloty są zaznaczone innym kolorem etykiety.
+Odczyt pokazuje profil, masę, liczbę przedmiotów i trójkąty wyposażenia.
+
+Tryb siatki trójkątów i ukrywanie powierzchni obejmują także gear.
+Obwiednia uwzględnia próbki gear; wzrost w odczycie nadal oznacza ciało bez hełmu.
+Zmieniaj genom i wyposażenie niezależnie; podgląd automatycznie dopasowuje
+rzeczy do nowej budowy. Nie dodano nowych kontrolek na głównym widoku gry.
+
+10. DODAWANIE NOWEGO PRZEDMIOTU
+==============================
+1) equipmentCatalog.js: ID, etykieta, dozwolone sloty, kind, waga, visual.
+2) W istniejącym kind użyj parametrów; dla nowego kind dodaj generator
+   w infantryGear.js lub wydziel osobny plik i dopisz go do loader.js.
+3) Wszystkie wymiary bierz z EquipmentFit / FaceAnatomy albo jawnych metrów.
+4) Nie generuj losowości przez Math.random(); wykorzystaj item.seed/variant.
+5) Przypisz poprawne kości; nie twórz wtórnego skeletonu ani przypadkowych
+   absolutnych offsetów zależnych od pozy aktualnej animacji.
+6) Dodaj ID do profilu w infantryLoadouts.js. Edytor odkrywa katalog automatycznie.
+7) Zaktualizuj katalog dokumentacji i changelog. Nie zmieniaj starszych seedów
+   biologicznych przy zmianie wyposażenia.
+
+11. OTWARTE OGRANICZENIA
+=======================
+Część niezwykle skrajnych genomów i nakładających się akcesoriów może wymagać
+strojenia. Nie ma kompletnego solvera dopasowania i kolizji ubioru. Szelki
+są skinned ribbons, a nie symulowaną tkaniną. Celowo nie dodano efektów
+uszkodzeń, systemu ekwipunku przenoszonego w magazynie ani drag-and-drop.
+Implementacja dotyczy zakładania przedmiotów i wyglądu piechoty.

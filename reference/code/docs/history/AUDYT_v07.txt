@@ -1,0 +1,764 @@
+RTS v0.7 — AUDYT DEFORMACJI: SZYJA, TWARZ, OCZY, UNIFORM I POSTAWY
+===============================================================================
+Data: 24.09.2026
+Rodzaj dokumentu: analiza źródeł i geometrii; nie nowa implementacja gry.
+Badana paczka: rts_prototype_v07_diversity.zip
+Wersja kodu: 0.7.0; generator: infantry-3.0.0.
+SHA-256 ZIP: 7c0a3aad2006e24a300d889271881dcd5883dfa04ea0916375dc4d05a032b467
+
+0. WNIOSEK
+===============================================================================
+Najważniejszy problem nie polega na zbyt małej liczbie kości ani na samym CROUCH.
+Generator uzyskał większe zakresy różnorodności, lecz poszczególne elementy nie
+korzystają jeszcze z jednego, przestrzennie spójnego opisu anatomii.
+
+Głowa zmienia kształt, ale oczy, usta, brwi i część innych detali nadal mają
+własne, częściowo stałe współrzędne. Szyja zmienia grubość niezależnie od miejsca,
+w którym powinna łączyć się z głową. Kołnierz nie dopasowuje całej geometrii do
+zmodyfikowanej szyi i tułowia. Animator nadal zawiera docelowe pozycje dla starej,
+wzorcowej sylwetki. Samo umieszczenie wszystkiego w jednej klasie Anatomy albo
+jednym SkinnedMesh nie usuwa tych rozbieżności.
+
+Rezultat: seed daje poprawne liczby i skończone wierzchołki, ale niekoniecznie
+poprawną postać. Na etapie neutralnego modelu mogą już istnieć przecięcia,
+odkryte krawędzie i oczy za powierzchnią skóry. Animacja uwidacznia te błędy.
+
+Najważniejsze kierunki naprawy:
+A. Wspólna powierzchnia i obszar przyłączenia głowa–szyja.
+B. Wspólne punkty anatomiczne dla kształtu głowy, oczu, powiek i reszty twarzy.
+C. Rzeczywiste otwory oczu i poprawnie skalibrowane zamykanie powiek.
+D. Wagi deformacji powiązane z funkcją kontrolerów, a nie tylko ich istnieniem.
+E. Kołnierz i animacja wyprowadzane z anatomii danej jednostki.
+F. Walidacja relacji między częściami, nie tylko wartości pojedynczych genów.
+
+1. ZAKRES I GRANICE DOWODÓW
+===============================================================================
+Przeczytano rzeczywiste pliki z ZIP-a v0.7, a nie wyłącznie wcześniejsze opisy
+implementacji. Przeanalizowano także przesłany obraz.
+
+Wykonane kontrole:
+- odtworzenie buforów generowanej geometrii dla seedów 0–63 w wariancie world;
+- osobne kontrole sześciu seedów sceny demonstracyjnej w world i high;
+- porównanie głębokości powierzchni głowy i środka źrenicy od strony +Z;
+- analiza przypisań wag głowy, szyi i kontrolerów mimiki;
+- kontrolowane zmiany pojedynczych genów dla seeda 1003;
+- matematyczne przekształcenie górnej części modelu 1003 do pozy CROUCH;
+- odczyt konfiguracji oczu, powiek, kołnierza i pozycji animatora.
+
+W środowisku nie udało się pobrać Three.js z CDN. Kontrole geometrii wykonano
+na oryginalnych generatorach projektu z dołączoną do projektu testową warstwą
+numeric_math.cjs. To analiza buforów i matematyki, NIE test WebGL i NIE pełne
+odtworzenie obrazu z przeglądarki. Nie użyto tego substytutu do orzekania o
+jakości shaderów, oświetlenia czy zachowaniu całej aplikacji.
+
+Pomiary zasłaniania są testem ortograficznej głębokości od strony przodu twarzy.
+Nie mierzą całej widocznej powierzchni oka z dowolnej kamery. Wyłączają wpływ
+mrugnięć, mimiki, oświetlenia i cieni; badają sam układ powierzchni w bind pose.
+
+Nie znam dokładnego seeda, override'ów i czasu z przesłanego screena. Domyślna
+kucająca jednostka w js/game.js to A_003, seed 1003. Użyto jej jako konkretnego
+przypadku reprodukcyjnego, a nie jako pewnej identyfikacji postaci ze screena.
+
+Numery linii poniżej odnoszą się do plików rozpakowanej paczki v0.7.0.
+
+2. SZYJA I GŁOWA NIE SĄ JEDNĄ POŁĄCZONĄ POWIERZCHNIĄ
+===============================================================================
+Źródło: js/rendering/infantryFace.js:16–27, 31–35, 60–89.
+
+Szyja powstaje z czterech przekrojów. Współrzędne są ułamkami wzrostu H:
+
+    y       promień X   promień Z   przesunięcie Z
+    0.836   0.030       0.025       0.000
+    0.857   0.029       0.026       0.000
+    0.878   0.031       0.028       0.006
+    0.888   0.035       0.031       0.009
+
+Promienie są następnie mnożone przez body.neckScale. W górnej części ta szyja
+rozszerza się, zamiast kończyć się w wyprowadzonym z czaszki pierścieniu
+przyłączenia. Jej górna krawędź pozostaje otwarta.
+
+Później funkcja ustawia last = null i rozpoczyna OSOBNĄ powierzchnię głowy.
+Dolny przekrój głowy otrzymuje B.cap(...), czyli zamknięcie od dołu.
+Nie ma bridge między ostatnim przekrojem szyi a głową. Nie ma wspólnych
+wierzchołków tych dwóch obszarów. Kontrola tagów dla seeda 1003 potwierdziła
+zero współdzielonych indeksów między head i neck.
+
+To nie jest tylko szew normalnych. Istnieją dwie nachodzące na siebie
+powierzchnie: otwarta rura szyi i zamknięta od dołu głowa. Część rury ma zostać
+ukryta wewnątrz głowy, ale nikt nie sprawdza, czy rzeczywiście się tam mieści.
+
+Dlaczego seed pogarsza problem:
+- body.neckScale może zwiększyć promień szyi;
+- jawWidthScale, chinWidthScale i jawAngle mogą równocześnie zwęzić głowę;
+- jawLengthScale i chinHeight przesuwają dolne przekroje głowy;
+- chinProjection przesuwa przód dolnej twarzy;
+- pozycja i obrys górnej szyi nie są dostosowywane do tych zmian.
+
+Dla seeda 1003 wzrost wynosi około 1.71687 m, neckScale około 1.20641.
+Średnica górnego przekroju szyi w osi X wynosi około 144.99 mm. W tej samej
+postaci górna szyja wychodzi poza fragmenty dolnego obrysu głowy już w REST.
+To konkretny błąd dopasowania, nie wyłącznie subiektywny wybór stylu.
+
+Przeprowadzona próba high dla górnych dwóch pierścieni wykazała punkty szyi
+poza projekcją głowy i przed jej powierzchnią zarówno w REST, jak i CROUCH.
+Nie należy traktować liczby tych próbek jako powierzchni całej deformacji.
+
+Naprawa:
+- zdefiniować jawBase, skullBase, neckAttachmentLoop, neckBase i throat;
+- zbudować szyję do faktycznego otworu w podstawie czaszki;
+- usunąć pełną zaślepkę głowy przecinającą prawidłowe połączenie z szyją;
+- współdzielić indeksy na skórnym przejściu lub zapewnić równoważne, kontrolowane
+  połączenie o identycznych pozycjach i deformacji;
+- pozwolić szyi przechodzić w tył czaszki, a pod brodą zbudować inne przejście
+  niż po bokach; nie wystarczy jeden równy walec;
+- rozmiar połączenia dopasowywać deterministycznie do końcowego kształtu głowy.
+
+Nie trzeba robić jednego zamkniętego mesha dla ubrań, włosów i całej twarzy.
+Tutaj ciągłość jest potrzebna konkretnie w widocznej powierzchni skóry.
+
+3. DLACZEGO CROUCH POKAZUJE PROBLEM WYRAŹNIEJ
+===============================================================================
+Źródła: infantryAnimator.js:405–419; infantryFace.js:18–23;
+infantrySurface.js:18–24 i 234–241.
+
+W CROUCH zapisano:
+    spineLower X = +0.12 rad
+    spineUpper X = +0.15 rad
+    chest X      = +0.06 rad
+    neck X       = -0.15 rad
+
+Daje to około +18.9 stopnia łącznego pochylenia klatki i około -8.6 stopnia
+kompensacji szyi względem klatki. Przed dodatkiem mimiki głowa pozostaje więc
+około +10.3 stopnia od orientacji bazowej. To nie jest samo w sobie dowodem
+błędnej pozy, ale zmienia widoczność dolnej twarzy, szyi i kołnierza.
+
+Wagi szyi przechodzą WYŁĄCZNIE między neck a head. Dolna szyja nie ma udziału
+chest. Tułów przy szyi jest natomiast zasadniczo przypisany do chest, a kołnierz
+ma własne mieszanki chest/neck. Przy kompensacji kąta powierzchnie reagują
+inaczej i istniejące niedopasowanie przestaje być ukryte.
+
+Istotne rozróżnienie: dwa górne pierścienie szyi mają 100% head, podobnie jak
+sama głowa. Bez dodatkowej rotacji head ich wzajemne położenie nie musi się
+zmieniać podczas kucania. Zatem widoczny wystający rant nie dowodzi, że
+animator rozrywa te konkretne wierzchołki. Może odsłaniać przecięcie istniejące
+już w modelu neutralnym. To właśnie wskazują kontrole generatora.
+
+Naprawa ma mieć dwie części:
+1. Poprawne połączenie geometrii w REST.
+2. Ciągłe przejście wag chest → neck → head na tym połączeniu, dopasowane do
+   regionu i obwodu szyi, nie tylko arbitralnego globalnego Y.
+
+Suma wag równa 1 nie gwarantuje poprawnej deformacji. Zapewnia poprawność
+arytmetyczną mieszania, ale nie to, że wybrano właściwe kości [S1].
+
+Dodatkowe neckLower/neckUpper albo lokalna korekta kształtu mogą poprawić
+pochylenie, lecz dopiero po naprawie połączenia. Nie są zamiennikiem połączenia.
+
+4. OCZY MOGĄ ZNAJDOWAĆ SIĘ ZA SKÓRĄ GŁOWY
+===============================================================================
+Źródło: infantryFace.js:38–85 kontra 166–199;
+infantryRig.js:54–58; infantryGenome.js:125–140.
+
+Głowa uwzględnia headDepthScale, szerokość, policzki, midfaceProjection,
+browRidge, nachylenie czoła oraz lokalne zagłębienie oczodołu.
+
+Oko natomiast jest umieszczane według:
+    z = 0.0435 + f.eyeDepth
+
+To jest niezależna współrzędna w przestrzeni modelu. Nie jest wyprowadzana z
+finalnej powierzchni twarzy. Gen eyeDepth przesuwa oko względem wzorca, zamiast
+określać głębokość osadzenia względem oczodołu konkretnej postaci.
+
+W efekcie grubsza/głębsza twarz potrafi przejść przed źrenicę. Przy płytszej
+twarzy ten sam mechanizm potrafi pozostawić oko nadmiernie wysunięte.
+
+Dodatkowo oczodół nie jest prawdziwym otworem. Generator jedynie cofa fragment
+pełnej powierzchni głowy za pomocą funkcji wykładniczej. Trójkąty nadal istnieją
+przed miejscem, które powinno otaczać odsłoniętą powierzchnię oka. Jeżeli
+zagłębienie oka i głowy przestają do siebie pasować, te trójkąty zasłaniają oko.
+
+Wynik próby seedów 0–63, detail=world, bez animacji:
+- sprawdzono 128 środków źrenic;
+- 21 środków w 11 modelach leżało za powierzchnią głowy o ponad 0.1 mm;
+- najgorsza zmierzona różnica w tej próbie wynosiła około -19.06 mm.
+
+To nie jest statystyka całej populacji ani liczba całkowicie niewidocznych
+oczu. To wynik konkretnego testu centrum oka, który potwierdza wadliwą relację
+geometrii. Samo mruganie nie jest potrzebne, żeby wystąpił problem.
+
+Przykłady z domyślnej sceny, world:
+    seed    lewe oko [mm]    prawe oko [mm]
+    1001       +18.06            +18.57
+    1002       +20.82            +20.63
+    1003        +7.23             +7.21
+    2001       +14.01            +13.99
+    2002        +2.58             +0.57
+    2003        -5.14             -5.52
+
+Znak dodatni oznacza, że przednia część źrenicy jest przed skórą; ujemny — za
+nią. Duży dodatni wynik nie jest automatycznie pożądany: może oznaczać również
+zbyt dalekie wysunięcie oka. Nie jest to miara całej poprawności oka.
+
+Seed 2003 w high nadal daje około -4.99 i -5.36 mm. Zwiększenie liczby
+wierzchołków nie usuwa więc głównej przyczyny.
+
+Naprawa:
+- wyliczyć eyeSocketCenter, eyeApertureLoop, eyeForward i położenie kącików
+  z końcowego opisu anatomicznego głowy;
+- gen rozstawu i głębokości interpretować w lokalnej przestrzeni oczodołu;
+- otoczyć oko rzeczywistą pętlą wierzchołków skóry, zamiast pozostawiać na nim
+  pełną powierzchnię czaszki;
+- dopiero względem tej pętli budować oko i powieki;
+- wykorzystać te same punkty do pozycjonowania kości oczu i kontrolerów powiek.
+
+Samo dodanie stałego +0.005 do Z nie rozwiąże problemu różnych głębokości głowy.
+Wyłączenie depthTest tylko narysowałoby oczy przez skórę i zły kąt widzenia.
+
+5. POWIEKI: NIESPÓJNA SKALA I ZBYT MAŁE OTWARCIE NEUTRALNE
+===============================================================================
+Źródła: infantryFace.js:166–212; faceAnimator.js:232–260.
+
+Konkretny błąd po rozszerzeniu genomu:
+    geometria powieki: 0.0031 * eyeHeightScale * H
+    przesuwanie powieki: 0.0031 * eyeSizeScale * H
+
+eyeHeightScale i eyeSizeScale nie są tym samym. Druga wartość pochodzi ze
+średniej genów szerokości i wysokości. Ruch zamykania może więc zależeć od
+szerokości oka, chociaż powinien pasować przede wszystkim do jego wysokości,
+krzywizny i kształtu szczeliny.
+
+W próbie 64 seedów stosunek skali ruchu do skali wysokości wyniósł około
+0.829–1.299. To od około 17% za małego do około 30% za dużego przesunięcia
+względem wielkości zastosowanej w geometrii. Nie jest to procent widoczności,
+tylko rozbieżność parametrów kinematycznych.
+
+Drugi problem występuje nawet bez tej rozbieżności:
+- górna powieka ma środek +1.12 E i promień pionowy 0.60 E;
+- dolna ma środek -0.98 E i promień 0.48 E;
+- E oznacza półwysokość generowanego otworu oka.
+
+Jeszcze przed mrugnięciem obie elipsoidy zasłaniają znaczną część oka.
+W środkowym przekroju pozostaje około 1.02 E szczeliny zamiast pełnych 2 E.
+Następnie neutralEyeOpen mniejsze od 1 dodatkowo tę szczelinę zwęża.
+
+Przybliżona szczelina neutralna na osi oka, bez tilt i gaze:
+    gap = 1.02 E - 1.94 A * (1 - neutralEyeOpen)
+    E = 0.0031 * eyeHeightScale * H
+    A = 0.0031 * eyeSizeScale * H
+
+Dla sześciu seedów sceny demonstracyjnej daje to około 21–41% wysokości
+początkowego otworu. Dla seeda 1003: otwór około 7.80 mm, szczelina około
+2.89 mm. To dobrze tłumaczy wygląd oczu jak wąskich białych kresek, niezależnie
+od osobnego problemu z zasłanianiem przez czaszkę.
+
+Jest to przybliżenie przekroju środkowego, a nie pomiar finalnych pikseli.
+
+Naprawa:
+- utworzyć EyeAnatomy z konkretną pozycją konturu otwartego i zamkniętego;
+- zdefiniować eyeOpen=1 jako faktycznie zamierzony neutralny otwór, a nie
+  przypadkowy stan dwóch naklejonych brył;
+- zamykać górną i dolną powiekę do jednej wspólnej linii kontaktu;
+- zachować pozycje kącików przy mruganiu;
+- różnicować kształt otwarcia genomem, a nie nieskalibrowaną translacją;
+- unikać przecięcia płatów powiek przy pełnym zamknięciu;
+- stosować ten sam kształt i skalę w builderze oraz animatorze.
+
+6. OKO NIE JEST JESZCZE GAŁKĄ, A POWIEKI OBRACAJĄ SIĘ Z OKIEM
+===============================================================================
+Źródła: infantryFace.js:178–199; infantryRig.js:56–58;
+faceAnimator.js:240–260.
+
+Widoczna biała powierzchnia jest budowana jako płytka z kilku pierścieni o
+małej wypukłości. Tęczówka i źrenica są osobnymi spłaszczonymi elipsoidami.
+To nie jest spójna kulista gałka osadzona w oczodole.
+
+Kości powiek są dziećmi eye.L/eye.R. Gdy animator obraca oko, obraca również
+ramę powiek. Kształt otworu oka w generatorze ma tilt, ale elipsoidy powiek nie
+odwzorowują tego konturu w ten sam sposób. Składowe obracają się i przesuwają
+w przestrzeniach, które nie opisują jednego wspólnego otworu.
+
+Naprawa proponowana dla tego projektu:
+- gałka jako prosta sfera lub odpowiedni fragment sfery, wystarczająco lekki;
+- eye bone steruje gałką i spojrzeniem;
+- powieki i ich kąciki pozostają w ramie oczodołu/head, a nie są dziećmi
+  obracającej się gałki;
+- powierzchnia powieki przesuwa się po określonej krzywiźnie wokół oka;
+- część ruchu pionowego spojrzenia może korygować powiekę, ale kontrolowanie,
+  nie przez automatyczne dziedziczenie całej rotacji.
+
+Nie wymaga to fizyki oka ani dużego face riga. Wymaga spójnej geometrii i kilku
+parametrycznych kształtów otwarcia/zamknięcia.
+
+7. BRWI, NOS, USTA I USZY TAKŻE NIE SĄ W PEŁNI PRZYWIĄZANE DO MORFÓW
+===============================================================================
+Źródła: infantryFace.js:110–118, 145–157, 214–237, 241–269;
+infantryRig.js:51–62.
+
+Przykłady stałych położeń Z:
+- segmenty brwi: około 0.0444–0.0446 H;
+- wargi: około 0.0510 H;
+- kąciki ust: około 0.0508 H;
+- korzeń nosa zaczyna od własnych wartości około 0.046–0.048 H.
+
+Własna skala nosa albo szerokość ust nie jest jeszcze dopasowaniem do finalnej
+powierzchni czaszki. Gdy midfaceProjection, headDepthScale, chinProjection,
+browRidge i pochylenie czoła zmieniają skórę, te detale nie otrzymują tej samej
+transformacji. Mogą się zanurzać albo odstawać.
+
+Usta mają dodatkowy problem: y ust i ich kontrolerów jest odrębną wartością,
+podczas gdy pionowy profil dolnej głowy jest zmieniany przez jawLengthScale
+oraz chinHeight. Proporcja usta–broda nie jest rozwiązywana jako relacja.
+
+Naprawa:
+- jedna funkcja/cage powierzchni twarzy i wspólne punkty charakterystyczne;
+- kontrolowany offset detalu od lokalnej powierzchni i jej normalnej;
+- regiony brwi, ust i nosa umieszczone względem finalnej twarzy;
+- kości i wagi generowane na podstawie tych samych punktów;
+- jawBase, lipCorners, noseRoot i orbitalRim jako wartości Anatomy, a nie
+  powtórzone literały w kilku plikach.
+
+Nie wszystkie detale muszą zostać zespawane w jedną siatkę. Niewielki osobny
+nos może być dopuszczalny stylistycznie, lecz musi mieć zapewnione dopasowanie.
+
+8. KOŚCI MIMIKI ISTNIEJĄ, ALE SKÓRA NIE REALIZUJE ICH FUNKCJI
+===============================================================================
+Źródła: infantryFace.js:13, 82–88, 241–263;
+infantryRig.js:51–62; faceAnimator.js:270–285.
+
+Cała powierzchnia oznaczona head dostaje headWeights = {head:1}.
+To obejmuje również dolną twarz i brodę. W zbadanym world seed 1003 wszystkie
+313 wierzchołków tego tagu były przypisane wyłącznie do head.
+
+Kość jaw wpływa pośrednio na dolną wargę poprzez mouthLower, ale nie na
+właściwy kształt dolnej szczęki. Nie należy mówić, że jaw jest całkiem martwa:
+ma dziecko z geometrią. Należy powiedzieć, że nie deformuje regionu, który
+powinna reprezentować.
+
+cheek.L i cheek.R nie mają w generatorze przypisanej powierzchni policzków.
+Ich przesuwanie nie unosi skóry policzków. Kanał cheekRaise może jednak
+pośrednio przesuwać kąciki ust i dolne powieki. To częściowa imitacja efektu,
+nie kompletna praca policzka.
+
+Kąciki ust są dziećmi head, a dolna warga podlega jaw. Powierzchnia wokół ust
+jest sztywna i nie ma otworu jamy ustnej. Większe jawOpen/mouthOpen mogą więc
+rozdzielać naklejone elementy zamiast otwierać spójną twarz.
+
+Naprawa:
+- kości head/jaw muszą mieć prawidłowe regiony i płynne przejście wag;
+- przygotować powierzchnię ust z pętlą warg i niewielkim wnętrzem;
+- kąciki otrzymują mieszaną/sterowaną reakcję na otwarcie;
+- ruch policzków musi deformować lokalne wierzchołki albo aktywować morph;
+- nie ruszać całego sztywnego regionu oczodołu z miękką tkanką powieki.
+
+Liczba kości nie jest miarą kompletności mimiki. Skeleton to hierarchia;
+widoczny efekt zależy od geometrii, wag oraz sterowania [S1, S2].
+
+9. WŁOSY I BRWI MOGĄ NA SIEBIE NACHODZIĆ
+===============================================================================
+Źródło: infantryHair.js:19–45; infantryGenome.js:134–138.
+
+HairBuilder korzysta z shapedLevels, ale nie z całego późniejszego modelowania
+powierzchni per wierzchołek. Między innymi lokalna korekta czoła i łuku
+brwiowego nie jest identyczną operacją po stronie włosów.
+
+Linia włosów wynika z hairline, templeRecession i widowPeak. Nie istnieje
+ograniczenie minimalnego odstępu od końcowego konturu brwi i oczodołu.
+Minimalne hairline i duże widowPeak mogą przesunąć linię włosów bardzo nisko.
+Nie oznacza to automatycznie zakrycia każdego oka, ale relacja nie jest
+kontrolowana i brwi mogą trafić pod powierzchnię włosów.
+
+Dodatkowe próby punktów montażowych brwi dla seeda 1003 wykazały powierzchnię
+włosów przed ich nominalnym poziomem Z. To wskazówka zgodna z bardzo słabo
+widocznymi brwiami na screenie; nie jest pełnym pomiarem konturu obu brwi.
+
+Naprawa:
+- scalp surface wyprowadzać z tej samej końcowej głowy;
+- hairline wiązać z landmarks czoła i skroni;
+- uwzględnić clearance dla brwi, uszu i oczu tam, gdzie dany styl ma je odsłaniać;
+- odróżnić celową grzywkę od przypadkowej kolizji generatora;
+- zakończyć powierzchnię włosów kontrolowanym brzegiem, a nie traktować jej
+  zawsze jako otwartą grubą skorupę.
+
+10. KOŁNIERZ NADAL UŻYWA STARYCH WYMIARÓW
+===============================================================================
+Źródło: infantrySurface.js:38–45, 234–241.
+
+Główny profil bluzy jest modyfikowany przez body phenotype. Tymczasem płaty
+kołnierza mają stałe współrzędne, np.:
+    (±0.036, 0.855, 0.024)
+    (±0.054, 0.831, 0.043)
+
+Stójka również używa stałych promieni około 0.044/0.035 i 0.042/0.034.
+Nie jest w pełni wyprowadzona ani z body.neckScale, ani z finalnego otworu
+bluzy. Ma przy tym odrębne wagi chest/neck.
+
+Dlatego poszerzenie szyi, zmiana klatki i kucanie mogą powodować wejście
+kołnierza w skórę albo wystawanie płatów nad powierzchnię bluzy. Na obrazie
+widać ostre fragmenty kołnierza, lecz bez renderu diagnostycznego nie można
+przypisać każdego ciemnego trójkąta jednemu rodzajowi błędu.
+
+Naprawa:
+- wyprowadzić collarInnerLoop z rzeczywistej szyi i luzu ubrania;
+- wyprowadzić collarOuterLoop z finalnej powierzchni bluzy;
+- przeliczać szerokość i wysokość z sylwetki zamiast używać gotowych punktów;
+- stosować zgodne wagi na strefie przyłączenia;
+- dodać niewielką grubość i właściwie zakończyć wolne krawędzie.
+
+Podobna zasada dotyczy barków: progi wag >0.755 H i |x|>0.085 H oraz blend
+w stałym przedziale 0.06 H nadal nie są znormalizowane względem stawu
+konkretnej jednostki. Szerokie/wąskie barki otrzymują przez to nierównoważne
+przejścia. Port rękawa jest także mapowany według indeksu na regularny okrąg,
+co może tworzyć długie lub nierówno rozłożone trójkąty w pachach.
+
+To obszar do poprawy lokalnej, nie dowód na uszkodzenie wszystkich indeksów.
+
+11. ANIMATOR NIE ZOSTAŁ W PEŁNI DOSTOSOWANY DO BODY GENOME
+===============================================================================
+Źródła: infantryAnimator.js:32–45, 300–338, 395–401, 405–469, 511–515;
+infantryRig.js:15–27; twoBoneIK.js:11–29.
+
+Szkielet wyprowadza wysokość bioder z anatomy.hipY. Animator w wielu miejscach
+nadpisuje ją wartościami dawnej sylwetki:
+    Pose.clear(): hips.y = 0.54
+    CROUCH:       hips = (0, 0.350, -0.097)
+    ograniczenie kroku: długość = 0.478
+
+Również szerokości ustawienia stóp i pozycji pole targets zawierają stałe
+wartości typu 0.052, 0.072 czy 0.10. Zmiana długości nóg i szerokości bioder
+nie przenosi się wszędzie na semantykę pozy.
+
+Ważne: sam TwoBoneIK poprawnie pobiera długości z anatomy.points. To dobry
+fragment systemu. Błąd leży m.in. w tym, że dostaje cele i położenie miednicy
+wyprowadzone ze starego szablonu. Poprawny solver może wtedy tylko ograniczyć
+nieosiągalny cel, zamiast odtworzyć dobrze zbalansowaną postawę.
+
+To nie jest główna przyczyna oczu schowanych za czaszką, lecz zwiększa różnice
+w jakości animacji pomiędzy genomami i może powodować przesadne ugięcie,
+przestawienie miednicy oraz nienaturalne ustawienie górnej części ciała.
+
+Naprawa:
+- pozycję bazową brać z rest pose konkretnego szkieletu;
+- offset miednicy skalować odpowiednimi długościami segmentów;
+- szerokość podporu wyprowadzać z bioder i zamierzonej postawy;
+- dostępny zasięg wyprowadzać z actual thighLength + shinLength;
+- przeliczać głębokość kucnięcia tak, aby cele pozostawały wykonalne;
+- ramiona i ręce w SUPPORT/PRONE traktować analogicznie;
+- po retargetingu wykonać IK i lokalne korekty.
+
+To jest proceduralny odpowiednik retargetingu pomiędzy postaciami o różnych
+proporcjach. Dokumentacja silników wyraźnie rozdziela wspólną animację od
+translacji i wymiarów konkretnego szkieletu [S5]. Nie oznacza to konieczności
+przenoszenia projektu do innego silnika.
+
+12. MIMIKA POWINNA BYĆ APLIKOWANA JEDNOZNACZNIE RAZ NA POZĘ BAZOWĄ
+===============================================================================
+Źródła: faceAnimator.js:240–246; infantryUnit.js:step;
+js/ui/unitPreview.js:62.
+
+FaceAnimator.apply() mnoży aktualny quaternion głowy przez korektę spojrzenia.
+W zwykłej pętli gry wcześniej wykonuje się reset/aplikacja animatora ciała,
+więc nie jest to automatycznie przyczyna narastającego dryfu w świecie.
+
+Jednak podgląd w pauzie potrafi wywołać sam faceAnimator.update() bez ponownego
+odtworzenia pozy ciała. Wielokrotne zastosowanie dodatku do już zmodyfikowanej
+orientacji stwarza możliwość kumulowania korekty głowy.
+
+Propozycja: kompozycja ma być idempotentna — to samo bodyPose i faceState
+powinny dać tę samą finalPose niezależnie od liczby odświeżeń podglądu.
+FaceAnimator powinien odczytywać bazową orientację głowy i wyliczać wynik,
+nie nakładać za każdym razem kolejnego dodatku na poprzedni wynik.
+
+To ryzyko drugorzędne; nie jest udowodnioną przyczyną konkretnego screena.
+
+13. GENOM WALIDUJE ZAKRESY, ALE NIE POPRAWNOŚĆ ANATOMII
+===============================================================================
+Źródło: infantryGenome.js:94–142.
+
+validate01 sprawdza skończoność wartości i zakres 0–1. Dalsze clampingi
+ograniczają niektóre wymiary. Brakuje jednak warstwy rozwiązującej relacje:
+- szyja musi pasować do połączenia z czaszką;
+- collar must fit neck — kołnierz musi mieścić szyję z luzem;
+- źrenica i biała powierzchnia mają znajdować się w faktycznie otwartym oczodole;
+- powieki muszą zamykać ten sam otwór, który został zbudowany;
+- kąciki ust mają leżeć na powierzchni tej samej dolnej twarzy;
+- fryzura nie może przypadkiem usuwać brwi lub wnikać w zmodyfikowaną czaszkę;
+- cele animacji mają być osiągalne przez dany szkielet.
+
+Zmienianie zakresów na coraz mniejsze zamaskowałoby część błędów i przywróciło
+problem klonów. Lepsze rozwiązanie to constrained phenotype.
+
+Proponowany przepływ:
+    seed / zapis genomu
+        → requested genome
+        → resolved phenotype + ograniczenia
+        → wspólne punkty i powierzchnie anatomiczne
+        → kości + skóra + ubranie + opisy colliderów
+        → animacja dopasowana do proporcji
+        → mimika + spojrzenie
+        → korekty lokalne
+        → finalny model
+
+Korekta musi być deterministyczna. Nie ponawiać losowania ukrycie do momentu,
+aż trafi się poprawny model. W edytorze warto rozróżniać wartość żądaną od
+wynikowej i pokazywać, którą zależność ograniczono.
+
+14. DODATKOWY POTWIERDZONY BŁĄD NARZĘDZIA VARIATION
+===============================================================================
+Źródło: infantryGenome.js:84–91.
+
+Kod:
+    scale = clamp(Number(scale) || 1, 0, 1.75)
+
+Wartość 0 jest traktowana jak brak liczby i zamieniana na 1. Suwak Variation=0
+nie zeruje więc różnorodności. Próba na seedzie 1003 potwierdziła, że gen
+headWidth przy scale=0 pozostał równy wynikowi scale=1.
+
+Naprawa: osobno walidować Number.isFinite, a dopiero potem clampować wartość.
+Zero jest poprawnym parametrem, nie wartością domyślną.
+
+To nie powoduje bezpośrednio wystającej szyi, ale utrudnia izolowanie problemów
+w edytorze genomu. Nie należy uznawać testu przy Variation=0 za test modelu
+średniego, dopóki ten błąd istnieje.
+
+15. LICZBA POLIGONÓW, NORMALNE I LOD
+===============================================================================
+Źródła: infantryFace.js:14, 31–35; surfaceBuilder.js:114–123;
+game.js:43–47; ui/unitPreview.js:33.
+
+Świat tworzy detail='world', laboratorium detail='high'. Głowa ma odpowiednio
+24 lub 40 próbek wokół obwodu, ale oba warianty używają tego samego niewielkiego
+zestawu poziomych przekrojów. Zbliżenie kamery do jednostki w świecie nie
+powoduje tu automatycznej przebudowy do high.
+
+Wyższa gęstość pomaga odwzorować kontur policzka i powiek. Nie usuwa jednak
+oczu leżących za skórą, nie łączy szyi z głową ani nie dopasowuje kołnierza.
+Seed 2003 ma zasłonięty środek źrenicy także w high.
+
+computeVertexNormals jest już wywołane. Ta metoda uśrednia normalne na
+współdzielonych wierzchołkach; nie usuwa przecięć i nie skleja osobnych
+powierzchni [S3]. Ręczne odwrócenie wszystkich normalnych albo DoubleSide
+może tylko uczynić wewnętrzne/tylne płaszczyzny dodatkowo widocznymi.
+
+Naprawa powinna zagęścić lokalnie:
+- pierścienie wokół oczu i ust;
+- przejście pod brodą;
+- strefy zgięcia szyi i barków.
+
+Nie należy mnożyć gęstości całego modelu bez limitu. Wszystkie LOD powinny mieć
+te same punkty anatomiczne i poprawne połączenia, tylko inną liczbę próbek.
+
+16. KOREKTY POZY: TAK, ALE DOPIERO PO POPRAWNEJ GEOMETRII
+===============================================================================
+Po naprawie połączeń mogą pozostać zbyt ostre zagięcia i zapadanie objętości
+w silnie zgiętej szyi, pachach czy kolanach. Do tego nadają się lokalne kształty
+korekcyjne sterowane kątem kości, ewentualnie dodatkowy kontroler deformacji.
+
+Przykładowe nazwy projektowe:
+    neckFlexCorrection
+    underJawCompression
+    shoulderLiftCorrection
+    eyelidCloseShape
+    jawOpenCorrection
+
+Nie są to nowe animacje gameplay. Są to korekty geometrii istniejących ruchów.
+Takie sterowanie kształtem/krzywą na podstawie ruchu kości jest osobnym etapem
+systemu animacji, opisanym m.in. jako Pose Driver [S4]. Three.js przechowuje
+dane morph targets w BufferGeometry [S3]; implementacja musi uwzględnić
+konkretny używany r128, liczbę obsługiwanych kanałów i koszt renderowania.
+
+Samo podmienienie linear blend skinning na inny sposób mieszania nie stworzy
+brakującego połączenia głowy z szyją ani otworów na oczy. Nie zaczynać od
+zmiany silnika renderującego, systemu fizyki lub całej biblioteki animacji.
+
+17. PLAN POPRAWEK PER PLIK
+===============================================================================
+P0 — warunki konieczne, zanim dalej stroimy wygląd:
+
+js/units/infantryGenome.js
+  Dodać etap rozwiązywania zależności między cechami. Zachować deterministyczne
+  geny. Naprawić scale=0. Ustalić wersję generatora i jawnie rozróżniać input
+  oraz resolved phenotype, jeśli constraint zmienia wartość.
+
+js/rendering/infantryRig.js
+  Wprowadzić wspólne punkty mocowania czaszki, szyi, oczodołów, ust i kołnierza.
+  Kości twarzy wyprowadzać z nich. Oddzielić ramę powiek od obrotu gałki.
+  Zachować szkielet w prawidłowej pozie bind podczas obliczania inverse binds.
+
+js/rendering/infantryFace.js
+  Połączyć skórę głowy i szyi; usunąć kolidującą zaślepkę. Zbudować rzeczywiste
+  otwory oczu i ust oraz regiony deformacji. Wszystkie cechy umieszczać względem
+  końcowego kształtu głowy. Dostosować nos, uszy, brwi i wargi do landmarks.
+
+js/animation/faceAnimator.js
+  Używać otwartego/zamkniętego konturu rzeczywistego oka. Usunąć rozbieżność
+  eyeHeightScale/eyeSizeScale. Rozwiązać prioritet blink/forced closure bez
+  przenikania powiek. Jaw i cheek mają sterować faktycznymi regionami.
+  Ujednoznacznić aplikację dodatku gaze do bazowej pozy głowy.
+
+P1 — spójne ciało i jego postawy:
+
+js/rendering/infantrySurface.js
+  Kołnierz z finalnej szyi i bluzy. Dopasować wagi i rozkład wierzchołków wokół
+  barków do konkretnego położenia stawów. Nie skalować tylko części profili.
+
+js/animation/infantryAnimator.js
+  Bazowa pozycja miednicy z rest pose. Zasięgi i cele z konkretnych długości
+  kończyn. Kucanie, leżenie i podparcie rąk dostosować do proporcji jednostki.
+  Dopiero na końcu IK i korekty kształtu.
+
+js/rendering/infantryHair.js
+  Ta sama końcowa powierzchnia czaszki, kontrola hairline i punktów wokół brwi.
+  Oddzielić zamierzony styl fryzury od błędu kolizji z twarzą.
+
+js/rendering/surfaceBuilder.js
+  Dodać możliwość współdzielenia pętli i regionów deformacji. Zachować kontrolę
+  indeksów/orientacji. Nie utożsamiać tego z wykrywaniem przecięć powierzchni.
+
+P2 — diagnostyka i dalsze wygładzenie:
+
+js/rendering/unitDiagnostics.js
+  Poza NaN i sumą wag sprawdzać relacje geometrii: oko/skóra, powieki, połączenie
+  szyi, kołnierz, osiągalność IK. Odróżniać brak bezpośrednich wag od kontrolera,
+  który działa przez potomków. Brak direct weight na jaw nie oznacza braku
+  całego wpływu, ale brak wpływu na brodę jest problemem.
+
+js/ui/unitPreview.js i js/ui/debugPanel.js
+  W istniejącym laboratorium umożliwić izolację warstw i zatrzymanie mrugania,
+  kontrolę otwarcia oka, REST/CROUCH oraz poprawne porównanie genomów. Nie
+  dodawać przycisków do głównego gameplay. Naprawić niejednoznaczne aktualizacje
+  twarzy przy pauzie.
+
+js/physics/ragdollSchema.js
+  Gdy finalna anatomia i połączenia się zmienią, przeliczyć opisy brył z tych
+  samych landmarków. Nie próbować leczyć problemu aktywną fizyką: v0.7 ma
+  activePhysics=false, więc ragdoll nie jest sprawcą obecnych przecięć.
+
+18. DLACZEGO DOTYCHCZASOWE TESTY NIE WYSTARCZAJĄ
+===============================================================================
+Źródła: unitDiagnostics.js:5–18; tests/acceptance.js;
+tests/run_numeric.cjs:lista modułów i konstruktor make.
+
+Walidator modelu sprawdza skończoność danych, indeksy kości i sumy wag.
+Model może spełniać wszystkie te warunki, mając rurę szyi przecinającą głowę
+oraz źrenice pod skórą. Normale i poprawny indeks również nie dowodzą braku
+przenikania między osobnymi fragmentami.
+
+Test WebGL w acceptance sprawdza m.in. narysowanie trójkątów i błędy GL. To
+ważny smoke test, ale nie weryfikuje widoczności oczu czy anatomii szyi.
+Wiele testów modelu używa jednego zestawu body/face seeda 42 i zmienia głównie
+wzrost. Nie pokrywa to nowych kombinacji morfologicznych.
+
+Dodatkowo runner numeric ma nieaktualną listę importów bez infantryHair.js
+i konstruktor próbnego genomu bez body. Przy obecnym express wymaga naprawy,
+zanim jego wyniki będą miarodajne. W tym audycie użyto osobnej listy modułów
+oraz kompletnych genomów; nie potraktowano starego pliku raportu jako nowego
+wyniku testów v0.7.
+
+19. MAŁY ZESTAW TESTÓW, KTÓRY FAKTYCZNIE WYKRYJE TE BŁĘDY
+===============================================================================
+Zamiast wielkiej nowej infrastruktury:
+
+A. Szyja: REST → CROUCH → PRONE dla seedów 1003, 1002 oraz przeciwstawnych
+   ustawień grubości szyi i szerokości szczęki. Zbliżenie z przodu i profilu.
+   Warunek: brak odsłoniętych brzegów rurki i zaślepki przecinającej skórę.
+
+B. Oczy: seed 2003, 27 i 42. Mimika NEUTRAL, mruganie wyłączone, otwarcie oka
+   jawnie kontrolowane. Test world i high. Warunek: odsłonięta powierzchnia
+   oka nie jest przykryta trójkątami głowy.
+
+C. Powieki: niskie/szerokie oraz wysokie/wąskie oko. Otwarcie 1 → 0 → 1.
+   Warunek: ciągłe zamknięcie, brak przecinających się brył i uciekających
+   kącików. Bez wymuszania widoczności przez depthTest=false.
+
+D. Mimika: jawOpen i cheekRaise osobno, potem FEAR/PAIN. Warunek: porusza się
+   właściwa powierzchnia, nie tylko osobna dolna warga czy ozdoba.
+
+E. Kołnierz: skrajne, lecz dopuszczalne szyje/klatki. REST i CROUCH. Warunek:
+   przestrzenny luz ubrania oraz brak widocznych fragmentów z wnętrza.
+
+F. Retargeting: długie/krótkie nogi, szerokie/wąskie biodra, różne ręce.
+   Warunek: cele IK osiągalne bez przestawiania sylwetki do dawnego wzorca.
+
+Podgląd z wyłączonymi cieniami i neutralnym materiałem może odróżnić cień od
+przecięcia geometrii. Wireframe oraz kolorowanie grup head/neck/collar pomagają
+wskazać konkretną powierzchnię. Promienie można filtrować po tagach/warstwach
+oraz porządkować trafienia według odległości [S6].
+
+Testy mają opisywać, CO zmierzono. Test środka źrenicy nie powinien być opisany
+jako gwarancja całkowitej poprawności oka.
+
+20. CO NIE JEST POTWIERDZONĄ PRZYCZYNĄ
+===============================================================================
+Nie znalazłem podstaw, żeby przypisywać główne problemy:
+- CORS albo otwieraniu file://;
+- generatorowi terrain noise;
+- samemu seedowanemu RNG;
+- brakowi aktywnego ragdolla;
+- zbyt małej liczbie kości jako jedynej przyczynie;
+- wyłącznie cieniom, antyaliasingowi lub rozdzielczości;
+- ogólnemu błędowi bindMatrix wymagającemu wymiany całego skeletonu.
+
+W kodzie są konkretne błędy relacji geometrii, które wystarczają do wyjaśnienia
+wystającej szyi i znikających oczu. Najpierw należy je naprawić. Korekty pozy,
+lepsze normalne i materiały dopracują efekt później.
+
+Nie da się przypisać każdego piksela przesłanego obrazu jednej przyczynie bez
+zapisania konkretnego seeda, override'ów, pozy, mimiki i kamery. Nie zmienia
+to faktu, że wskazane błędy są w rzeczywistych źródłach i odtwarzają się w
+kontrolach geometrii.
+
+21. DOKUMENTACJA KOLEJNEJ ITERACJI
+===============================================================================
+Do istniejącego docs/ proponowany dokument:
+    11_ANATOMY_CONSTRAINTS_FACE_NECK.txt
+
+Powinien opisywać:
+- przestrzenie współrzędnych i jednostki;
+- wspólne landmarks oraz odpowiedzialnego za nie producenta danych;
+- zasady połączenia skóry głowy/szyi;
+- budowę EyeAnatomy i znaczenie eyeOpen;
+- kontrakt jaw/cheek i regionów wag;
+- fitting kołnierza;
+- zasady retargetingu sylwetek;
+- deterministyczne ograniczenia i wersję generatora;
+- rzeczywiście wykonane próby oraz ich ograniczenia.
+
+Zmiana sposobu rozwiązywania cech może zmienić wygląd tego samego seeda.
+Warto zachować seed + genome + generatorVersion; sam seed nie identyfikuje
+wyglądu niezależnie od wersji algorytmu.
+
+22. ŹRÓDŁA ZEWNĘTRZNE
+===============================================================================
+Poniższe dokumenty wspierają zasady techniczne. Nie są dowodem na zawartość
+naszych plików: tę sprawdzono bezpośrednio w badanym ZIP-ie.
+Dokumentacja Three.js jest bieżąca; projekt używa r128, więc nowych nazw API
+nie należy kopiować do niego bez sprawdzenia zgodności.
+
+[S1] Three.js — SkinnedMesh: skin indices, skin weights, bind matrix.
+https://threejs.org/docs/pages/SkinnedMesh.html
+
+[S2] Three.js — Skeleton: hierarchia kości i macierze odwrotne.
+https://threejs.org/docs/pages/Skeleton.html
+
+[S3] Three.js — BufferGeometry: indeksy, computeVertexNormals, morphAttributes.
+https://threejs.org/docs/pages/BufferGeometry.html
+
+[S4] Epic Games — Pose Driver: sterowanie pozą/krzywymi na podstawie ruchu kości.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-driver-in-unreal-engine
+
+[S5] Epic Games — Animation Retargeting: współdzielenie animacji pomiędzy
+postaciami o różnych proporcjach oraz traktowanie translacji szkieletu.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/animation-retargeting-in-unreal-engine
+
+[S6] Three.js — Raycaster: trafienia uporządkowane według odległości i warstwy.
+https://threejs.org/docs/pages/Raycaster.html
+
+KONKLUZJA
+===============================================================================
+Nie potrzebujemy mniej różnorodnych żołnierzy. Potrzebujemy generatora, który
+utrzymuje poprawne połączenia i relacje również po zróżnicowaniu ich sylwetek.
+
+Pierwsza poprawka powinna zapewnić: połączoną głowę i szyję, oczy osadzone w
+rzeczywistych otworach, powieki zgodne z ich kształtem, działające regiony
+mimiki oraz kołnierz dopasowany do finalnej anatomii. Dopiero na tym fundamencie
+warto dalej polerować płynność kucania i pozostałych animacji.

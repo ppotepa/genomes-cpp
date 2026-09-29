@@ -21,11 +21,19 @@ function(genomes_configure_diligent)
     genomes_require_file(
         "${GENOMES_DILIGENT_SOURCE_DIR}/CMakeLists.txt"
         "Diligent Engine")
+    genomes_require_file(
+        "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentTools/CMakeLists.txt"
+        "DiligentTools (required by DiligentFX)")
+    genomes_require_file(
+        "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentFX/CMakeLists.txt"
+        "DiligentFX")
 
     # These cache values are set before add_subdirectory because the upstream
     # meta-project reads them while it configures DiligentCore.
-    set(DILIGENT_BUILD_TOOLS OFF CACHE BOOL "Build DiligentTools" FORCE)
-    set(DILIGENT_BUILD_FX OFF CACHE BOOL "Build DiligentFX" FORCE)
+    # DiligentFX 2.5.6 depends on DiligentTools. Both remain absent from
+    # configurations which do not enable Diligent.
+    set(DILIGENT_BUILD_TOOLS ON CACHE BOOL "Build DiligentTools" FORCE)
+    set(DILIGENT_BUILD_FX ON CACHE BOOL "Build DiligentFX" FORCE)
     set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "Build DiligentSamples" FORCE)
     set(DILIGENT_BUILD_TESTS OFF CACHE BOOL "Build Diligent tests" FORCE)
 

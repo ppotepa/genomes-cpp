@@ -1,0 +1,80 @@
+{
+  "mode": "weaponhands",
+  "revision": "e40bf85",
+  "label": "commit e40bf85 + local changes",
+  "three": "128",
+  "results": [
+    {
+      "id": "sidearm",
+      "triangles": 1896,
+      "grip": "1H",
+      "error": 1.1443916996305594e-16,
+      "drawCalls": 10,
+      "muzzle": [
+        0,
+        0.05851521638869307,
+        0.152139562610602
+      ]
+    },
+    {
+      "id": "sidearm",
+      "triangles": 1896,
+      "grip": "2H",
+      "error": 2.237726045655905e-16,
+      "drawCalls": 10,
+      "muzzle": [
+        0,
+        0.05851521638869307,
+        0.152139562610602
+      ]
+    },
+    {
+      "id": "rifle",
+      "triangles": 3396,
+      "grip": "2H",
+      "error": 2.423651445728339e-16,
+      "drawCalls": 6,
+      "muzzle": [
+        0,
+        0.07952251737229526,
+        0.6115281585929505
+      ]
+    },
+    {
+      "id": "carbine",
+      "triangles": 2964,
+      "grip": "2H",
+      "error": 1.3092278833360675e-16,
+      "drawCalls": 6,
+      "muzzle": [
+        0,
+        0.07772842414379119,
+        0.4984335198220609
+      ]
+    },
+    {
+      "id": "marksman_rifle",
+      "triangles": 4020,
+      "grip": "2H",
+      "error": 2.2591401799415137e-16,
+      "drawCalls": 6,
+      "muzzle": [
+        0,
+        0.07997991855740547,
+        0.702623584526807
+      ]
+    },
+    {
+      "id": "support_gun",
+      "triangles": 3700,
+      "grip": "2H",
+      "error": 3.7341307954279784e-16,
+      "drawCalls": 6,
+      "muzzle": [
+        0,
+        0.07984763285461814,
+        0.6868892616318524
+      ]
+    }
+  ]
+}

@@ -28,6 +28,13 @@ int main() {
     assert(artifact.value().has_mouth_opening);
     assert(artifact.value().body.vertices.size() > 32U);
     assert(!artifact.value().body.indices.empty());
+    assert(!artifact.value().body.groups.empty() && artifact.value().body.materials.size()==3U);
+    std::size_t grouped_indices=0;for(const auto& group:artifact.value().body.groups){assert(group.start==grouped_indices);grouped_indices+=group.count;assert(group.material<artifact.value().body.materials.size());}
+    assert(grouped_indices==artifact.value().body.indices.size());
+    assert(!artifact.value().body.tags.empty());
+    assert(std::isfinite(artifact.value().body.sphere_radius)&&artifact.value().body.sphere_radius>0);
+    assert(artifact.value().face_metadata.neck_connected&&artifact.value().face_metadata.mouth_opening);
+    for(const auto& eye:artifact.value().face_metadata.eyes){assert(eye.radius>0&&eye.neutral_open>=0&&eye.neutral_open<=1);}
     assert(artifact.value().hair.vertices.size() > 0U);
     assert(artifact.value().morphs.size() == 4U);
     const std::array<const char*, 4U> morph_names{

@@ -1,0 +1,33 @@
+RTS PROTOTYPE 0.10.0 | generator infantry-5.0.0 | 24.09.2026
+
+GENOM I EDYTOR
+==============
+W 0.8 pozostają wszystkie grupy edytora v0.7: ciało, głowa, oczy, brwi, nos,
+usta, uszy, włosy, neutralna mimika i mikroparametry.
+Masa, umięśnienie, adiposity, barki, biodra, klatka, talia, kończyny, szyja,
+głowa, dłonie, stopy i kolor skóry pozostają genome-based.
+
+seed -> bazowy genom -> siła różnorodności -> ręczne override -> fenotyp
+-> rozstrzygnięte relacje anatomiczne -> rig/powierzchnia/kontrakt fizyki.
+Zmiana seeda usuwa override. Override dotyczy tylko modelu w laboratorium,
+nie istniejących jednostek świata. Nie dodano zapisu/importu presetów.
+
+NAPRAWA ZERA
+applyVariation(0) nie korzysta już z Number(scale) || 1. Rzeczywiste zero
+przenosi geny do 0.5. NaN otrzymuje domyślne 1. Zakres pozostaje 0–1.75.
+
+OGRANICZENIA RELACJI
+Grubsza szyja uzgadnia dolny przekrój głowy. Oczy zachowują odstęp między
+oczodołami oraz miejsce w szerokości czaszki. Usta pozostają poniżej nosa.
+Brwi pozostają nad otwarciem oka, hairline otrzymuje margines nad brwiami.
+To nie cofnięcie całej populacji do wąskiego zakresu parametrów.
+
+W zakładce Twarz widać listę dopasowań requested -> resolved. Genom zachowuje
+wartość użytkownika; przestrzenny rezultat można odczytać z faceLayout.
+Lista nie jest testem wszystkich potencjalnych samoprzecięć.
+
+ANIMACJA I DETAL
+Animacja odczytuje rest wymiary danego szkieletu. Nie podmienia nowej sylwetki
+absolutnymi pozycjami starego modelu. Zmiana detalu zachowuje szkielet i cechy.
+Nie skaluje się istniejących kości przy suwaku: generator przebudowuje model
+z nowych danych i nową bind pose, zgodnie z dotychczasowym edytorem.

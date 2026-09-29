@@ -59,10 +59,24 @@ enum class EquipmentKind : std::uint8_t {
     Weapon,
 };
 
+struct EquipmentVisualDefinition final {
+    std::string_view style{};
+    std::string_view coverage{};
+    float ease{0.0F};
+    float width{0.0F};
+    float shaft{0.0F};
+    float thickness{0.0F};
+    foundation::Vec3 size{};
+    std::uint8_t count{0U};
+    bool pads{false};
+    bool roll{false};
+};
+
 struct EquipmentSlotDefinition final {
     EquipmentSlot slot{};
     std::string_view identifier{};
     std::string_view required_item{};
+    std::string_view socket{};
 };
 
 struct EquipmentItemDefinition final {
@@ -75,6 +89,7 @@ struct EquipmentItemDefinition final {
     float fit_scale{1.0F};
     float fit_thickness{0.0F};
     std::string_view style{};
+    EquipmentVisualDefinition visual{};
 
     [[nodiscard]] bool allows(EquipmentSlot slot) const noexcept;
 };

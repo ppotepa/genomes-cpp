@@ -1,0 +1,48 @@
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+MODEL I SKALA
+=============
+1 jednostka = 1 metr. heightGene określa referencyjny wzrost ciała (1.60–1.95 m),
+nie górę fryzury. Obwiednia z włosami może być o kilka centymetrów większa.
+Kontur głowy pozostaje stylizowany; nie jest skanem człowieka.
+
+JEDNA ANATOMIA
+BodyPhenotype wyznacza barki, biodra, profile tułowia, kończyny, szyję i stawy.
+FaceAnatomy rozwiązuje profil czaszki, przejście do szyi, oczodoły, usta,
+nasadę nosa, brwi, uszy i dolną granicę włosów. Profile są interpolowane
+odcinkowo kubicznie z ograniczeniem stycznych, zamiast niezależnych elipsoid.
+
+POWIERZCHNIA
+Skóra szyi przechodzi wspólnymi pierścieniami i indeksami w głowę.
+Nie ma dawnej zaślepki przecinającej górę szyi. Podstawę skóry zamyka się
+wewnątrz ubrania. Otwory oczu i ust są wycięte w topologii, nie ukryte shaderem.
+Wokół każdego otworu są pierścienie połączone ze wspólną krawędzią skóry.
+Nos, uszy i włosy są osobnymi wyspami geometrii, ale pozycje mocowania
+pochodzą z finalnego profilu danej głowy. To nie bryła do druku 3D.
+
+SZKIELET I DEFORMACJA
+39 kości/kontrolerów: 22 ciała + 17 twarzy. Jeden Skeleton i SkinnedMesh.
+Do czterech znormalizowanych wpływów na wierzchołek; nie każdy punkt ma cztery.
+Podstawa szyi: chest/neck/head z przejściem. Dolna twarz: head/jaw;
+policzki mają rzeczywiste wpływy cheek.L/R. Pierścienie ust przechodzą
+w mouthUpper/mouthLower i mouthCorner.L/R. Dolna warga dziedziczy ruch jaw.
+Gałki: eye.L/R. Kontrolery powiek są dziećmi head, nie eye.
+Powieki nie są animowane sztywnym przesunięciem kontrolera; deformuje je morph.
+
+TRZY MORFY
+1. eyelidsClose — zamknięcie obu szczelin oka.
+2. eyelidsArc — korekta łuku, aby interpolacja nie weszła w gałkę.
+3. neckFlex — mała korekta objętości szyi zależna od pochylenia.
+Każdy ma względne pozycje i normalne. Dane powstają raz przy generowaniu.
+W klatce zmieniają się tylko wpływy i kości. To nie przebudowa geometrii/frame.
+
+UNIFORM
+Główny profil kurtki w rejonie szyi wynika z profilu skóry + luz ubrania.
+Stójkę stanowi sama kurtka. Płaty kołnierza leżą na finalnym profilu i mają
+te same lokalne wagi co ubranie pod nimi. Przejście bark/rękaw jest liczone
+względem faktycznej szerokości i wysokości barku.
+
+DODATEK v0.10: body/face genome i rig pozostają niezależne od loadoutu.
+Model składa się teraz z ciała i dodatkowego gear SkinnedMesh. Nakrycia głowy
+przycinają włosy tylko wizualnie, bez mutowania genomu. Ubrania/rękawiczki/buty
+wykorzystują dopasowane powierzchnie bazowe. Szczegóły w 13_EKWIPUNEK_V10.txt.

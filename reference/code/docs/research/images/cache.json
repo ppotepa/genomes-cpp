@@ -1,0 +1,20 @@
+{
+  "uncachedMs": 205.19999998807907,
+  "cachedMs": 0.6000000238418579,
+  "uncachedBuilds": 4,
+  "cachedBuilds": 0,
+  "cacheHits": 4,
+  "retainedGeometryBytes": 9069526,
+  "tests": [
+    "four LOD switches without regeneration",
+    "identical geometry reused",
+    "rig and morph preservation",
+    "equipment invalidation",
+    "exclusive active geometry",
+    "same DNA regeneration",
+    "different DNA miss",
+    "budget eviction"
+  ],
+  "baseRevision": "e40bf85",
+  "workingTree": true
+}

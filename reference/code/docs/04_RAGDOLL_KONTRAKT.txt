@@ -1,0 +1,26 @@
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+FIZYKA — NADAL TYLKO KONTRAKT
+===========================
+Schema zawiera 14 uproszczonych brył i 13 połączeń. Kości wizualne: 39.
+Pose owner pozostaje ANIMATION; activePhysics=false.
+Nie dodano silnika fizyki, upadków, obrażeń, ragdoll recovery ani walki.
+
+boneToBody / bodyToBone / bindWorld zachowują jednoznaczną konwersję:
+bodyWorld = boneWorld * boneToBody
+boneWorld = bodyWorld * bodyToBone
+boneLocal = inverse(parentWorld) * boneWorld.
+
+0.8: wymiar przybliżonego collidera głowy pochodzi z rozwiązanego profilu
+czaszki i poziomu brody, nie tylko ze stałej 0.044*H i headScale.
+Korpus/kończyny nadal wykorzystują morfologię BodyPhenotype.
+Ciała są przybliżeniem, nie dokładnym otoczeniem każdego wierzchołka.
+Oczy, powieki, wargi i włosy nie otrzymały osobnych ciał fizycznych.
+
+Panel Szkielet może je pokazać. To wyłącznie wizualizacja descriptorów.
+Wdrożenie przyszłego solvera wymaga osobnego uzgodnienia i testowania
+mas, limitów, zderzeń oraz przekazania właściciela pozy.
+
+DODATEK v0.10: wyposażenie ma masę jako dane i wiązanie do skeletonu, ale
+nie dodano jego osobnych colliderów do ragdolla. Nie zwiększono masy brył ciała
+ani nie uruchomiono solvera. Plecak/antena/małe kieszenie nie mają fizyki.

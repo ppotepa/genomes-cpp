@@ -6,11 +6,13 @@
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/AnimationSystem.hpp>
 #include <genomes/runtime/Scene.hpp>
+#include <genomes/jobs/JobHandle.hpp>
 
 #include <memory>
 #include <optional>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 
 namespace genomes::runtime {
 
@@ -31,9 +33,12 @@ enum class UnitLabDirtyFlag : std::uint8_t {
 
 class UnitLabScene final : public Scene {
 public:
+    ~UnitLabScene() override;
+
     [[nodiscard]] foundation::SceneId id() const noexcept override;
 
     void on_enter(SceneContext&) override;
+    void on_exit(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;
     void fixed_update(SceneContext&, double) override;
     void frame_update(SceneContext&, double) override;
@@ -41,7 +46,9 @@ public:
 
 private:
     void markDirty(UnitLabDirtyFlag flag) noexcept;
-    void rebuildModel();
+    void rebuildModel(SceneContext* context = nullptr);
+    void publishModelResult(foundation::Result<infantry::InfantryModelArtifact,
+                                               foundation::Error>&& result);
 
     double elapsed_seconds_{0.0};
     std::uint64_t fixed_tick_{0};
@@ -80,6 +87,14 @@ private:
     std::optional<infantry::AnimationSystem> animation_system_;
     std::optional<infantry::AnimationPose> animation_pose_;
     std::optional<foundation::Error> last_generation_error_;
+    struct PendingModelResult final {
+        mutable std::mutex mutex;
+        std::optional<infantry::InfantryModelCompiler::CompileRevision> revision;
+        std::optional<foundation::Result<infantry::InfantryModelArtifact, foundation::Error>> result;
+    };
+    std::shared_ptr<PendingModelResult> pending_model_result_;
+    jobs::JobHandle model_job_;
+    infantry::InfantryModelCompiler::CompileRevision model_revision_{0};
 };
 
 } // namespace genomes::runtime

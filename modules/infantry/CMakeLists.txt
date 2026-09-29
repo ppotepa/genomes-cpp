@@ -6,6 +6,9 @@ src/FaceAnatomy.cpp
     src/RigBuilder.cpp
 src/AppearanceCompiler.cpp
 src/AppearanceMeshBuilder.cpp
+src/ReferenceSurfaceBuilder.cpp
+    src/ReferenceBodySurfaceGenerator.cpp
+    src/ReferenceFaceSurfaceGenerator.cpp
 src/AppearanceMorphBuilder.cpp
     src/HairGenerator.cpp
     src/BodySurfaceGenerator.cpp

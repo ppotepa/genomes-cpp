@@ -4,9 +4,11 @@
 #include <genomes/runtime/UnitLabScene.hpp>
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <thread>
 
 int main() {
     genomes::render::NullRenderer renderer;
@@ -148,5 +150,40 @@ int main() {
     assert(std::abs(gpu_presentation.camera.position.x - initial_camera_position.x) > 0.0001F ||
            std::abs(gpu_presentation.camera.position.y - initial_camera_position.y) > 0.0001F ||
            std::abs(gpu_presentation.camera.position.z - initial_camera_position.z) > 0.0001F);
+
+    // The production scene path is asynchronous when a JobSystem is supplied.
+    // Rapid requests invalidate the older compiler revision; only the newest
+    // completed model may reach the presentation snapshot.
+    genomes::jobs::JobSystem async_jobs{2U};
+    genomes::render::NullRenderer async_renderer;
+    genomes::ui::UiRuntime async_ui;
+    genomes::render::PresentationSnapshot async_presentation;
+    genomes::runtime::SceneDirector async_director(async_renderer, async_ui,
+                                                    async_presentation, &async_jobs);
+    async_director.register_scene(unit_lab_id, [] {
+        return std::make_unique<genomes::runtime::UnitLabScene>();
+    });
+    assert(async_director.start(unit_lab_id));
+    for (int frame = 0; frame < 5 && async_presentation.skinned_prototypes.empty();
+         ++frame) {
+        async_director.frame_update(1.0 / 60.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::yield();
+    }
+    assert(async_presentation.skinned_prototypes.size() == 1U);
+    const auto async_initial = async_presentation.skinned_prototypes.front();
+    async_director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
+                                 .mouse_y = 276.0F, .events = {}});
+    async_director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
+                                 .mouse_y = 276.0F, .events = {}});
+    for (int frame = 0; frame < 5 &&
+         !async_presentation.skinned_prototypes.empty() &&
+         async_presentation.skinned_prototypes.front() == async_initial; ++frame) {
+        async_director.frame_update(1.0 / 60.0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::yield();
+    }
+    assert(!async_presentation.skinned_prototypes.empty());
+    assert(async_presentation.skinned_prototypes.front() != async_initial);
     return 0;
 }

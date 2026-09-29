@@ -1,0 +1,229 @@
+{
+  "environment": "Node + test-only mathematical compatibility layer (not Three.js/WebGL)",
+  "results": [
+    {
+      "name": "Deterministic genome",
+      "ok": true,
+      "detail": "4 uint32 seeds"
+    },
+    {
+      "name": "Height weights bones 0",
+      "ok": true,
+      "detail": {
+        "vertices": 4062,
+        "triangles": 7070,
+        "bones": 22,
+        "meshes": 1,
+        "materialGroups": 3,
+        "maxWeightError": 2.9802322387695312e-8,
+        "invalid": 0,
+        "ok": true,
+        "referenceMinY": 0,
+        "measuredStandingHeight": 1.600000023841858,
+        "heightError": 2.3841857821338408e-8
+      }
+    },
+    {
+      "name": "Height weights bones 0.5",
+      "ok": true,
+      "detail": {
+        "vertices": 4062,
+        "triangles": 7070,
+        "bones": 22,
+        "meshes": 1,
+        "materialGroups": 3,
+        "maxWeightError": 2.9802322387695312e-8,
+        "invalid": 0,
+        "ok": true,
+        "referenceMinY": 0,
+        "measuredStandingHeight": 1.774999976158142,
+        "heightError": 2.3841857821338408e-8
+      }
+    },
+    {
+      "name": "Height weights bones 1",
+      "ok": true,
+      "detail": {
+        "vertices": 4062,
+        "triangles": 7070,
+        "bones": 22,
+        "meshes": 1,
+        "materialGroups": 3,
+        "maxWeightError": 2.9802322387695312e-8,
+        "invalid": 0,
+        "ok": true,
+        "referenceMinY": 0,
+        "measuredStandingHeight": 1.9500000476837158,
+        "heightError": 4.768371586472142e-8
+      }
+    },
+    {
+      "name": "Geometry orientation and manifold edges",
+      "ok": true,
+      "detail": {
+        "bad": 0,
+        "nonmanifold": 0,
+        "boundaries": 2184
+      }
+    },
+    {
+      "name": "6 states x 16 phases contacts Hgene=0",
+      "ok": true,
+      "detail": {
+        "min": 0.001499999955296408,
+        "maxLen": 0,
+        "maxIK": 0,
+        "stats": {
+          "IDLE": 0.001499999955296695,
+          "WALK": 0.0014999999552964176,
+          "RUN": 0.001499999955296408,
+          "CROUCH": 0.0014999999552965724,
+          "PRONE": 0.0014999999552965117,
+          "PRONE_MOVE": 0.0014999999552964636
+        }
+      }
+    },
+    {
+      "name": "6 states x 16 phases contacts Hgene=0.5",
+      "ok": true,
+      "detail": {
+        "min": 0.001499999955296295,
+        "maxLen": 0,
+        "maxIK": 0,
+        "stats": {
+          "IDLE": 0.0014999999552964623,
+          "WALK": 0.0014999999552963062,
+          "RUN": 0.001499999955296295,
+          "CROUCH": 0.0014999999552965625,
+          "PRONE": 0.0014999999552964991,
+          "PRONE_MOVE": 0.0014999999552963912
+        }
+      }
+    },
+    {
+      "name": "6 states x 16 phases contacts Hgene=1",
+      "ok": true,
+      "detail": {
+        "min": 0.001499999955296248,
+        "maxLen": 0,
+        "maxIK": 0,
+        "stats": {
+          "IDLE": 0.0014999999552965178,
+          "WALK": 0.001499999955296339,
+          "RUN": 0.001499999955296397,
+          "CROUCH": 0.001499999955296354,
+          "PRONE": 0.0014999999552962628,
+          "PRONE_MOVE": 0.001499999955296248
+        }
+      }
+    },
+    {
+      "name": "Transitions 4 x 90 frames",
+      "ok": true,
+      "detail": {
+        "min": 0.0014999999552961284,
+        "maxIK": 0
+      }
+    },
+    {
+      "name": "FPS 30/60/120 fixed step",
+      "ok": true,
+      "detail": [
+        {
+          "fps": 30,
+          "steps": 600,
+          "distance": 42.00000000000015
+        },
+        {
+          "fps": 60,
+          "steps": 600,
+          "distance": 42.00000000000015
+        },
+        {
+          "fps": 120,
+          "steps": 600,
+          "distance": 42.00000000000015
+        }
+      ]
+    },
+    {
+      "name": "Ragdoll matrices moved root",
+      "ok": true,
+      "detail": {
+        "roundtrip": 3.4389158187764224e-14,
+        "bodies": 14,
+        "joints": 13,
+        "massFraction": 1
+      }
+    },
+    {
+      "name": "Terrain samples vs geometry barycentric independent",
+      "ok": true,
+      "detail": {
+        "max": 0.000006225879545240787,
+        "minSoleAtTestMap": 0.001017349213213059
+      }
+    }
+  ],
+  "geometry": [
+    {
+      "detail": "world",
+      "vertices": 4062,
+      "triangles": 7070,
+      "bones": 22,
+      "meshes": 1,
+      "materialGroups": 3,
+      "maxWeightError": 2.9802322387695312e-8,
+      "invalid": 0,
+      "ok": true,
+      "referenceMinY": 0,
+      "measuredStandingHeight": 1.600000023841858,
+      "heightError": 2.3841857821338408e-8
+    },
+    {
+      "detail": "world",
+      "vertices": 4062,
+      "triangles": 7070,
+      "bones": 22,
+      "meshes": 1,
+      "materialGroups": 3,
+      "maxWeightError": 2.9802322387695312e-8,
+      "invalid": 0,
+      "ok": true,
+      "referenceMinY": 0,
+      "measuredStandingHeight": 1.774999976158142,
+      "heightError": 2.3841857821338408e-8
+    },
+    {
+      "detail": "world",
+      "vertices": 4062,
+      "triangles": 7070,
+      "bones": 22,
+      "meshes": 1,
+      "materialGroups": 3,
+      "maxWeightError": 2.9802322387695312e-8,
+      "invalid": 0,
+      "ok": true,
+      "referenceMinY": 0,
+      "measuredStandingHeight": 1.9500000476837158,
+      "heightError": 4.768371586472142e-8
+    },
+    {
+      "detail": "high",
+      "vertices": 7614,
+      "triangles": 12934,
+      "bones": 22,
+      "meshes": 1,
+      "materialGroups": 3,
+      "maxWeightError": 2.9802322387695312e-8,
+      "invalid": 0,
+      "ok": true,
+      "referenceMinY": 0,
+      "measuredStandingHeight": 1.774999976158142,
+      "heightError": 2.3841857821338408e-8
+    }
+  ],
+  "version": "0.4.0",
+  "passed": 12,
+  "failed": 0
+}

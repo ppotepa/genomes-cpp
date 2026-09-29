@@ -1,0 +1,32 @@
+{
+  "environment": "Chromium set_content; file:// blocked by environment policy; isolated UI mock, NO Three.js renderer test",
+  "results": [
+    {
+      "name": "file:// full browser test",
+      "ok": false,
+      "blocked": true,
+      "detail": "Environment Chromium policy: ERR_BLOCKED_BY_ADMINISTRATOR. DOM-only tests below use set_content; do not establish file:// WebGL success."
+    },
+    {
+      "name": "isolated DOM: grids / Units popup / camera lock",
+      "ok": true
+    },
+    {
+      "name": "isolated DOM: tabs / bones / collider controls / uint32 validation",
+      "ok": true
+    },
+    {
+      "name": "CSS viewports 1440/1024/650",
+      "ok": true
+    },
+    {
+      "name": "isolated DOM: Escape / camera unlock",
+      "ok": true
+    },
+    {
+      "name": "unhandled page errors",
+      "ok": true,
+      "detail": []
+    }
+  ]
+}

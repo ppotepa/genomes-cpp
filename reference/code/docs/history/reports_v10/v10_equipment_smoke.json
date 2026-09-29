@@ -1,0 +1,76 @@
+{
+  "version": "0.10.0",
+  "environment": "Node + bundled numeric_math.cjs. Not a WebGL/browser test.",
+  "profiles": [
+    {
+      "role": "RIFLEMAN",
+      "weightKg": 16.35,
+      "baseTriangles": 16703,
+      "gearTriangles": 5450,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "ASSAULT",
+      "weightKg": 19.520000000000003,
+      "baseTriangles": 16777,
+      "gearTriangles": 6278,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "LIGHT_SUPPORT",
+      "weightKg": 23.689999999999998,
+      "baseTriangles": 16740,
+      "gearTriangles": 5754,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "HEAVY_SUPPORT",
+      "weightKg": 30.14,
+      "baseTriangles": 16875,
+      "gearTriangles": 6058,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "MARKSMAN",
+      "weightKg": 17.45,
+      "baseTriangles": 16700,
+      "gearTriangles": 5450,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "SCOUT",
+      "weightKg": 12.459999999999999,
+      "baseTriangles": 16767,
+      "gearTriangles": 3578,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "MEDIC",
+      "weightKg": 17.340000000000003,
+      "baseTriangles": 16787,
+      "gearTriangles": 5898,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "ENGINEER",
+      "weightKg": 22.47,
+      "baseTriangles": 16902,
+      "gearTriangles": 6822,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "RADIO_OPERATOR",
+      "weightKg": 16.650000000000002,
+      "baseTriangles": 16800,
+      "gearTriangles": 5730,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    },
+    {
+      "role": "SQUAD_LEADER",
+      "weightKg": 20.950000000000003,
+      "baseTriangles": 16757,
+      "gearTriangles": 6114,
+      "stage": "after head=beanie and back=pack_radio overrides"
+    }
+  ]
+}

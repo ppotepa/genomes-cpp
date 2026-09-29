@@ -1,0 +1,78 @@
+AKTUALIZACJA v0.22.0 — 27.09.2026
+Aktualny runtime raportuje 0.22.0. Building Lab ma generator budynków v6 oraz
+DESTRUCTION DEMO z trwałym stanem pocisku, rykoszetami, deflekcją po przebiciu,
+warstwami ścian, lokalnym osłabianiem podpór i trzema poziomami gruzu: hero Rapier, cheap airborne oraz persistent RubbleField. Sleeping gruz przy ziemi po około sekundzie bake'uje się do sterty zamiast znikać przy limicie. RubbleField preferuje statyczny heightfield collider, ma fallback trimesh/cuboid, zachowuje objętość i skład materiałowy oraz potrafi leżeć na niepłaskim terenie przez provider wysokości.
+Główna mapa nadal nie prowadzi gameplayowej walki między formacjami.
+Pełny lokalny gate: cd tools/destruction && npm ci --ignore-scripts && npm test. Rubble architecture: docs/destruction/rubble-field.md.
+Workflow GitHub pozostaje ręczny, ponieważ repo zwraca startup_failure przed
+przydzieleniem runnera nawet dla minimalnego workflow probe.
+
+AKTUALIZACJA v0.12
+Bieżący opis ciągłej postawy: 16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt.
+CROUCH/WALK/RUN w rodzinie BIPED są teraz presetami suwaków c/v.
+Pozostały opis niżej zachowuje kontekst wcześniejszych iteracji.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+URUCHOMIENIE
+============
+Rozpakuj CAŁY ZIP do nowego katalogu. Otwórz index.html dwuklikiem.
+Nie potrzeba npm, localhosta, serwera ani zmiany zabezpieczeń przeglądarki.
+Lokalny kod jest ładowany przez klasyczne skrypty, bez import/export i fetch.
+Three.js r128 i OrbitControls r128 pozostają na CDN: jsDelivr / unpkg.
+Internet jest wymagany przy ładowaniu bibliotek. To nie jest paczka offline.
+
+KAMERA
+======
+LPM: obrót. PPM: przesunięcie. Kółko: przybliżenie / oddalenie.
+Po prawej DEBUG: WORLD -> siatki 5 m / 100 m.
+UNITS -> Generator jednostek. Mapa jest wstrzymana przy otwartym podglądzie.
+
+EKWIPUNEK
+=========
+Otwórz zakładkę Ekwipunek w generatorze. Wybierz jeden z 10 profili piechoty.
+Rozwiń grupę slotów i zmieniaj poszczególne przedmioty. Brak oznacza pusty
+slot. Bluza, spodnie i buty mają bazowe warianty zamiast pustego slotu.
+
+Seed wyposażenia jest niezależny od seeda genomu. Zmiana przedmiotów,
+profilu lub seeda wyposażenia nie resetuje tożsamości, kamery ani animacji.
+Zmiana seeda JEDNOSTKI generuje nowy genom i wyprowadzony seed wyposażenia,
+czyszcząc ręczne override. Zmiana strony zachowuje wybory wyposażenia.
+Zmiana genomu dopasowuje wyposażenie do nowej anatomii.
+
+Paleta w zakładce Ekwipunek dotyczy dodatkowego wyposażenia. Mundur pozostaje
+w kolorze strony. Spłowienie jest subtelnym parametrem kolorystycznym tkanin,
+nie symulacją uszkodzeń. Masa jest wartością projektową, nie wpływa na ruch.
+
+Na mapie: 10 jednostek prezentuje 10 profili, po 5 na stronę. Dotychczasowe
+trasy tam i z powrotem, pauzy IDLE i rozglądanie pozostają. Bez walki i obozów.
+
+DOKUMENTACJA
+============
+01_ARCHITEKTURA.txt                 moduły i przepływ danych
+02_MODEL_GENOM_SZKIELET.txt          anatomia, morfologia i skinning
+03_ANIMACJE_I_TEREN.txt              postawy, IK, teren
+04_RAGDOLL_KONTRAKT.txt              przygotowanie fizyki, nadal bez solvera
+05_DEBUG_TESTY.txt                  kontrolki i zakres weryfikacji
+06_CHANGELOG_I_ITERACJE.txt          wersje, zasady kolejnych zmian
+07_OGRANICZENIA.txt                  co działa i czego nie ma
+08_ZRODLA.txt                       API używanego silnika
+09_FACE_GENOME_MIMIKA.txt            genom twarzy i mimika
+10_BODY_GENOME_DIVERSITY.txt         genom ciała i edytor
+11_NAPRAWY_ANATOMII_V08.txt          poprzednia naprawa anatomii
+12_HEAD_LOOK_DEMO_V09.txt            poprzednia iteracja rozglądania
+13_EKWIPUNEK_V10.txt                pełny opis obecnej iteracji i API
+14_KATALOG_EKWIPUNKU_V10.txt         katalog ID, slotów i profili
+history/                           historyczne analizy i raporty
+reports/                           rzeczywiście wykonane kontrole tej wersji
+
+TESTY
+=====
+Opcjonalnie tests/index.html wykonuje kontrolę na Three.js w Twojej przeglądarce.
+Testy nie wysyłają danych. Nie są wymagane do uruchomienia gry.
+Wersję przygotowano z kontrolą składni, geometrii i pakowania; zakres wyników
+jest opisany w 05_DEBUG_TESTY.txt. Nie oznacza to testu estetyki wszystkich genów.
+
+ITERACJA 0.11
+Nowe postawy w selektorze Animacja: SITTING, CROUCH_WALK. CROUCH przebudowany.
+Opis bieżący: 15_CRAWL_CROUCH_SITTING_V11.txt. Rozpakować do nowego katalogu.

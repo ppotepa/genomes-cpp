@@ -1,0 +1,76 @@
+AKTUALIZACJA v0.20 — DESTRUCTION / BUILDINGS / RUBBLE
+=====================================================
+Główna mapa nadal nie ma gameplayowej pętli walki, AI ostrzału ani rozkazów
+ogniowych. Jednocześnie laboratoria mają działający DESTRUCTION DEMO:
+pociski lecą w czasie, mogą rykoszetować, przebijać, zmieniać kierunek,
+degradować się i w ograniczonym zakresie rozpadać na wtórne fragmenty.
+
+Model balistyczny jest modelem gry. Parametry materiałów, pracy penetracji,
+progów rykoszetu, rozpadu i podpór nie są tabelami certyfikacyjnymi ani
+rozwiązaniem FEM. Kanał perforacji jest wypukłym, sześciopłaszczyznowym
+przybliżeniem o zmiennym promieniu; lokalne wgniecenia/kratery również są
+uproszczeniem. Ruch obrotowy pocisku nie jest pełną dynamiką 6-DOF.
+
+Graf konstrukcji modeluje kontakt, ograniczony wysięg i integralność połączeń,
+ale nie naprężenia, zbrojenie, wyboczenie ani rozkład obciążeń rzeczywistego
+budynku. Gruz ma limity hero/cheap/tile, ale przekroczenie puli zmienia reprezentację zamiast usuwać materiał: hero -> cheap -> baked rubble. Twardy limit kafli może skompresować nowy depozyt do najbliższego istniejącego tile, więc zachowuje objętość kosztem dokładnego miejsca.
+
+Statyczny budynek i ruchomy hero-gruz mają osobne BVH. Baked rubble używa spatial hash kafli i własnego broad-phase. Ruch brył w ticku jest aproksymowany translacją podczas zapytania balistycznego; szybka rotacja hero-gruzu wewnątrz pojedynczego kroku nie jest pełnym continuous shape castem. Cheap airborne nie ma pełnych kontaktów debris-vs-debris i jest przeznaczony do krótkiego lotu przed bake.
+
+RubbleField jest ground-oriented: nie reprezentuje jaskiń, nawisów ani trwałych stert na wyższych stropach. Elevated hero debris pozostaje fizyczny aż utraci podporę; cheap debris może odbić się od uproszczonej powierzchni, ale finalny bake trafia do pola przy ziemi/istniejącej stercie. Packing, slope oraz porous resistance są parametrami gry.
+
+Pełny lokalny test Node/Three/Rapier wymaga npm ci w tools/destruction.
+GitHub Actions w bieżącym stanie repo kończy workflow jako startup_failure
+przed przydzieleniem joba, również dla minimalnego probe, dlatego workflow
+pozostaje manualny i nie jest źródłem bieżącego statusu PASS/FAIL.
+
+AKTUALIZACJA v0.12
+Bieżący opis ciągłej postawy: 16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt.
+CROUCH/WALK/RUN w rodzinie BIPED są teraz presetami suwaków c/v.
+Pozostały opis niżej zachowuje kontekst wcześniejszych iteracji.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+OGRANICZENIA
+============
+Stylizowany generator proceduralny, nie fotorealizm, skan ani pełna symulacja
+biomechaniki. Dotychczasowe ograniczenia liniowego skinningu i skrajnych
+morfologii nadal obowiązują. Nie każda kombinacja genomu/pozy była oceniona.
+
+Wyposażenie ma widoczną geometrię i jest edytowalne, ale nie ma fizyki tkanin,
+anten, pasków, upadków ani kompletnego solvera samokolizji. Gwałtowny skręt,
+skrajne barki lub wiele nakładających się akcesoriów mogą wymagać strojenia.
+Kontakty z podłożem są próbkowane, nie ciągłe. Duży sprzęt może ograniczać
+zasięg istniejącego IK. Nie obiecujemy braku wszystkich przenikań.
+
+Broń jest nieaktywnym rekwizytem transportowym; brak strzelania, celowania,
+chwytów, pocisków i obrażeń. Masa ekwipunku jest tylko odczytywanym parametrem
+projektowym. Nie zmienia prędkości ani stamina. To nie realistyczna tabela wag.
+Plecaki mają zawartość sugerowaną sylwetką, nie osobny inventory rzeczy w środku.
+
+Rękawiczki/kominiarka korzystają z powierzchni dopasowanego ciała. Soczewki
+okularów/gogli nie mają refrakcji. Nie ukrywamy całego munduru pod pancerzem.
+Sprzęt pozostaje sztywno lub skórnie połączony z kośćmi, bez secondary motion.
+
+Dziesięć typów to profile wyposażenia, nie AI dziesięciu zawodów. Mapa nadal
+jest demonstracją ruchu. Brak walki, rozkazów, obozów, pathfindingu, pojazdów,
+aktywnego ragdolla i faktycznego dowodzenia oddziałem.
+
+W świecie jest 10 jednostek, w laboratorium jedna. Nie deklaruje się obsługi
+tysięcy modeli. Wyposażenie jest zgrupowane w jeden mesh z trzema materiałami,
+ale nadal ma koszt skinningu, cieni i próbek kontaktu. Zmiana slotu przebudowuje
+appearance, bez częściowego cache. LOD pozostaje high/world.
+
+Zmiany z popupu dotyczą wyłącznie modelu PREVIEW. Nie zapisują świata na dysku
+ani nie wysyłają danych do serwera. API jednostki umożliwia edycję świata z kodu.
+
+Wymagany internet dla Three.js/OrbitControls z CDN. Nie dostarczamy offline
+bibliotek. Składnia i bufory są sprawdzone numerycznie; nie potwierdzono w tym
+środowisku pełnego wykonania renderu Three.js/WebGL. Test przeglądarkowy jest
+do uruchomienia przez użytkownika, nie zapisanym raportem PASS.
+
+AKTUALIZACJA 0.11
+Podparcie dłoni/butów jest kinematyczne, bez sił i pełnej samokolizji.
+SITTING nie dodaje mebla; nie jest siedzeniem na ziemi. Nawroty zwalniają
+kotwice, ale nie mają pełnej animacji krokowego obracania w miejscu.
+Szczegóły i granice poprawek: docs/15_CRAWL_CROUCH_SITTING_V11.txt.

@@ -50,9 +50,8 @@ foundation::Result<TwoBoneIKSolution, foundation::Error> TwoBoneIK::solve(
     }
     const Vec3 bend_normal = normalize(plane, {0.0F, 0.0F, 1.0F});
     const Vec3 bend_direction = normalize(cross(bend_normal, direction), {0.0F, 1.0F, 0.0F});
-    constexpr float epsilon = 1.0e-5F;
-    const float minimum_distance = std::abs(upper_length - lower_length) + epsilon;
-    const float maximum_distance = upper_length + lower_length - epsilon;
+    const float minimum_distance = std::abs(upper_length - lower_length) + 1.0e-5F;
+    const float maximum_distance = upper_length + lower_length - 1.0e-6F;
     const float clamped_distance = std::clamp(raw_distance, minimum_distance, maximum_distance);
     const float cos_root = std::clamp((upper_length * upper_length + clamped_distance * clamped_distance -
                                        lower_length * lower_length) /

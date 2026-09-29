@@ -1,0 +1,815 @@
+{
+  "results": [
+    {
+      "species": "oak",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19190,
+      "drawCalls": 2
+    },
+    {
+      "species": "oak",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 15818,
+      "drawCalls": 2
+    },
+    {
+      "species": "oak",
+      "season": "autumn",
+      "branches": 342,
+      "leaves": 849,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 14644,
+      "drawCalls": 3
+    },
+    {
+      "species": "oak",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "beech",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "beech",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 11638,
+      "drawCalls": 2
+    },
+    {
+      "species": "beech",
+      "season": "autumn",
+      "branches": 342,
+      "leaves": 849,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 11248,
+      "drawCalls": 3
+    },
+    {
+      "species": "beech",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "birch",
+      "season": "summer",
+      "branches": 343,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 14206,
+      "drawCalls": 2
+    },
+    {
+      "species": "birch",
+      "season": "spring",
+      "branches": 343,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 11958,
+      "drawCalls": 2
+    },
+    {
+      "species": "birch",
+      "season": "autumn",
+      "branches": 343,
+      "leaves": 849,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 10390,
+      "drawCalls": 2
+    },
+    {
+      "species": "birch",
+      "season": "winter",
+      "branches": 343,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3598,
+      "drawCalls": 1
+    },
+    {
+      "species": "maple",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19190,
+      "drawCalls": 2
+    },
+    {
+      "species": "maple",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 15818,
+      "drawCalls": 2
+    },
+    {
+      "species": "maple",
+      "season": "autumn",
+      "branches": 323,
+      "leaves": 849,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13466,
+      "drawCalls": 2
+    },
+    {
+      "species": "maple",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "linden",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "linden",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 11638,
+      "drawCalls": 2
+    },
+    {
+      "species": "linden",
+      "season": "autumn",
+      "branches": 323,
+      "leaves": 849,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 10070,
+      "drawCalls": 2
+    },
+    {
+      "species": "linden",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "ash",
+      "season": "summer",
+      "branches": 260,
+      "leaves": 2155,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19888,
+      "drawCalls": 2
+    },
+    {
+      "species": "ash",
+      "season": "spring",
+      "branches": 260,
+      "leaves": 1680,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16088,
+      "drawCalls": 2
+    },
+    {
+      "species": "ash",
+      "season": "autumn",
+      "branches": 260,
+      "leaves": 1410,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13928,
+      "drawCalls": 2
+    },
+    {
+      "species": "ash",
+      "season": "winter",
+      "branches": 260,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 2648,
+      "drawCalls": 1
+    },
+    {
+      "species": "willow",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "willow",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 11638,
+      "drawCalls": 2
+    },
+    {
+      "species": "willow",
+      "season": "autumn",
+      "branches": 323,
+      "leaves": 849,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 10070,
+      "drawCalls": 2
+    },
+    {
+      "species": "willow",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "poplar",
+      "season": "summer",
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "poplar",
+      "season": "spring",
+      "branches": 386,
+      "leaves": 1274,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 14100,
+      "drawCalls": 2
+    },
+    {
+      "species": "poplar",
+      "season": "autumn",
+      "branches": 386,
+      "leaves": 1031,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 12156,
+      "drawCalls": 2
+    },
+    {
+      "species": "poplar",
+      "season": "winter",
+      "branches": 386,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3908,
+      "drawCalls": 1
+    },
+    {
+      "species": "rowan",
+      "season": "summer",
+      "branches": 323,
+      "leaves": 2695,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 24838,
+      "drawCalls": 2
+    },
+    {
+      "species": "rowan",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 2095,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 20038,
+      "drawCalls": 2
+    },
+    {
+      "species": "rowan",
+      "season": "autumn",
+      "branches": 418,
+      "leaves": 1755,
+      "fruits": 95,
+      "flowers": 0,
+      "triangles": 23208,
+      "drawCalls": 3
+    },
+    {
+      "species": "rowan",
+      "season": "winter",
+      "branches": 418,
+      "leaves": 0,
+      "fruits": 95,
+      "flowers": 0,
+      "triangles": 9168,
+      "drawCalls": 2
+    },
+    {
+      "species": "apple",
+      "season": "summer",
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "apple",
+      "season": "spring",
+      "branches": 386,
+      "leaves": 1274,
+      "fruits": 0,
+      "flowers": 115,
+      "triangles": 15020,
+      "drawCalls": 2
+    },
+    {
+      "species": "apple",
+      "season": "autumn",
+      "branches": 409,
+      "leaves": 1031,
+      "fruits": 23,
+      "flowers": 0,
+      "triangles": 13582,
+      "drawCalls": 3
+    },
+    {
+      "species": "apple",
+      "season": "winter",
+      "branches": 386,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3908,
+      "drawCalls": 1
+    },
+    {
+      "species": "pear",
+      "season": "summer",
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "pear",
+      "season": "spring",
+      "branches": 386,
+      "leaves": 1274,
+      "fruits": 0,
+      "flowers": 115,
+      "triangles": 15020,
+      "drawCalls": 2
+    },
+    {
+      "species": "pear",
+      "season": "autumn",
+      "branches": 409,
+      "leaves": 1031,
+      "fruits": 23,
+      "flowers": 0,
+      "triangles": 13582,
+      "drawCalls": 3
+    },
+    {
+      "species": "pear",
+      "season": "winter",
+      "branches": 386,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3908,
+      "drawCalls": 1
+    },
+    {
+      "species": "cherry",
+      "season": "summer",
+      "branches": 418,
+      "leaves": 1326,
+      "fruits": 95,
+      "flowers": 0,
+      "triangles": 19776,
+      "drawCalls": 3
+    },
+    {
+      "species": "cherry",
+      "season": "spring",
+      "branches": 323,
+      "leaves": 1045,
+      "fruits": 0,
+      "flowers": 95,
+      "triangles": 12398,
+      "drawCalls": 2
+    },
+    {
+      "species": "cherry",
+      "season": "autumn",
+      "branches": 418,
+      "leaves": 849,
+      "fruits": 95,
+      "flowers": 0,
+      "triangles": 15960,
+      "drawCalls": 3
+    },
+    {
+      "species": "cherry",
+      "season": "winter",
+      "branches": 323,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 3278,
+      "drawCalls": 1
+    },
+    {
+      "species": "pine",
+      "season": "summer",
+      "branches": 346,
+      "leaves": 1865,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 11980,
+      "drawCalls": 3
+    },
+    {
+      "species": "pine",
+      "season": "spring",
+      "branches": 327,
+      "leaves": 1487,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 9290,
+      "drawCalls": 2
+    },
+    {
+      "species": "pine",
+      "season": "autumn",
+      "branches": 346,
+      "leaves": 1865,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 11980,
+      "drawCalls": 3
+    },
+    {
+      "species": "pine",
+      "season": "winter",
+      "branches": 346,
+      "leaves": 1865,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 11980,
+      "drawCalls": 3
+    },
+    {
+      "species": "spruce",
+      "season": "summer",
+      "branches": 985,
+      "leaves": 5438,
+      "fruits": 49,
+      "flowers": 0,
+      "triangles": 34222,
+      "drawCalls": 3
+    },
+    {
+      "species": "spruce",
+      "season": "spring",
+      "branches": 936,
+      "leaves": 4251,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 26436,
+      "drawCalls": 2
+    },
+    {
+      "species": "spruce",
+      "season": "autumn",
+      "branches": 985,
+      "leaves": 5438,
+      "fruits": 49,
+      "flowers": 0,
+      "triangles": 34222,
+      "drawCalls": 3
+    },
+    {
+      "species": "spruce",
+      "season": "winter",
+      "branches": 985,
+      "leaves": 5438,
+      "fruits": 49,
+      "flowers": 0,
+      "triangles": 34222,
+      "drawCalls": 3
+    },
+    {
+      "species": "fir",
+      "season": "summer",
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "fir",
+      "season": "spring",
+      "branches": 852,
+      "leaves": 3870,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 24072,
+      "drawCalls": 2
+    },
+    {
+      "species": "fir",
+      "season": "autumn",
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "fir",
+      "season": "winter",
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "larch",
+      "season": "summer",
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "larch",
+      "season": "spring",
+      "branches": 852,
+      "leaves": 3870,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 24072,
+      "drawCalls": 2
+    },
+    {
+      "species": "larch",
+      "season": "autumn",
+      "branches": 899,
+      "leaves": 3129,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 24022,
+      "drawCalls": 3
+    },
+    {
+      "species": "larch",
+      "season": "winter",
+      "branches": 899,
+      "leaves": 0,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 11506,
+      "drawCalls": 2
+    },
+    {
+      "species": "hazel",
+      "season": "summer",
+      "branches": 2245,
+      "leaves": 5561,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 67178,
+      "drawCalls": 2
+    },
+    {
+      "species": "hazel",
+      "season": "spring",
+      "branches": 2245,
+      "leaves": 4344,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 57442,
+      "drawCalls": 2
+    },
+    {
+      "species": "hazel",
+      "season": "autumn",
+      "branches": 2356,
+      "leaves": 3504,
+      "fruits": 111,
+      "flowers": 0,
+      "triangles": 57604,
+      "drawCalls": 3
+    },
+    {
+      "species": "hazel",
+      "season": "winter",
+      "branches": 2245,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 22690,
+      "drawCalls": 1
+    },
+    {
+      "species": "hawthorn",
+      "season": "summer",
+      "branches": 2245,
+      "leaves": 5561,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 67178,
+      "drawCalls": 2
+    },
+    {
+      "species": "hawthorn",
+      "season": "spring",
+      "branches": 2245,
+      "leaves": 4344,
+      "fruits": 0,
+      "flowers": 555,
+      "triangles": 61882,
+      "drawCalls": 2
+    },
+    {
+      "species": "hawthorn",
+      "season": "autumn",
+      "branches": 2356,
+      "leaves": 3504,
+      "fruits": 111,
+      "flowers": 0,
+      "triangles": 57604,
+      "drawCalls": 3
+    },
+    {
+      "species": "hawthorn",
+      "season": "winter",
+      "branches": 2356,
+      "leaves": 0,
+      "fruits": 111,
+      "flowers": 0,
+      "triangles": 29572,
+      "drawCalls": 2
+    },
+    {
+      "species": "rose",
+      "season": "summer",
+      "branches": 2245,
+      "leaves": 9325,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 97290,
+      "drawCalls": 2
+    },
+    {
+      "species": "rose",
+      "season": "spring",
+      "branches": 2245,
+      "leaves": 7435,
+      "fruits": 0,
+      "flowers": 555,
+      "triangles": 86610,
+      "drawCalls": 2
+    },
+    {
+      "species": "rose",
+      "season": "autumn",
+      "branches": 2356,
+      "leaves": 6020,
+      "fruits": 111,
+      "flowers": 0,
+      "triangles": 77732,
+      "drawCalls": 3
+    },
+    {
+      "species": "rose",
+      "season": "winter",
+      "branches": 2356,
+      "leaves": 0,
+      "fruits": 111,
+      "flowers": 0,
+      "triangles": 29572,
+      "drawCalls": 2
+    },
+    {
+      "species": "elder",
+      "season": "summer",
+      "branches": 2800,
+      "leaves": 9325,
+      "fruits": 555,
+      "flowers": 0,
+      "triangles": 131700,
+      "drawCalls": 3
+    },
+    {
+      "species": "elder",
+      "season": "spring",
+      "branches": 2245,
+      "leaves": 7435,
+      "fruits": 0,
+      "flowers": 555,
+      "triangles": 86610,
+      "drawCalls": 2
+    },
+    {
+      "species": "elder",
+      "season": "autumn",
+      "branches": 2800,
+      "leaves": 6020,
+      "fruits": 555,
+      "flowers": 0,
+      "triangles": 105260,
+      "drawCalls": 3
+    },
+    {
+      "species": "elder",
+      "season": "winter",
+      "branches": 2245,
+      "leaves": 0,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 22690,
+      "drawCalls": 1
+    }
+  ],
+  "tests": [
+    "20 species × 4 seasons",
+    "stable skeleton and mesh",
+    "distinct seeds",
+    "juvenile fruit suppression",
+    "low detail",
+    "extreme genomes",
+    "editor events"
+  ],
+  "baseRevision": "e40bf85",
+  "workingTree": true
+}

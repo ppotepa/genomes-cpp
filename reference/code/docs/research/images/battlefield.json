@@ -1,0 +1,24 @@
+{
+  "seed": 1128455909,
+  "units": 50,
+  "trees": 132,
+  "mapSize": 200,
+  "heightRange": 7.11883807182312,
+  "drawCalls": 396,
+  "infantryDrawCalls": 100,
+  "infantryDrawCallsPerUnit": 2,
+  "shaderPrograms": 9,
+  "failedShaderPrograms": 0,
+  "triangles": 1362868,
+  "tests": [
+    "50 units / 25 per side",
+    "200 m map and sectors",
+    "uneven terrain",
+    "trees outside corridor",
+    "region-aware single-material infantry draw calls",
+    "shader compilation",
+    "march direction and grounding",
+    "arrival without crossing",
+    "button restart and cleanup"
+  ]
+}

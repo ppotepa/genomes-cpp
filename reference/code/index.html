@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RTS — Infantry Lab 0.22.0</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/labUi.css">
+</head>
+<body>
+  <main id="app" aria-label="Mapa prototypu RTS"></main>
+  <div id="bootStatus" role="status">Ładowanie silnika 3D…</div>
+  <section id="worldConfig" class="world-config" aria-labelledby="worldConfigTitle">
+    <form id="worldConfigForm" class="world-config-card">
+      <div class="eyebrow">WORLD-GENERATION-1</div><h1 id="worldConfigTitle">Nowy świat</h1>
+      <p>Wieś z osadą, drogami, parcelami i zalesieniem. Te same ustawienia oraz seed zawsze tworzą ten sam plan.</p>
+      <label>Seed <span class="seed-row"><input id="worldSeed" type="number" min="0" max="4294967295" step="1"><button id="randomSeed" type="button">Losuj</button></span></label>
+      <label>Rozmiar mapy <select id="worldMapSize"><option value="400">400 × 400 m</option><option value="600" selected>600 × 600 m</option><option value="800">800 × 800 m</option><option value="1200">1200 × 1200 m</option></select></label>
+      <label>Preset <select id="worldPreset"><option value="village">Wieś z osadą</option></select></label>
+      <label>Roślinność <output id="worldVegetationValue"></output><input id="worldVegetation" type="range" min="0" max="100" value="62"></label>
+      <label>Zabudowa <output id="worldBuildingsValue"></output><input id="worldBuildings" type="range" min="0" max="100" value="55"></label>
+      <label>Ogrodzone parcele <output id="worldFencesValue"></output><input id="worldFences" type="range" min="0" max="100" value="48"></label>
+      <p class="muted">Drogi, chodniki i ogrodzenia są obecnie dekoracyjne — nie zmieniają trasowania jednostek.</p>
+      <button class="world-start" type="submit">Rozpocznij grę</button>
+    </form>
+  </section>
+  <aside id="debugPanel" class="debug-panel">
+    <details open>
+      <summary>GENOMES <span class="version">0.22.0</span></summary>
+      <div class="debug-body">
+        <button id="startNew" class="lab-action start-new" type="button" disabled>START NEW</button>
+        <p id="scenarioStatus" class="small muted" role="status">Wybierz konfigurację świata.</p>
+        <details class="debug-group" open><summary>ŚWIAT</summary>
+          <label class="check"><input id="grid5" type="checkbox">Siatka 5 m</label>
+          <label class="check"><input id="grid100" type="checkbox">Siatka 100 m</label>
+          <div id="worldSize" class="small muted">Świat nieutworzony · plan: 600 × 600 m</div>
+        </details>
+        <details id="performancePanel" class="debug-group"><summary>WYDAJNOŚĆ</summary>
+          <label class="quality-field" for="renderQuality">Jakość obrazu<select id="renderQuality"><option value="low">Oszczędny</option><option value="balanced">Zrównoważony</option><option value="high">Wysoka jakość</option></select></label>
+          <p class="small muted">Ogranicza rozdzielczość renderowania mapy i podglądów; nie zmienia modeli ani losowości.</p>
+          <div id="cacheStats" class="small muted">Cache geometrii: 0 / 64 MiB</div>
+        </details>
+        <details class="debug-group" open><summary>GENERATORY</summary>
+          <details class="lab-section" open><summary>Jednostki</summary>
+            <button id="openUnits" class="lab-action" type="button" disabled>Piechota</button>
+          </details>
+          <details class="lab-section" open><summary>Otoczenie</summary>
+            <a href="environment.html" class="lab-action">Rośliny <span class="lab-count">20</span></a>
+            <a href="environment.html?category=rocks" class="lab-action">Kamienie i skały <span class="lab-count">8</span></a>
+            <a href="building-lab/index.html" class="lab-action">Budynki <span class="lab-count">Building Lab</span></a>
+            <details id="rockPlacement" class="lab-section"><summary>Rozmieszczenie skupisk skał</summary>
+              <label class="quality-field">Odstęp skupisk <output id="rockClusterSpacingValue">55%</output><input id="rockClusterSpacing" type="range" min="0" max="1" step=".01" value=".55"></label>
+              <label class="quality-field">Promień skupisk <output id="rockClusterRadiusValue">55%</output><input id="rockClusterRadius" type="range" min="0" max="1" step=".01" value=".55"></label>
+              <label class="quality-field">Zagęszczenie <output id="rockDensityValue">50%</output><input id="rockDensity" type="range" min="0" max="1" step=".01" value=".5"></label>
+              <label class="quality-field">Nachodzenie brył <output id="rockOverlapValue">18%</output><input id="rockOverlap" type="range" min="0" max="1" step=".01" value=".18"></label>
+              <label class="quality-field">Zagłębienie w gruncie <output id="rockBurialValue">20%</output><input id="rockBurial" type="range" min="0" max=".65" step=".01" value=".2"></label>
+              <label class="quality-field">Jednorodność rodzaju <output id="rockUniformityValue">72%</output><input id="rockUniformity" type="range" min="0" max="1" step=".01" value=".72"></label>
+              <label class="quality-field">Różnorodność formacji <output id="rockFormationMixValue">70%</output><input id="rockFormationMix" type="range" min="0" max="1" step=".01" value=".7"></label>
+              <p class="small muted">Ustawienia zostaną użyte przy następnym START NEW.</p>
+            </details>
+            <button class="lab-action" type="button" disabled>Znaki i obiekty <span class="lab-count">W planie</span></button>
+          </details>
+        </details>
+      </div>
+    </details>
+  </aside>
+
+  <section id="unitsModal" class="modal" hidden aria-labelledby="modalTitle" role="dialog" aria-modal="true">
+    <div class="backdrop" data-dismiss="true"></div>
+    <div class="modal-card">
+      <header class="modal-head">
+        <div><div class="eyebrow">DEBUG / UNITS</div><h1 id="modalTitle">Generator piechoty</h1></div>
+        <span class="generator-version">infantry-5.0.0</span>
+        <button id="closeUnits" class="close" type="button" aria-label="Zamknij podgląd">×</button>
+      </header>
+      <div class="lab-layout">
+        <nav class="categories" aria-label="Kategorie jednostek">
+          <div class="category-label">NON-VEHICULAR</div>
+          <div class="category-current" aria-current="page">Infantry</div>
+          <div class="category-label unavailable">VEHICULAR</div>
+          <p class="small muted">Brak typów w tej wersji.</p>
+          <div class="category-foot">Model proceduralny<br>Szkielet → powierzchnia → animacja</div>
+        </nav>
+        <div class="lab-main">
+          <div class="lab-toolbar">
+            <label>Strona<select id="labSide"><option value="SIDE_A">SIDE_A — oliwkowy</option><option value="SIDE_B">SIDE_B — niebieskoszary</option></select></label>
+            <label>Seed<input id="labSeed" type="number" value="1001" min="0" max="4294967295" step="1" inputmode="numeric"></label>
+            <label>Animacja<select id="labState"><option>REST</option><option selected>IDLE</option><option>WALK</option><option>RUN</option><option>CROUCH</option><option>CROUCH_WALK</option><option>SITTING</option><option>PRONE</option><option>PRONE_MOVE</option></select></label>
+            <label>Mimika<select id="labExpression"><option selected>NEUTRAL</option><option>ALERT</option><option>FEAR</option><option>ANGER</option><option>PAIN</option><option>FATIGUE</option><option>EYES_CLOSED</option></select></label>
+          </div>
+          <div class="lab-content">
+            <div class="preview-column">
+              <div id="unitPreview" class="unit-preview" aria-label="Podgląd 3D jednostki"></div>
+              <div class="preview-caption"><span>LPM: obrót · PPM: przesunięcie · kółko: zoom</span><span>Metry · +Z = przód</span></div>
+            </div>
+            <aside class="inspector">
+              <div class="tabs" role="tablist" aria-label="Diagnostyka jednostki">
+                <button type="button" role="tab" id="tabModel" data-tab="model" aria-selected="true">Model</button>
+                <button type="button" role="tab" id="tabEquipment" data-tab="equipment" aria-selected="false">Ekwipunek</button>
+                <button type="button" role="tab" id="tabGenome" data-tab="genome" aria-selected="false">Genom</button>
+                <button type="button" role="tab" id="tabSkeleton" data-tab="skeleton" aria-selected="false">Szkielet</button>
+                <button type="button" role="tab" id="tabAnimation" data-tab="animation" aria-selected="false">Animacja</button>
+                <button type="button" role="tab" id="tabFace" data-tab="face" aria-selected="false">Twarz</button>
+              </div>
+              <div class="inspector-scroll">
+                <section data-page="model" role="tabpanel" aria-labelledby="tabModel">
+                  <h2>Podgląd</h2>
+                  <label class="field">Kamera<select id="labCamera"><option value="threequarter">Trzy czwarte</option><option value="front">Przód</option><option value="side">Bok</option><option value="back">Tył</option><option value="face">Twarz</option></select></label>
+                  <label class="check"><input id="showSurface" type="checkbox" checked>Powierzchnia modelu</label>
+                  <label class="check"><input id="showWire" type="checkbox">Siatka trójkątów</label>
+                  <label class="check"><input id="showBounds" type="checkbox">Obwiednia aktualnej pozy</label>
+                  <h2>Genom i fenotyp</h2><dl id="modelData" class="readout"></dl>
+                  <h2>Geometria</h2><dl id="geometryData" class="readout"></dl>
+                  <p class="note">Wzrost to wysokość od podeszwy do czubka głowy w pozycji referencyjnej, nie wysokość pozy kucającej lub leżącej.</p>
+                </section>
+                <section data-page="equipment" role="tabpanel" aria-labelledby="tabEquipment" hidden>
+                  <h2>Profil piechoty</h2>
+                  <label class="field">Zestaw wyposażenia<select id="gearLoadout"></select></label>
+                  <p id="gearDescription" class="note"></p>
+                  <label class="field">Seed wyposażenia<input id="gearSeed" type="number" min="0" max="4294967295" step="1" inputmode="numeric"></label>
+                  <button id="resetEquipment" class="genome-reset" type="button">Przywróć sloty profilu</button>
+                  <p class="note">Profil to zestaw przedmiotów, nie nowy model. Zmiany dotyczą tylko podglądu; zachowują genom, mimikę, fazę animacji i kamerę.</p>
+                  <h2>Materiały wyposażenia</h2>
+                  <label class="field">Paleta<select id="gearPalette"><option value="side">Kolory strony</option><option value="sand">Piaskowy</option><option value="forest">Leśny</option><option value="graphite">Grafitowy</option></select></label>
+                  <label class="field">Spłowienie materiału <output id="gearWearLabel">0.25</output><input id="gearWear" type="range" min="0" max="1" step=".05" value=".25"></label>
+                  <h2>Sloty</h2><div id="equipmentEditor"></div>
+                  <h2>Gotowy zestaw</h2><dl id="equipmentData" class="readout"></dl>
+                  <p class="note">Broń to wyłącznie proceduralne rekwizyty w pozycji transportowej. Masa jest parametrem projektowym, bez wpływu na ruch i bez fizyki wyposażenia.</p>
+                </section>
+                <section data-page="genome" role="tabpanel" aria-labelledby="tabGenome" hidden>
+                  <h2>Generator genomu</h2>
+                  <label class="field">Siła różnorodności seeda <output id="genomeVariationLabel">1.00</output><input id="genomeVariation" type="range" min="0" max="1.75" step="0.05" value="1"></label>
+                  <button id="resetGenome" class="genome-reset" type="button">Resetuj do seeda</button>
+                  <p class="note">Slidery poniżej nadpisują tylko podgląd laboratoryjny. Jednostki na mapie pozostają w pełni deterministyczne z seeda.</p>
+                  <div id="genomeEditor" class="genome-editor"></div>
+                </section>
+                <section data-page="skeleton" role="tabpanel" aria-labelledby="tabSkeleton" hidden>
+                  <h2>Szkielet i skinning</h2>
+                  <label class="check"><input id="showBones" type="checkbox">Pokaż kości</label>
+                  <label class="check"><input id="showColliders" type="checkbox">Bryły przyszłego ragdolla</label>
+                  <p class="note accent">Bryły są wizualizacją danych. Nie działa tu silnik fizyki ani aktywny ragdoll.</p>
+                  <dl id="skeletonData" class="readout"></dl>
+                  <details class="joint-list"><summary>Hierarchia kości</summary><pre id="bonesTree"></pre></details>
+                </section>
+                <section data-page="animation" role="tabpanel" aria-labelledby="tabAnimation" hidden>
+                  <h2>Postawa i lokomocja</h2>
+                  <div id="bipedControls">
+                    <label class="field" for="postureAmount">Obniżenie postawy <output id="postureRequestLabel">0.00</output></label>
+                    <input id="postureAmount" aria-label="Obniżenie postawy" type="range" min="0" max="1" step="0.005" value="0">
+                    <label class="field" for="locomotionSpeed">Żądana prędkość <output id="locomotionSpeedLabel">0.00 m/s</output></label>
+                    <input id="locomotionSpeed" aria-label="Żądana prędkość w metrach na sekundę" type="range" min="0" max="4.7" step="0.01" value="0">
+                  </div>
+                  <p id="locomotionNote" class="note">Dwie niezależne wartości: głębokość i prędkość. Presety ustawiają suwaki; ręczna zmiana ich nie restartuje. Głęboka postawa ogranicza prędkość.</p>
+                  <dl id="locomotionData" class="readout"></dl>
+                  <h2>Odtwarzanie</h2>
+                  <label class="check"><input id="pauseAnimation" type="checkbox">Wstrzymaj animację</label>
+                  <label class="field">Faza cyklu <output id="phaseLabel">0.000</output><input id="cyclePhase" type="range" min="0" max="0.999" step="0.001" value="0"></label>
+                  <p class="note">Zmiana fazy zatrzymuje odtwarzanie. Chód, bieg i czołganie działają w miejscu; faza wynika z wirtualnego dystansu. Zatrzymanie domyka krok. W pauzie suwaki rozwiązują pozę w tej samej fazie.</p>
+                  <h2>Ruch i kontakt</h2><dl id="animationData" class="readout"></dl>
+                  <p class="note">Podgląd działa w miejscu, bez blokowania kontaktów w świecie. Na mapie kończyny korzystają z renderowanego terenu. SITTING to poza na siedzisku; bez kotwicy jest tylko pozą referencyjną, nie siedzeniem na ziemi.</p>
+                </section>
+                <section data-page="face" role="tabpanel" aria-labelledby="tabFace" hidden>
+                  <h2>Mimika</h2>
+                  <label class="field">Intensywność <output id="expressionIntensityLabel">1.00</output><input id="expressionIntensity" type="range" min="0" max="1" step="0.01" value="1"></label>
+                  <p class="note">Mruganie i mikro-ruch oczu są proceduralne. EYES_CLOSED wymusza zamknięcie powiek.</p>
+                  <h2>Face genome / phenotype</h2><dl id="faceData" class="readout"></dl>
+                  <h2>Runtime</h2><dl id="faceRuntimeData" class="readout"></dl>
+                  <p class="note">Twarz jest generowana z seeda: kształt czaszki, szczęka, oczy, brwi, nos, usta, uszy i włosy. Mimika działa jako osobna warstwa runtime.</p>
+                </section>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+      <div id="labMessage" class="lab-message" role="status" hidden></div>
+    </div>
+  </section>
+  <!-- Klasyczne skrypty. Nie wymagają lokalnego serwera ani flag bezpieczeństwa. -->
+  <script src="js/loader.js"></script>
+</body>
+</html>

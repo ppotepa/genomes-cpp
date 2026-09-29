@@ -1,0 +1,22 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const nodes=new Map();
+function element(){return {children:[],value:'',textContent:'',disabled:false,max:'',append(...items){this.children.push(...items);},remove(){}};}
+global.document={activeElement:null,getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);},createElement:element};
+global.window={RTS:{PostureProfile:{isBiped:()=>false,speedLimit:()=>0}}};
+const R=window.RTS;
+vm.runInThisContext(fs.readFileSync(require.resolve('../js/ui/debugPanel.js'),'utf8'),{filename:'debugPanel.js'});
+let boundsScans=0;
+const animator={state:'IDLE',transition:null,phase:0,motion:{speed:0},metrics:{footContact:['FREE','FREE'],handContact:['FREE','FREE'],minBoot:[0,0],seat:'—',maxIKError:0},poseBounds(out){boundsScans++;return out;}};
+const size={x:1.2,y:1.8,z:.7,toString(){return '';}};
+const bounds={getSize(target){Object.assign(target,size);return target;}};
+const unit={locomotion:{requestedCrouch:0,requestedSpeedMps:0,custom:false,actualCrouch:0,runWeight:0,sprintWeight:0,gait:{cycleM:1}},phenotype:{walkSpeed:1,runSpeed:2,crouchSpeed:.5,proneSpeed:.2,body:{}},animator,genome:{},model:{}};
+const preview={unit,settings:{bounds:false},validation:{},bounds,size};
+const panel=Object.create(R.DebugPanel.prototype);panel.preview=preview;panel.activeTab='animation';panel.overrides={};panel.variation=1;panel.geneControls={};
+panel.refresh();
+assert.equal(boundsScans,0,'animation readout must not CPU-skin the model when exact bounds are disabled');
+assert(nodes.get('animationData').children.some(node=>String(node.textContent).includes('włącz')),'disabled bounds state should explain how to request exact bounds');
+preview.settings.bounds=true;panel.refresh();
+assert.equal(boundsScans,1,'enabling bounds should request exactly one accurate pose scan per refresh');
+assert(nodes.get('animationData').children.some(node=>node.textContent==='Obwiednia X'),'enabled bounds should restore exact dimensions');
+console.log('PASS debug pose bounds stay lazy until requested; enabled readout uses exact pose scan');

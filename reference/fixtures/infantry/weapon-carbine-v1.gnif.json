@@ -1,0 +1,460 @@
+{
+  "schema": "genomes.infantry.reference.v1",
+  "provenance": {
+    "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+    "sourceTree": "50e15a425f00611df1900b3d56c1d382978ec19e",
+    "generatorVersion": "genomes-infantry-exporter-v10",
+    "schemaVersion": 1,
+    "files": [
+      {
+        "path": "js/equipment/equipmentCatalog.js",
+        "sha256": "dedf0f2ef2c0dc2f95babbaa2ba4a7482534e8ec0281b2a2ccbe065fc83bcb3e"
+      },
+      {
+        "path": "js/weapons/weaponCatalog.js",
+        "sha256": "b4af868e33708a7e2325a35e154ec30ea0407dfb4f7fbcbe0e4fcbb0224fcbc1"
+      },
+      {
+        "path": "js/equipment/infantryLoadouts.js",
+        "sha256": "8112ea4c424728bb3da0e936527ea1a0bfdaa31589651d562eb429df9b761ce7"
+      },
+      {
+        "path": "js/equipment/equipment.js",
+        "sha256": "f224284b8b854c667926b3e81bcef50851330e642159e01f86b5556abdb1b5fb"
+      },
+      {
+        "path": "js/units/infantryGenome.js",
+        "sha256": "1fe0132188cca41528c9eb954ead3ebc6e6d59d4a68fe1f2851029d40b5eaff1"
+      },
+      {
+        "path": "js/weapons/handRig.js",
+        "sha256": "ef06768f80d9a4ebeb1bca45a4ffb914803d42fb1d2b91dc31d488d47fb6bedd"
+      },
+      {
+        "path": "js/rendering/infantryRig.js",
+        "sha256": "41cea12ea429761441563dfb733348d3fd9d537d43e45bc7c6414eae7ee82d0a"
+      },
+      {
+        "path": "js/rendering/faceAnatomy.js",
+        "sha256": "fa563062e5a61437c9a51eb532495ba5a9854744d6ecfb70c5ad67f00ee0e196"
+      },
+      {
+        "path": "js/rendering/surfaceBuilder.js",
+        "sha256": "76ed0f3f3efdb30842dcaf4481f9b76ab134d8a2045eeadf8ee17a58cb7c7b2b"
+      },
+      {
+        "path": "js/equipment/equipmentFit.js",
+        "sha256": "ff96328da3b7c1e47872d52c077ffd164763476ef29ce54c32a5443074d26a1a"
+      },
+      {
+        "path": "js/equipment/gearGeometry.js",
+        "sha256": "d21dc5ec79c1f18293322ca0ece4503b56f63c1ce80190393c1ee5402fe49323"
+      },
+      {
+        "path": "js/equipment/infantryGear.js",
+        "sha256": "717e775b0f6413578fc4ad08aa67b8a5d4f8079c1212881b6149328ebb8374fa"
+      },
+      {
+        "path": "js/rendering/infantryHair.js",
+        "sha256": "ad839743d62271101b82deddafd3108c92a16e5efda2c1e540c5c3266a16876f"
+      },
+      {
+        "path": "js/rendering/infantryFace.js",
+        "sha256": "0f3f15d4d49664fe74f21d050bcd66eca01858fb5e69395bcd87352e7bc51499"
+      },
+      {
+        "path": "js/rendering/infantrySurface.js",
+        "sha256": "c9dd81fe2603e0800ea77e3d50c4307aab9d9ea045df27e066a70ead6c589d7a"
+      },
+      {
+        "path": "js/rendering/infantryMaterials.js",
+        "sha256": "86550af1dcb4dcfb804afdae25df0577893e1b6b6b097ef0a8c2fc3495b7e933"
+      },
+      {
+        "path": "js/rendering/infantryFactory.js",
+        "sha256": "1650331a11edd14da6e1f5e7a08d97cb8eb6b88cb5522c7263da79178e514cd5"
+      },
+      {
+        "path": "js/animation/infantryAnimator.js",
+        "sha256": "3d0b3af84d091304847a3c79257d86e6bb4f40618ecdb646757c16ab224166d1"
+      },
+      {
+        "path": "js/weapons/weaponGeometry.js",
+        "sha256": "fe9f64efedfc489aa2ccd610f341be03c2b36ee954ffed3e89e4d0c49d0e32b0"
+      },
+      {
+        "path": "js/weapons/weaponHandlingProfiles.js",
+        "sha256": "b7319dd93f0b45d8c7de0a13be12d1d4821ecb3de2f9ebddfd041f6db332a488"
+      },
+      {
+        "path": "js/weapons/weaponController.js",
+        "sha256": "93c28973aadcaadee6886afdae40e7c138c62b8a3a3ea86de32b4ee2a305a1ca"
+      },
+      {
+        "path": "js/units/infantryUnit.js",
+        "sha256": "92fdb0e0804e43536d33aeac7038a6bde27c2ebd5f9384152a76cc068e44d2bd"
+      },
+      {
+        "path": "js/combat/infantryDamageRuntime.js",
+        "sha256": "e8a170a7b9317a56c8e6f7973c57f9c0fa22071a04be7b5452421332d5ab3bea"
+      }
+    ]
+  },
+  "request": {
+    "mode": "weapon",
+    "seed": 0,
+    "variation": 0,
+    "detail": "high",
+    "equipment": "neutral",
+    "loadout": null,
+    "wear": 0.25,
+    "hairStyle": 3,
+    "weapon": "carbine"
+  },
+  "weapon": {
+    "definition": {
+      "id": "carbine",
+      "firearm": true,
+      "family": "TWO_HANDED",
+      "kind": "long",
+      "profiles": [
+        "2H"
+      ],
+      "length": 0.7,
+      "draw": 1.38,
+      "holster": 1.45,
+      "interval": 0.17,
+      "kick": 0.23
+    },
+    "primary": {
+      "groups": [
+        {
+          "start": 0,
+          "count": 5784,
+          "material": 0
+        },
+        {
+          "start": 5784,
+          "count": 372,
+          "material": 1
+        },
+        {
+          "start": 6156,
+          "count": 2736,
+          "material": 2
+        }
+      ],
+      "tags": {},
+      "records": [],
+      "vertices": 3102,
+      "triangles": 2964,
+      "morphs": [],
+      "extrema": {
+        "positions": {
+          "minimum": [
+            -0.028999999165534973,
+            -0.12800000607967377,
+            -0.1899999976158142
+          ],
+          "maximum": [
+            0.03550000116229057,
+            0.1535000056028366,
+            0.5120000243186951
+          ]
+        },
+        "normals": {
+          "minimum": [
+            -1,
+            -1,
+            -1
+          ],
+          "maximum": [
+            1,
+            1,
+            1
+          ]
+        },
+        "indices": {
+          "minimum": [
+            0
+          ],
+          "maximum": [
+            3101
+          ]
+        }
+      },
+      "faceMetadata": null,
+      "bounds": {
+        "minimum": [
+          -0.028999999165534973,
+          -0.12800000607967377,
+          -0.1899999976158142
+        ],
+        "maximum": [
+          0.03550000116229057,
+          0.1535000056028366,
+          0.5120000243186951
+        ],
+        "sphereCenter": [
+          0.0032500009983778,
+          0.012749999761581421,
+          0.16100001335144043
+        ],
+        "sphereRadius": 0.3620620747643645
+      },
+      "materials": [
+        {
+          "name": "",
+          "color": null,
+          "roughness": 0.52,
+          "metalness": 0.4,
+          "opacity": 1,
+          "transparent": false,
+          "vertexColors": true
+        },
+        {
+          "name": "",
+          "color": null,
+          "roughness": 0.86,
+          "metalness": 0.02,
+          "opacity": 1,
+          "transparent": false,
+          "vertexColors": true
+        },
+        {
+          "name": "",
+          "color": null,
+          "roughness": 0.97,
+          "metalness": 0,
+          "opacity": 1,
+          "transparent": false,
+          "vertexColors": true
+        }
+      ]
+    },
+    "slide": null,
+    "muzzleFlash": {
+      "groups": [
+        {
+          "start": 0,
+          "count": 144,
+          "material": 0
+        }
+      ],
+      "tags": {},
+      "records": [],
+      "vertices": 40,
+      "triangles": 48,
+      "morphs": [],
+      "extrema": {
+        "positions": {
+          "minimum": [
+            -0.02800000086426735,
+            -0.02800000086426735,
+            -0.026000000536441803
+          ],
+          "maximum": [
+            0.02800000086426735,
+            0.02800000086426735,
+            0.09000000357627869
+          ]
+        },
+        "normals": {
+          "minimum": [
+            -1,
+            -0.9669970870018005,
+            -1
+          ],
+          "maximum": [
+            1,
+            0.9669970870018005,
+            1
+          ]
+        },
+        "indices": {
+          "minimum": [
+            0
+          ],
+          "maximum": [
+            39
+          ]
+        }
+      },
+      "faceMetadata": null,
+      "bounds": {
+        "minimum": [
+          -0.02800000086426735,
+          -0.02800000086426735,
+          -0.026000000536441803
+        ],
+        "maximum": [
+          0.02800000086426735,
+          0.02800000086426735,
+          0.09000000357627869
+        ],
+        "sphereCenter": [
+          0,
+          0,
+          0.03200000151991844
+        ],
+        "sphereRadius": 0.058000002056360245
+      },
+      "materials": [
+        {
+          "name": "",
+          "color": null,
+          "roughness": null,
+          "metalness": null,
+          "opacity": 0,
+          "transparent": true,
+          "vertexColors": true
+        },
+        {
+          "name": "",
+          "color": null,
+          "roughness": null,
+          "metalness": null,
+          "opacity": 0,
+          "transparent": true,
+          "vertexColors": true
+        },
+        {
+          "name": "",
+          "color": null,
+          "roughness": null,
+          "metalness": null,
+          "opacity": 0,
+          "transparent": true,
+          "vertexColors": true
+        }
+      ]
+    },
+    "grips": {
+      "primary": [
+        -0.02,
+        0,
+        0,
+        0.7071067811865475,
+        0,
+        0.7071067811865476,
+        0
+      ],
+      "secondary": [
+        0.022,
+        0.043,
+        0.24,
+        -0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "muzzle": [
+        0,
+        0.08,
+        0.5129999999999999
+      ]
+    }
+  },
+  "body": null,
+  "gear": null,
+  "streams": [
+    {
+      "name": "weapon.primary.positions",
+      "type": 1,
+      "elements": 9306,
+      "bytes": 37224,
+      "quantizedFNV1a64": "dacbe1a9868dfa5c"
+    },
+    {
+      "name": "weapon.primary.normals",
+      "type": 1,
+      "elements": 9306,
+      "bytes": 37224,
+      "quantizedFNV1a64": "e0cf0a28e98d0baf"
+    },
+    {
+      "name": "weapon.primary.colors",
+      "type": 1,
+      "elements": 9306,
+      "bytes": 37224,
+      "quantizedFNV1a64": "81448462135d031d"
+    },
+    {
+      "name": "weapon.primary.uvs",
+      "type": 1,
+      "elements": 6204,
+      "bytes": 24816,
+      "quantizedFNV1a64": "d27d09b52a05c875"
+    },
+    {
+      "name": "weapon.primary.skinIndices",
+      "type": 1,
+      "elements": 12408,
+      "bytes": 49632,
+      "quantizedFNV1a64": "3bcd43c01c008e25"
+    },
+    {
+      "name": "weapon.primary.skinWeights",
+      "type": 1,
+      "elements": 12408,
+      "bytes": 49632,
+      "quantizedFNV1a64": "71c04f606858ca85"
+    },
+    {
+      "name": "weapon.primary.indices",
+      "type": 4,
+      "elements": 8892,
+      "bytes": 35568,
+      "quantizedFNV1a64": "05ded2d6ad2b9d15"
+    },
+    {
+      "name": "weapon.muzzleFlash.positions",
+      "type": 1,
+      "elements": 120,
+      "bytes": 480,
+      "quantizedFNV1a64": "96786402e529c00e"
+    },
+    {
+      "name": "weapon.muzzleFlash.normals",
+      "type": 1,
+      "elements": 120,
+      "bytes": 480,
+      "quantizedFNV1a64": "9bff5bb7c79b0701"
+    },
+    {
+      "name": "weapon.muzzleFlash.colors",
+      "type": 1,
+      "elements": 120,
+      "bytes": 480,
+      "quantizedFNV1a64": "95e5a001ab63bdb5"
+    },
+    {
+      "name": "weapon.muzzleFlash.uvs",
+      "type": 1,
+      "elements": 80,
+      "bytes": 320,
+      "quantizedFNV1a64": "0a931b210675c9d2"
+    },
+    {
+      "name": "weapon.muzzleFlash.skinIndices",
+      "type": 1,
+      "elements": 160,
+      "bytes": 640,
+      "quantizedFNV1a64": "963548a7b7b20725"
+    },
+    {
+      "name": "weapon.muzzleFlash.skinWeights",
+      "type": 1,
+      "elements": 160,
+      "bytes": 640,
+      "quantizedFNV1a64": "3476a0f4782a85a5"
+    },
+    {
+      "name": "weapon.muzzleFlash.indices",
+      "type": 4,
+      "elements": 144,
+      "bytes": 576,
+      "quantizedFNV1a64": "fe0117f590bb84a5"
+    }
+  ]
+}

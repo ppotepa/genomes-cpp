@@ -1,0 +1,22 @@
+GENOMES NATIVE C++ MANUAL MOVED
+===============================
+
+The executable native C++ migration/implementation manual now lives in:
+
+    ppotepa/genomes-cpp
+    docs/X.Y_*.txt
+
+This repository (ppotepa/genomes) remains the legacy/reference SOURCE for:
+
+    current JavaScript/browser runtime
+    prototypes
+    building lab
+    tests
+    research
+    destruction calibration
+    historical implementation documentation
+
+Native manual chapters must no longer be authored here.
+
+The TARGET repository references this repository using SOURCE::<path> notation
+and pins exact SOURCE commits for exported parity fixtures.

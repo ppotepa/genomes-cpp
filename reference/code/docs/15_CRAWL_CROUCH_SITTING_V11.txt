@@ -1,0 +1,192 @@
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+ITERACJA 0.11 — CZOŁGANIE, CROUCH, CROUCH_WALK, SITTING
+===================================================
+Baza: v0.10 equipment. Bez przebudowy modelu, nowego genomu, walki, obozów,
+mebli, AI, silnika fizyki i zewnętrznych animacji. Cały ruch pozostaje proceduralny.
+Zachowano 59 definicji ekwipunku, 20 slotów i 10 profili piechoty oraz edytor.
+
+1. ZNACZENIE NOWYCH STANÓW
+-------------------------
+SITTING zachowuje dawną sampleCrouch jako osobną sampleSitting: cofnięta
+miednica i bardziej pionowy tułów. Bez kotwicy to poza referencyjna na siedzisku,
+nie siedzenie na podłożu. Meble nie są dodawane. W świecie demo jej nie używa.
+
+CROUCH jest nową postawą: mniej cofnięte biodra, wyraźniejsze pochylenie tułowia,
+obniżenie wynikające z długości nóg i offsetu stawu biodrowego, swobodne ręce.
+Kości nie są skalowane. Zgięcie kolan jest wynikiem IK, nie arbitralnym kątem 90°.
+
+CROUCH_WALK korzysta z tej samej bazy co CROUCH, ale ma własne krótkie kroki,
+niższy wymach, podwójne podparcie, małe przeniesienie ciężaru i mniejszy swing rąk.
+Po zatrzymaniu zostaje w CROUCH. Nie cofa miednicy do pozy SITTING.
+
+2. NAPRAWA BUTÓW W PRONE
+-----------------------
+Usunięto wyrażenie prone * PI z końcowego obrotu obu butów.
+TwoBoneIK opcjonalnie buduje pełny układ osi segmentu: kierunek kości i skręt
+wynikający z płaszczyzny zgięcia. Dla nóg lokalne +Z odpowiada tej płaszczyźnie.
+W leżeniu kolana są skierowane na boki, więc podudzia i buty obracają się spójnie.
+
+Qfoot_model = Qshin_model * Qankle_relative
+
+Korekta kostki jest mała: większość rozłożenia na boki wynika z całej nogi,
+nie z wymuszenia dużego obrotu w jednym stawie. Lewe i prawe ułożenie są lustrzane.
+Między kontaktem podeszwy a układem względem podudzia używany jest slerp.
+Dotyczy to też wewnętrznej pozy SUPPORT, bez automatycznego obrotu o 113°.
+
+3. POŁOŻENIE KONTAKTU
+--------------------
+Lokalne punkty dolnego buta/podeszwy pochodzą z buforów finalnej powierzchni,
+po uwzględnieniu wzrostu, wielkości stopy i aktualnie założonego obuwia.
+Część cholewki deformowana przez podudzie jest sprawdzana oddzielnie skinningiem.
+
+ankleWorld = contactWorld - rotationWorld * localContact
+
+Wybór punktu uwzględnia normalną podłoża. Orientacja i pozycja kostki są
+uzgadniane w dwóch ograniczonych iteracjach IK. Dodatkowa kontrola skórowanego
+buta może podnieść cel bez zmiany jego obrotu. Nie wyłączono kontroli gruntu.
+Zmiana obuwia lub LOD przebudowuje próbki i zwalnia nieaktualne kotwice.
+
+4. PRONE_MOVE — PODPARCIE I POWRÓT
+--------------------------------
+Czołganie ma oddzielne fazy kontaktu, przesuwania ciała, zwolnienia i odzyskiwania
+kończyny. Punkty podparcia dłoni i butów mogą być zapisane w świecie.
+Lewa/prawa strona ma przesunięcie 0.5 cyklu; ręce pracują przeciwlegle do nóg.
+Kontakt dłoni ma inną długość niż kontakt stóp. Nie jest to four-point crawl
+na wyprostowanych rękach i kolanach; miednica oraz tułów pozostają nisko.
+
+Trajektoria lokalna w podporze kompensuje prędkość roota. Powrót korzysta
+z Hermite'a z dopasowanymi pochodnymi na początku i końcu. Pionowy łuk ma
+zerową prędkość na obu końcach, bez max(0,sinus) jako generatora całego ruchu.
+Faza nadal wynika z rzeczywiście pokonanego dystansu.
+
+Blokowanie kontaktów świata jest wyłączone w podglądzie bieżni, przy seek(),
+przestawieniu jednostki, niezgodnej zmianie postawy oraz podczas zwrotu.
+Krótkie rampy ograniczają gwałtowne przejmowanie/oddawanie kontroli nad kończyną.
+Bardzo odległa kotwica jest ponownie ustalana zamiast rozciągania nogi/ręki.
+
+5. DŁONIE, ŁOKCIE I MANKIETY
+---------------------------
+Orientacja dłoni dopasowuje dłoń do normalnej podłoża. Jej lokalne próbki są
+pobierane z całej geometrii ręki, uwzględniając rękawiczki i kształt palców.
+Płaszczyzna obrotu ręki jest uzgadniana z normalną dłoni, nie tylko z kierunkiem
+od barku do nadgarstka. To ogranicza skręcanie rękawów.
+
+Po IK sprawdzane są wybrane punkty rękawa. Gdy przechodzą przez grunt, następuje
+ograniczona korekta kierunku zgięcia łokcia (maks. 2 próby), bez odrywania
+zakotwiczonej dłoni. Sam elbow pole nie jest traktowany jako punkt podpory.
+Nie jest to pełny solver kontaktu łokci/przedramion ani fizyka ubrania.
+
+6. PARAMETRY DO STROJENIA
+------------------------
+Wszystkie liczby poniżej są parametrami animacji gry, nie normami biologicznymi.
+
+js/config.js, INFANTRY:
+  CROUCH_BASE_SPEED  = 0.75 m/s * istniejący speedMultiplier
+  CROUCH_CYCLE_LEGS  = 0.75 długości nogi / pełny cykl
+  CROUCH_DUTY        = 0.70
+  CRAWL_CYCLE_LEGS   = 0.56 długości nogi / pełny cykl
+  CRAWL_FOOT_DUTY    = 0.62
+  CRAWL_HAND_DUTY    = 0.66
+  PRONE_BASE_SPEED   = 0.55 m/s (bez zmiany)
+
+Pełny cykl to powrót tej samej kończyny, a nie pojedynczy krok.
+Niewielka dotychczasowa zależność długości cyklu od speedGene pozostaje.
+Crouch podnosi but w wymachu o 0.038 długości nogi; praca miednicy jest mała.
+Szczegóły profili: sampleCrouch / sampleProne w infantryAnimator.js.
+
+7. MIEDNICA I OCHRONA PODŁOŻA
+----------------------------
+Ruch szkieletu pozostaje w skali metrowej. Korekta nie zmienia root.scale,
+wzrostu, długości kości ani seedów. Błąd celu jest raportowany przez IK.
+Ciało i twarde elementy gear mają próbkowany prześwit; korekta miednicy jest
+ograniczona do 0.085 wzrostu. Unoszenie reaguje od razu, opuszczanie jest wygładzane.
+Po korekcie ponawiane jest IK. Nieprostowanie butów ma priorytet nad maskowaniem
+artefaktu „płaską podeszwą”.
+Po FaceAnimator dodatkowo sprawdzana jest głowa i nakrycie głowy; korekta
+tego końcowego etapu jest ograniczona do 0.03 wzrostu. Gdy próbkowanie nie
+zapewnia pełnego prześwitu, jest to ograniczenie rozwiązania, nie symulacja sił.
+
+8. DEMO I PRZEJŚCIA
+------------------
+WALK/RUN -> IDLE
+CROUCH_WALK -> CROUCH
+PRONE_MOVE -> PRONE
+
+Demo ma hamowanie przed końcem odcinka oraz narastającą prędkość przy starcie.
+Zmiana profilu ruchu zachowuje fazę, gdy ma to sens; zmiana rodziny podparcia
+przechodzi przez CROUCH/SUPPORT i zwalnia niezgodne kotwice.
+Zatrzymanie interpoluje kończyny do pozy spoczynkowej, nie zamraża nogi w górze.
+Nie jest to wielokrokowy planer zatrzymania; skrajne chwile przerwania mogą
+wymagać dalszego strojenia fazy lądowania.
+
+Podczas nawrotu blokady kontaktów są zwalniane, a root obraca się sprężyście
+wolniej dla niskich postaw. Nie ma pełnej osobnej animacji turn-in-place ani
+fizycznego przestawiania wszystkich podpór przy zwrocie 180°.
+
+Radiooperator A_005 demonstruje CROUCH_WALK; medyk A_003 pozostaje w CROUCH.
+Inżynier B_003 czołga się i odpoczywa w PRONE. Zachowano wszystkie 10 profili.
+
+9. API / EDYTOR
+---------------
+unit.setState('CROUCH');
+unit.setState('CROUCH_WALK');
+unit.setState('SITTING');
+unit.setState('PRONE');
+unit.setState('PRONE_MOVE');
+
+Opcjonalne siedzisko:
+  unit.setSeatAnchor(new THREE.Vector3(x, seatSurfaceWorldY, z));
+  unit.setState('SITTING');
+Usunięcie kotwicy: unit.setSeatAnchor(null).
+Kotwica określa powierzchnię siedziska w świecie, nie pivot kości biodrowej.
+Miednica jest odsunięta o przybliżoną grubość okolicy siedziska danej anatomii.
+Wysokie siedzisko może zostawić stopy nad gruntem zamiast rozciągać nogi.
+To kinematyczny kontekst animacji, nie mebel, wykrywanie krzeseł czy interakcja.
+
+Dotychczasowy selektor w popupie obsługuje nowe nazwy. Pauza/seek/kamery,
+Genom, Twarz i Ekwipunek pozostają dostępne. Nowych przycisków na mapie nie ma.
+Zakładka Animacja pokazuje SOLE / TOE / OUTER_EDGE / FREE / PALM, blokowanie,
+prześwit obuwia i informację o obecności kotwicy SITTING.
+
+10. ZMIENIONE PLIKI
+------------------
+js/config.js                       nazwy stanów i parametry ruchu
+js/animation/gaitProfile.js         profile niskie, Hermite, rodziny postaw
+js/animation/groundContact.js       nowy, światowy punkt podparcia
+js/animation/twoBoneIK.js           pełny układ osi i jawny błąd celu
+js/animation/infantryAnimator.js    nowe postawy, buty, dłonie, korekty kontaktu
+js/units/infantryGenome.js          tylko wyliczane crouchSpeed; bez zmian losowań
+js/units/infantryUnit.js            API siedziska, start/stop, zachowanie demo
+js/equipment/infantryGear.js        próbki głowy/gear do końcowej kontroli
+js/game.js                         przykład nowego chodu, nadal 10 profili
+js/ui/debugPanel.js                istniejące odczyty animacji
+js/loader.js                       dołączenie klasycznego groundContact.js
+index.html                         istniejący selektor i notatka o SITTING
+
+11. SPRAWDZENIA I OGRANICZENIA
+------------------------------
+Sprawdzono składnię oraz lokalne ścieżki. tests/posture_smoke.cjs wykonuje
+cztery grupy celowanych prób: próbki nowych postaw dla dwóch seedów oraz
+krótki patrol dla PRONE_MOVE i CROUCH_WALK. Kontroluje kierunki butów,
+zachowanie długości kości, brak IDLE na końcu niskiego patrolu i aktywne blokady.
+Dodatkowo zbadano kilka pozycji na łagodnie nachylonej płaszczyźnie oraz kotwicę
+siedziska. To sprawdzenia geometryczne; brak deklaracji poprawności fizycznej.
+
+Środowisko: Node + dołączony numeric_math.cjs. NIE jest to prawdziwy Three.js,
+WebGL ani test płynności na docelowej przeglądarce. CDN nie był dostępny
+w środowisku przygotowania. tests/index.html korzysta z prawdziwej biblioteki
+przy uruchomieniu lokalnym przez użytkownika. Nie stwierdzamy, że te testy
+przeglądarkowe zostały tutaj wykonane.
+
+Podparcie jest kinematyczne; nie ma tarcia, nacisków, dynamicznego środka masy,
+pełnej samokolizji kończyn i sprzętu ani procedury znajdowania ścieżki.
+Próbkowanie i stała liczba poprawek nie gwarantują braku każdego przecięcia
+przy ekstremalnym genomie, dużych uskokach podłoża czy nietypowym układzie gear.
+
+12. HISTORIA RESEARCHU
+---------------------
+Bazą projektu zmian jest zachowany raport:
+  history/ANALIZA_CRAWL_CROUCH_V10.txt
+Zawiera audyt v0.10, osiem źródeł, rozróżnienie danych z badań i propozycji gry.
+To raport historyczny. Bieżący kontrakt wykonania określa ten plik i kod v0.11.

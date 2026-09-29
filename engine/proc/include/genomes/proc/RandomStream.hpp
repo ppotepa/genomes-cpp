@@ -29,7 +29,7 @@ public:
         const std::uint32_t xorshifted =
             static_cast<std::uint32_t>(((old_state >> 18U) ^ old_state) >> 27U);
         const std::uint32_t rotation = static_cast<std::uint32_t>(old_state >> 59U);
-        return (xorshifted >> rotation) | (xorshifted << ((-rotation) & 31U));
+        return (xorshifted >> rotation) | (xorshifted << ((0U - rotation) & 31U));
     }
 
     [[nodiscard]] double uniform01() noexcept {
@@ -44,7 +44,7 @@ public:
         if (bound == 0) {
             return 0;
         }
-        const std::uint32_t threshold = static_cast<std::uint32_t>(-bound) % bound;
+        const std::uint32_t threshold = (0U - bound) % bound;
         for (;;) {
             const std::uint32_t value = nextU32();
             if (value >= threshold) {

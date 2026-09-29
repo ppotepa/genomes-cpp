@@ -1,0 +1,104 @@
+{
+  "schema": "rts.destruction-material-calibration/1",
+  "date": "2026-09-26",
+  "note": "Gameplay calibration snapshot, not a real-world armour or ammunition table.",
+  "projectile": {
+    "weapon": "mk44",
+    "ammo": "30-ap",
+    "seed": 7,
+    "environment": "vacuum/no gravity for isolation"
+  },
+  "cases": [
+    {
+      "material": "brick",
+      "thickness_m": 0.3,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 42412,
+      "residual_pct": 81,
+      "mode": "masonry-break",
+      "front_radius_m": 0.075,
+      "rear_radius_m": 0.143,
+      "stress_radius_m": 0.264
+    },
+    {
+      "material": "concrete",
+      "thickness_m": 0.3,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 60118,
+      "residual_pct": 73,
+      "mode": "concrete-scab",
+      "front_radius_m": 0.066,
+      "rear_radius_m": 0.116,
+      "stress_radius_m": 0.214
+    },
+    {
+      "material": "concrete",
+      "thickness_m": 0.45,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 90177,
+      "residual_pct": 59,
+      "mode": "concrete-scab",
+      "front_radius_m": 0.066,
+      "rear_radius_m": 0.107,
+      "stress_radius_m": 0.214
+    },
+    {
+      "material": "steel",
+      "thickness_m": 0.02,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 24033,
+      "residual_pct": 89,
+      "mode": "petal",
+      "front_radius_m": 0.027,
+      "rear_radius_m": 0.044,
+      "stress_radius_m": 0.051
+    },
+    {
+      "material": "steel",
+      "thickness_m": 0.04,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 48066,
+      "residual_pct": 78,
+      "mode": "petal",
+      "front_radius_m": 0.028,
+      "rear_radius_m": 0.042,
+      "stress_radius_m": 0.053
+    },
+    {
+      "material": "wood",
+      "thickness_m": 0.2,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 1909,
+      "residual_pct": 99,
+      "mode": "grain-split",
+      "front_radius_m": 0.042,
+      "rear_radius_m": 0.079,
+      "stress_radius_m": 0.176
+    },
+    {
+      "material": "rock",
+      "thickness_m": 0.3,
+      "result": "penetrated",
+      "entry_J": 220596,
+      "lost_J": 69979,
+      "residual_pct": 68,
+      "mode": "mineral-scab",
+      "front_radius_m": 0.059,
+      "rear_radius_m": 0.094,
+      "stress_radius_m": 0.163
+    }
+  ],
+  "acceptance": {
+    "brick_030_residual_max_pct": 85,
+    "concrete_030_residual_max_pct": 80,
+    "masonry_virtual_cells_more_than": 9,
+    "perforation_convex_parts_max_per_hit": 4,
+    "detached_ejecta_max_fraction_of_original_volume": 0.1
+  }
+}

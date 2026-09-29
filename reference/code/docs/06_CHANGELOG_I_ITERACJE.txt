@@ -1,0 +1,340 @@
+v0.20.1 — 26.09.2026 | rubble-1.1.0 hardening
+- Rubble tile preferuje statyczny Rapier heightfield; runtime fallback przechodzi
+  kolejno do trimesh i cuboid zamiast zostawiać tile bez kolizji.
+- Overflow maxTiles zachowuje najnowszy depozyt w jego world-space tile; starszy,
+  mały tile jest scalany z najbliższym sąsiadem. Brak modulo-wrap nowych osadów.
+- Re-ejection AP/HE zachowuje bilans per materiał, nie tylko łączną objętość.
+- Dodane RubbleField.accounting() i DestructionPhysics.representationAccounting()
+  dla bilansu hero / cheap / baked oraz udziałów materiałowych.
+- Near-detail InstancedMesh losuje materiał z lokalnego miksu komórki.
+- RubbleField ma provider wysokości bazowego terenu; mesh, collider, ballistic
+  trace i bake eligibility działają na terrain + pile zamiast zakładać y=0.
+- Movement cost używa tylko nachylenia sterty, żeby nie naliczać ponownie
+  nachylenia istniejącego terenu; normalne kolizji nadal używają pełnej powierzchni.
+- Benchmark zapisuje represented debris volume i collider modes.
+- Regresje obejmują heightfield-first/fallback, terrain piles, spatial overflow
+  i conservation materiałów przy ponownym wzbijaniu gruzu.
+
+v0.20.0 — 26.09.2026 | persistent rubble field rubble-1.0.0
+- Gruz nie znika już przy presji puli: lifecycle hero Rapier -> cheap airborne
+  -> baked RubbleField; pełny cheap pool przechodzi do direct deposit.
+- Sleeping hero debris bake'uje się po 60 tickach tylko przy ziemi lub istniejącej
+  stercie; elevated debris zachowuje możliwość ponownego obudzenia po utracie podpory.
+- Bake jest atomowy: objętość wszystkich kandydatów trafia do pola, dirty tile
+  colliders są przebudowane raz, dopiero potem usuwane są stare rigid bodies.
+- Pole: komórki 0,5 m, kafle 4 m, max 256 tiles, per-material solid volume,
+  gameplay packing i lokalny slope relaxation z zachowaniem objętości.
+- Cheap airborne: max 1024 rekordy, jedna pula InstancedMesh dla packet debris;
+  większe zdegradowane fragmenty mogą zachować istniejącą siatkę wizualną.
+- Mikroskopijne hull failures trafiają do micro-rubble zamiast znikać.
+- Baked rubble ma low-poly static collider, mound mesh i near-detail chunks.
+- Ballistyka widzi stertę jako porowatą mieszankę materiałów; trafienie może
+  przemieścić volume i wyrzucić cheap packets, HE może ponownie wzbić stertę.
+- Rubble broad-phase używa spatial hash kafli; dirty colliders/meshe nie są
+  przebudowywane per pocisk, tylko podczas sync fizyki.
+- API height/slope/movementCost/cover; destruction-demo movement korzysta z
+  movementCost i pokazuje hero/cheap/rubble metrics.
+- Dodano tests/destruction_rubble.cjs oraz benchmark accounting hero/cheap/baked.
+- docs/destruction/benchmark.json pozostaje historycznym pomiarem sprzed RubbleField
+  i wymaga ponownego wygenerowania na środowisku z przypiętym Three/Rapier.
+
+v0.19.1 — 26.09.2026 | destruction projectile-3.1.0
+- Usunięto nadmiernie pobłażliwy model AP dla kruchych materiałów: opór używa
+  teraz jawnego bulkResistance materiału oraz macierzy ammo × material.
+- 30 mm AP w izolowanym snapshotcie gry traci ~19% energii na 30 cm cegły,
+  ~27% na 30 cm betonu i ~41% na 45 cm betonu; są to parametry gry, nie tabela
+  rzeczywistej penetracji.
+- Cegła: większy front/rear/stress response, radius-driven wirtualne cegły/spoiny
+  i lokalne osłabienie kolejnych trafień.
+- Beton/skała: większy front crater, rear scab oraz strefa naprężeń sąsiednich
+  sekcji bez automatycznego cięcia każdej z nich.
+- Małe survivory przy wlocie/wylocie (<10% sekcji) mogą stać się fizycznym
+  gruzem; nie zwiększa to liczby convex parts ponad wynik perforacji.
+- Stal zachowuje dent/plug/petal, drewno grain-split; włókna drewna wpływają
+  również na deflekcję po penetracji i płytkim rykoszecie.
+- Naprawiono stale BVH neighbor podczas model.batch() ujawniony przez większy
+  stressRadius.
+- Dodano material-response-calibration.json i regresje dla oporu AP, zasięgu
+  masonry cluster, bounded ejecta oraz grain-biased ricochet.
+
+v0.19.0 — 25.09.2026 | building-5.0.0 + destruction projectile-3.0.0
+- Procedural Building Lab v5: warstwowe ściany, dokładniejsze okna/drzwi,
+  cztery rodziny schodów z poprawnymi stykami, proceduralne detale dachu
+  i bezkolizyjne rezerwacje elewacji.
+- Pocisk jest trwałym obiektem symulacji: zachowuje ID, masę, średnicę,
+  integralność, deformację, stabilność i historię kontaktów.
+- Materiałowe rykoszety/otarcia, niewielka deflekcja po penetracji,
+  degradacja aerodynamiki i ograniczony rozpad wtórny uszkodzonego pocisku.
+- Fizyczny kanał AP ma ograniczoną do sześciu części wypukłą reprezentację,
+  osobny promień wlotu/wylotu i spójny punkt wyjścia dla VFX.
+- Swept-sphere ma dokładniejsze potwierdzenie krawędzi/narożnika po tanim
+  broad-phase, co usuwa część fałszywych rykoszetów.
+- Relacje nośne mają integralność 0–1 i reverse-index dependents; trafienie
+  przy styku może lokalnie przerwać podparcie bez natychmiastowego HP-killu sekcji.
+- Gruz dostaje impuls w rzeczywistym punkcie trafienia, więc uderzenie poza
+  środkiem masy nadaje także moment obrotowy.
+- Oddzielone BVH statycznego budynku i ruchomego gruzu; adaptacyjne odcinki
+  lotu i wyłączone eventy flight poza diagnostyką.
+- Dodane regression suites projectile/spatial oraz wspólny npm test.
+- GitHub Actions workflow jest manualny: repo zwraca startup_failure przed
+  startem runnera także dla minimalnego probe; nie interpretować tego jako failure testów.
+- Opisy modelu są parametrami gry, nie certyfikowaną symulacją uzbrojenia.
+
+v0.18.0 — 24.09.2026 | START NEW — proceduralne pole marszu
+- Cache nieaktywnych wariantów wyglądu piechoty: 64 MiB / 48 wpisów,
+  dokładny fenotyp i ekwipunek w kluczu, diagnostyka w sekcji Wydajność.
+- Przycisk START NEW tworzy mapę 200 × 200 m: pagórki, 90 drzew,
+  dwie armie po 25 żołnierzy w szykach 5 × 5, maszerujące ku sobie.
+- Instancjonowanie drzew, wolny korytarz marszu, zatrzymanie na pozycjach.
+- Ponowne uruchomienie zastępuje świat i zwalnia jego zasoby; postęp generowania.
+- Test WebGL: kierunek marszu, grunt, zatrzymanie, granice mapy i ponowny start.
+- Bez symulacji walki; opis: docs/25_START_NEW.md.
+
+v0.17.0 — 24.09.2026 | generator otoczenia plants-1.0.0
+- Wspólny wygląd kontrolek i kategorii; prawy panel Świat / Generatory →
+  Jednostki / Otoczenie, ustawienia roślin w zwijanych sekcjach po prawej.
+- Osobne laboratorium otoczenia: environment.html, dostępne z mapy.
+- 20 gatunków drzew i krzewów, deterministyczny genom, edycja 7 genów.
+- Cztery sezony, wiek, kwiaty i owoce, dwa detale, eksport/import DNA.
+- Kategorie przyszłych generatorów skał i obiektów; atlas porównawczy 20 roślin.
+- Dokumentacja, research i plan ekosystemu: docs/24_GENERATOR_OTOCZENIA_ROSLINY.md.
+- Etap generatora; bez automatycznego obsadzania mapy i kolizji.
+
+v0.16.0 — 24.09.2026 | geometria broni procedural-arms-2.0.0
+- Przebudowane modele karabinów, broni wsparcia i pistoletu; materiały
+  metalu, tworzywa i gumy; dopasowane punkty podparcia i pełne skalowanie.
+- Osobny animowany zamek pistoletu, zgodny ze strzałem i przewijaniem akcji.
+- Przycisk dodawania pistoletu w zakładce Broń, z zachowaniem genomu i broni głównej.
+- Testy całego katalogu, profili 1H/2H i rzeczywistego interfejsu WebGL.
+- Opis i rendery: docs/23_MODELE_BRONI_V16.md.
+
+v0.14.0 — 24.09.2026 | generator infantry-7.0.0
+- `main` fast-forward do aktualnego origin/main i integracja zdalnego v13; rig
+  ma 69 kości, w tym niezależne kości palców.
+- Wspólne landmarki głowy i rigu, płynniejszy profil żuchwa–szyja oraz wagi
+  szyi/głowy dopasowane do anatomii jednostki.
+- Lokalny kształt żuchwy i policzków, miękkie relacje genomu, mniejsze oczy,
+  prawie zamknięte usta neutralne i limitowane kanały ekspresji.
+- Strefa obojczyka w wadze barku, zwężony przyśrodkowo nosek buta.
+- Raport bazowy oddzielony od wyników po zmianach; dodano cztery plansze
+  końcowe na tych samych seedach. Zapisane jednostki mogą zmienić wygląd,
+  dlatego wersja generatora została podniesiona.
+
+v0.12.0 — 24.09.2026
+- Dwa ciągłe parametry: głębokość postawy i prędkość w m/s.
+- Monotoniczne krzywe miednicy/tułowia, głębsze maksimum crouch.
+- Wspólny profil chodu/biegu, zachowana faza i niezależne rodziny podpór.
+- Hamowanie przed głęboką postawą, ograniczenie prędkości, kończenie kroku.
+- Światowe przeliczenie wymachu i jednostronne przestawienie stopy na postoju.
+- Suwaki, pauza, odczyty, zachowanie genomu/gear/kamery w laboratorium.
+- Cztery grupy nowych kontroli numerycznych; bez testu WebGL w kontenerze.
+- Przygotowanie źródeł do repozytorium ppotepa/genomes.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+CHANGELOG 0.11.0
+================
+- Nowe SITTING (dawny CROUCH) i CROUCH_WALK; osobno zaprojektowany CROUCH.
+- Usunięto wymuszanie prone * PI dla butów. Nowa orientacja wynika z podudzia
+  i płaszczyzny zgięcia; ograniczona korekta kostki i splay lewo/prawo.
+- TwoBoneIK rozwiązuje pełne układy osi, bez skalowania kości.
+- GroundContact przechowuje światowe kontakty stóp i dłoni.
+- Profile niskiego ruchu mają podporę/powrót i ciągłą pochodną trajektorii.
+- Kontakt buta obliczany z obróconej geometrii, dopasowanej do genomu i gear.
+- Osobna kontrola rękawów/łokci; korekta płaszczyzny zgięcia nie zrywa dłoni.
+- Końcowa kontrola głowy/wyposażenia po warstwie rozglądania.
+- Nowy crouchSpeed z istniejącego speedMultiplier, bez nowych losowań genów.
+- Demo hamuje/przyspiesza; CROUCH_WALK -> CROUCH, PRONE_MOVE -> PRONE.
+- Radiooperator demonstruje nowy chód obniżony; pozostało 10 loadoutów.
+- Istniejący selektor, pauza i seek obsługują nowe stany; odczyty kontaktów.
+- Dokumentacja i cztery celowane grupy prób numerycznych.
+
+ZASADY NASTĘPNEJ ITERACJI
+=======================
+Bazą jest v0.11. Aktualizować kod, docs/03, docs/15, changelog, version.json
+oraz manifest. Nie zmieniać tożsamości/genomu ani seedów gear przy strojeniu
+ruchu. Parametry animacji nie są normami biomechanicznymi.
+Nie przypisywać wynikom numeric_math.cjs statusu testu Three.js lub WebGL.
+Historia badań i raportów pozostaje w docs/history/.
+
+HISTORIA POPRZEDNICH WERSJI
+=========================
+RTS PROTOTYPE 0.10.0 | generator infantry-5.0.0 | 24.09.2026
+
+CHANGELOG 0.10.0
+================
+- Bazowa Unit posiada Equipment; InfantryUnit dziedziczy ten komponent.
+- 20 slotów, 59 definicji proceduralnego wyposażenia, dokładnie 10 loadoutów.
+- Oddzielny equipmentSeed i niezależne strumienie slotów/instancji.
+- Headgear, masks, armor, rigs, packs, pouches, clothes, gloves, boots, props.
+- Wspólne dopasowanie ubrania/wyposażenia do anatomii, maskowanie włosów.
+- Jeden dodatkowy SkinnedMesh używa tego samego skeletonu co ciało.
+- Zakładka Ekwipunek, selektory wszystkich slotów, seed, paleta i spłowienie.
+- Zmiana gear bez resetu genomu, animacji, mimiki, rozglądania i kamery.
+- Korekta kontaktu gear z terenem na ograniczonym zbiorze próbek.
+- 10 profili na mapie; bez nowego AI, strzelania, obozów i fizyki.
+- Dokumentacja ekwipunku, katalog i celowany test generowania.
+
+ZASADY KOLEJNEJ ITERACJI
+======================
+Podstawą jest v0.10. Zmiany katalogu nie powinny zmieniać strumienia genomu.
+Aktualizować docs/13, katalog docs/14, changelog, version.json i manifest.
+Nie zastępować historycznych raportów deklaracją testu nowej wersji.
+Dodanie nowego kind wymaga generatora i wpisu w loaderze, nie pustego pliku.
+
+HISTORIA
+========
+RTS PROTOTYPE 0.9.0 | generator infantry-4.0.0 | 24.09.2026
+
+CHANGELOG 0.9.0
+===============
+- Widoczne proceduralne obracanie szyi i głowy podczas rozglądania.
+- Attention i micro-saccades rozdzielone; oczy nie wymuszają ciągłego ruchu głowy.
+- Demo WALK/RUN/PRONE_MOVE chodzi po odcinku tam i z powrotem zamiast po okręgu.
+- Na końcach trasy jednostki przechodzą do IDLE, obracają się i chwilę czekają.
+- Nie dodano AI, obozów, walki ani nowego UI.
+
+HISTORIA — POPRZEDNIE WYDANIE
+=============================
+RTS PROTOTYPE 0.8.0 | generator infantry-4.0.0 | 24.09.2026
+
+CHANGELOG 0.8.0
+==============
+- nowy faceAnatomy.js, wspólne punkty mocowania oraz ograniczenia relacji;
+- ciągła skóra głowa/szyja, bez wewnętrznej zaślepki;
+- otwory oczu i ust, sferyczne gałki, pierścienie powiek/warg;
+- morfy zamknięcia/łuku powiek i neckFlex, prawdziwe wagi żuchwy/policzków;
+- brwi/nos/uszy/włosy mocowane do finalnej czaszki;
+- dopasowany kołnierz i obszary barków;
+- retargeting pozy i zasięgu do proporcji ciała;
+- naprawione zero różnorodności, bald + sześć fryzur;
+- odległościowy detal 10/15 m, zachowanie morfów w snapshotach/LOD;
+- aktualne, celowane testy zamiast nieaktualnych założeń testów v0.4;
+- docs przepisane do faktycznego stanu v0.8.
+
+Wersja struktury genome jest zgodna kluczami z v0.7. Wersja GENERATORA została
+zwiększona: identyczne geny mogą dać inny, poprawiony mesh oraz inną fryzurę.
+Nie nakładać ZIP-a na stary katalog. Każda następna iteracja aktualizuje
+VERSION, GENERATOR_VERSION, version.json, docs, raporty i manifest SHA-256.
+Nie przedstawiać raportów historycznych jako weryfikacji nowego wydania.
+
+HISTORIA — TREŚĆ POPRZEDNICH WYDAŃ
+================================
+RTS PROTOTYPE 0.7.0 | generator infantry-3.0.0 | 24.09.2026
+
+0.7.0 — 24.09.2026 — infantry-3.0.0
+A / Body genome
+Dodano morfologię ciała niezależną od height: frame/mass/muscle/fat, barki,
+biodra, torso/legs, długości i grubości kończyn, szyję, głowę, dłonie i stopy.
+
+B / Jeden phenotype
+Wspólne parametry sterują skeletonem, surface i descriptorami ragdolla.
+Nie istnieje już jeden stały obrys ciała skalowany wyłącznie przez H.
+
+C / Twarz i włosy
+Poszerzone morphs regionów twarzy i osobne width/height oczu. HairBuilder
+dodaje objętość, hairline, receding temples, widow peak i 6 stylów.
+
+D / Generator laboratoryjny
+Dodano zakładkę Genom z ręcznymi override wszystkich genów i regulacją
+siły różnorodności. Override nie zmienia jednostek świata ani seeda.
+
+
+CHANGELOG I ZASADY KOLEJNYCH ITERACJI
+
+0.6.0 — 24.09.2026 — infantry-2.2.0
+- Face genome w osobnym deterministycznym strumieniu RNG; height/speed zachowane.
+- Zmienny kształt czaszki, szczęki, policzków, oczu, brwi, nosa, ust i uszu.
+- Genome-based kolor oczu, kolor włosów, cztery warianty krótkiej fryzury i subtelna asymetria.
+- Skeleton rozszerzony z 22 do 39 kości/kontrolerów; body ragdoll schema pozostaje bez zmian.
+- FaceAnimator: NEUTRAL, ALERT, FEAR, ANGER, PAIN, FATIGUE, EYES_CLOSED.
+- Proceduralny blink, gaze, micro-saccades, jaw/lids/brows/lips/mouth corners.
+- API blend: setExpressionWeight(), look target, forced eye closure.
+- Debug generator: Mimika + intensywność + zakładka Twarz.
+
+====================================
+
+0.5.0 — 24.09.2026 — infantry-2.1.0
+Iteracja lokomocji bez zmiany genomu, topologii i kontraktu ragdolla.
+
+A / Gait
+Dodany gaitProfile.js. WALK/RUN mają jawne stance/swing, plant/support,
+foot lift, heel/flat/toe-off i oddzielny foot/toe pitch.
+
+B / Kontakt
+World-space foot locking działa w stabilnej części stance. TwoBoneIK dostaje
+cele po orientation warp. Cele IK nie są opóźniane filtrem animacji.
+
+C / Ciało
+Dodane lateral weight shift, pelvis bob/yaw/roll, spine counter-rotation,
+head stabilization oraz mniej sinusoidalny swing ramion i łokci.
+
+D / Przejścia i skręt
+WALK <-> RUN zachowuje phase. Root facing jest wygładzany critically-damped
+springiem, a różnica movement/facing rozkładana na stopy, pelvis i spine.
+
+E / Follow-through
+Rotacje kości mają dt-correct response per grupa. Nogi/IK pozostają szybkie,
+spine, barki i głowa reagują z różną bezwładnością wizualną.
+
+0.4.0 — 24.09.2026 — infantry-2.0.0
+Przebudowa, nie wyłącznie poprawka skali elipsoid.
+
+A / Geometria i miara
+Naprawa modelu niepełnego ciała przez nowe punkty stawów, przekroje,
+połączone rękawy/krok i mierzalną wysokość od podeszwy do głowy.
+Zachowana realna skala i dwa geny. Brak nowych trwałych cech genomu.
+
+B / Szkielet i powierzchnia
+22 THREE.Bone, THREE.Skeleton, 1 SkinnedMesh, 4 kanały wag.
+Rozdział anatomy/rig/surface/factory; bind pose, walidacja, kontrola długości.
+
+C / Twarz i uniform
+Proceduralna głowa z twarzą, uszami i włosami; dłonie z palcami/kciukami.
+Kurtka, kołnierz, kieszenie, mankiety, spodnie i buty z podeszwami.
+Kolory stron, tekstura splotu w pamięci, poprawna ścieżka koloru.
+
+D / Pozy i ruch
+Reset od rest pose, quaternion blend, ruch powiązany z dystansem, stały krok,
+interpolacja renderu, kontrolowane przejście przez CROUCH i SUPPORT.
+Długości cykli i wysokość bioder dostosowane do zasięgu nóg.
+
+E / Kontakt
+Sampling renderowanych trójkątów, cele stóp, dwukościowe IK, normalne,
+kotwice podporu, ograniczone korekty podeszew/ciała oraz podparcie rąk.
+
+F / Ragdoll-ready
+Wypełniony kontrakt: 14 członów, 13 połączeń, rozmiary, masy, kotwice,
+osie, limity konfiguracyjne i macierze kość/człon. Debug tych samych danych.
+
+G / Aktywny ragdoll
+NIE WŁĄCZONY, zgodnie z wydzieleniem tego etapu w analizie v0.3.
+Nie dodano biblioteki fizyki, upadków ani udawanego checkboxa aktywacji.
+
+UI / Dokumentacja / Dostarczenie
+Zachowany prawy DEBUG. Wykorzystany istniejący popup Units, bez nowych
+przycisków gameplay. Model/Szkielet/Animacja, widoki kamery i odczyty.
+Usunięty automatyczny obrót modelu w popupie, kontrola zasobów przy rebuild.
+Dodane docs, historia analizy i tests. Weryfikacja rozdzielona na rzeczywiste
+rodzaje testów, bez deklarowania uruchomienia niedostępnego WebGL.
+
+ZASADY DALSZYCH ZMIAN
+1. Te same nazwy dokumentów są aktualizowane przy następnej iteracji.
+2. Dopisz nowy wpis na początku changeloga. Nie usuwaj historii decyzji.
+3. Zmieniaj VERSION przy wydaniu. Zmieniaj GENERATOR_VERSION, gdy seed
+   przestaje wyznaczać tę samą geometrię/proporcje.
+4. Zmiana kości wymaga równoczesnej zmiany wag, animacji, kontraktu fizyki,
+   diagnostyki i testów. Nie zostawiaj drugiego zestawu proporcji w fizyce.
+5. Zmiana stanu animacji wymaga przeglądu wejścia, wyjścia i stałego cyklu.
+6. Zmiana topologii wymaga walidacji orientacji, wag, miar i renderu.
+7. Gdy wdrożony będzie aktywny ragdoll, opis w 04_RAGDOLL_KONTRAKT.txt musi
+   odróżniać dane od działającej fizyki, a 07_OGRANICZENIA.txt zmienić status.
+8. Testuj ponownie file:// po zmianie bibliotek lub sposobu ładowania.
+9. Nie dokładaj niezleconych przycisków/systemów jako elementu naprawy modelu.
+10. Przy zamknięciu iteracji odśwież raporty i sums manifestu zamiast
+    przenosić stare PASS jako wyniki nowej wersji.
+
+HISTORIA
+history/ANALIZA_v03.txt przechowuje oryginalną analizę jako materiał wejściowy.
+Nie edytować jej tak, aby wyglądała jak opis aktualnie działającego kodu.
+Stan faktycznej implementacji opisują dokumenty numerowane i changelog.

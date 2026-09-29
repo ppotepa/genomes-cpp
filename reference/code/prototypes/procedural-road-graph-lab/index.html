@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Procedural Road Graph Lab</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --panel: rgba(10,14,20,.88);
+      --line: rgba(255,255,255,.12);
+      --muted: #9aa4b2;
+      --text: #eef2f7;
+      --accent: #64d8cb;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #0b1015; color: var(--text); font: 12px/1.35 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+    #app, canvas { width: 100%; height: 100%; display: block; }
+    #ui {
+      position: fixed; left: 12px; top: 12px; z-index: 10; width: 340px; max-height: calc(100vh - 24px); overflow: auto;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; backdrop-filter: blur(10px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+    }
+    #ui h1 { font-size: 14px; margin: 0 0 10px; letter-spacing: .02em; }
+    #ui h2 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin: 14px 0 7px; letter-spacing: .08em; }
+    .row { display: grid; grid-template-columns: 1fr 126px; align-items: center; gap: 10px; margin: 7px 0; }
+    .row.wide { grid-template-columns: 1fr; }
+    label { color: #d8dee8; }
+    input, select, button {
+      width: 100%; background: #101823; border: 1px solid #263241; color: var(--text); border-radius: 7px; padding: 7px 8px; outline: none;
+    }
+    input[type="range"] { padding: 0; }
+    input[type="checkbox"] { width: auto; accent-color: var(--accent); }
+    button { cursor: pointer; font-weight: 650; }
+    button:hover { border-color: #4a647d; }
+    .buttonRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .switchGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px; }
+    .switch { display: flex; gap: 7px; align-items: center; color: #d7dde6; }
+    #stats { white-space: pre-wrap; color: #c4ccd7; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 90px; }
+    #status { color: #95e8de; margin-top: 8px; min-height: 16px; }
+    .hint { color: var(--muted); font-size: 11px; }
+    #legend {
+      position: fixed; right: 12px; bottom: 12px; z-index: 8; background: rgba(10,14,20,.76); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(8px);
+      color: #cdd5df; min-width: 178px;
+    }
+    .lg { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+    .sw { width: 28px; height: 4px; border-radius: 9px; display: inline-block; }
+    .small { font-size: 10px; color: #8f9aa8; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<div id="ui">
+  <h1>Procedural Road Graph Lab</h1>
+  <div class="row"><label for="preset">Preset morfologii</label><select id="preset"></select></div>
+  <div class="row"><label for="seed">Seed</label><input id="seed" value="RTS-URBAN-001" /></div>
+  <div class="row"><label for="worldSize">Obszar / skala</label><input id="worldSize" type="range" min="900" max="2200" step="50" value="1500" /></div>
+  <div class="row"><label for="density">Gęstość sieci</label><input id="density" type="range" min="0.55" max="1.55" step="0.05" value="1.00" /></div>
+  <div class="row"><label for="organic">Organiczność</label><input id="organic" type="range" min="0" max="1" step="0.05" value="0.55" /></div>
+  <div class="row"><label for="terrainWeight">Wpływ terenu</label><input id="terrainWeight" type="range" min="0" max="1" step="0.05" value="0.65" /></div>
+  <div class="row"><label for="epochs">Epoki wzrostu</label><input id="epochs" type="range" min="1" max="5" step="1" value="3" /></div>
+  <div class="buttonRow"><button id="regen">GENERUJ</button><button id="randomSeed">LOSOWY SEED</button></div>
+
+  <h2>Warstwy debug</h2>
+  <div class="switchGrid">
+    <label class="switch"><input id="showBuildings" type="checkbox" checked />budynki</label>
+    <label class="switch"><input id="showBlocks" type="checkbox" checked />bloki</label>
+    <label class="switch"><input id="showNodes" type="checkbox" />node'y</label>
+    <label class="switch"><input id="showTensor" type="checkbox" />tensor field</label>
+    <label class="switch"><input id="showUrbanity" type="checkbox" />urbanity</label>
+    <label class="switch"><input id="showNuclei" type="checkbox" checked />nuclei</label>
+    <label class="switch"><input id="showTraffic" type="checkbox" />traffic flow</label>
+    <label class="switch"><input id="showRejected" type="checkbox" />odrzucone</label>
+  </div>
+
+  <h2>Statystyki grafu</h2>
+  <div id="stats"></div>
+  <div id="status"></div>
+  <div class="hint">LPM: obrót · PPM: przesuwanie · kółko: zoom. Generator jest deterministyczny dla tego samego seeda i parametrów.</div>
+</div>
+<div id="legend">
+  <div class="lg"><i class="sw" style="background:#d9d1bb;height:9px"></i> motorway / trunk</div>
+  <div class="lg"><i class="sw" style="background:#e4a968;height:7px"></i> arterial</div>
+  <div class="lg"><i class="sw" style="background:#c7c8c4;height:5px"></i> collector</div>
+  <div class="lg"><i class="sw" style="background:#aeb3b7;height:3px"></i> local</div>
+  <div class="lg"><i class="sw" style="background:#8a745e;height:2px"></i> dirt / path</div>
+  <div class="small">Kolor debug traffic = przepływ / pojemność</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// 0. MODEL PARAMETERS
+// ============================================================
+const ROAD = Object.freeze({ MOTORWAY:0, TRUNK:1, ARTERIAL:2, COLLECTOR:3, LOCAL:4, SERVICE:5, PATH:6 });
+const ROAD_NAMES = ['MOTORWAY','TRUNK','ARTERIAL','COLLECTOR','LOCAL','SERVICE','PATH'];
+const ROAD_WIDTH = [16,13,10,7,4.8,3.6,2.2];
+const ROAD_SPEED = [110,85,60,42,30,20,12];
+const BASE_LENGTH = [260,220,170,115,78,55,42];
+const CAPACITY = [2600,2100,1500,900,450,220,90];
+
+const PRESETS = {
+  village: {
+    label:'Village / wieś', nuclei:[1,2], density:.62, organic:.82, grid:.08, radial:.28, suburban:.15,
+    hierarchy:.55, terrain:.88, loops:.12, deadEnds:.48, dirt:.68, ringRoad:.00, macroLoops:.05,
+    baseUrbanRadius:230, gatewayCount:2, plannedness:.08, historic:.65
+  },
+  town: {
+    label:'Town / miasteczko', nuclei:[2,4], density:.92, organic:.62, grid:.26, radial:.42, suburban:.35,
+    hierarchy:.72, terrain:.66, loops:.32, deadEnds:.27, dirt:.28, ringRoad:.18, macroLoops:.18,
+    baseUrbanRadius:320, gatewayCount:3, plannedness:.28, historic:.54
+  },
+  oldTown: {
+    label:'Old town / historyczne', nuclei:[2,3], density:1.12, organic:.86, grid:.10, radial:.68, suburban:.25,
+    hierarchy:.66, terrain:.74, loops:.48, deadEnds:.08, dirt:.16, ringRoad:.20, macroLoops:.18,
+    baseUrbanRadius:300, gatewayCount:3, plannedness:.06, historic:.92
+  },
+  plannedCity: {
+    label:'Planned city / siatka', nuclei:[2,4], density:1.20, organic:.18, grid:.90, radial:.18, suburban:.42,
+    hierarchy:.80, terrain:.30, loops:.74, deadEnds:.06, dirt:.05, ringRoad:.38, macroLoops:.35,
+    baseUrbanRadius:380, gatewayCount:4, plannedness:.92, historic:.16
+  },
+  suburb: {
+    label:'Suburb / przedmieścia', nuclei:[3,5], density:.92, organic:.38, grid:.42, radial:.22, suburban:.92,
+    hierarchy:.92, terrain:.45, loops:.22, deadEnds:.76, dirt:.08, ringRoad:.18, macroLoops:.22,
+    baseUrbanRadius:340, gatewayCount:3, plannedness:.58, historic:.10
+  },
+  metropolis: {
+    label:'Metropolis / wieloośrodkowe', nuclei:[5,8], density:1.42, organic:.40, grid:.52, radial:.48, suburban:.58,
+    hierarchy:1.0, terrain:.38, loops:.82, deadEnds:.14, dirt:.03, ringRoad:.82, macroLoops:.58,
+    baseUrbanRadius:430, gatewayCount:4, plannedness:.62, historic:.32
+  },
+  rural: {
+    label:'Rural region / rozproszony', nuclei:[2,5], density:.48, organic:.90, grid:.03, radial:.12, suburban:.08,
+    hierarchy:.48, terrain:.95, loops:.06, deadEnds:.62, dirt:.84, ringRoad:.00, macroLoops:.02,
+    baseUrbanRadius:180, gatewayCount:2, plannedness:.03, historic:.52
+  }
+};
+
+// ============================================================
+// 1. DETERMINISTIC RANDOMNESS + MATH
+// ============================================================
+function hashString(str) {
+  let h = 2166136261 >>> 0;
+  for (let i=0;i<str.length;i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function hash32(a,b=0,c=0,d=0) {
+  let h = (a ^ Math.imul(b+0x9e3779b9, 0x85ebca6b) ^ Math.imul(c+0xc2b2ae35,0x27d4eb2d) ^ d) >>> 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x7feb352d); h ^= h >>> 15; h = Math.imul(h, 0x846ca68b); h ^= h >>> 16;
+  return h >>> 0;
+}
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function childRng(root,...parts){ let h=root; for(const p of parts) h=hash32(h, typeof p==='string'?hashString(p):p|0); return mulberry32(h); }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function smoothstep(t){ return t*t*(3-2*t); }
+function dist2(a,b){ const dx=a.x-b.x, dz=a.z-b.z; return Math.hypot(dx,dz); }
+function dot2(a,b){ return a.x*b.x+a.z*b.z; }
+function norm2(v){ const l=Math.hypot(v.x,v.z)||1; return {x:v.x/l,z:v.z/l}; }
+function perp(v){ return {x:-v.z,z:v.x}; }
+function rotate2(v,a){ const c=Math.cos(a),s=Math.sin(a); return {x:v.x*c-v.z*s,z:v.x*s+v.z*c}; }
+function angleDiff(a,b){ let d=Math.abs(a-b)% (Math.PI*2); return d>Math.PI?Math.PI*2-d:d; }
+function signedArea(poly){ let s=0; for(let i=0,j=poly.length-1;i<poly.length;j=i++) s += poly[j].x*poly[i].z-poly[i].x*poly[j].z; return s*.5; }
+function polygonCentroid(poly){
+  let A=0,Cx=0,Cz=0;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const f=poly[j].x*poly[i].z-poly[i].x*poly[j].z; A+=f; Cx+=(poly[j].x+poly[i].x)*f; Cz+=(poly[j].z+poly[i].z)*f;
+  }
+  A*=.5; if(Math.abs(A)<1e-6){ const c=poly.reduce((r,p)=>({x:r.x+p.x,z:r.z+p.z}),{x:0,z:0}); return {x:c.x/poly.length,z:c.z/poly.length}; }
+  return {x:Cx/(6*A),z:Cz/(6*A)};
+}
+function pointInPoly(p,poly){ let inside=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+  const a=poly[i],b=poly[j]; const hit=((a.z>p.z)!=(b.z>p.z)) && (p.x < (b.x-a.x)*(p.z-a.z)/(b.z-a.z+1e-12)+a.x); if(hit) inside=!inside;
+  } return inside;
+}
+function closestPointSeg(p,a,b){ const vx=b.x-a.x,vz=b.z-a.z, wx=p.x-a.x,wz=p.z-a.z; const t=clamp((wx*vx+wz*vz)/(vx*vx+vz*vz+1e-9),0,1); return {x:a.x+vx*t,z:a.z+vz*t,t}; }
+function segIntersection(a,b,c,d){
+  const r={x:b.x-a.x,z:b.z-a.z}, s={x:d.x-c.x,z:d.z-c.z}; const den=r.x*s.z-r.z*s.x;
+  if(Math.abs(den)<1e-8) return null;
+  const q={x:c.x-a.x,z:c.z-a.z}; const t=(q.x*s.z-q.z*s.x)/den, u=(q.x*r.z-q.z*r.x)/den;
+  if(t>1e-5 && t<1-1e-5 && u>1e-5 && u<1-1e-5) return {x:a.x+t*r.x,z:a.z+t*r.z,t,u};
+  return null;
+}
+function logNormal(rng,mean,sigma=.22){
+  const u1=Math.max(1e-7,rng()),u2=Math.max(1e-7,rng()); const z=Math.sqrt(-2*Math.log(u1))*Math.cos(Math.PI*2*u2);
+  return mean*Math.exp(sigma*z-.5*sigma*sigma);
+}
+function weightedPick(rng,arr){ const sum=arr.reduce((s,a)=>s+a.w,0); let r=rng()*sum; for(const a of arr){ r-=a.w; if(r<=0)return a.v; } return arr[arr.length-1].v; }
+
+// ============================================================
+// 2. WORLD FIELD: TERRAIN, RIVER, COST, POPULATION, URBANITY
+// ============================================================
+class WorldField {
+  constructor(seed,size,preset,params){
+    this.seed=seed; this.size=size; this.half=size/2; this.preset=preset; this.params=params;
+    this.noiseSeed=hash32(seed, 101); this.riverSeed=hash32(seed,202);
+    this.riverPhase=childRng(seed,'river')()*Math.PI*2;
+    this.riverAmp=size*(.07+childRng(seed,'riverAmp')()*.08);
+    this.riverFreq=.85+childRng(seed,'riverFreq')()*.55;
+    this.waterLevel=-3.0;
+    this.nuclei=[];
+  }
+  lattice(ix,iz,salt=0){ const h=hash32(this.noiseSeed,ix,iz,salt); return (h/4294967295)*2-1; }
+  valueNoise(x,z,scale,salt=0){
+    const gx=x/scale, gz=z/scale, ix=Math.floor(gx), iz=Math.floor(gz), fx=gx-ix,fz=gz-iz;
+    const sx=smoothstep(fx), sz=smoothstep(fz);
+    const a=this.lattice(ix,iz,salt), b=this.lattice(ix+1,iz,salt), c=this.lattice(ix,iz+1,salt), d=this.lattice(ix+1,iz+1,salt);
+    return lerp(lerp(a,b,sx),lerp(c,d,sx),sz);
+  }
+  fbm(x,z){
+    let v=0,a=.55,f=1, sum=0;
+    for(let o=0;o<5;o++){ v += a*this.valueNoise(x*f,z*f,420,17+o*11); sum+=a; a*=.5; f*=2.03; }
+    return v/sum;
+  }
+  riverCenter(z){
+    const t=(z/this.size)+.5;
+    return this.riverAmp*(Math.sin((t*this.riverFreq)*Math.PI*2+this.riverPhase)*.62 + Math.sin((t*2.13)*Math.PI*2+this.riverPhase*.73)*.22);
+  }
+  riverDistance(x,z){ return Math.abs(x-this.riverCenter(z)); }
+  riverWidth(z){ return 24 + 11*(.5+.5*Math.sin(z*.008+this.riverPhase)); }
+  height(x,z){
+    const base=this.fbm(x,z)*24 + this.valueNoise(x,z,900,77)*13;
+    const broad=9*Math.sin(x*.0027+1.2)*Math.cos(z*.0021-.7);
+    const rd=this.riverDistance(x,z), rw=this.riverWidth(z);
+    const carve=Math.exp(-(rd*rd)/(2*(rw*1.8)*(rw*1.8)))*24;
+    return base+broad-carve;
+  }
+  slope(x,z){ const e=5; const hx=(this.height(x+e,z)-this.height(x-e,z))/(2*e); const hz=(this.height(x,z+e)-this.height(x,z-e))/(2*e); return Math.hypot(hx,hz); }
+  waterMask(x,z){ return this.riverDistance(x,z) < this.riverWidth(z); }
+  obstacle(x,z){
+    const s=this.slope(x,z); if(s>.72)return 1;
+    return this.waterMask(x,z) ? .72 : 0;
+  }
+  setNuclei(n){ this.nuclei=n; }
+  attraction(x,z){
+    let a=0;
+    for(const n of this.nuclei){ const d=Math.hypot(x-n.x,z-n.z); a += n.strength*Math.exp(-d/(n.radius*.9)); }
+    const valley=Math.exp(-this.riverDistance(x,z)/150)*.12;
+    return a+valley;
+  }
+  population(x,z){
+    let p=0;
+    for(const n of this.nuclei){ const d=Math.hypot(x-n.x,z-n.z); const q=n.mass*Math.exp(-(d*d)/(2*n.radius*n.radius)); p+=q; }
+    p *= (1-clamp(this.slope(x,z)*.55,0,.55));
+    if(this.waterMask(x,z)) p*=.08;
+    return p;
+  }
+  urbanity(x,z){
+    const p=this.population(x,z), a=this.attraction(x,z);
+    const v=1-Math.exp(-(p*.88+a*.55));
+    return clamp(v,0,1);
+  }
+  terrainCost(x,z,roadClass=ROAD.LOCAL){
+    const slope=this.slope(x,z); const water=this.waterMask(x,z);
+    const tf=lerp(.35,3.2,this.params.terrainWeight*this.preset.terrain);
+    let c=1 + tf*slope*slope*5.5;
+    if(water) c *= roadClass<=ROAD.ARTERIAL ? 4.5 : 45;
+    c /= 1+this.urbanity(x,z)*(.65+this.preset.hierarchy*.5);
+    return c;
+  }
+}
+
+// ============================================================
+// 3. EMBEDDED ROAD GRAPH
+// ============================================================
+class RoadGraph {
+  constructor(world,seed){ this.world=world; this.seed=seed; this.nodes=[]; this.edges=[]; this.adj=[]; this.rejected=[]; this.budsDebug=[]; }
+  addNode(x,z,type='junction',meta={}){
+    const n={id:this.nodes.length,x,z,y:this.world.height(x,z),type,level:meta.level||0,seed:meta.seed||hash32(this.seed,this.nodes.length,7),nucleusId:meta.nucleusId??null};
+    this.nodes.push(n); this.adj.push(new Set()); return n.id;
+  }
+  addEdge(a,b,roadClass,meta={}){
+    if(a===b) return -1;
+    for(const eid of this.adj[a]){ const e=this.edges[eid]; if(e && !e.dead && ((e.a===a&&e.b===b)||(e.a===b&&e.b===a))) return eid; }
+    const A=this.nodes[a],B=this.nodes[b], len=Math.hypot(B.x-A.x,B.z-A.z);
+    if(len<3) return -1;
+    const u=(this.world.urbanity((A.x+B.x)/2,(A.z+B.z)/2));
+    const rng=childRng(this.seed,'surface',a,b,roadClass);
+    let surface='asphalt';
+    if(roadClass>=ROAD.LOCAL){
+      const dirtChance=clamp(this.world.preset.dirt*(1-u)*(roadClass===ROAD.PATH?1.4:1),0,1);
+      if(rng()<dirtChance) surface=roadClass===ROAD.PATH?'dirt':(rng()<.55?'gravel':'dirt');
+      else if(this.world.preset.historic>.6 && u>.6 && rng()<.38) surface='cobblestone';
+    }
+    const bridge=meta.bridge ?? (this.world.waterMask((A.x+B.x)/2,(A.z+B.z)/2) && roadClass<=ROAD.ARTERIAL);
+    const e={id:this.edges.length,a,b,roadClass,surface,lanes:meta.lanes||this.defaultLanes(roadClass),speed:ROAD_SPEED[roadClass],width:ROAD_WIDTH[roadClass],
+      level:bridge?1:(meta.level||0),bridge,tunnel:false,birthEpoch:meta.epoch||0,flow:0,capacity:CAPACITY[roadClass],importance:0,
+      parentRoad:meta.parentRoad??null,generation:meta.generation||0,seed:meta.seed||hash32(this.seed,a,b,roadClass),dead:false,zone:'',kind:meta.kind||'grown'};
+    this.edges.push(e); this.adj[a].add(e.id); this.adj[b].add(e.id); return e.id;
+  }
+  defaultLanes(c){ return c===0?4:c===1?3:c===2?2:1; }
+  degree(n){ let k=0; for(const eid of this.adj[n]) if(!this.edges[eid].dead) k++; return k; }
+  other(e,n){ return e.a===n?e.b:e.a; }
+  deactivateEdge(eid){ const e=this.edges[eid]; if(!e||e.dead)return; e.dead=true; this.adj[e.a].delete(eid); this.adj[e.b].delete(eid); }
+  splitEdge(eid,x,z,type='junction'){
+    const e=this.edges[eid]; if(!e||e.dead)return null;
+    const nid=this.addNode(x,z,type,{level:e.level});
+    const meta={epoch:e.birthEpoch,generation:e.generation,parentRoad:e.parentRoad,kind:e.kind,level:e.level};
+    const rc=e.roadClass,s=e.surface,lanes=e.lanes,flow=e.flow;
+    this.deactivateEdge(eid);
+    const e1=this.addEdge(e.a,nid,rc,meta), e2=this.addEdge(nid,e.b,rc,meta);
+    for(const k of [e1,e2]) if(k>=0){ this.edges[k].surface=s; this.edges[k].lanes=lanes; this.edges[k].flow=flow*.5; }
+    return nid;
+  }
+  nearestNode(p,r,exclude=-1){ let best=-1,bd=r; for(const n of this.nodes){ if(n.id===exclude)continue; const d=Math.hypot(n.x-p.x,n.z-p.z); if(d<bd){bd=d;best=n.id;} } return best; }
+  nearestEdgePoint(p,r,excludeNode=-1){
+    let best=null,bd=r;
+    for(const e of this.edges){ if(e.dead||e.a===excludeNode||e.b===excludeNode)continue; const a=this.nodes[e.a],b=this.nodes[e.b]; const q=closestPointSeg(p,a,b); const d=Math.hypot(q.x-p.x,q.z-p.z); if(d<bd && q.t>.08 && q.t<.92){ bd=d; best={eid:e.id,x:q.x,z:q.z,t:q.t,d}; } }
+    return best;
+  }
+  activeEdges(){ return this.edges.filter(e=>!e.dead); }
+  activeNodeIds(){ const s=new Set(); for(const e of this.edges)if(!e.dead){s.add(e.a);s.add(e.b);} return [...s]; }
+}
+
+// ============================================================
+// 4. PROCEDURAL GENERATOR
+// ============================================================
+class CityGenerator {
+  constructor(params){
+    this.params=params; this.seed=hashString(params.seed); this.preset=PRESETS[params.preset];
+    this.world=new WorldField(this.seed,params.worldSize,this.preset,params);
+    this.graph=new RoadGraph(this.world,this.seed);
+    this.rng=mulberry32(this.seed); this.nuclei=[]; this.gateways=[]; this.blocks=[]; this.buildings=[]; this.tensorSamples=[];
+  }
+  run(status=()=>{}){
+    status('1/9: teren + nuclei'); this.generateNuclei();
+    status('2/9: makro-graf + A*'); this.generateMacroNetwork();
+    status('3/9: wzrost rekursywny');
+    for(let epoch=0;epoch<this.params.epochs;epoch++) this.growEpoch(epoch);
+    status('4/9: traffic assignment'); this.simulateTraffic();
+    status('5/9: feedback / upgrades'); this.applyTrafficFeedback();
+    if(this.preset.ringRoad>.2 && this.params.epochs>=3) this.maybeBuildBypass();
+    status('6/9: wtórny wzrost'); if(this.params.epochs>=2) this.secondaryGrowth();
+    status('7/9: klasyfikacja stref'); this.classifyZones();
+    status('8/9: detekcja bloków'); this.blocks=this.extractBlocks();
+    status('9/9: placeholdery zabudowy'); this.buildings=this.generateBuildings();
+    this.computeTensorSamples();
+    return this;
+  }
+
+  generateNuclei(){
+    const rng=childRng(this.seed,'nuclei'); const [mn,mx]=this.preset.nuclei; const count=mn+Math.floor(rng()*(mx-mn+1));
+    const half=this.world.half*.76; const main={x:0,z:0};
+    for(let i=0;i<count;i++){
+      let x=0,z=0,tries=0;
+      while(tries++<100){
+        if(i===0){ x=(rng()-.5)*this.params.worldSize*.08; z=(rng()-.5)*this.params.worldSize*.08; }
+        else { const a=rng()*Math.PI*2; const r=(.18+.55*Math.pow(rng(),.7))*half; x=Math.cos(a)*r; z=Math.sin(a)*r; }
+        if(this.world.waterMask(x,z) || this.world.slope(x,z)>.58) continue;
+        if(this.nuclei.every(n=>Math.hypot(n.x-x,n.z-z)>this.preset.baseUrbanRadius*.55)) break;
+      }
+      const strength=i===0?1.35:.72+rng()*.48; const mass=strength*(i===0?1.15:1)*(0.8+rng()*.6);
+      const radius=this.preset.baseUrbanRadius*(i===0?1.15:.7+rng()*.45);
+      const type=i===0?'historic_center':weightedPick(rng,[{v:'subcenter',w:.34},{v:'village',w:.20},{v:'industrial',w:.18},{v:'station',w:.14},{v:'market',w:.14}]);
+      this.nuclei.push({id:i,x,z,strength,mass,radius,type,age:i===0?1:.3+rng()*.5});
+    }
+    this.world.setNuclei(this.nuclei);
+    for(const n of this.nuclei) n.nodeId=this.graph.addNode(n.x,n.z,'nucleus',{nucleusId:n.id,seed:hash32(this.seed,900,n.id)});
+
+    const gc=this.preset.gatewayCount; const dirs=[{x:1,z:0},{x:-1,z:0},{x:0,z:1},{x:0,z:-1}];
+    for(let i=0;i<gc;i++){
+      const d=dirs[(i+Math.floor(rng()*dirs.length))%dirs.length]; const along=(rng()-.5)*this.world.size*.26;
+      let x=d.x*this.world.half*.94 + (d.z!==0?along:0), z=d.z*this.world.half*.94 + (d.x!==0?along:0);
+      if(this.world.waterMask(x,z)){ x+=d.z*70; z+=d.x*70; }
+      const nid=this.graph.addNode(x,z,'gateway',{seed:hash32(this.seed,901,i)}); this.gateways.push({id:i,x,z,nodeId:nid,mass:1.15});
+    }
+  }
+
+  // Tensor field = grid + radial/tangential + terrain tangent + boundary/river tangent + deterministic noise.
+  tensorDirection(x,z,roadClass=ROAD.LOCAL,seedSalt=0){
+    const p=this.preset; const org=clamp(this.params.organic*.65+p.organic*.65,0,1.3);
+    let nearest=this.nuclei[0],bd=Infinity; for(const n of this.nuclei){ const d=(x-n.x)**2+(z-n.z)**2; if(d<bd){bd=d;nearest=n;} }
+    const radial=norm2({x:x-nearest.x,z:z-nearest.z}); const tang=perp(radial);
+    const radialMix = roadClass<=ROAD.ARTERIAL ? .62 : .38;
+    let vr={x:radial.x*radialMix+tang.x*(1-radialMix), z:radial.z*radialMix+tang.z*(1-radialMix)};
+
+    const gridAngle=((hash32(this.seed,nearest.id,313)%8)/8)*Math.PI*2;
+    const ga={x:Math.cos(gridAngle),z:Math.sin(gridAngle)}; const gb=perp(ga);
+    const desiredRaw=norm2({x:Math.cos(gridAngle),z:Math.sin(gridAngle)});
+    const curAngle=Math.atan2(vr.z,vr.x); const da=angleDiff(curAngle,Math.atan2(ga.z,ga.x)); const db=angleDiff(curAngle,Math.atan2(gb.z,gb.x));
+    const vg=da<db?ga:gb;
+
+    const e=8; const hx=(this.world.height(x+e,z)-this.world.height(x-e,z))/(2*e), hz=(this.world.height(x,z+e)-this.world.height(x,z-e))/(2*e);
+    const contour=norm2({x:-hz,z:hx});
+    const riverTan=norm2({x:(this.world.riverCenter(z+10)-this.world.riverCenter(z-10))/20,z:1});
+    const riverInfluence=Math.exp(-this.world.riverDistance(x,z)/120);
+
+    const nrng=childRng(this.seed,'tensorNoise',Math.floor(x/75),Math.floor(z/75),seedSalt); const noiseA=(nrng()-.5)*Math.PI*2;
+    const vn={x:Math.cos(noiseA),z:Math.sin(noiseA)};
+    const wg=p.grid*(1-org*.55), wr=p.radial*(.6+roadClass*.045), wt=this.params.terrainWeight*p.terrain*(.35+this.world.slope(x,z)*1.8), wb=riverInfluence*.52, wn=.18+org*.58;
+    let v={x:vg.x*wg+vr.x*wr+contour.x*wt+riverTan.x*wb+vn.x*wn, z:vg.z*wg+vr.z*wr+contour.z*wt+riverTan.z*wb+vn.z*wn};
+    if(Math.hypot(v.x,v.z)<.001) v=desiredRaw;
+    return norm2(v);
+  }
+
+  generateMacroNetwork(){
+    const pts=[...this.nuclei.map(n=>({kind:'nucleus',nodeId:n.nodeId,x:n.x,z:n.z,mass:n.mass})),...this.gateways.map(g=>({kind:'gateway',...g}))];
+    // Complete candidate graph -> MST (Prim) -> selected redundant loops.
+    const N=pts.length, inTree=new Array(N).fill(false), minD=new Array(N).fill(Infinity), parent=new Array(N).fill(-1); minD[0]=0;
+    const chosen=[];
+    for(let k=0;k<N;k++){
+      let u=-1,bd=Infinity; for(let i=0;i<N;i++)if(!inTree[i]&&minD[i]<bd){bd=minD[i];u=i;} if(u<0)break; inTree[u]=true;
+      if(parent[u]>=0) chosen.push([parent[u],u]);
+      for(let v=0;v<N;v++)if(!inTree[v]){ const d=Math.hypot(pts[u].x-pts[v].x,pts[u].z-pts[v].z); if(d<minD[v]){minD[v]=d;parent[v]=u;} }
+    }
+    const rng=childRng(this.seed,'macroLoops');
+    const existing=new Set(chosen.map(([a,b])=>a<b?`${a}-${b}`:`${b}-${a}`));
+    const candidates=[];
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++)if(!existing.has(`${i}-${j}`)){
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].z-pts[j].z); const benefit=(pts[i].mass||1)*(pts[j].mass||1)/(d+1);
+      candidates.push({i,j,d,benefit:benefit*(.75+rng()*.5)});
+    }
+    candidates.sort((a,b)=>b.benefit-a.benefit);
+    const extra=Math.round((N-1)*this.preset.macroLoops*1.6);
+    for(let k=0;k<Math.min(extra,candidates.length);k++) chosen.push([candidates[k].i,candidates[k].j]);
+
+    for(let i=0;i<chosen.length;i++){
+      const [a,b]=chosen[i], A=pts[a],B=pts[b];
+      const rc=(A.kind==='gateway'||B.kind==='gateway') ? (this.preset.hierarchy>.86?ROAD.MOTORWAY:ROAD.TRUNK) : ROAD.ARTERIAL;
+      this.routeMacro(A.nodeId,B.nodeId,rc,i);
+    }
+  }
+
+  insertMacroSegment(startId,targetId,roadClass,meta={}){
+    const A=this.graph.nodes[startId], B=this.graph.nodes[targetId];
+    const mid={x:(A.x+B.x)/2,z:(A.z+B.z)/2};
+    const waterBridge=this.world.waterMask(mid.x,mid.z) && roadClass<=ROAD.ARTERIAL;
+    const crossings=[];
+    for(const e of this.graph.activeEdges()){
+      if(e.a===startId||e.b===startId||e.a===targetId||e.b===targetId||e.level!==0)continue;
+      const C=this.graph.nodes[e.a],D=this.graph.nodes[e.b],x=segIntersection(A,B,C,D); if(!x)continue;
+      const d1=norm2({x:B.x-A.x,z:B.z-A.z}),d2=norm2({x:D.x-C.x,z:D.z-C.z});
+      const ang=Math.acos(clamp(Math.abs(dot2(d1,d2)),-1,1)); if(ang<.14)continue;
+      crossings.push({e,x});
+    }
+    // High-capacity roads preferentially grade-separate when crossing another major corridor.
+    const majorCross=crossings.some(h=>h.e.roadClass<=ROAD.ARTERIAL);
+    if(waterBridge || (roadClass<=ROAD.TRUNK && majorCross)){
+      const eid=this.graph.addEdge(startId,targetId,roadClass,{...meta,bridge:true,level:1});
+      if(eid>=0){this.graph.edges[eid].bridge=true;this.graph.edges[eid].level=1;}
+      return [eid];
+    }
+    crossings.sort((a,b)=>a.x.t-b.x.t); const created=[]; let prev=startId;
+    for(const h of crossings){
+      if(h.e.dead)continue;
+      const nid=this.graph.splitEdge(h.e.id,h.x.x,h.x.z,'junction'); if(nid==null)continue;
+      const eid=this.graph.addEdge(prev,nid,roadClass,meta); if(eid>=0)created.push(eid); prev=nid;
+    }
+    const last=this.graph.addEdge(prev,targetId,roadClass,meta); if(last>=0)created.push(last);
+    return created;
+  }
+
+  routeMacro(startId,endId,roadClass,salt){
+    const A=this.graph.nodes[startId],B=this.graph.nodes[endId];
+    const grid=48, half=this.world.half, step=this.world.size/(grid-1);
+    const idx=(ix,iz)=>iz*grid+ix, pos=(ix,iz)=>({x:-half+ix*step,z:-half+iz*step});
+    const toCell=n=>({ix:clamp(Math.round((n.x+half)/step),0,grid-1),iz:clamp(Math.round((n.z+half)/step),0,grid-1)});
+    const s=toCell(A),t=toCell(B); const total=grid*grid;
+    const g=new Float64Array(total); g.fill(Infinity); const came=new Int32Array(total); came.fill(-1); const closed=new Uint8Array(total);
+    const start=idx(s.ix,s.iz), goal=idx(t.ix,t.iz); g[start]=0;
+    const open=[{id:start,f:0,ix:s.ix,iz:s.iz}]; const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    while(open.length){
+      let bi=0; for(let i=1;i<open.length;i++)if(open[i].f<open[bi].f)bi=i; const cur=open.splice(bi,1)[0]; if(closed[cur.id])continue; closed[cur.id]=1; if(cur.id===goal)break;
+      for(const [dx,dz] of dirs){ const nx=cur.ix+dx,nz=cur.iz+dz; if(nx<0||nz<0||nx>=grid||nz>=grid)continue; const ni=idx(nx,nz); if(closed[ni])continue;
+        const p=pos(nx,nz), q=pos(cur.ix,cur.iz); const move=Math.hypot(dx,dz)*step; let cost=move*this.world.terrainCost(p.x,p.z,roadClass);
+        // mild direction coherence toward target + road-class curvature penalty
+        const goalDir=norm2({x:B.x-q.x,z:B.z-q.z}), stepDir=norm2({x:p.x-q.x,z:p.z-q.z}); cost*=1+(1-dot2(goalDir,stepDir))*.12;
+        const ng=g[cur.id]+cost; if(ng<g[ni]){ g[ni]=ng; came[ni]=cur.id; const h=Math.hypot(B.x-p.x,B.z-p.z); open.push({id:ni,ix:nx,iz:nz,f:ng+h}); }
+      }
+    }
+    const path=[]; let q=goal,guard=0; if(came[q]<0){ this.graph.addEdge(startId,endId,roadClass,{kind:'macro',epoch:0}); return; }
+    while(q!==start && q>=0 && guard++<total){ const iz=Math.floor(q/grid),ix=q%grid; path.push(pos(ix,iz)); q=came[q]; } path.push({x:A.x,z:A.z}); path.reverse(); path[path.length-1]={x:B.x,z:B.z};
+    // simplify by angle / spacing; internal points are topology nodes marked "shape" so intersections remain planarizable.
+    const simp=[path[0]]; let last=path[0], lastDir=null;
+    for(let i=1;i<path.length-1;i++){
+      const d=norm2({x:path[i].x-last.x,z:path[i].z-last.z}); const delta=lastDir?Math.acos(clamp(dot2(lastDir,d),-1,1)):Math.PI;
+      if(dist2(last,path[i])>step*2.1 || delta>.35){ simp.push(path[i]); last=path[i]; lastDir=d; }
+    } simp.push(path[path.length-1]);
+    let prev=startId;
+    for(let i=1;i<simp.length;i++){
+      const p=simp[i]; const nid=(i===simp.length-1)?endId:this.graph.addNode(p.x,p.z,'shape',{seed:hash32(this.seed,700,salt,i)});
+      this.insertMacroSegment(prev,nid,roadClass,{kind:'macro',epoch:0,generation:0,parentRoad:salt});
+      prev=nid;
+    }
+  }
+
+  growEpoch(epoch){
+    const rng=childRng(this.seed,'epoch',epoch); const target=Math.round((150+this.preset.density*240)*this.params.density*(.78+epoch*.34));
+    const initial=[];
+    // Spawn from nuclei every epoch.
+    for(const n of this.nuclei){
+      const count=epoch===0?5:3; for(let k=0;k<count;k++){
+        const base=this.tensorDirection(n.x,n.z,epoch===0?ROAD.ARTERIAL:ROAD.COLLECTOR,k+epoch*31); const dir=rotate2(base,(k/count)*Math.PI*2 + (rng()-.5)*.55);
+        initial.push({nodeId:n.nodeId,dir,roadClass:epoch===0?ROAD.ARTERIAL:ROAD.COLLECTOR,energy:epoch===0?7:5,generation:0,epoch,seed:hash32(this.seed,epoch,n.id,k)});
+      }
+    }
+    // Spawn collectors/locals from existing macro/arterial nodes.
+    const candidates=this.graph.activeNodeIds().filter(id=>this.graph.degree(id)>=2);
+    const spawnCount=Math.min(candidates.length,Math.round(18*this.params.density*(epoch+1)));
+    for(let i=0;i<spawnCount;i++){
+      const id=candidates[Math.floor(rng()*candidates.length)], n=this.graph.nodes[id]; const rc=epoch===0?ROAD.COLLECTOR:(epoch===1?ROAD.LOCAL:ROAD.LOCAL);
+      initial.push({nodeId:id,dir:this.tensorDirection(n.x,n.z,rc,i),roadClass:rc,energy:rc===ROAD.COLLECTOR?5:4,generation:0,epoch,seed:hash32(this.seed,511,epoch,id,i)});
+    }
+    this.runBudQueue(initial,target,epoch);
+  }
+
+  runBudQueue(queue,target,epoch){
+    let built=0, guard=0;
+    while(queue.length && built<target && guard++<target*18 && this.graph.activeEdges().length<2200){
+      // prioritise major roads, then higher energy, but retain stochasticity.
+      queue.sort((a,b)=>(a.roadClass-b.roadClass) || (b.energy-a.energy));
+      const bud=queue.shift(); if(bud.energy<=0)continue;
+      const rng=mulberry32(bud.seed); const n=this.graph.nodes[bud.nodeId];
+      if(!n)continue;
+      const u=this.world.urbanity(n.x,n.z); const field=this.tensorDirection(n.x,n.z,bud.roadClass,bud.seed&255);
+      const current=norm2(bud.dir); const align=dot2(current,field); const prefer=align<-.2?{x:-field.x,z:-field.z}:field;
+      const org=clamp((this.params.organic+this.preset.organic)*.5,0,1);
+      const jitter=(rng()-.5)*lerp(.08,.68,org);
+      const candidateDirs=[rotate2(prefer,jitter),rotate2(prefer,.22+jitter),rotate2(prefer,-.22+jitter),rotate2(current,jitter*.7)];
+      let best=null;
+      for(let ci=0;ci<candidateDirs.length;ci++){
+        const dir=norm2(candidateDirs[ci]); const mean=BASE_LENGTH[bud.roadClass]*lerp(1.30,.62,u)*lerp(1.12,.88,this.params.density);
+        const len=logNormal(rng,mean,.20+org*.14); const p={x:n.x+dir.x*len,z:n.z+dir.z*len};
+        const evald=this.evaluateCandidate(n,p,dir,bud.roadClass,bud,ci); if(!best||evald.score>best.score)best={...evald,dir,len,p};
+      }
+      if(!best || best.score<-.10){
+        this.graph.rejected.push({a:{x:n.x,z:n.z},b:best?best.p:{x:n.x+current.x*30,z:n.z+current.z*30},reason:best?.reason||'score'}); continue;
+      }
+      const res=this.commitSegment(bud.nodeId,best.p,bud.roadClass,bud,best.dir);
+      if(!res)continue; built++;
+      const end=this.graph.nodes[res.endId]; this.graph.budsDebug.push({x:end.x,z:end.z,roadClass:bud.roadClass,epoch});
+      const nextEnergy=bud.energy-1;
+      // Dead-end tendency is strongest for local/suburban/rural roads and weak in dense centres.
+      const deadP=clamp(this.preset.deadEnds*(1-u*.78)*(bud.roadClass>=ROAD.LOCAL?1:.16),0,.92);
+      const terminateHere = rng() < deadP*.34;
+      if(nextEnergy>0 && !res.connectedExisting && !terminateHere){
+        queue.push({nodeId:res.endId,dir:best.dir,roadClass:bud.roadClass,energy:nextEnergy,generation:bud.generation+1,epoch,seed:hash32(bud.seed,1,res.endId)});
+      }
+      // Hierarchical branching. Loop-prone morphologies branch more often; terminated cul-de-sacs do not.
+      const branchP=clamp((.18+u*.26+this.preset.loops*.16)*(1-.24*bud.roadClass/6),.06,.58);
+      if(!terminateHere && rng()<branchP && bud.roadClass<ROAD.PATH){
+        const nextClass=Math.min(ROAD.PATH,bud.roadClass+(rng()<.78?1:0)); const side=rng()<.5?-1:1;
+        const branchDir=rotate2(best.dir,side*(Math.PI/2 + (rng()-.5)*.42));
+        queue.push({nodeId:res.endId,dir:branchDir,roadClass:nextClass,energy:Math.max(2,nextEnergy-1),generation:bud.generation+1,epoch,seed:hash32(bud.seed,2,res.endId)});
+      }
+    }
+  }
+
+  evaluateCandidate(n,p,dir,roadClass,bud,ci){
+    const h=this.world.half*.965; if(Math.abs(p.x)>h||Math.abs(p.z)>h) return {score:-9,reason:'bounds'};
+    const mid={x:(n.x+p.x)/2,z:(n.z+p.z)/2}; const slope=Math.max(this.world.slope(mid.x,mid.z),this.world.slope(p.x,p.z));
+    if(slope>.88 && roadClass>=ROAD.COLLECTOR) return {score:-8,reason:'slope'};
+    const water=this.world.waterMask(mid.x,mid.z)||this.world.waterMask(p.x,p.z);
+    if(water && roadClass>ROAD.ARTERIAL) return {score:-7,reason:'water'};
+    const urban=this.world.urbanity(p.x,p.z), attr=this.world.attraction(p.x,p.z); const tf=this.tensorDirection(mid.x,mid.z,roadClass,ci+bud.generation*17);
+    const tensor=Math.abs(dot2(tf,dir));
+    const snap=this.graph.nearestNode(p,roadClass<=ROAD.COLLECTOR?38:26,n.id); const connect=snap>=0?1:0;
+    const nearEdge=this.graph.nearestEdgePoint(p,roadClass<=ROAD.COLLECTOR?24:16,n.id); const edgeConn=nearEdge?1:0;
+    const redundancy=this.parallelPenalty(n,p,roadClass);
+    const score=1.25*tensor + .90*urban + .35*attr + .50*connect + .28*edgeConn - this.params.terrainWeight*this.preset.terrain*slope*2.15 - redundancy*1.6 - (water?.55:0) + (childRng(bud.seed,'score',ci)()-.5)*.16;
+    return {score,reason:'ok'};
+  }
+
+  parallelPenalty(a,b,roadClass){
+    const dir=norm2({x:b.x-a.x,z:b.z-a.z}), mid={x:(a.x+b.x)/2,z:(a.z+b.z)/2}; let pen=0; const radius=roadClass<=ROAD.COLLECTOR?48:34;
+    for(const e of this.graph.edges){ if(e.dead)continue; const A=this.graph.nodes[e.a],B=this.graph.nodes[e.b]; const q=closestPointSeg(mid,A,B); const d=Math.hypot(mid.x-q.x,mid.z-q.z); if(d>radius)continue; const ed=norm2({x:B.x-A.x,z:B.z-A.z}); const parallel=Math.abs(dot2(dir,ed)); if(parallel>.92) pen=Math.max(pen,parallel*(1-d/radius)); }
+    return pen;
+  }
+
+  commitSegment(startId,p,roadClass,bud,dir){
+    const A=this.graph.nodes[startId], snapR=roadClass<=ROAD.COLLECTOR?38:24;
+    // Existing node snap.
+    let endId=this.graph.nearestNode(p,snapR,startId); let connectedExisting=endId>=0;
+    let target=endId>=0?this.graph.nodes[endId]:p;
+
+    // First true crossing becomes intersection and splits target edge.
+    let hit=null,hitT=Infinity;
+    for(const e of this.graph.edges){ if(e.dead||e.a===startId||e.b===startId||e.level!==0)continue; const C=this.graph.nodes[e.a],D=this.graph.nodes[e.b]; const x=segIntersection(A,target,C,D); if(x&&x.t<hitT){
+      const ed=norm2({x:D.x-C.x,z:D.z-C.z}); const ang=Math.acos(clamp(Math.abs(dot2(dir,ed)),-1,1)); if(ang<.18)continue; hit={e,x};hitT=x.t;
+    }}
+    if(hit){ endId=this.graph.splitEdge(hit.e.id,hit.x.x,hit.x.z,'junction'); target=this.graph.nodes[endId]; connectedExisting=true; }
+    else if(endId<0){
+      const near=this.graph.nearestEdgePoint(p,roadClass<=ROAD.COLLECTOR?22:15,startId);
+      if(near){ endId=this.graph.splitEdge(near.eid,near.x,near.z,'junction'); target=this.graph.nodes[endId]; connectedExisting=true; }
+    }
+    if(endId<0){ endId=this.graph.addNode(p.x,p.z,'junction',{seed:hash32(bud.seed,777,bud.generation)}); target=this.graph.nodes[endId]; }
+    if(Math.hypot(target.x-A.x,target.z-A.z)<12) return null;
+    // Bad connection angle guard.
+    for(const eid of this.graph.adj[endId]){ const e=this.graph.edges[eid]; if(e.dead)continue; const o=this.graph.nodes[this.graph.other(e,endId)]; const d=norm2({x:o.x-target.x,z:o.z-target.z}); if(Math.abs(dot2(d,dir))>.985 && Math.hypot(o.x-A.x,o.z-A.z)<80) return null; }
+    const eid=this.graph.addEdge(startId,endId,roadClass,{kind:'grown',epoch:bud.epoch,generation:bud.generation,parentRoad:bud.parentRoad??null,seed:hash32(bud.seed,99,endId)});
+    if(eid<0)return null;
+    return {endId,eid,connectedExisting};
+  }
+
+  simulateTraffic(){
+    for(const e of this.graph.edges)e.flow=0;
+    const anchors=[...this.nuclei.map(n=>({nodeId:n.nodeId,mass:n.mass*120})),...this.gateways.map(g=>({nodeId:g.nodeId,mass:100}))];
+    for(let i=0;i<anchors.length;i++)for(let j=i+1;j<anchors.length;j++){
+      const a=anchors[i],b=anchors[j]; const direct=dist2(this.graph.nodes[a.nodeId],this.graph.nodes[b.nodeId]); const demand=a.mass*b.mass*Math.exp(-direct/(this.world.size*.48))*0.010;
+      const path=this.shortestPath(a.nodeId,b.nodeId); if(!path)continue; for(const eid of path.edges) this.graph.edges[eid].flow += demand;
+    }
+    const maxFlow=Math.max(1,...this.graph.activeEdges().map(e=>e.flow)); for(const e of this.graph.edges)if(!e.dead) e.importance=e.flow/maxFlow;
+  }
+
+  shortestPath(start,goal){
+    const N=this.graph.nodes.length, dist=new Float64Array(N); dist.fill(Infinity); const prevE=new Int32Array(N); prevE.fill(-1); const prevN=new Int32Array(N); prevN.fill(-1); const seen=new Uint8Array(N); dist[start]=0;
+    const q=[{n:start,d:0}];
+    while(q.length){ let bi=0; for(let i=1;i<q.length;i++)if(q[i].d<q[bi].d)bi=i; const cur=q.splice(bi,1)[0]; if(seen[cur.n])continue; seen[cur.n]=1; if(cur.n===goal)break;
+      for(const eid of this.graph.adj[cur.n]){ const e=this.graph.edges[eid]; if(!e||e.dead)continue; const to=this.graph.other(e,cur.n),A=this.graph.nodes[cur.n],B=this.graph.nodes[to]; const len=Math.hypot(B.x-A.x,B.z-A.z); const w=len/(e.speed+1)*(1+.18*e.flow/(e.capacity+1)); const nd=dist[cur.n]+w; if(nd<dist[to]){dist[to]=nd;prevE[to]=eid;prevN[to]=cur.n;q.push({n:to,d:nd});}
+      }
+    }
+    if(!Number.isFinite(dist[goal]))return null; const edges=[]; let n=goal,guard=0; while(n!==start&&guard++<N){ const e=prevE[n]; if(e<0)break; edges.push(e); n=prevN[n]; } edges.reverse(); return {edges,cost:dist[goal]};
+  }
+
+  applyTrafficFeedback(){
+    for(const e of this.graph.edges){ if(e.dead)continue; const ratio=e.flow/(e.capacity+1);
+      if(ratio>1.15 && e.roadClass>ROAD.TRUNK){ e.roadClass--; e.lanes=Math.min(4,e.lanes+1); e.width=ROAD_WIDTH[e.roadClass]; e.speed=ROAD_SPEED[e.roadClass]; e.capacity=CAPACITY[e.roadClass]*(1+.28*(e.lanes-1)); e.surface='asphalt'; }
+      else if(e.surface==='dirt' && e.flow>CAPACITY[ROAD.PATH]*.45){ e.surface=e.roadClass<=ROAD.LOCAL?'asphalt':'gravel'; }
+    }
+  }
+
+  maybeBuildBypass(){
+    const active=this.graph.activeEdges(); const congested=active.filter(e=>e.roadClass<=ROAD.ARTERIAL && e.flow/(e.capacity+1)>.65);
+    if(congested.length<2 && this.preset.ringRoad<.65)return;
+    const c=this.nuclei[0], rng=childRng(this.seed,'bypass'); const radius=this.world.size*(.22+.06*rng())*(.85+this.preset.suburban*.25); const segments=10;
+    const ring=[];
+    for(let i=0;i<segments;i++){
+      const a=(i/segments)*Math.PI*2; let x=c.x+Math.cos(a)*radius,z=c.z+Math.sin(a)*radius;
+      // nudge away from river/water and steep terrain.
+      for(let k=0;k<5;k++){ if(!this.world.waterMask(x,z)&&this.world.slope(x,z)<.55)break; x+=Math.cos(a)*18; z+=Math.sin(a)*18; }
+      ring.push(this.graph.addNode(x,z,'bypass',{seed:hash32(this.seed,808,i)}));
+    }
+    for(let i=0;i<segments;i++) this.graph.addEdge(ring[i],ring[(i+1)%segments],this.preset.hierarchy>.9?ROAD.TRUNK:ROAD.ARTERIAL,{kind:'bypass',epoch:this.params.epochs,generation:0,parentRoad:999});
+    // Connect ring to nearby existing major roads.
+    for(let i=0;i<segments;i+=2){ const n=this.graph.nodes[ring[i]]; let best=-1,bd=120; for(const id of this.graph.activeNodeIds()){ if(id===ring[i])continue; const q=this.graph.nodes[id],d=dist2(n,q); if(d<bd && this.graph.adj[id] && [...this.graph.adj[id]].some(eid=>this.graph.edges[eid].roadClass<=ROAD.ARTERIAL)){bd=d;best=id;} } if(best>=0)this.graph.addEdge(ring[i],best,ROAD.ARTERIAL,{kind:'bypassConnector',epoch:this.params.epochs}); }
+    this.simulateTraffic(); this.applyTrafficFeedback();
+  }
+
+  secondaryGrowth(){
+    const rng=childRng(this.seed,'secondary'); const starts=[];
+    for(const e of this.graph.activeEdges()){
+      if(e.roadClass>ROAD.COLLECTOR || rng()>.10*this.params.density)continue;
+      for(const id of [e.a,e.b]){ if(this.graph.degree(id)>5)continue; const n=this.graph.nodes[id]; const d=perp(norm2({x:this.graph.nodes[this.graph.other(e,id)].x-n.x,z:this.graph.nodes[this.graph.other(e,id)].z-n.z})); starts.push({nodeId:id,dir:rng()<.5?d:{x:-d.x,z:-d.z},roadClass:ROAD.LOCAL,energy:3,generation:0,epoch:this.params.epochs,seed:hash32(this.seed,991,id)}); }
+    }
+    this.runBudQueue(starts,Math.round(90*this.params.density*this.preset.density),this.params.epochs);
+  }
+
+  classifyZones(){
+    for(const e of this.graph.edges){ if(e.dead)continue; const a=this.graph.nodes[e.a],b=this.graph.nodes[e.b],u=this.world.urbanity((a.x+b.x)/2,(a.z+b.z)/2); e.zone=u>.78?'centre':u>.56?'urban':u>.31?'suburb':u>.14?'rural':'wild'; }
+  }
+
+  extractBlocks(){
+    // Half-edge face walk. Works because grown crossings split existing edges.
+    const adjSorted=new Map();
+    for(const nid of this.graph.activeNodeIds()){
+      const n=this.graph.nodes[nid], list=[];
+      for(const eid of this.graph.adj[nid]){ const e=this.graph.edges[eid]; if(!e||e.dead||e.level!==0)continue; const o=this.graph.nodes[this.graph.other(e,nid)]; list.push({to:o.id,eid,ang:Math.atan2(o.z-n.z,o.x-n.x)}); }
+      list.sort((a,b)=>a.ang-b.ang); if(list.length)adjSorted.set(nid,list);
+    }
+    const visited=new Set(), faces=[];
+    const key=(a,b)=>`${a}>${b}`;
+    for(const [u,list] of adjSorted){ for(const item of list){ const v=item.to; if(visited.has(key(u,v)))continue; const polyIds=[]; let a=u,b=v,guard=0,closed=false;
+      while(guard++<500){ const k=key(a,b); if(visited.has(k)){ if(a===u&&b===v)closed=true; break; } visited.add(k); polyIds.push(a);
+        const nextList=adjSorted.get(b); if(!nextList||nextList.length<2)break; const idx=nextList.findIndex(x=>x.to===a); if(idx<0)break; const next=nextList[(idx-1+nextList.length)%nextList.length]; const c=next.to; a=b; b=c; if(a===u&&b===v){closed=true;break;}
+      }
+      if(!closed||polyIds.length<3)continue; const poly=polyIds.map(id=>({x:this.graph.nodes[id].x,z:this.graph.nodes[id].z})); const area=signedArea(poly);
+      if(area>500 && area<this.world.size*this.world.size*.16){
+        const c=polygonCentroid(poly); if(Math.abs(c.x)<this.world.half*.98&&Math.abs(c.z)<this.world.half*.98) faces.push({id:faces.length,poly,area,centroid:c,urbanity:this.world.urbanity(c.x,c.z)});
+      }
+    }}
+    // Deduplicate faces by centroid/area.
+    const out=[]; for(const f of faces){ if(out.some(g=>dist2(f.centroid,g.centroid)<8 && Math.abs(f.area-g.area)/Math.max(f.area,g.area)<.08))continue; out.push(f); }
+    return out.sort((a,b)=>b.area-a.area).slice(0,420);
+  }
+
+  generateBuildings(){
+    const result=[]; const rng=childRng(this.seed,'buildings');
+    for(const block of this.blocks){ const u=block.urbanity; if(block.area<900||block.area>65000)continue; const c=block.centroid; const minx=Math.min(...block.poly.map(p=>p.x)),maxx=Math.max(...block.poly.map(p=>p.x)),minz=Math.min(...block.poly.map(p=>p.z)),maxz=Math.max(...block.poly.map(p=>p.z));
+      const spacing=lerp(46,21,u)*lerp(1.15,.86,this.params.density); const setback=lerp(13,8,u); let count=0;
+      for(let x=minx+spacing*.5;x<maxx;x+=spacing){ for(let z=minz+spacing*.5;z<maxz;z+=spacing){ if(count>28)break; const jx=x+(rng()-.5)*spacing*.32,jz=z+(rng()-.5)*spacing*.32; if(!pointInPoly({x:jx,z:jz},block.poly))continue;
+        // Ensure basic setback from block edges.
+        let md=Infinity, edgeAngle=0; for(let i=0,j=block.poly.length-1;i<block.poly.length;j=i++){
+          const a=block.poly[j],b=block.poly[i],q=closestPointSeg({x:jx,z:jz},a,b),d=Math.hypot(jx-q.x,jz-q.z); if(d<md){md=d;edgeAngle=Math.atan2(b.z-a.z,b.x-a.x);} }
+        if(md<setback)continue;
+        const w=spacing*(.48+rng()*.24), d=spacing*(.42+rng()*.24); const floors=u>.8?2+Math.floor(rng()*6):u>.55?2+Math.floor(rng()*3):1+Math.floor(rng()*2); const h=floors*(2.8+rng()*.8);
+        result.push({x:jx,z:jz,w,d,h,angle:edgeAngle+(rng()-.5)*.10,zone:u>.78?'centre':u>.55?'urban':u>.3?'suburb':'rural'}); count++;
+      }}
+    }
+    return result.slice(0,4500);
+  }
+
+  computeTensorSamples(){
+    this.tensorSamples=[]; const n=17; for(let iz=1;iz<n-1;iz++)for(let ix=1;ix<n-1;ix++){ const x=lerp(-this.world.half,this.world.half,ix/(n-1)),z=lerp(-this.world.half,this.world.half,iz/(n-1)); const d=this.tensorDirection(x,z,ROAD.LOCAL,ix+iz*31); this.tensorSamples.push({x,z,dx:d.x,dz:d.z}); }
+  }
+}
+
+// ============================================================
+// 5. THREE.JS VIEW
+// ============================================================
+const app=document.getElementById('app');
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); renderer.setPixelRatio(Math.min(devicePixelRatio,1.6)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=false; app.appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b1015); scene.fog=new THREE.FogExp2(0x0b1015,0.00052);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,1,8000); camera.position.set(900,760,900);
+const controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.07; controls.maxPolarAngle=Math.PI*.49; controls.target.set(0,0,0); controls.update();
+scene.add(new THREE.HemisphereLight(0xcfe5ff,0x2f2c24,1.5)); const sun=new THREE.DirectionalLight(0xffffff,1.6); sun.position.set(800,1100,500); scene.add(sun);
+
+const groups={
+  world:new THREE.Group(), roads:new THREE.Group(), blocks:new THREE.Group(), buildings:new THREE.Group(), nodes:new THREE.Group(), tensor:new THREE.Group(), urbanity:new THREE.Group(), nuclei:new THREE.Group(), traffic:new THREE.Group(), rejected:new THREE.Group()
+}; Object.values(groups).forEach(g=>scene.add(g));
+
+function disposeGroup(g){ while(g.children.length){ const o=g.children.pop(); if(o.geometry)o.geometry.dispose(); if(o.material){ if(Array.isArray(o.material))o.material.forEach(m=>m.dispose()); else o.material.dispose(); } } }
+function clearScene(){ for(const g of Object.values(groups))disposeGroup(g); }
+
+function terrainColor(h,slope,water){
+  if(water)return new THREE.Color(0x315a64); if(h>24)return new THREE.Color(0x67655f); if(slope>.48)return new THREE.Color(0x626157); if(h<0)return new THREE.Color(0x6d765c); return new THREE.Color(0x66745a);
+}
+
+function buildTerrain(gen){
+  const w=gen.world, seg=112; const geo=new THREE.PlaneGeometry(w.size,w.size,seg,seg); geo.rotateX(-Math.PI/2); const pos=geo.attributes.position; const cols=[];
+  for(let i=0;i<pos.count;i++){ const x=pos.getX(i),z=pos.getZ(i),h=w.height(x,z); pos.setY(i,h-1.3); const c=terrainColor(h,w.slope(x,z),false); cols.push(c.r,c.g,c.b); }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); geo.computeVertexNormals(); const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,metalness:0})); groups.world.add(mesh);
+  // River ribbon.
+  const pts=[]; const n=120; for(let i=0;i<n;i++){ const z=lerp(-w.half,w.half,i/(n-1)),x=w.riverCenter(z),rw=w.riverWidth(z); const dx=(w.riverCenter(z+1)-w.riverCenter(z-1))/2; const dir=norm2({x:dx,z:1}), pp=perp(dir); pts.push({l:{x:x+pp.x*rw,z:z+pp.z*rw},r:{x:x-pp.x*rw,z:z-pp.z*rw}}); }
+  const verts=[],idx=[]; for(let i=0;i<n;i++){ for(const p of [pts[i].l,pts[i].r])verts.push(p.x,w.height(p.x,p.z)+.7,p.z); if(i<n-1){ const k=i*2; idx.push(k,k+2,k+1,k+1,k+2,k+3); } }
+  const rg=new THREE.BufferGeometry(); rg.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); rg.setIndex(idx); rg.computeVertexNormals(); groups.world.add(new THREE.Mesh(rg,new THREE.MeshStandardMaterial({color:0x3c6f79,transparent:true,opacity:.78,roughness:.35})));
+}
+
+const roadColors=[0xd9d1bb,0xd9d1bb,0xe4a968,0xc7c8c4,0xaeb3b7,0x8d9297,0x8a745e];
+function edgeTransform(gen,e,obj,trafficMode=false){
+  const a=gen.graph.nodes[e.a],b=gen.graph.nodes[e.b]; const dx=b.x-a.x,dz=b.z-a.z,dy=b.y-a.y; const len=Math.hypot(dx,dz), midx=(a.x+b.x)/2,midz=(a.z+b.z)/2,midy=(a.y+b.y)/2 + (e.bridge?4.5:1.1);
+  obj.position.set(midx,midy,midz); obj.rotation.order='YXZ'; obj.rotation.y=-Math.atan2(dz,dx); obj.rotation.z=Math.atan2(dy,len); obj.scale.set(len,e.bridge?1.25:.72,e.width);
+}
+function buildRoads(gen){
+  const active=gen.graph.activeEdges(); const baseGeo=new THREE.BoxGeometry(1,1,1);
+  for(let rc=0;rc<=6;rc++){
+    const arr=active.filter(e=>e.roadClass===rc); if(!arr.length)continue; const mat=new THREE.MeshStandardMaterial({color:roadColors[rc],roughness:.88,metalness:0}); const inst=new THREE.InstancedMesh(baseGeo,mat,arr.length); const dummy=new THREE.Object3D(); let i=0;
+    for(const e of arr){ edgeTransform(gen,e,dummy); dummy.updateMatrix(); inst.setMatrixAt(i++,dummy.matrix); } inst.instanceMatrix.needsUpdate=true; groups.roads.add(inst);
+  }
+  // Bridge supports as sparse pillars.
+  const bridgeEdges=active.filter(e=>e.bridge); if(bridgeEdges.length){ const g=new THREE.CylinderGeometry(1.5,2.2,18,7),m=new THREE.MeshStandardMaterial({color:0x64686a}); for(const e of bridgeEdges){ const a=gen.graph.nodes[e.a],b=gen.graph.nodes[e.b],mesh=new THREE.Mesh(g,m.clone()); mesh.position.set((a.x+b.x)/2,gen.world.height((a.x+b.x)/2,(a.z+b.z)/2)+8,(a.z+b.z)/2); groups.roads.add(mesh); } }
+}
+
+function buildBlocks(gen){
+  for(const b of gen.blocks){ const sh=new THREE.Shape(); sh.moveTo(b.poly[0].x,b.poly[0].z); for(let i=1;i<b.poly.length;i++)sh.lineTo(b.poly[i].x,b.poly[i].z); sh.closePath(); const geo=new THREE.ShapeGeometry(sh); geo.rotateX(Math.PI/2); // Shape x/y -> x/z; then y axis becomes -z, fix scale below.
+    const pos=geo.attributes.position; for(let i=0;i<pos.count;i++){ const x=pos.getX(i),z=pos.getZ(i); pos.setXYZ(i,x,gen.world.height(x,z)+.45,z); }
+    geo.computeVertexNormals(); const col=b.urbanity>.75?0x796f62:b.urbanity>.45?0x6f735d:0x657052; const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.20,side:THREE.DoubleSide,depthWrite:false})); groups.blocks.add(mesh);
+  }
+}
+
+function buildBuildings(gen){
+  const zones=['centre','urban','suburb','rural']; const colors={centre:0xb7a995,urban:0xa59d8c,suburb:0x9b927f,rural:0x8a806b}; const geo=new THREE.BoxGeometry(1,1,1); const dummy=new THREE.Object3D();
+  for(const z of zones){ const arr=gen.buildings.filter(b=>b.zone===z); if(!arr.length)continue; const inst=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color:colors[z],roughness:.95}),arr.length); let i=0; for(const b of arr){ const y=gen.world.height(b.x,b.z); dummy.position.set(b.x,y+b.h/2,b.z); dummy.rotation.set(0,-b.angle,0); dummy.scale.set(b.w,b.h,b.d); dummy.updateMatrix(); inst.setMatrixAt(i++,dummy.matrix);} inst.instanceMatrix.needsUpdate=true; groups.buildings.add(inst); }
+}
+
+function buildNodes(gen){
+  const active=gen.graph.activeNodeIds(); const geo=new THREE.SphereGeometry(2.2,8,6), mat=new THREE.MeshBasicMaterial({color:0x79d7ff}); const inst=new THREE.InstancedMesh(geo,mat,active.length); const d=new THREE.Object3D(); let i=0; for(const id of active){ const n=gen.graph.nodes[id]; d.position.set(n.x,n.y+3,n.z); d.scale.setScalar(n.type==='nucleus'?2.1:1); d.updateMatrix(); inst.setMatrixAt(i++,d.matrix);} inst.instanceMatrix.needsUpdate=true; groups.nodes.add(inst);
+}
+function buildNuclei(gen){
+  for(const n of gen.nuclei){ const g=new THREE.CylinderGeometry(8,8,32,12),m=new THREE.MeshBasicMaterial({color:n.id===0?0xff6f61:0x67d8c9,transparent:true,opacity:.8}); const o=new THREE.Mesh(g,m); o.position.set(n.x,gen.world.height(n.x,n.z)+16,n.z); groups.nuclei.add(o); }
+}
+function buildTensor(gen){
+  const mat=new THREE.LineBasicMaterial({color:0x66d9ef,transparent:true,opacity:.55}); const verts=[]; for(const s of gen.tensorSamples){ const y=gen.world.height(s.x,s.z)+5, L=32; verts.push(s.x,y,s.z,s.x+s.dx*L,y,s.z+s.dz*L); } const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); groups.tensor.add(new THREE.LineSegments(g,mat));
+}
+function buildUrbanity(gen){
+  const n=48,verts=[],cols=[],idx=[]; for(let iz=0;iz<n;iz++)for(let ix=0;ix<n;ix++){ const x=lerp(-gen.world.half,gen.world.half,ix/(n-1)),z=lerp(-gen.world.half,gen.world.half,iz/(n-1)),u=gen.world.urbanity(x,z),y=gen.world.height(x,z)+2.1; verts.push(x,y,z); const c=new THREE.Color().setHSL(lerp(.63,.02,u),.78,.52); cols.push(c.r,c.g,c.b); }
+  for(let iz=0;iz<n-1;iz++)for(let ix=0;ix<n-1;ix++){ const k=iz*n+ix; idx.push(k,k+n,k+1,k+1,k+n,k+n+1); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); g.setIndex(idx); groups.urbanity.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide})));
+}
+function buildTraffic(gen){
+  const verts=[],cols=[]; let max=1; for(const e of gen.graph.activeEdges())max=Math.max(max,e.flow/(e.capacity+1));
+  for(const e of gen.graph.activeEdges()){ const a=gen.graph.nodes[e.a],b=gen.graph.nodes[e.b],r=clamp((e.flow/(e.capacity+1))/max,0,1),c=new THREE.Color().setHSL(lerp(.58,0,r),.95,.58); verts.push(a.x,a.y+5,a.z,b.x,b.y+5,b.z); cols.push(c.r,c.g,c.b,c.r,c.g,c.b); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); groups.traffic.add(new THREE.LineSegments(g,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.95})));
+}
+function buildRejected(gen){
+  const verts=[]; for(const r of gen.graph.rejected.slice(-900)){ const ya=gen.world.height(r.a.x,r.a.z)+7,yb=gen.world.height(r.b.x,r.b.z)+7; verts.push(r.a.x,ya,r.a.z,r.b.x,yb,r.b.z); } const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); groups.rejected.add(new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xff4d67,transparent:true,opacity:.35})));
+}
+
+function updateStats(gen){
+  const edges=gen.graph.activeEdges(), nodes=gen.graph.activeNodeIds(); const totalKm=edges.reduce((s,e)=>s+dist2(gen.graph.nodes[e.a],gen.graph.nodes[e.b]),0)/1000;
+  const avgDeg=nodes.reduce((s,n)=>s+gen.graph.degree(n),0)/Math.max(1,nodes.length); const dead=nodes.filter(n=>gen.graph.degree(n)===1).length/Math.max(1,nodes.length); const intersections=nodes.filter(n=>gen.graph.degree(n)>=3).length;
+  const classes={}; for(const e of edges)classes[ROAD_NAMES[e.roadClass]]=(classes[ROAD_NAMES[e.roadClass]]||0)+1;
+  const maxCong=Math.max(0,...edges.map(e=>e.flow/(e.capacity+1)));
+  document.getElementById('stats').textContent=
+`nodes: ${nodes.length}   edges: ${edges.length}\nroad length: ${totalKm.toFixed(1)} km\nintersections (deg≥3): ${intersections}\navg degree: ${avgDeg.toFixed(2)}   dead-end ratio: ${(dead*100).toFixed(1)}%\nblocks: ${gen.blocks.length}   buildings: ${gen.buildings.length}\nmax flow/capacity: ${maxCong.toFixed(2)}\n${Object.entries(classes).map(([k,v])=>`${k}: ${v}`).join(' · ')}`;
+}
+
+// ============================================================
+// 6. UI / REGENERATION
+// ============================================================
+const presetEl=document.getElementById('preset'); for(const [k,p] of Object.entries(PRESETS)){ const o=document.createElement('option'); o.value=k;o.textContent=p.label;presetEl.appendChild(o); } presetEl.value='town';
+const $=id=>document.getElementById(id); let current=null;
+function paramsFromUI(){ return { preset:presetEl.value, seed:$('seed').value.trim()||'seed', worldSize:+$('worldSize').value, density:+$('density').value, organic:+$('organic').value, terrainWeight:+$('terrainWeight').value, epochs:+$('epochs').value }; }
+function applyVisibility(){ groups.buildings.visible=$('showBuildings').checked; groups.blocks.visible=$('showBlocks').checked; groups.nodes.visible=$('showNodes').checked; groups.tensor.visible=$('showTensor').checked; groups.urbanity.visible=$('showUrbanity').checked; groups.nuclei.visible=$('showNuclei').checked; groups.traffic.visible=$('showTraffic').checked; groups.rejected.visible=$('showRejected').checked; }
+for(const id of ['showBuildings','showBlocks','showNodes','showTensor','showUrbanity','showNuclei','showTraffic','showRejected']) $(id).addEventListener('change',applyVisibility);
+
+async function regenerate(){
+  const status=$('status'); status.textContent='Generowanie…'; $('regen').disabled=true; await new Promise(r=>setTimeout(r,20));
+  try{
+    clearScene(); const p=paramsFromUI(); const gen=new CityGenerator(p); current=gen;
+    gen.run(s=>status.textContent=s);
+    buildTerrain(gen); buildRoads(gen); buildBlocks(gen); buildBuildings(gen); buildNodes(gen); buildNuclei(gen); buildTensor(gen); buildUrbanity(gen); buildTraffic(gen); buildRejected(gen); applyVisibility(); updateStats(gen);
+    const camDist=p.worldSize*.85; camera.position.set(camDist*.82,camDist*.64,camDist*.82); controls.target.set(0,0,0); controls.update();
+    status.textContent=`Gotowe · seed ${p.seed}`;
+  }catch(err){ console.error(err); status.textContent='Błąd: '+err.message; }
+  $('regen').disabled=false;
+}
+$('regen').addEventListener('click',regenerate); $('randomSeed').addEventListener('click',()=>{ $('seed').value='CITY-'+Math.random().toString(36).slice(2,9).toUpperCase(); regenerate(); });
+presetEl.addEventListener('change',()=>{ const p=PRESETS[presetEl.value]; $('organic').value=p.organic; $('terrainWeight').value=p.terrain; $('density').value=clamp(p.density,.55,1.55); });
+
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); } animate();
+regenerate();
+</script>
+</body>
+</html>

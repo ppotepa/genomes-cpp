@@ -1,0 +1,8 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+globalThis.RTS={};for(const f of ['solid','projectileMath','impactProfiles','projectileState','projectileTrace'])vm.runInThisContext(fs.readFileSync('js/destruction/'+f+'.js','utf8'));
+const r=new RTS.ProjectileTraceRecorder(10),shot=i=>({tick:i,ammo:{id:'ap'},weapon:{id:'rifle'}}),p=i=>({traceId:String(i),shotId:String(i),p:[0,0,0],v:[100,0,0],mass:.1,ammo:{id:'ap',kind:'ap'},initialEnergy:500,orientation:[0,0,0,1],angularVelocity:[0,0,0],inertia:[1,1,1],age:0,travel:0,energyLedger:{}});
+for(let i=0;i<11;i++)r.start(shot(i),p(i));assert.equal(r.traces.length,10);assert.equal(r.byId.has('0'),false);assert.equal(r.byId.has('10'),true);
+const q=p(10);r.segment(q,[0,0,0],[1,0,0],[100,0,0],500);r.segment(q,[1,0,0],[2,0,0],[100,1,0],495);assert.equal(r.traces[0].segments.length,1,'near-collinear segments merge');
+r.contact(q,{point:[2,0,0],normal:[0,1,0],material:'steel',result:'penetrated',entryEnergy:500,energy:300,direction:[1,0,0],outgoingDirection:[1,.01,0]});r.segment(q,[2,0,0],[3,0,0],[100,1,0],300);assert.equal(r.traces[0].segments.length,2,'contact forces segment boundary');
+r.fragment({...q,id:'frag',traceId:'10/frag',parentTraceId:'10',fragment:true});assert.equal(r.traces[0].fragments.length,1);r.finish('10','expired',[3,0,0],[1,0,0]);assert.equal(r.traces[0].state,'expired');assert.deepEqual(r.traces[0].segments[0].from,[0,0,0]);
+r.clear();assert.equal(r.traces.length,0);r.start(shot(1),p(1));r.dispose();r.start(shot(2),p(2));assert.equal(r.traces.length,0);console.log('PASS projectile trace recorder');

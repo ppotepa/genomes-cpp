@@ -1,0 +1,3585 @@
+GENOMES / RTS — BUILDING GENERATOR VNEXT
+GEOMETRY-FIRST / FLOORPLAN SOLVER / STAIRS / NAVIGATION / ROOFS
+KOMPLETNA SPECYFIKACJA WYKONAWCZA DLA AGENTA
+===============================================================
+
+Repozytorium: ppotepa/genomes
+Gałąź: main
+Baza zweryfikowana: aeb958b3339ad6081b71dd79426181af4506d12d
+Commit: "improve village builging"
+Data: 2026-09-26T23:07:47Z
+
+Aktualne wersje:
+- application: 0.20.1
+- buildingGeneratorVersion: building-5.0.0
+- destruction: caliber-strategy-1 + local-damage-field-1 + rubble-1.1.0
+
+UWAGA DLA AGENTA
+================
+Numery linii w tym pliku odnoszą się do powyższego HEAD.
+Nazwy symboli i ścieżki są ważniejsze niż numery linii.
+Jeżeli repo zmieniło się przed wykonaniem:
+1. zmapuj symbole na nowe linie;
+2. nie rób ponownego ogólnego researchu architektury;
+3. nie cofaj nowych zmian balistyki/destrukcji/optimizacji;
+4. wdrażaj inkrementalnie.
+
+======================================================================
+0. DECYZJA ARCHITEKTONICZNA
+======================================================================
+
+OBECNIE:
+  EURO_HOUSE / EURO_APARTMENT / EURO_OFFICE / EURO_HALL
+        ↓
+  ograniczają shape / roof / stairs / structure
+        ↓
+  buildingPlan.js wybiera layout
+        ↓
+  geometry
+
+DOCELOWO:
+  PRESET / CHARAKTER BUDYNKU
+        ↓
+  tylko preferencje i zakresy
+        ↓
+  FOOTPRINT GRAMMAR
+        ↓
+  rzeczywisty polygon 2D
+        ↓
+  STOREYS
+        ↓
+  ROOM PROGRAM / ROOM GRAPH
+        ↓
+  FLOOR PLAN SOLVER
+        ↓
+  VERTICAL CORE / STAIRS
+        ↓
+  CAPSULE / HEADROOM VALIDATION
+        ↓
+  WALLS / PORTALS / WINDOWS
+        ↓
+  NAVIGATION
+        ↓
+  STRUCTURE
+        ↓
+  ROOF SOLVER
+        ↓
+  FEATURES / FURNITURE
+        ↓
+  BuildingPlan vNext
+        ├─ Building Lab detailed renderer
+        ├─ world proxy
+        ├─ destruction logical model
+        └─ AI/nav
+
+GŁÓWNA ZASADA:
+"Typ domu" nie określa algorytmu geometrii.
+Typ/preset określa:
+- preferowane footprint families;
+- program pomieszczeń;
+- proporcje;
+- materiały;
+- dachy;
+- feature probabilities;
+- zakres kondygnacji;
+- constraints estetyczne/funkcjonalne.
+
+NIE:
+  if (g.type === 'EURO_HOUSE') osobny generator
+  if (g.type === 'EURO_OFFICE') osobny generator
+
+======================================================================
+1. AKTUALNE MIEJSCA DO REFAKTORU
+======================================================================
+
+1.1. js/buildings/buildingGenome.js
+-----------------------------------
+SYMBOL:
+  B.resolveGenome(options={})                         ~ line 12
+
+Aktualne patterny:
+  EURO_HOUSE                                          ~ line 6
+  EURO_APARTMENT                                      ~ line 7
+  EURO_OFFICE                                         ~ line 8
+  EURO_HALL                                           ~ line 9
+
+Aktualnie pattern określa naraz:
+  shapes
+  floors
+  width
+  depth
+  floorHeight
+  roofs
+  stairs
+  style
+  structure
+
+To jest główne sprzężenie do usunięcia.
+
+Aktualne zależności od g.type do późniejszego usunięcia:
+- buildingPlan.js::stairPlan() szerokość schodów zależna od typu;
+- buildingPlan.js::layout() specjalny hall;
+- buildingPlan.js::layout() room role zależny od OFFICE/APARTMENT;
+- buildingFacades.js specjalne warunki EURO_HALL.
+
+1.2. js/buildings/buildingPlan.js
+---------------------------------
+SYMBOLE:
+  B.wall(...)                                         ~ line 7
+  B.opening(...)                                      ~ line 15
+  envelope(plan,mass,floor)                           ~ line 28
+  stairMetrics(height,type)                           ~ line 47
+  flight(...)                                         ~ line 54
+  stairPlan(plan,mass,floor)                          ~ line 60
+  layout(plan,mass,floor)                             ~ line 95
+  B.createPlan(g)                                     ~ line 130
+  B.validatePlan(plan)                                ~ line 151
+
+Obecne ograniczenia:
+- room = prostokąt bounds [x0,x1,z0,z1];
+- footprint = zestaw osiowo ustawionych rectangle masses;
+- L/annex mają osobne if-y;
+- layout = centralny corridor + rooms po bokach;
+- stair doklejany do układu zamiast być vertical-core constraint;
+- walidacja schodów nie sprawdza rzeczywistej kapsuły postaci.
+
+1.3. js/buildings/buildingRoofs.js
+----------------------------------
+SYMBOLE:
+  B.rectRoof(bounds,y,type,...)                        ~ line 5
+  B.planRoofs(plan)                                   ~ line 34
+
+Problem:
+- roof solver prostokątny;
+- compound footprints nie mają jednego topology solver;
+- brak explicit ridges/hips/valleys/eaves/gables jako kontraktu danych.
+
+1.4. js/buildings/buildingFacades.js
+------------------------------------
+SYMBOL:
+  B.planFacades(plan)                                 ~ line 10
+
+Problem:
+- touchesWall opiera się o AABB room bounds;
+- windows opierają się na plan.axes;
+- specjalne zachowanie zależy od g.type;
+- nie ma room semantic exposure.
+
+1.5. js/buildings/buildingFurniture.js
+--------------------------------------
+SYMBOL:
+  B.planFurniture(plan)                               ~ line 4
+
+Problem:
+- room bounds tylko prostokąt;
+- kilka deterministic fraction trials;
+- brak polygon inset;
+- brak semantic furniture program;
+- brak final capsule/path validation.
+
+1.6. js/buildings/buildingGeometry.js
+-------------------------------------
+SYMBOLE:
+  B.buildGeometry(plan)                               ~ line 4
+  subtractIntervals(...)                              ~ line 38
+  openingAssembly(...)                                ~ line 44
+  renderStructure()                                   ~ line 89
+  renderStair(stair)                                  ~ line 117
+  renderDetail(d)                                     ~ line 148
+
+Renderer nadal czyta:
+  B.patterns[g.type]
+i zna zbyt dużo semantyki generatora.
+
+DOCELOWO:
+buildingGeometry.js ma być głupim rendererem gotowego BuildingPlan.
+
+1.7. js/buildings/proceduralBuildingGenerator.js
+-------------------------------------------------
+KLASA:
+  R.ProceduralBuildingGenerator                       ~ line 5
+
+AKTUALNE:
+  static buildingTypes -> B.patterns
+  static footprintTypes -> pattern.shapes
+  static patterns
+  createPlan(...)
+  generate(...)
+
+DOCELOWO:
+  static presets
+  static footprintFamilies
+  static roomPrograms
+  static roofFamilies
+  static stairFamilies
+  createSpec()
+  createPlan()
+  generate()
+
+Compatibility getters zostają przejściowo.
+
+1.8. Building Lab
+-----------------
+PLIKI:
+  building-lab/index.html
+  building-lab/forms.js
+  building-lab/app.js
+  building-lab/floorPlan.js
+  building-lab/view3d.js
+
+SYMBOLE:
+  BuildingLab.createForms(...)
+  options()
+  constrain()
+  generate()
+  refresh()
+  drawFloorPlan()
+  fit()
+
+Problem:
+forms.js::constrain() blokuje shape/roof/stair/floors przez pattern.
+floorPlan.js rysuje tylko room bounds.length===4.
+To musi przejść na polygon rooms i preset preferences.
+
+======================================================================
+2. NOWY BuildingSpec
+======================================================================
+
+NOWY SCHEMA:
+  rts.building-spec/6
+
+Przykład:
+
+{
+  schema:'rts.building-spec/6',
+  seed:2026,
+
+  randomSeeds:{
+    preset,
+    footprintTopology,
+    footprintDimensions,
+    storeys,
+    structure,
+    roomProgram,
+    verticalCore,
+    roomTopology,
+    roomGeometry,
+    portals,
+    stairs,
+    facade,
+    details,
+    roofTopology,
+    roofGeometry,
+    furniture,
+    weathering,
+    damage
+  },
+
+  presetId:'EURO_FARMHOUSE',
+
+  envelope:{
+    footprintFamily:'AUTO',
+    footprintPolygon:null,
+    targetWidth:10,
+    targetDepth:12,
+    targetArea:105,
+    compactness:.75,
+    courtyard:false
+  },
+
+  storeys:{
+    count:2,
+    floorHeights:[2.9,2.9],
+    attic:'NONE'
+  },
+
+  structure:{
+    system:'MASONRY'
+  },
+
+  program:{
+    id:'FAMILY_HOME'
+  },
+
+  stairs:{
+    family:'AUTO',
+    width:1.0,
+    maxRise:.18,
+    minTread:.27
+  },
+
+  roof:{
+    family:'AUTO',
+    pitch:null,
+    overhang:.35,
+    covering:'clay'
+  },
+
+  facade:{...},
+  features:{...},
+  furniture:{enabled:true},
+  damagePercent:0
+}
+
+INVARIANTY SEED:
+- furniture seed nie zmienia rooms;
+- roofGeometry nie zmienia footprint;
+- facade nie zmienia topology;
+- damage nie zmienia structure;
+- explicit footprint omija footprint randomization.
+
+======================================================================
+3. PRESETY = DANE, NIE KOD
+======================================================================
+
+NOWY PLIK:
+  js/buildings/buildingPresets.js
+
+Eksport:
+  B.BUILDING_PRESETS
+  B.resolvePreset(id)
+
+Przykład:
+
+EURO_FARMHOUSE:{
+  label:'Dom gospodarstwa',
+  tags:['residential','rural'],
+
+  footprint:{
+    families:{
+      RECT:.48,
+      L:.24,
+      T:.10,
+      U:.08,
+      COMPOSITE:.10
+    },
+    width:[7,14],
+    depth:[7,16],
+    area:[60,180]
+  },
+
+  storeys:{
+    count:{1:.55,2:.45}
+  },
+
+  roomPrograms:{
+    FAMILY_HOME:.65,
+    LONG_SERVICE_HOME:.25,
+    SMALL_FARM_HOME:.10
+  },
+
+  roof:{
+    GABLE:.48,
+    HIP:.20,
+    HALF_HIP:.10,
+    COMPOUND_GABLE:.12,
+    SHED_COMPOUND:.10
+  },
+
+  structure:{
+    MASONRY:.65,
+    TIMBER_FRAME:.20,
+    TIMBER_LOG:.15
+  },
+
+  features:{
+    chimney:.82,
+    shutters:.42,
+    porch:.35,
+    dormer:.20,
+    serviceAnnex:.28
+  }
+}
+
+Preset NIE zawiera:
+- coordinates rooms;
+- walls;
+- hardcoded layout;
+- specjalnych callbacków.
+
+======================================================================
+4. KOMPATYBILNOŚĆ ZE STARYM buildingType
+======================================================================
+
+DODAJ:
+  B.legacyPatternToPresetOptions(type,options)
+
+Mapowanie:
+  EURO_HOUSE     -> EURO_HOUSE_LEGACY
+  EURO_APARTMENT -> EURO_APARTMENT_LEGACY
+  EURO_OFFICE    -> EURO_OFFICE_LEGACY
+  EURO_HALL      -> EURO_HALL_LEGACY
+
+Stare:
+  generator.generate({buildingType:'EURO_HOUSE'})
+
+ma działać jako wejściowy compatibility adapter.
+
+Core vNext nie sprawdza później:
+  g.type
+
+Przejściowo:
+  manifest.legacyBuildingType
+
+======================================================================
+5. POLYGON KERNEL
+======================================================================
+
+NOWY:
+  js/buildings/buildingPolygon.js
+
+PURE JS:
+- zero DOM;
+- zero THREE.
+
+Canonical point:
+  [x,z]
+
+Canonical polygon:
+{
+  outer:[[x,z],...],
+  holes:[
+    [[x,z],...]
+  ]
+}
+
+API:
+
+B.Polygon.area(poly)
+B.Polygon.signedArea(poly)
+B.Polygon.centroid(poly)
+B.Polygon.bounds(poly)
+B.Polygon.normalizeWinding(poly)
+B.Polygon.removeDuplicateVertices(poly,eps)
+B.Polygon.removeCollinear(poly,eps)
+B.Polygon.edges(poly)
+B.Polygon.segmentIntersection(...)
+B.Polygon.pointInPolygon(...)
+B.Polygon.distancePointSegment(...)
+B.Polygon.containsPolygon(...)
+B.Polygon.overlaps(...)
+B.Polygon.validate(poly)
+B.Polygon.union(...)
+B.Polygon.difference(...)
+B.Polygon.intersection(...)
+
+Po KAŻDEJ boolean operacji:
+  canonicalize
+  finite check
+  min edge
+  area
+  winding
+  duplicate removal.
+
+======================================================================
+6. POLYGON BOOLEAN BACKEND
+======================================================================
+
+KANDYDAT:
+  GitHub repo: mfogel/polygon-clipping
+
+NOWY WRAPPER:
+  js/buildings/buildingPolygonBackend.js
+
+API:
+  B.PolygonBackend.union
+  B.PolygonBackend.intersection
+  B.PolygonBackend.difference
+
+Nie używaj vendor global bezpośrednio w generatorze.
+
+VENDOR:
+- pinned exact version;
+- local IIFE;
+- license;
+- SHA-256;
+- zero CDN.
+
+NOWY TOOLCHAIN:
+  tools/buildings/package.json
+  tools/buildings/package-lock.json
+  tools/buildings/bundle.cjs
+
+Wzorzec:
+  tools/destruction/bundle.cjs
+
+======================================================================
+7. FOOTPRINT GRAMMAR
+======================================================================
+
+NOWY:
+  js/buildings/buildingFootprint.js
+
+Eksport:
+  B.FootprintGrammar
+  B.createFootprint(spec)
+
+Families pierwszej wersji:
+  RECT
+  L
+  T
+  U
+  H
+  Z
+  COURTYARD
+  COMPOSITE
+  IRREGULAR_ORTHO
+
+Mechanizm:
+RECT = rectangle
+L = union 2 rectangles
+T = union 2 rectangles
+U = union 3 rectangles lub difference notch
+H = bounded union 3–5 rectangles
+Z = offset masses
+COURTYARD = outer - inner
+COMPOSITE = deterministic union 2–5 masses
+
+Output:
+{
+  id,
+  family,
+  polygon,
+  masses,
+  bounds,
+  area,
+  perimeter,
+  exteriorEdges,
+  courtyardEdges,
+  generationTrace
+}
+
+generationTrace:
+- seed;
+- family;
+- primitive masses;
+- boolean ops;
+- fallbacki.
+
+======================================================================
+8. FOOTPRINT VALIDATION
+======================================================================
+
+HARD:
+- finite;
+- no self intersection;
+- min area;
+- max area;
+- min edge length;
+- holes inside outer;
+- holes non-overlap;
+- minimum usable inset;
+- no ultra-thin neck;
+- bounds in allowed dimensions;
+- floors>1 => feasible vertical-core region.
+
+SOFT:
+- compactness;
+- concavity;
+- asymmetry;
+- number of masses;
+- courtyard ratio.
+
+Generator:
+- bounded candidates, np. 8;
+- wybierz best score;
+- zero unlimited retry.
+
+======================================================================
+9. STOREYS
+======================================================================
+
+NOWY:
+  js/buildings/buildingStoreys.js
+
+Storey:
+{
+  floor:0,
+  elevation:0,
+  height:2.9,
+  polygon,
+  ceilingPolygon,
+  voids:[],
+  verticalCoreReservations:[]
+}
+
+Schema wspiera:
+- identical footprint;
+- annex only ground floor;
+- upper setback;
+- attic;
+- partial upper floor.
+
+Pierwszy rollout może używać głównie identical footprint,
+ale NIE koduj założenia w schema.
+
+======================================================================
+10. ROOM PROGRAM
+======================================================================
+
+NOWY:
+  js/buildings/buildingRoomPrograms.js
+
+Eksport:
+  B.ROOM_PROGRAMS
+  B.createRoomProgram(spec)
+
+Room requirement:
+{
+  id:'living-0',
+  role:'living',
+  minArea:16,
+  maxArea:32,
+  minWidth:3.2,
+  maxAspect:2.0,
+  floorPreference:0,
+  exteriorExposure:'REQUIRED',
+  window:'REQUIRED',
+  privacy:.3,
+  wet:false,
+  verticalStackGroup:null
+}
+
+Relations:
+  REQUIRED_ADJACENT
+  PREFERRED_ADJACENT
+  ALLOWED_ADJACENT
+  AVOID_ADJACENT
+  REQUIRED_TRAVERSABLE
+  SAME_FLOOR
+  PREFER_SAME_FLOOR
+  PREFER_STACKED
+  REQUIRES_EXTERIOR
+  REQUIRES_WINDOW
+
+Program examples:
+  SMALL_HOME
+  FAMILY_HOME
+  FARM_SERVICE_HOME
+  APARTMENT_UNIT
+  CORRIDOR_APARTMENT_FLOOR
+  SMALL_OFFICE
+  OPEN_OFFICE
+  WORKSHOP
+  BARN_STORAGE
+  RETAIL_GROUND_FLOOR
+
+Program NIE ma coordinates.
+
+======================================================================
+11. ROOM GRAPH
+======================================================================
+
+NOWY:
+  js/buildings/buildingRoomGraph.js
+
+B.RoomGraph API:
+  addRoom(node)
+  addRelation(a,b,type,strength)
+  neighbors(id)
+  connectedComponents()
+  validate()
+  clone()
+  serialize()
+
+Special node:
+  outside
+
+Schody jako semantyka:
+  stair-core-floor0
+  stair-core-floor1
+  relation VERTICAL_CONNECT.
+
+To ma być odpowiednik idei z Infinigen:
+  semantic graph first,
+  geometry later.
+
+======================================================================
+12. FLOOR PLAN SOLVER
+======================================================================
+
+NOWY:
+  js/buildings/buildingFloorSolver.js
+
+Eksport:
+  B.FloorPlanSolver
+  B.solveFloorPlan(context)
+
+Input:
+{
+  footprint,
+  storey,
+  roomGraph,
+  constraints,
+  seed,
+  reservedRegions
+}
+
+Output:
+{
+  rooms:[{
+    id,
+    role,
+    floor,
+    polygon,
+    bounds,
+    area,
+    exteriorEdges,
+    sharedEdges,
+    scoreData
+  }],
+  partitions:[],
+  adjacency:[],
+  issues:[],
+  score,
+  candidateId
+}
+
+======================================================================
+13. FLOOR SOLVER — PIERWSZY ALGORYTM
+======================================================================
+
+FAZA 1:
+ORTHOGONAL POLYGONS.
+
+Pipeline:
+1. reserve vertical core;
+2. reserve entrance zone;
+3. collect candidate split lines;
+4. recursively partition;
+5. assign cells to room graph;
+6. merge neighbor cells gdzie trzeba;
+7. adjust split positions;
+8. derive shared-edge adjacency;
+9. validate hard;
+10. score soft;
+11. repeat fixed candidate count;
+12. select best.
+
+Startowe limity:
+  16 candidates
+  <=64 local moves na candidate.
+
+Derived seed:
+  deriveSeed(roomGeometrySeed,'candidate/'+i)
+
+NIGDY Math.random.
+
+======================================================================
+14. PARTITION HELPER
+======================================================================
+
+NOWY:
+  js/buildings/buildingPartition.js
+
+Pierwsze strategie:
+- BSP vertical/horizontal;
+- grid-line split;
+- merge adjacent cells.
+
+Split candidate sources:
+- footprint vertices;
+- vertical core edges;
+- preferred room widths;
+- symmetry axes.
+
+Nie twórz regionu:
+- area < min;
+- width < min;
+- impossible door adjacency.
+
+======================================================================
+15. HARD CONSTRAINTS
+======================================================================
+
+NOWY:
+  js/buildings/buildingConstraints.js
+
+Functions:
+  validateRoomContainment
+  validateRoomOverlap
+  validateRoomArea
+  validateRoomWidth
+  validateRoomConnectivity
+  validateRequiredAdjacency
+  validateExteriorExposure
+  validateVerticalCore
+  validateDoorFeasibility
+  validatePassageWidth
+  validateStairTraversal
+  validateHeadroom
+  validateFurnitureClearance
+  validateNavReachability
+
+Result:
+{
+  ok,
+  failures:[{
+    code,
+    entity,
+    data
+  }]
+}
+
+Solver odrzuca candidate przez result.
+Final validator może throw.
+
+======================================================================
+16. SOFT SCORE
+======================================================================
+
+B.scoreFloorPlan(candidate,context)
+
+Składniki:
+- areaDeviation;
+- adjacencyPenalty;
+- corridorAreaRatio;
+- aspectPenalty;
+- exteriorExposureReward;
+- wetStackPenalty;
+- privacyPenalty;
+- doorCongestion;
+- stairAreaPenalty;
+- partitionComplexity.
+
+Zapisuj:
+  candidate.scoreBreakdown
+
+To musi być widoczne w Building Lab debug.
+
+======================================================================
+17. LOCAL SEARCH
+======================================================================
+
+Po initial split:
+- move split line;
+- swap room assignments;
+- merge + re-split;
+- move door candidate;
+- flip stair orientation.
+
+Deterministycznie.
+
+Pierwsza wersja:
+  hill-climb.
+
+Później opcjonalnie simulated annealing.
+
+Nie wdrażaj wielkiego solver framework zanim prosty bounded solver działa.
+
+======================================================================
+18. KIWI OPCJONALNIE
+======================================================================
+
+Repo:
+  lume/kiwi
+
+POC tylko jeśli adjust-splits robi się zbyt złożony.
+
+Kiwi może:
+- exact width;
+- min/max;
+- alignment;
+- edit variables.
+
+Kiwi NIE robi:
+- topology;
+- polygon boolean;
+- room graph.
+
+POC:
+  tools/buildings/poc-kiwi.cjs
+
+Nie dodawaj dependency przed POC.
+
+======================================================================
+19. NOWY WALL CONTRACT
+======================================================================
+
+NOWY:
+  js/buildings/buildingWalls.js
+
+Stary:
+  vertical, fixed, lo, hi
+
+Nowy:
+{
+  id,
+  floor,
+  edge:{
+    a:[x,z],
+    b:[x,z]
+  },
+  length,
+  baseY,
+  height,
+  thickness,
+  normal:[x,z],
+  tangent:[x,z],
+  interior,
+  rooms:[a,b] lub [room,'outside'],
+  structural,
+  assemblyId,
+  physicalSolidId,
+  layers,
+  openings:[]
+}
+
+Daje:
+- arbitrary wall angle;
+- lepszy material frame;
+- brak axis-specific code.
+
+======================================================================
+20. SHARED EDGE ADJACENCY
+======================================================================
+
+DODAJ:
+  B.findSharedPolygonEdges(roomA,roomB,tolerance)
+
+Każdy room:
+  exteriorSegments[]
+  neighborSegments[]
+
+Internal walls wynikają z shared polygon edges.
+Nie z AABB.
+
+======================================================================
+21. PORTALS / DOORS
+======================================================================
+
+NOWY:
+  js/buildings/buildingPortals.js
+
+Pipeline:
+1. graph mówi REQUIRED_TRAVERSABLE;
+2. znajdź shared edge;
+3. sprawdź min length;
+4. wybierz portal center;
+5. reserve clear polygon;
+6. collision z innymi openings;
+7. capsule clearance;
+8. zapisz portal.
+
+Portal:
+{
+  id,
+  wallId,
+  rooms:[a,b],
+  kind:'door',
+  width,
+  height,
+  sill:0,
+  centerOnEdge,
+  clearPolygon,
+  state:'CLOSED'
+}
+
+Minimum door width zależne od agent profile.
+
+======================================================================
+22. AGENT PROFILE
+======================================================================
+
+NOWY:
+  js/buildings/buildingAgentProfiles.js
+lub js/config.js.
+
+B.BUILDING_AGENT_PROFILES = {
+  infantryStanding:{
+    radius:.28,
+    standingHeight:1.76,
+    shoulderWidth:.56,
+    passageMargin:.05
+  }
+}
+
+Wartości mają być zsynchronizowane z realnym Rapier player collider.
+Dodaj test porównujący je z DestructionPhysics assumptions.
+
+======================================================================
+23. WINDOWS — SEMANTIC ROOM FIRST
+======================================================================
+
+Przepisz:
+  js/buildings/buildingFacades.js
+
+Pipeline:
+1. exterior wall zna adjacent room;
+2. room requirement mówi REQUIRED/PREFERRED/NONE;
+3. usable interval;
+4. odejmij doors/corners/posts/features;
+5. facade rhythm;
+6. window area ratio;
+7. validate.
+
+Nie:
+  g.type==='EURO_HALL'
+
+Użyj:
+  room role
+  facade profile
+  structural constraints.
+
+======================================================================
+24. VERTICAL CORE
+======================================================================
+
+NOWY:
+  js/buildings/buildingVerticalCore.js
+
+Schody rezerwują przestrzeń PRZED room solve.
+
+Candidate:
+{
+  id,
+  floors:[0,1],
+  polygon,
+  preferredAccessEdges,
+  stairFamily,
+  orientation,
+  shaftVoids,
+  clearanceEnvelope
+}
+
+Dla floors>1:
+- generuj kilka core candidates;
+- floor solver ocenia każdy.
+
+======================================================================
+25. SCHODY — NOWY MODUŁ
+======================================================================
+
+NOWY:
+  js/buildings/buildingStairs.js
+
+Przenieś/zastąp:
+  stairMetrics()
+  flight()
+  stairPlan()
+z buildingPlan.js.
+
+API:
+B.StairSolver.solve(core,fromStorey,toStorey,profile,context)
+B.StairSolver.validate(stair,context)
+B.StairSolver.createNavigationSurface(stair,agentProfile)
+
+Profile:
+{
+  family:'DOGLEG',
+  minWidth:1.0,
+  preferredWidth:1.1,
+  maxRise:.18,
+  minTread:.27,
+  preferredTread:.29,
+  minLandingDepth:1.0,
+  headroom:2.0
+}
+
+Nie zależy od building preset.
+
+======================================================================
+26. STAIR DATA CONTRACT
+======================================================================
+
+{
+  id,
+  family,
+  fromFloor,
+  toFloor,
+
+  flights:[{
+    id,
+    start:[x,y,z],
+    end:[x,y,z],
+    direction:[x,z],
+    width,
+    risers,
+    treads,
+    rise,
+    tread,
+    run,
+    footprintPolygon
+  }],
+
+  landings:[{
+    id,
+    polygon,
+    elevation,
+    thickness
+  }],
+
+  slabVoids:[{
+    floor,
+    polygon
+  }],
+
+  navigation:{
+    ramps:[],
+    landingPolygons:[],
+    entryPortal:null,
+    exitPortal:null,
+    centerline:[]
+  },
+
+  clearanceVolume:{
+    samples:[],
+    requiredHeadroom,
+    capsuleRadius
+  }
+}
+
+======================================================================
+27. SCHODY: VISUAL STEPS != CHARACTER COLLISION
+======================================================================
+
+REAL:
+- stopnie do renderu;
+- stopnie do balistyki;
+- stopnie do destrukcji.
+
+CHARACTER:
+- invisible navigation ramp.
+
+Nie każ postaci wspinać się po każdym BoxGeometry nosing.
+
+Dla flight:
+- ramp od dolnej podpory do upper landing;
+- width = stair width minus side margins.
+
+Jeśli runtime Rapier:
+- ramp collider w character collision group;
+- real steps mogą być wykluczone z character group;
+- projectiles nadal widzą real geometry/material.
+
+======================================================================
+28. CAPSULE TRAVERSAL
+======================================================================
+
+NOWY:
+  js/buildings/buildingTraversal.js
+
+API:
+  B.validateCapsulePath(path,solids,agentProfile,options)
+  B.validateStairTraversal(stair,plan,agentProfile)
+
+Sample step:
+  .08–.12 m.
+
+Sprawdź:
+- walls;
+- slab underside;
+- landing edge;
+- door header;
+- stair side;
+- roof/headroom;
+- structure.
+
+Result:
+{
+  ok,
+  minHeadroom,
+  minLateralClearance,
+  firstFailure:{
+    t,
+    point,
+    obstacleId,
+    reason
+  }
+}
+
+Accepted stair MUSI mieć ok=true.
+
+======================================================================
+29. HEADROOM / SLAB OPENING
+======================================================================
+
+Obecny stair.openingBounds to za mało.
+
+Nowy slab void wynika z clearance envelope kapsuły.
+
+Algorytm:
+1. sample nav ramp;
+2. wyznacz capsule top;
+3. znajdź sample, gdzie head wchodzi w upper slab volume;
+4. dla tych samples utwórz wymagane 2D discs/rect envelopes;
+5. union;
+6. powiększ margin;
+7. to jest slab void polygon.
+
+Jeśli required void nie mieści się w core/storey:
+  stair candidate invalid.
+
+To jest główna naprawa "czasami nie da się wejść po schodach".
+
+======================================================================
+30. RAPier STAIR TEST
+======================================================================
+
+NOWY:
+  tests/building_stair_rapier.cjs
+
+Użyj realnych założeń:
+  capsule(.6,.28)
+  controller autostep .25/.15
+  snapToGround .2
+
+Test każdej family:
+  STRAIGHT
+  QUARTER_TURN
+  DOGLEG
+  OPEN_WELL
+
+Przemieść capsule:
+  entry -> top.
+
+Asercje:
+- osiąga top;
+- brak stuck;
+- poprawny landing turn;
+- brak ściana/strop penetration.
+
+Testuj runtime collision setup z NAV RAMP.
+
+======================================================================
+31. NAVIGATION CONTRACT
+======================================================================
+
+NOWY:
+  js/buildings/buildingNavigation.js
+
+plan.navigation = {
+  surfaces:[{
+    id,
+    floor,
+    polygon,
+    elevation,
+    kind:'ROOM'|'CORRIDOR'|'LANDING'|'STAIR_RAMP'
+  }],
+
+  portals:[{
+    id,
+    fromSurface,
+    toSurface,
+    width,
+    kind:'DOOR'|'OPENING'|'STAIR'
+  }],
+
+  blockers:[],
+  graph:{...}
+}
+
+Pure validation:
+- outside reachable;
+- all required rooms reachable;
+- floors connected;
+- no isolated landing;
+- portal width sufficient.
+
+Nav library NIE jest warunkiem poprawności planu.
+
+======================================================================
+32. NAVMESH LIBRARY POC
+======================================================================
+
+Kandydat 1:
+  isaac-mason/navcat
+
+Kandydat 2:
+  isaac-mason/recast-navigation-js
+
+Wybierz JEDEN po POC.
+
+Kryteria:
+- file:// after bundling;
+- determinism;
+- bundle size;
+- generation speed;
+- dynamic links;
+- serialization;
+- query speed;
+- license.
+
+POC:
+  tools/buildings/nav-poc.*
+
+Test:
+- entrance -> every room;
+- floor0 -> floor1;
+- close door;
+- remove stair;
+- add breach connection.
+
+Core plan pozostaje niezależny.
+
+======================================================================
+33. ROOF DATA CONTRACT
+======================================================================
+
+plan.roof = {
+  regions:[],
+  faces:[],
+  ridges:[],
+  valleys:[],
+  hips:[],
+  eaves:[],
+  gables:[],
+  openings:[]
+}
+
+Face:
+{
+  id,
+  polygon3D,
+  sourceFootprintEdges,
+  slope,
+  normal,
+  assembly,
+  supportingWalls
+}
+
+Legacy:
+  plan.roofFaces alias -> plan.roof.faces.
+
+======================================================================
+34. ROOF SOLVER
+======================================================================
+
+NOWY:
+  js/buildings/buildingRoofSolver.js
+
+Zachowaj:
+  B.rectRoof
+jako backend RECT.
+
+Etap 1:
+- compound mass roofs;
+- overlap/seam resolution;
+- explicit valleys/seams;
+- L/T/U support.
+
+Etap 2:
+straight skeleton POC.
+
+======================================================================
+35. STRAIGHT SKELETON POC
+======================================================================
+
+Repo:
+  StrandedKitty/straight-skeleton
+
+Sprawdź:
+- file:// WASM;
+- bundle;
+- holes;
+- determinism;
+- degenerate orthogonal polygons;
+- bundle size;
+- license.
+
+POC polygons:
+  RECT
+  L
+  U
+  T
+  courtyard
+  narrow notch
+  near collinear
+
+Wrapper po akceptacji:
+  B.RoofSkeletonBackend.compute(polygon,options)
+
+Core nie odwołuje się bezpośrednio do vendor API.
+
+======================================================================
+36. ROOF FAMILIES
+======================================================================
+
+Pierwszy produkcyjny zakres:
+  FLAT
+  GABLE
+  HIP
+  SHED
+  COMPOUND_GABLE
+
+Później:
+  HALF_HIP
+  MANSARD
+
+Roof style to warstwa nad topology solver.
+Straight skeleton nie jest sam "style".
+
+======================================================================
+37. TRIANGULATION
+======================================================================
+
+Kandydat:
+  mapbox/earcut
+
+NOWY:
+  js/buildings/buildingTriangulation.js
+
+API:
+  B.triangulatePolygon(polygon)
+
+Użycie:
+- floors;
+- slab polygons with holes;
+- roof faces;
+- debug/nav rendering.
+
+Nie używaj Earcut jako navmesh.
+
+======================================================================
+38. FURNITURE VNEXT
+======================================================================
+
+buildingFurniture.js po refaktorze:
+
+Input:
+- room polygon;
+- semantic role;
+- doors;
+- windows;
+- navigation clearance.
+
+Pipeline:
+1. usable inset polygon;
+2. wall placement intervals;
+3. reserve portal routes;
+4. required furniture;
+5. optional furniture;
+6. path validation.
+
+Program może mieć:
+bedroom:
+  bed REQUIRED
+  storage PREFERRED
+
+kitchen:
+  counter REQUIRED
+  table OPTIONAL
+
+office:
+  desk REQUIRED
+
+Furniture=false nie zmienia żadnej topologii.
+
+======================================================================
+39. STRUCTURE PLAN
+======================================================================
+
+NOWY:
+  js/buildings/buildingStructurePlan.js
+
+Input:
+- footprint;
+- rooms;
+- floors;
+- structural system;
+- roof supports.
+
+Output:
+  bearingWalls
+  columns
+  beams
+  slabSupports
+  roofSupportAnchors
+
+MASONRY:
+- wybrane internal walls bearing.
+
+FRAME:
+- column grid niezależny od room partitions.
+
+Destruction użyje tych relacji.
+
+======================================================================
+40. BuildingPlan vNext
+======================================================================
+
+Nowy schema:
+  rts.building-plan/4
+
+Proponowany kształt:
+
+{
+  schema:'rts.building-plan/4',
+  seed,
+  spec,
+
+  preset:{
+    id,
+    tags:[]
+  },
+
+  footprint:{
+    family,
+    polygon,
+    bounds,
+    masses,
+    area
+  },
+
+  storeys:[],
+
+  roomGraph:{...},
+
+  rooms:[{
+    id,
+    role,
+    floor,
+    polygon,
+    bounds,
+    area,
+    exteriorSegments,
+    navigationSurfaceId
+  }],
+
+  walls:[],
+  openings:[],
+  stairs:[],
+
+  slabs:[{
+    id,
+    floor,
+    polygon,
+    holes:[],
+    elevation,
+    assembly
+  }],
+
+  roof:{...},
+  navigation:{...},
+  structure:{...},
+  details:[],
+  furniture:[],
+
+  generation:{
+    candidateScores:[],
+    selectedCandidate:null,
+    issues:[],
+    fallbacks:[]
+  }
+}
+
+======================================================================
+41. MANIFEST VNEXT
+======================================================================
+
+Zachowaj compatibility:
+  buildingType
+  buildingLabel
+  shapeVariant
+  shape
+
+Nowe:
+  presetId
+  footprintFamily
+  footprintPolygon
+  roomProgram
+  roomGraph
+  navigation
+  roofTopology
+  generatorSchemaVersion
+
+buildingType może być aliasem presetId lub legacy type.
+
+======================================================================
+42. buildingGeometry.js MIGRACJA
+======================================================================
+
+Obsługuj przejściowo plan v3 i v4.
+
+DODAJ:
+  renderPolygonSlab
+  renderWallEdge
+  renderStair
+  renderRoofFace
+
+Nowe wall rendering:
+edge a,b
+  -> tangent
+  -> normal
+  -> yaw quaternion
+
+Opening:
+  offset along edge.
+
+Nie używaj vertical bool dla v4.
+
+======================================================================
+43. WALL MATERIAL FRAME
+======================================================================
+
+edge:
+a=[x0,z0]
+b=[x1,z1]
+
+tangent2 = normalize(b-a)
+normal2 = perpendicular zależny od winding
+
+3D:
+  tangentU=[tx,0,tz]
+  tangentV=[0,1,0]
+  normal=[nx,0,nz]
+
+To przekazuj jako localMaterialFrame.
+
+physicalSolidId stabilny dla logicznej ściany.
+
+======================================================================
+44. DESTRUCTION INTEGRATION
+======================================================================
+
+MUSI zostać:
+  assemblyId
+  physicalSolidId
+  thickness
+  layers
+  materialField
+  localMaterialFrame
+  sourceId
+  wallId
+  roofId
+  floor
+  structural
+
+Nie wyprowadzaj materiału z proxy color.
+
+Testy:
+- arbitrary wall angle;
+- 37° whole building rotation;
+- AP through layers;
+- opening real;
+- no double resistance przez triangulation.
+
+======================================================================
+45. WORLD PERFORMANCE PLAN COMPATIBILITY
+======================================================================
+
+Nowy plan musi działać z:
+  BuildingPlan -> cheap world proxy -> lazy damage chunks.
+
+World proxy czyta:
+- footprint polygon;
+- walls;
+- openings;
+- roof faces.
+
+Nie czyta presetId żeby odtworzyć geometrię.
+
+BuildingCollisionProxy:
+- wall prisms arbitrary edge;
+- polygon slabs;
+- roof faces.
+
+======================================================================
+46. VALIDATION REFAKTOR
+======================================================================
+
+Zamiast jednego B.validatePlan:
+
+B.validateBuildingPlan(plan,{
+  geometry:true,
+  rooms:true,
+  traversal:true,
+  navigation:true,
+  structure:true,
+  roof:true
+})
+
+Podziel:
+  validateSchema
+  validatePolygonTopology
+  validateStoreys
+  validateRooms
+  validateWalls
+  validateOpenings
+  validateConnectivity
+  validateStairs
+  validateTraversal
+  validateSlabs
+  validateRoof
+  validateFurniture
+  validateMaterials
+
+Error context:
+  code
+  seed
+  preset
+  entity
+  floor
+  point
+  candidateId
+
+======================================================================
+47. GENERATION ISSUES / FALLBACKS
+======================================================================
+
+plan.generation.issues[]
+
+Przykład:
+{
+  stage:'floor-plan',
+  code:'CANDIDATE_NO_STAIR_HEADROOM',
+  candidate:5,
+  entity:'core-1',
+  action:'rejected'
+}
+
+Fallback:
+{
+  stage:'roof',
+  code:'SKELETON_BACKEND_FAILED',
+  action:'COMPOUND_RECT_FALLBACK'
+}
+
+Nie rób silent fallback.
+
+======================================================================
+48. BUILDING LAB UI
+======================================================================
+
+index.html:
+zmień "Typologia" na "Preset / charakter".
+
+Sekcje:
+FORMA:
+- footprint family;
+- width/depth/area;
+- courtyard;
+- compactness;
+- floors;
+- attic.
+
+PROGRAM:
+- room program;
+- room count;
+- solver candidate.
+
+KOMUNIKACJA:
+- stair family;
+- stair width;
+- show navigation;
+- show capsule clearance;
+- headroom diagnostics.
+
+DACH:
+- roof family;
+- pitch;
+- ridge preference;
+- overhang.
+
+DEBUG:
+- selected candidate;
+- score breakdown;
+- hard failures;
+- fallbacks.
+
+======================================================================
+49. forms.js
+======================================================================
+
+Usuń logikę:
+  pattern.shapes
+  pattern.roofs
+  pattern.stairs
+
+`constrain()` używa:
+- preset constraints;
+- explicit geometric compatibility.
+
+Przykłady:
+floors=1 => stair NONE
+courtyard too small => disable courtyard
+roof support wynika z footprint capability
+
+options() zwraca:
+  presetId
+  footprintFamily
+  roomProgram
+  roofFamily
+  stairFamily
+  floors
+  width/depth
+  etc.
+
+Lock groups:
+  lockPreset
+  lockFootprint
+  lockProgram
+  lockStoreys
+  lockStructure
+  lockStairs
+  lockFacade
+  lockRoof
+  lockFurniture
+
+======================================================================
+50. floorPlan.js
+======================================================================
+
+Usuń wymaganie:
+  bounds.length===4
+
+DODAJ:
+  drawPolygon
+  drawPolyline
+  drawPortal
+  drawStairRamp
+  drawCapsuleSamples
+
+Rysuj:
+- footprint outer+holes;
+- room polygons;
+- wall edges;
+- portals;
+- slab holes;
+- stair footprint;
+- nav surfaces;
+- capsule clearance;
+- failed sample;
+- furniture.
+
+======================================================================
+51. view3d.js
+======================================================================
+
+Debug overlay:
+  navigationOverlay
+  clearanceOverlay
+  roofTopologyOverlay
+
+Twórz tylko kiedy enabled.
+
+Roof topology:
+- ridge;
+- valley;
+- eave.
+
+Stair clearance:
+- tylko failed/selected stair.
+
+======================================================================
+52. RESEARCH REFERENCE: INFINIGEN
+======================================================================
+
+Repo:
+  princeton-vl/infinigen
+
+Przejrzane koncepty:
+- FloorPlanSolver;
+- SegmentMaker;
+- room semantic graph;
+- hard/soft constraints;
+- staircase room;
+- doors/windows after solve.
+
+NIE kopiować:
+- Blender/Python implementation;
+- ich DSL.
+
+Przenieść ideę:
+  semantics -> partitions -> scoring -> solidify -> openings/details.
+
+======================================================================
+53. DEPENDENCY POLICY
+======================================================================
+
+Production dependency tylko jeśli:
+- exact pinned version;
+- local vendor IIFE;
+- copied license;
+- SHA;
+- works file://;
+- deterministic;
+- no second THREE;
+- wrapper hides API.
+
+Kandydaci:
+  mfogel/polygon-clipping
+  mapbox/earcut
+  isaac-mason/navcat LUB recast-navigation-js
+  StrandedKitty/straight-skeleton
+  lume/kiwi opcjonalnie
+  gkjohnson/three-mesh-bvh opcjonalnie
+
+Nie vendoruj wszystkiego.
+
+======================================================================
+54. tools/buildings
+======================================================================
+
+NOWY:
+  tools/buildings/package.json
+  tools/buildings/package-lock.json
+  tools/buildings/bundle.cjs
+
+Wzorzec:
+  tools/destruction/bundle.cjs
+
+Output:
+  js/vendor/<library>-<version>.js
+  license files
+  manifest SHA.
+
+======================================================================
+55. LOADER ORDER
+======================================================================
+
+Sugerowana kolejność:
+
+buildingCatalog.js
+buildingRandom.js
+buildingPolygonBackend.js
+buildingPolygon.js
+buildingTriangulation.js
+buildingPresets.js
+buildingSpec.js
+
+buildingFootprint.js
+buildingStoreys.js
+buildingRoomPrograms.js
+buildingRoomGraph.js
+buildingPartition.js
+buildingConstraints.js
+buildingVerticalCore.js
+buildingFloorSolver.js
+buildingWalls.js
+buildingPortals.js
+buildingStairs.js
+buildingTraversal.js
+buildingNavigation.js
+buildingStructurePlan.js
+buildingFacades.js
+buildingFurniture.js
+buildingRoofSolver.js
+buildingRoofs.js
+buildingDetails.js
+buildingPlan.js
+
+buildingInstance.js
+buildingGeometry.js
+proceduralBuildingGenerator.js
+
+Kierunek zależności:
+pure solver -> renderer.
+Nigdy renderer -> solver.
+
+======================================================================
+56. buildingPlan.js PO REFAKTORZE
+======================================================================
+
+Docelowo krótki orchestrator:
+
+B.createPlan=function(spec){
+  const footprint=B.createFootprint(spec);
+  const storeys=B.createStoreys(spec,footprint);
+  const program=B.createRoomProgram(spec);
+
+  const core=B.solveVerticalCore({spec,footprint,storeys,program});
+  const rooms=B.solveBuildingRooms({spec,footprint,storeys,program,core});
+
+  const walls=B.buildWalls(...);
+  const portals=B.planPortals(...);
+  const stairs=B.solveStairs(...);
+  const slabs=B.buildSlabs(...);
+  const navigation=B.buildNavigation(...);
+  const structure=B.planStructure(...);
+  const facade=B.planFacades(...);
+  const roof=B.solveRoof(...);
+  const details=B.planDetails(...);
+  const furniture=B.planFurniture(...);
+
+  const plan={...};
+  B.validateBuildingPlan(plan);
+  return plan;
+};
+
+buildingPlan.js nie ma już 100+ linii konkretnego corridor algorithm.
+
+======================================================================
+57. ProceduralBuildingGenerator VNEXT
+======================================================================
+
+static get presets()
+static get footprintFamilies()
+static get roomPrograms()
+static get roofFamilies()
+static get stairFamilies()
+static get structuralSystems()
+
+resolve(options)
+createSpec(options)
+createPlan(options)
+generate(options)
+
+Compatibility:
+  static buildingTypes
+  static patterns
+  static footprintTypes
+
+Oznacz compatibility comments.
+
+======================================================================
+58. RANDOM SEED DOMAINS
+======================================================================
+
+Nowe domeny:
+  preset
+  footprintTopology
+  footprintDimensions
+  storeys
+  structure
+  roomProgram
+  verticalCore
+  roomTopology
+  roomGeometry
+  portals
+  stairs
+  facade
+  details
+  roofTopology
+  roofGeometry
+  furniture
+  weathering
+  damage
+
+Test domain isolation.
+
+======================================================================
+59. PURE POLYGON TESTS
+======================================================================
+
+NOWY:
+  tests/building_polygon.cjs
+
+Cases:
+- rectangle;
+- L;
+- U;
+- courtyard hole;
+- touching rectangles;
+- overlaps;
+- near-collinear;
+- duplicates;
+- rotation.
+
+Asercje:
+- area conservation;
+- winding;
+- holes;
+- deterministic serialization;
+- finite.
+
+======================================================================
+60. FOOTPRINT TESTS
+======================================================================
+
+NOWY:
+  tests/building_footprint.cjs
+
+Seeds:
+  0,1,101,1337,2026,0xffffffff
+
+Families:
+  RECT,L,T,U,H,Z,COMPOSITE,COURTYARD
+
+Asercje:
+- allowed area/dims;
+- min edge;
+- no invalid holes;
+- deterministic;
+- seed isolation.
+
+Fuzz:
+- normal 100 seeds;
+- heavy 1000+.
+
+======================================================================
+61. ROOM GRAPH TESTS
+======================================================================
+
+NOWY:
+  tests/building_room_graph.cjs
+
+- required room count;
+- relations valid;
+- graph connectivity;
+- outside node;
+- no duplicate id;
+- deterministic.
+
+======================================================================
+62. FLOOR SOLVER TESTS
+======================================================================
+
+NOWY:
+  tests/building_floor_solver.cjs
+
+Footprints:
+  RECT,L,T,U,courtyard
+
+Programs:
+  SMALL_HOME
+  FAMILY_HOME
+  SMALL_OFFICE
+  APARTMENT_UNIT
+  WORKSHOP
+
+Asercje:
+- no overlap;
+- inside footprint;
+- area;
+- width;
+- exterior requirements;
+- relations;
+- candidate bound;
+- deterministic selected candidate;
+- score finite;
+- no infinite loop.
+
+======================================================================
+63. STAIR TESTS
+======================================================================
+
+NOWY:
+  tests/building_stairs.cjs
+
+Families:
+  STRAIGHT
+  QUARTER_TURN
+  DOGLEG
+  OPEN_WELL
+
+Heights:
+  2.55,2.8,3.0,3.5
+
+Widths:
+  .9,1.0,1.2
+
+Asercje:
+- rise;
+- tread;
+- landing;
+- exact top;
+- slab void clearance envelope;
+- capsule pass;
+- headroom;
+- entry/exit reachable.
+
+======================================================================
+64. STAIR FUZZ
+======================================================================
+
+1000 seeds:
+- accepted stair nigdy nie ma traversal fail;
+- invalid candidate jest odrzucony;
+- fallback jawny;
+- failure zapisuje seed.
+
+======================================================================
+65. NAVIGATION TESTS
+======================================================================
+
+NOWY:
+  tests/building_navigation.cjs
+
+- outside -> all rooms;
+- all floors;
+- no isolated landing;
+- portal width;
+- door open/closed graph effect;
+- stair removal removes vertical link.
+
+======================================================================
+66. ROOF TESTS
+======================================================================
+
+Rozszerz:
+  tests/building_roofs.cjs
+
+Dodaj:
+  L,T,U,courtyard,compound.
+
+Asercje:
+- top region covered;
+- no NaN;
+- no inverted face;
+- ridge/valley endpoints;
+- no floating face;
+- chimney opening reservation.
+
+======================================================================
+67. FACADE TESTS
+======================================================================
+
+NOWY:
+  tests/building_facades_vnext.cjs
+
+- living/bedroom window;
+- no interior-only fake exterior window;
+- opening overlap;
+- corner margin;
+- courtyard windows;
+- arbitrary wall angle.
+
+======================================================================
+68. FURNITURE TESTS
+======================================================================
+
+NOWY:
+  tests/building_furniture_vnext.cjs
+
+- inside polygon;
+- no portal path collision;
+- no stair collision;
+- furniture=false topology unchanged.
+
+======================================================================
+69. GEOMETRY / MANIFEST TESTS
+======================================================================
+
+Rozszerz:
+  tests/building_geometry.cjs
+  tests/building_generator_smoke.cjs
+
+- plan v4 render;
+- arbitrary walls;
+- polygon slabs;
+- roof;
+- stairs;
+- material metadata;
+- serialization.
+
+======================================================================
+70. DESTRUCTION TESTS
+======================================================================
+
+Rozszerz:
+  tests/destruction_adapters.cjs
+  tests/destruction_building.cjs
+
+- non-axis wall;
+- whole-building rotation 37°;
+- material layers;
+- window real hole;
+- physicalSolidId stable;
+- roof convex behavior;
+- support structure.
+
+======================================================================
+71. FUZZ HARNESS
+======================================================================
+
+NOWY:
+  tests/building_vnext_fuzz.cjs
+
+Normal:
+  ~200 plans.
+
+Heavy:
+  10k plans.
+
+Failure log:
+{
+  seed,
+  preset,
+  spec,
+  stage,
+  code,
+  candidate,
+  serializedPartial
+}
+
+Nie połykaj exception.
+
+======================================================================
+72. PERFORMANCE SOLVER
+======================================================================
+
+Bounded:
+- footprint candidates max;
+- floor candidates max;
+- local iterations max.
+
+Start:
+  16 candidates
+  <=64 local mutations.
+
+Cel orientacyjny:
+- small home floor solve <~10ms median w Node reference.
+To nie jest twardy sprzętowy kontrakt.
+
+World build może yield między budynkami.
+
+======================================================================
+73. ERROR / FALLBACK
+======================================================================
+
+Jeśli plan niemożliwy:
+1. next candidate;
+2. next footprint candidate;
+3. allowed program fallback;
+4. record issue;
+5. throw.
+
+NIE:
+- usuwać bathroom;
+- usuwać stairs przy floors>1;
+- tworzyć inaccessible room;
+- wracać cicho do starego layout.
+
+Legacy fallback tylko przejściowo:
+  code:'LEGACY_LAYOUT_FALLBACK'
+
+======================================================================
+74. MIGRACJA TYPOLOGII
+======================================================================
+
+Kolejność:
+1. EURO_HOUSE / FAMILY_HOME
+2. FARMHOUSE
+3. SHED/BARN
+4. EURO_OFFICE
+5. EURO_APARTMENT
+6. EURO_HALL
+
+Dlaczego:
+- dom najlepiej testuje pełny solver;
+- shed/barn testuje prostą geometrię;
+- office inny program;
+- apartment nested solve;
+- hall duże open spaces.
+
+======================================================================
+75. APARTMENT VNEXT
+======================================================================
+
+Dwa poziomy solvera:
+
+COMMON:
+  stair/core
+  lobby
+  corridor
+  unit regions
+
+UNIT:
+  living
+  bedroom
+  bathroom
+  kitchen
+
+Nie generuj `apartment-room` jako prostych pokoi przy korytarzu.
+
+======================================================================
+76. COURTYARD
+======================================================================
+
+Courtyard:
+- polygon hole;
+- courtyard edges = exterior semantic.
+
+Room exposure:
+  STREET
+  COURTYARD
+  ANY_EXTERIOR
+
+Facade może dawać courtyard windows.
+
+Roof drainage/eaves osobno.
+
+======================================================================
+77. FEATURES
+======================================================================
+
+NOWY:
+  js/buildings/buildingFeatures.js
+
+Kategorie:
+  ENVELOPE_FEATURE
+  ROOF_FEATURE
+  FACADE_FEATURE
+  DECORATIVE_FEATURE
+
+serviceAnnex:
+  przed footprint solve.
+
+porch:
+  entrance exterior requirement.
+
+dormer:
+  pitched roof + attic.
+
+balcony:
+  upper exterior room.
+
+chimney:
+  vertical shaft reservation.
+
+======================================================================
+78. CHIMNEY
+======================================================================
+
+Nie losowy detail point.
+
+Plan:
+{
+  shaftPolygon,
+  baseFloor,
+  top,
+  servedRoom,
+  roofIntersection,
+  flashingRegion
+}
+
+Core/floor solver rezerwuje shaft.
+Roof robi penetration.
+
+======================================================================
+79. ATTIC
+======================================================================
+
+Attic:
+  kind:'ATTIC'
+  usablePolygon zależny od roof headroom.
+
+Habitable:
+  standing headroom threshold.
+
+Stair exit musi wchodzić w usable region.
+
+Schema od początku powinna to wspierać,
+nawet jeśli pełny attic solver będzie później.
+
+======================================================================
+80. BUILDING LAB ACCEPTANCE
+======================================================================
+
+Manual matrix:
+footprints:
+  RECT,L,T,U,courtyard
+
+floors:
+  1,2,3
+
+program:
+  home,office,apartment,workshop
+
+stairs:
+  all
+
+roof:
+  flat,gable,hip,shed,compound
+
+Views:
+- 4 sides;
+- roof off;
+- each floor;
+- nav overlay;
+- stair clearance;
+- room graph;
+- score.
+
+Sprawdź:
+- no micro rooms;
+- doors sensible;
+- stairs reachable;
+- landing space;
+- roof matches footprint.
+
+======================================================================
+81. INTEGRACJA Z WCZEŚNIEJSZĄ OPTYMALIZACJĄ OSADY
+======================================================================
+
+vNext i performance plan MUSZĄ się spotkać w BuildingPlan.
+
+World runtime:
+  createSpec
+  createPlan
+  build cheap proxy
+
+Nie:
+  full detailed geometry.
+
+Lazy destruction:
+  wall polygons/edges są źródłem logical solids.
+
+Navigation:
+  plan.navigation.
+
+Dzięki geometry-first więcej wariacji nie zwiększa liczby specjalnych kodów
+world renderer / destruction / AI.
+
+======================================================================
+82. SUGEROWANA KOLEJNOŚĆ COMMITÓW
+======================================================================
+
+COMMIT 1
+"Record building v5 baseline fixtures"
+
+COMMIT 2
+"Add deterministic polygon kernel and vendor tooling"
+
+COMMIT 3
+"Separate building presets from geometry spec"
+
+COMMIT 4
+"Add composite footprint grammar"
+
+COMMIT 5
+"Add semantic room programs and room graph"
+
+COMMIT 6
+"Add bounded floor plan solver"
+
+COMMIT 7
+"Solve stairs as traversable vertical cores"
+
+COMMIT 8
+"Derive walls and portals from room polygons"
+
+COMMIT 9
+"Add building navigation surfaces and portals"
+
+COMMIT 10
+"Place facade openings from semantic room exposure"
+
+COMMIT 11
+"Generate compound roofs from footprint topology"
+
+COMMIT 12
+"Introduce building-plan v4 orchestration"
+
+COMMIT 13
+"Render polygon building plans in Building Lab"
+
+COMMIT 14
+"Place furniture with navigation clearance"
+
+COMMIT 15
+"Expose generator solver diagnostics in Building Lab"
+
+COMMIT 16
+"Preserve destruction metadata on polygon buildings"
+
+COMMIT 17
+"Use building-plan v4 in settlement runtime"
+
+COMMIT 18
+"Remove legacy typology-driven layout path"
+
+Każdy commit:
+- własne testy;
+- istniejące relevant tests;
+- bez niepowiązanego gameplay;
+- push main dopiero po zielonym zestawie.
+
+======================================================================
+83. PIERWSZY VERTICAL SLICE
+======================================================================
+
+Preset:
+  FAMILY_HOME_TEST
+
+Footprint:
+  RECT 9x11
+
+Floors:
+  2
+
+Ground:
+  entrance
+  living
+  kitchen
+  bathroom/utility
+  stair-core
+
+Upper:
+  hall
+  bedroom1
+  bedroom2
+  bathroom
+  stair-core
+
+Roof:
+  GABLE
+
+Stairs:
+  DOGLEG
+
+PASS:
+- plan v4;
+- polygon rooms;
+- portals;
+- windows;
+- capsule traversal;
+- navigation outside->every room;
+- detailed render;
+- AP through wall;
+- deterministic.
+
+Dopiero potem L/T/U.
+
+======================================================================
+84. DRUGI VERTICAL SLICE
+======================================================================
+
+Ten sam program + footprint L.
+
+Udowodnić:
+- solver nie zakłada rectangle;
+- shared edges działają;
+- facade po realnym obwodzie;
+- stair core działa;
+- roof L działa.
+
+======================================================================
+85. TRZECI VERTICAL SLICE
+======================================================================
+
+U + courtyard.
+
+Udowodnić:
+- hole/exterior semantics;
+- courtyard windows;
+- no inaccessible wing;
+- compound/hip roof;
+- nav.
+
+======================================================================
+86. CZEGO AGENT MA NIE ROBIĆ
+======================================================================
+
+NIE:
+- dodawać kolejnego generatora per building type;
+- dopisywać `if(g.type===...)` w core;
+- zostawiać rooms jako zawsze AABB;
+- doklejać stairs po room solve;
+- uznawać rise/tread za pełną traversal validation;
+- używać real step colliders jako jedynej powierzchni character movement;
+- generować nav wyłącznie z render triangles bez semantic portals;
+- pisać własnego polygon boolean bez powodu;
+- uzależniać BuildingPlan od THREE;
+- silent fallback;
+- unlimited retry;
+- Math.random;
+- topology zależne od furniture seed;
+- physicalSolidId zależne od triangulation;
+- kopiować Infinigen code;
+- wprowadzać Blender/Python runtime;
+- CDN;
+- instalować wszystkie research libraries;
+- robić full rewrite w jednym commicie.
+
+======================================================================
+87. WARUNKI DONE
+======================================================================
+
+[ ] Preset = profile, nie generator.
+[ ] Core nie ma EURO_* branching.
+[ ] RECT/L/T/U ten sam pipeline.
+[ ] Rooms = polygons.
+[ ] RoomGraph + solver.
+[ ] Hard + soft constraints.
+[ ] Bounded deterministic candidates.
+[ ] Vertical core przed room solve.
+[ ] Każdy stair ma capsule pass.
+[ ] Każdy stair ma Rapier fixture pass.
+[ ] Slab opening z headroom envelope.
+[ ] Navigation w BuildingPlan.
+[ ] Outside -> every required room.
+[ ] Facade room-aware.
+[ ] Roof RECT/L/T/U.
+[ ] Roof topology explicit.
+[ ] Furniture nie blokuje routes.
+[ ] Renderer nie wymyśla layout.
+[ ] Lab pokazuje nav/clearance.
+[ ] Destruction metadata zachowane.
+[ ] World proxy konsumuje v4.
+[ ] Legacy API działa podczas migracji.
+[ ] Fuzz nie znajduje accepted invalid plans.
+
+======================================================================
+88. NAJWAŻNIEJSZY PUNKT STARTOWY
+======================================================================
+
+Kolejność kodowania:
+1. buildingPolygonBackend.js
+2. buildingPolygon.js
+3. buildingPresets.js
+4. buildingFootprint.js RECT/L/T/U
+5. buildingRoomPrograms.js
+6. buildingRoomGraph.js
+7. buildingFloorSolver.js tylko RECT
+8. buildingVerticalCore.js
+9. buildingStairs.js
+10. buildingTraversal.js
+11. buildingWalls.js
+12. buildingPortals.js
+13. buildingNavigation.js
+14. Plan v4 FAMILY_HOME
+15. Renderer v4
+16. Solver L
+17. Solver T/U
+18. Roof solver
+19. Office/apartment
+20. nav library POC
+21. legacy cleanup
+
+======================================================================
+89. OSTATECZNA ZASADA
+======================================================================
+
+Semantyka mówi:
+"jakich pomieszczeń i połączeń potrzebuję".
+
+Footprint mówi:
+"jaka przestrzeń jest dostępna".
+
+Solver mówi:
+"gdzie to realnie zmieścić".
+
+Stair traversal mówi:
+"czy kapsuła naprawdę przejdzie".
+
+Navigation mówi:
+"czy wszystkie wymagane miejsca są osiągalne".
+
+Roof solver mówi:
+"jak poprawnie przykryć rzeczywisty polygon".
+
+Renderer mówi:
+"narysuj gotowy plan".
+
+Destruction mówi:
+"jakie materiały i podpory istnieją w punkcie trafienia".
+
+Preset mówi tylko:
+"jakie kombinacje są typowe i prawdopodobne".
+
+Dzięki temu farmhouse, apartment, office, barn, RECT, L, U, T i courtyard
+stają się kombinacjami tych samych mechanizmów zamiast osobnymi generatorami.
+
+
+======================================================================
+90. PLAN PER PLIK — DOKŁADNIE CO ZMIENIĆ
+======================================================================
+
+90.1. js/buildings/buildingCatalog.js
+-------------------------------------
+AKTUALNE:
+  STYLE_CATALOG
+  STAIR_TYPES
+  ROOF_TYPES
+  WALL_MATERIALS
+  STRUCTURAL_SYSTEMS
+  DEFAULT_STRUCTURE
+  WINDOW_TYPES
+  DOOR_TYPES
+  ROOF_COVERINGS
+  MATERIAL_PALETTES
+  FOOTPRINTS
+
+ZMIANY:
+1. Zostaw material/structure/window/door catalogs.
+2. STAIR_TYPES rozszerz o NONE jako pełnoprawny typ:
+     ['NONE','STRAIGHT','QUARTER_TURN','DOGLEG','OPEN_WELL']
+3. ROOF_TYPES nie musi być już ograniczeniem presetów.
+4. FOOTPRINTS przestań traktować jako geometry implementation.
+   Przejściowo zostaw dla legacy compatibility.
+5. Dodaj:
+     FOOTPRINT_FAMILIES
+     ROOM_ROLES
+     ROOF_FAMILIES
+6. DEFAULT_STRUCTURE może pozostać tylko dla legacy mapping.
+7. Nie dodawaj preset logic tutaj — presets mają osobny plik.
+
+90.2. js/buildings/buildingGenome.js
+------------------------------------
+AKTUALNY:
+  B.patterns
+  B.resolveGenome(options)
+
+MIGRACJA:
+1. Nie kasuj B.patterns od razu.
+2. Dodaj rozpoznanie:
+     options.presetId
+     options.footprintFamily
+     options.roomProgram
+     options.roofFamily
+3. Jeżeli podano buildingType, mapuj przez legacy adapter.
+4. Wyprowadź `g.type` jako legacy tylko.
+5. Dodaj nowe randomSeeds.
+6. Rozdziel:
+     resolveSpec
+     resolveLegacyGenome
+7. Finalnie B.resolveGenome może stać się aliasem B.resolveBuildingSpec.
+
+Krytyczna zasada:
+- wyboru `shape` nie ogranicza już `pattern.shapes`;
+- roof nie jest wybierany wyłącznie z `pattern.roofs`;
+- stair nie jest wybierany wyłącznie z `pattern.stairs`.
+
+90.3. NOWY js/buildings/buildingPresets.js
+------------------------------------------
+1. Przenieś semantic "charakter" z patterns.
+2. Wszystkie wartości pure data.
+3. Dodaj validator preset schema.
+4. Każdy preset ma:
+   - label/tags;
+   - footprint preferences;
+   - storey profile;
+   - room program weights;
+   - roof weights;
+   - structure weights;
+   - facade profile;
+   - feature weights.
+5. Dodaj legacy presets odpowiadające obecnym typom.
+
+90.4. NOWY js/buildings/buildingPolygonBackend.js
+--------------------------------------------------
+1. Jedyny plik znający global vendor polygon clipping.
+2. Convert canonical format -> vendor format -> canonical.
+3. Catch backend exception i dodaj context.
+4. Nie dokonuj randomizacji.
+5. Nie importuj THREE.
+
+90.5. NOWY js/buildings/buildingPolygon.js
+------------------------------------------
+1. Pure geometry.
+2. Tolerance const np. EPS=1e-7.
+3. Centralne canonicalization.
+4. Wszystkie helpery polygon/segment.
+5. Nigdy nie mutuj input bez jawnego suffix `InPlace`.
+6. Dodaj stable serialization helper dla deterministic tests.
+
+90.6. NOWY js/buildings/buildingFootprint.js
+--------------------------------------------
+1. create primitive rectangle helper.
+2. family strategies.
+3. candidate loop.
+4. validate.
+5. score.
+6. output generationTrace.
+7. Nie twórz walls tutaj.
+8. Nie twórz roof tutaj.
+
+90.7. NOWY js/buildings/buildingStoreys.js
+-----------------------------------------
+1. create storey polygons.
+2. elevation list.
+3. optional setbacks.
+4. attic placeholder contract.
+5. vertical void container.
+
+90.8. NOWY js/buildings/buildingRoomPrograms.js
+-----------------------------------------------
+1. Program templates pure data.
+2. Resolve room counts deterministycznie.
+3. Generate RoomGraph input.
+4. Nie ustawiaj coordinates.
+
+90.9. NOWY js/buildings/buildingRoomGraph.js
+--------------------------------------------
+1. Minimal graph class/data helpers.
+2. Serializowalne plain objects.
+3. Connectivity.
+4. Relation validation.
+5. No DOM/THREE.
+
+90.10. NOWY js/buildings/buildingPartition.js
+---------------------------------------------
+1. Orthogonal split.
+2. merge.
+3. shared edge.
+4. candidate split generation.
+5. Nie zna semantic role poza target room area hints.
+
+90.11. NOWY js/buildings/buildingConstraints.js
+-----------------------------------------------
+1. Hard validators.
+2. Soft scoring.
+3. Standard error codes.
+4. Zero throw w candidate evaluation.
+5. Final validator może throw.
+
+90.12. NOWY js/buildings/buildingVerticalCore.js
+------------------------------------------------
+1. Core candidates.
+2. Align across floors.
+3. Reserve stair polygon.
+4. Return candidates do room solver.
+5. Nie renderuj.
+
+90.13. NOWY js/buildings/buildingFloorSolver.js
+-----------------------------------------------
+1. Orchestrate candidates.
+2. Apply graph assignment.
+3. Hard validate.
+4. Score.
+5. Local search.
+6. Return best + diagnostics.
+7. Explicit maxCandidates/maxMoves.
+
+90.14. NOWY js/buildings/buildingWalls.js
+-----------------------------------------
+1. Derive exterior edges from footprint.
+2. Derive interior shared edges from rooms.
+3. Resolve duplicates/shared walls.
+4. Create assembly/layers.
+5. Stable ids.
+6. arbitrary angle local frame.
+7. Compatibility adapter for old wall shape if necessary.
+
+90.15. NOWY js/buildings/buildingPortals.js
+-------------------------------------------
+1. Required graph edges -> candidate wall.
+2. Place door.
+3. Reserve clearance polygon.
+4. Validate agent width.
+5. Add plan.connections compatibility records.
+6. Keep `rooms:[a,b]`.
+
+90.16. NOWY js/buildings/buildingStairs.js
+-----------------------------------------
+1. Stair metrics.
+2. Solve family in core polygon.
+3. Create real treads/flights data.
+4. Create nav ramp data.
+5. Compute slab opening from traversal envelope.
+6. No g.type conditions.
+
+90.17. NOWY js/buildings/buildingTraversal.js
+---------------------------------------------
+1. Analytic capsule against wall/slab primitives.
+2. Stair centerline sampling.
+3. headroom.
+4. lateral clearance.
+5. detailed failure output.
+6. Agent profile input.
+
+90.18. NOWY js/buildings/buildingNavigation.js
+----------------------------------------------
+1. Build surfaces from room polygons.
+2. Build portal graph.
+3. Stair ramps connect floors.
+4. Outside surface/portal.
+5. Reachability validator.
+6. Later vendor navmesh adapter optional.
+
+90.19. NOWY js/buildings/buildingStructurePlan.js
+-------------------------------------------------
+1. Plan bearing/frame structure.
+2. Make support ids stable.
+3. Feed geometry metadata.
+4. Feed destruction support graph.
+5. Do not infer all support only from rendered AABB.
+
+90.20. js/buildings/buildingFacades.js
+--------------------------------------
+PRZEPISZ:
+- touchesWall(AABB) -> exterior/shared edge semantic;
+- g.type branches -> room/facade profile;
+- windows by room exposure;
+- reservation intervals along arbitrary edge.
+
+ZACHOWAJ:
+- deterministic seeds;
+- manifest window records;
+- no overlap rule.
+
+90.21. js/buildings/buildingFurniture.js
+----------------------------------------
+PRZEPISZ:
+- room.bounds placement -> room.polygon;
+- path reservations polygon;
+- semantic required/optional props.
+
+ZACHOWAJ:
+- deterministic furniture domain;
+- furniture=false independence.
+
+90.22. js/buildings/buildingRoofs.js
+------------------------------------
+ZACHOWAJ:
+  B.rectRoof jako compatibility/backend.
+
+DODAJ:
+- adapter do buildingRoofSolver;
+- v4 roof contract aliases.
+
+Usuń docelowo założenie:
+  for each mass => niezależny roof bez seam topology.
+
+90.23. NOWY js/buildings/buildingRoofSolver.js
+----------------------------------------------
+1. FLAT polygon roof.
+2. RECT GABLE/HIP.
+3. compound region solve.
+4. seam/ridge/valley records.
+5. backend skeleton optional.
+6. fallback explicit diagnostics.
+
+90.24. js/buildings/buildingDetails.js
+--------------------------------------
+ZMIANY:
+- roof attachment points z roof topology;
+- facade detail anchors z wall edge;
+- chimney nie jako random detail po vNext;
+- detail runtime classes.
+
+90.25. js/buildings/buildingPlan.js
+-----------------------------------
+Największy refactor.
+Przenieś algorytmy do nowych modułów.
+Zostaw:
+- compatibility helpers;
+- orchestration;
+- final validation.
+
+Docelowo brak:
+  g.type === ...
+
+90.26. js/buildings/buildingGeometry.js
+---------------------------------------
+1. Rozpoznaj v3/v4.
+2. renderWallEdge arbitrary yaw.
+3. polygon slab triangulation.
+4. stair renderer używa nowego contract.
+5. roof face polygon.
+6. metadata destruction.
+7. renderer nie wybiera room topology.
+
+90.27. js/buildings/buildingInstance.js
+---------------------------------------
+Minimalne zmiany.
+Zachowaj:
+  cutaway
+  visible floor
+  roof visible
+  damageSphere
+  manifest export
+
+Dostosuj _refreshVisibility do nowych category ids jeśli potrzebne.
+Nie wkładaj floor solver tutaj.
+
+90.28. js/buildings/proceduralBuildingGenerator.js
+--------------------------------------------------
+Dodaj:
+  static presets
+  static roomPrograms
+  static footprintFamilies
+  createSpec
+
+createPlan:
+  B.createPlan(B.resolveBuildingSpec(...))
+
+generate:
+  B.buildGeometry(plan)
+
+Legacy getters przez transition.
+
+90.29. building-lab/forms.js
+----------------------------
+1. preset select.
+2. roomProgram select.
+3. footprint select niezależny od preset.
+4. compatibility disabling.
+5. solver debug options.
+6. seed locks.
+7. no pattern hard-lock logic.
+
+90.30. building-lab/app.js
+--------------------------
+refresh readouts:
+- preset;
+- footprint;
+- selected candidate;
+- score;
+- room program;
+- traversal status;
+- navigation reachability;
+- roof topology.
+
+generate():
+- zachowaj previous building po generation error;
+- pokaż structured code/message.
+
+90.31. building-lab/floorPlan.js
+--------------------------------
+1. polygon render.
+2. holes.
+3. rooms.
+4. nav.
+5. portals.
+6. stairs.
+7. clearance failures.
+
+90.32. building-lab/view3d.js
+-----------------------------
+1. debug groups.
+2. nav/capsule overlays.
+3. no permanent expensive helpers.
+4. dispose overlays.
+
+90.33. building-lab/index.html
+------------------------------
+Dodaj controls/readouts opisane wcześniej.
+Nie usuń destruction demo.
+
+90.34. js/loader.js
+-------------------
+Dodaj nowe classic scripts w prawidłowej kolejności.
+Vendor IIFE musi być dostępny przed wrapper.
+
+90.35. version.json
+-------------------
+Po finalnej migracji:
+  buildingGeneratorVersion -> building-6.x.x
+Dodaj zmianę schema/contracts.
+
+Nie bump przed działającym finalnym batch, chyba projektowy workflow wymaga inaczej.
+
+90.36. manifest.sha256
+----------------------
+Po każdej finalnej serii zmian:
+  node tools/rebuild-manifest.cjs
+
+Jeśli vendor:
+- upewnij się, że vendor files też są w manifest.
+
+======================================================================
+91. PSEUDOKOD FloorPlanSolver
+======================================================================
+
+class FloorPlanSolver {
+  constructor(context){
+    this.context=context;
+    this.maxCandidates=context.maxCandidates||16;
+    this.maxMoves=context.maxMoves||64;
+  }
+
+  solve(){
+    const accepted=[];
+    const failures=[];
+
+    for(let i=0;i<this.maxCandidates;i++){
+      const rng=new B.RNG(B.deriveSeed(
+        this.context.seed,
+        'candidate/'+i
+      ));
+
+      let candidate=this.initialCandidate(rng,i);
+
+      for(let move=0;move<this.maxMoves;move++){
+        const result=B.validateFloorCandidate(candidate,this.context);
+
+        if(result.ok){
+          candidate.score=B.scoreFloorPlan(candidate,this.context);
+          break;
+        }
+
+        candidate=this.repairOrPerturb(candidate,result,rng,move);
+      }
+
+      const finalCheck=B.validateFloorCandidate(candidate,this.context);
+      if(!finalCheck.ok){
+        failures.push({
+          candidate:i,
+          failures:finalCheck.failures
+        });
+        continue;
+      }
+
+      candidate.score=B.scoreFloorPlan(candidate,this.context);
+      accepted.push(candidate);
+    }
+
+    if(!accepted.length){
+      const error=new Error('No feasible floor plan');
+      error.code='NO_FEASIBLE_FLOOR_PLAN';
+      error.data={failures};
+      throw error;
+    }
+
+    accepted.sort((a,b)=>
+      a.score-b.score ||
+      a.candidateId-b.candidateId
+    );
+
+    return {
+      selected:accepted[0],
+      candidates:accepted.map(c=>({
+        id:c.candidateId,
+        score:c.score,
+        scoreBreakdown:c.scoreBreakdown
+      })),
+      failures
+    };
+  }
+}
+
+Ważne:
+- tie-break deterministic;
+- brak performance.now w decyzjach;
+- brak random retry count zależnego od machine timing.
+
+======================================================================
+92. PSEUDOKOD STAIR HEADROOM
+======================================================================
+
+function computeRequiredSlabVoid(stair,agent,slab){
+  const required=[];
+
+  for(const ramp of stair.navigation.ramps){
+    const length=distance3(ramp.start,ramp.end);
+    const count=Math.max(2,Math.ceil(length/.1));
+
+    for(let i=0;i<=count;i++){
+      const t=i/count;
+      const foot=mix3(ramp.start,ramp.end,t);
+      const topY=foot[1]+agent.standingHeight+agent.passageMargin;
+
+      if(topY<=slab.bottomY)continue;
+
+      required.push(
+        circleOrSquareEnvelope(
+          [foot[0],foot[2]],
+          agent.radius+agent.passageMargin
+        )
+      );
+    }
+  }
+
+  return B.Polygon.union(required);
+}
+
+Następnie:
+  if !contains(core/slab feasible area,requiredVoid)
+     reject stair candidate.
+
+======================================================================
+93. PSEUDOKOD WALL FROM EDGE
+======================================================================
+
+function wallFromEdge(edge,storey,rooms,assembly,id){
+  const dx=edge.b[0]-edge.a[0];
+  const dz=edge.b[1]-edge.a[1];
+  const length=Math.hypot(dx,dz);
+  const tx=dx/length;
+  const tz=dz/length;
+
+  // dla CCW outer; dla interior direction trzeba ustalić owner
+  const nx=tz;
+  const nz=-tx;
+
+  return {
+    id,
+    floor:storey.floor,
+    edge:{
+      a:edge.a.slice(),
+      b:edge.b.slice()
+    },
+    length,
+    baseY:storey.elevation,
+    height:storey.height,
+    tangent:[tx,tz],
+    normal:[nx,nz],
+    rooms,
+    thickness:assembly.totalThickness,
+    assemblyId:assembly.id,
+    physicalSolidId:id,
+    layers:assembly.layers,
+    openings:[]
+  };
+}
+
+Renderer:
+  center midpoint
+  yaw = atan2(tz,tx)
+  geometry local along X
+  rotate yaw.
+
+======================================================================
+94. PSEUDOKOD NAV GRAPH VALIDATION
+======================================================================
+
+function reachableSurfaces(navigation){
+  const graph=new Map();
+
+  for(const s of navigation.surfaces)
+    graph.set(s.id,[]);
+
+  for(const p of navigation.portals){
+    graph.get(p.fromSurface)?.push(p.toSurface);
+    graph.get(p.toSurface)?.push(p.fromSurface);
+  }
+
+  const start=navigation.outsideSurfaceId;
+  const seen=new Set([start]);
+  const queue=[start];
+
+  for(let i=0;i<queue.length;i++){
+    for(const next of graph.get(queue[i])||[]){
+      if(seen.has(next))continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
+
+  return seen;
+}
+
+Każdy room.navigationSurfaceId musi być seen.
+
+======================================================================
+95. COMMANDS / TEST ORDER
+======================================================================
+
+BASE przed refaktorem:
+  node tests/building_generator_smoke.cjs
+  node tests/building_plan.cjs
+  node tests/building_geometry.cjs
+  node tests/building_roofs.cjs
+  node tests/building_lab_controller.cjs
+  node tests/destruction_adapters.cjs
+  node tests/destruction_building.cjs
+
+Po polygon:
+  node tests/building_polygon.cjs
+  node tests/building_footprint.cjs
+
+Po rooms:
+  node tests/building_room_graph.cjs
+  node tests/building_floor_solver.cjs
+
+Po stairs:
+  node tests/building_stairs.cjs
+  node tests/building_stair_rapier.cjs
+
+Po nav:
+  node tests/building_navigation.cjs
+
+Po renderer:
+  existing building tests + new geometry tests.
+
+Po destruction:
+  destruction suite relevant.
+
+Po final:
+  tools/destruction one-command suite jeśli nadal obowiązuje;
+  building fuzz;
+  browser/manual Building Lab.
+
+======================================================================
+96. TESTY DETERMINIZMU
+======================================================================
+
+Dla exact spec + seed:
+  JSON.stringify(plan normalized) identyczny.
+
+Zmiana:
+- furniture seed -> tylko furniture;
+- roof geometry seed -> tylko roof geometry;
+- facade seed -> openings/details, nie rooms;
+- roomGeometry -> rooms/walls, ale footprint unchanged;
+- stairs seed -> tylko core/stair candidate w dozwolonym zakresie;
+- damage -> tylko damage.
+
+Dodaj test mask/diff allowed paths.
+
+======================================================================
+97. TESTY NIEZALEŻNOŚCI PRESETU
+======================================================================
+
+Ten sam explicit:
+  footprintPolygon
+  roomProgram
+  floors
+  structure
+  roofFamily
+  stairFamily
+
+przy różnych presetId nie powinien zmieniać geometrii,
+jeżeli wszystkie relevant fields są explicit.
+
+Preset ma wpływać tylko na AUTO.
+
+To ważny test dowodzący, że preset nie jest ukrytym generatorem.
+
+======================================================================
+98. DEBUG DATA DO MANIFESTU
+======================================================================
+
+W lab/debug:
+plan.generation = {
+  seeds:{...},
+  footprint:{
+    attempts,
+    selected,
+    scores:[...]
+  },
+  floors:[
+    {
+      floor,
+      candidates,
+      selected,
+      scoreBreakdown
+    }
+  ],
+  stairs:{
+    candidates,
+    rejectedReasons,
+    selected
+  },
+  roof:{
+    backend,
+    fallbacks
+  },
+  issues:[]
+}
+
+World production może strip debug arrays,
+ale Building Lab powinien je mieć.
+
+======================================================================
+99. PERFORMANCE / MEMORY ZALEŻNOŚCI
+======================================================================
+
+Nie generuj:
+- 1000 candidates;
+- full navmesh dla rejected candidate;
+- full furniture dla rejected candidate;
+- detailed geometry dla candidate.
+
+Candidate stages:
+1. cheap geometry;
+2. hard validation;
+3. score;
+4. only selected -> walls/openings/full details.
+
+Stairs capsule validation może być wykonana na short-listed candidates.
+
+======================================================================
+100. FINAL AGENT CHECKLIST
+======================================================================
+
+PRZED:
+[ ] HEAD zanotowany.
+[ ] baseline tests green.
+[ ] baseline manifests saved.
+
+FOUNDATION:
+[ ] polygon backend wrapper.
+[ ] canonical polygon.
+[ ] vendor build/licensing.
+[ ] footprint grammar.
+
+SEMANTICS:
+[ ] presets separated.
+[ ] room programs.
+[ ] RoomGraph.
+
+SOLVER:
+[ ] bounded candidates.
+[ ] hard constraints.
+[ ] soft score.
+[ ] debug score.
+[ ] deterministic.
+
+STAIRS:
+[ ] vertical core before rooms.
+[ ] all stair families.
+[ ] nav ramp.
+[ ] capsule sweep.
+[ ] headroom slab void.
+[ ] Rapier fixture.
+
+PLAN:
+[ ] edge-based walls.
+[ ] portals.
+[ ] semantic windows.
+[ ] navigation surfaces.
+[ ] structure.
+
+ROOF:
+[ ] RECT.
+[ ] L.
+[ ] T.
+[ ] U.
+[ ] ridge/valley/eave records.
+[ ] skeleton POC evaluated.
+
+RENDER:
+[ ] v4 geometry.
+[ ] polygon floor plan UI.
+[ ] debug nav.
+[ ] debug clearance.
+
+GAME:
+[ ] destruction metadata.
+[ ] world proxy support.
+[ ] no performance regression.
+
+MIGRATION:
+[ ] legacy API during transition.
+[ ] no core g.type branches final.
+[ ] no silent legacy fallback final.
+
+QUALITY:
+[ ] fuzz.
+[ ] lifecycle.
+[ ] deterministic.
+[ ] manifest/version/docs.
+[ ] rebuild SHA manifest.
+[ ] push main after green tests.
+
+======================================================================
+101. PODSUMOWANIE DLA AGENTA
+======================================================================
+
+Najważniejszy refactor nie polega na dodaniu większej liczby shape enums.
+
+Ma zmienić relację:
+
+STARE:
+  building type -> shape -> hardcoded layout
+
+NOWE:
+  preset preferences
+      +
+  independent footprint
+      +
+  semantic room requirements
+      +
+  deterministic constraint solver
+      =
+  BuildingPlan
+
+Schody są częścią rozwiązania przestrzennego, nie dekoracją.
+
+Poprawność schodów oznacza:
+  dimensions PASS
+  + headroom PASS
+  + capsule PASS
+  + Rapier PASS
+  + navigation PASS.
+
+Wnętrze jest poprawne dopiero gdy:
+  graph PASS
+  + geometry PASS
+  + portals PASS
+  + traversal PASS
+  + furniture clearance PASS.
+
+Dach jest poprawny dopiero gdy:
+  pokrywa footprint
+  + topology jest spójna
+  + ridges/valleys/eaves są jawne
+  + faces są finite/non-overlapping
+  + openings/features mają anchors.
+
+Dzięki temu kolejne budynki są głównie nowymi presetami/programami danych,
+a nie nowymi algorytmami generowania.

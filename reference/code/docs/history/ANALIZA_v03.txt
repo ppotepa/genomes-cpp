@@ -1,0 +1,1220 @@
+﻿RTS — ANALIZA PROCEDURALNEJ PIECHOTY
+CIAŁO, TWARZ, UNIFORM, SZKIELET, ANIMACJE I PRZYGOTOWANIE POD RAGDOLL
+=================================================================
+Data: 24.09.2026
+Punkt odniesienia: paczka rts_prototype_v03_infantry.zip i przesłany zrzut.
+Charakter dokumentu: diagnoza oraz projekt kierunku zmian. Bez implementacji.
+
+0. PODSTAWA ANALIZY I ZAKRES PEWNOŚCI
+-----------------------------------
+
+Przeanalizowałem rzeczywistą zawartość ostatniej dostępnej paczki ZIP, a nie
+wyłącznie kod widoczny we wcześniejszych wiadomościach. To ważne: w paczce
+zmieniono już część proporcji i dodano przywracanie bazowej pozycji miednicy.
+Nie przypisuję więc obecnej paczce błędu narastającego przesuwania miednicy,
+który występował we wcześniejszym wariancie kodu.
+
+Identyfikator analizowanego archiwum:
+SHA-256: 398f7fda46050b9627484a8bf32656fd287b6c151de4ad8652b31504fae06136
+
+Oznaczenia źródeł:
+[K1] pliki kodu z tego archiwum; przy diagnozach podaję plik i zakres wierszy.
+[K2] przesłany zrzut pokazujący rozdzielone elementy postaci.
+[T1] własne testy liczbowe wymiarów i transformacji opisane w rozdziale 3.
+[S01]–[S18] dokumentacja i materiały źródłowe wymienione na końcu dokumentu.
+
+Rozróżniam trzy rodzaje wniosków:
+— BŁĄD POTWIERDZONY: wynika wprost z plików lub obliczeń.
+— BRAKUJĄCY SYSTEM: dana funkcja nie występuje w implementacji.
+— PROPOZYCJA PROJEKTOWA: rozwiązanie do zaakceptowania i późniejszego testu.
+
+Testy liczbowe nie były testem przeglądarkowego renderera. Oryginalne funkcje
+fabryki i animatora uruchomiłem w pomocniczym środowisku odtwarzającym używane
+operacje na danych, a transformacje i położenia wierzchołków policzyłem osobno.
+Nie weryfikowałem w ten sposób sterownika GPU, cieni ani końcowego koloru obrazu.
+
+Nie proponuję w tym etapie dodawania walki, broni, pojazdów, nowego AI,
+rozbudowanego wyposażenia ani paneli poza istniejącym DEBUG / UNITS.
+Przygotowanie do ragdolla nie oznacza jeszcze jego wdrożenia.
+
+
+1. WNIOSEK GŁÓWNY
+----------------
+
+Problemem nie jest sama koncepcja postaci z elipsoid. Problemem jest to, że
+obecny generator traktuje anatomię jako zestaw rozstawionych brył, zamiast
+budować powierzchnię ciała wokół spójnych punktów stawów i proporcji.
+
+Są cztery niezależne warstwy problemu:
+
+A. Geometria: segmenty są za małe w stosunku do odstępów między stawami.
+   Powstają rzeczywiste przerwy, których nie naprawi materiał ani oświetlenie.
+
+B. Anatomia i wygląd: brakuje kształtu twarzy, połączeń barków i bioder,
+   poprawnych dłoni i butów oraz osobno zaprojektowanego kroju uniformu.
+
+C. Rig i deformacja: istnieje prosta hierarchia Object3D, ale nie ma systemu
+   THREE.Bone / THREE.Skeleton ani powierzchni deformowanej przez skinning.
+
+D. Ruch: animacje obracają części według prostych sinusów, bez rozpoznania
+   podparcia, spójnych przejść i dopasowania stóp do rzeczywistej powierzchni.
+
+Właściwy kierunek:
+
+  genom → wymiary i punkty stawów → szkielet → powierzchnia ciała/uniformu
+        → wagi skinningu → animacje i kontakt z podłożem
+        → późniejsza reprezentacja fizyczna ragdolla
+
+Nie: większa liczba przypadkowych elipsoid → więcej obrotów → ragdoll.
+
+Poprzednia implementacja nadmiernie uprościła zamówiony szczegółowy model.
+Inspiracja elipsoidami nie wymaga ani ekstremalnie niskiej rozdzielczości,
+ani widocznych dziur pomiędzy częściami człowieka.
+
+
+2. DLACZEGO CIAŁO WYGLĄDA NA ROZŁOŻONE — KONKRETNY BŁĄD W KODZIE
+--------------------------------------------------------------
+
+BŁĄD POTWIERDZONY.
+Plik: js/rendering/infantryFactory.js, wiersze 11–14, 54–59, 193–242, 264–314.
+
+Geometria bazowa powstaje jako:
+
+  SphereGeometry(0.5, 8, 6)
+
+Pierwszy parametr jest promieniem, nie średnicą. Taka kula ma wyjściowy wymiar
+1 w każdej osi. Jeżeli ustawimy scale.y = L * 0.5, jej pełna długość będzie
+wynosiła L * 0.5, a nie L. Znaczenie parametru potwierdza dokumentacja. [S01]
+
+Jednocześnie kod umieszcza kolejny staw w odległości pełnego L. Przykładowo:
+
+  środek bryły ramienia:   -L / 2 względem barku;
+  widoczna długość bryły:   L / 2;
+  pozycja łokcia:          -L względem barku.
+
+Bryła zajmuje więc tylko przedział od -3L/4 do -L/4. Nie sięga ani do barku,
+ani do łokcia. To dokładnie mechanizm tworzący rozdzielone segmenty. [K1]
+
+Dla ramienia i przedramienia odstęp w wyprostowanej pozie jest równy:
+
+  przerwa = (długość ramienia + długość przedramienia) / 4.
+
+Dla wejściowego wzrostu H = 1,80 m:
+
+  bark–łokieć:                       0,3330 m;
+  widoczna długość górnego ramienia:  0,1665 m;
+  łokieć–nadgarstek:                 0,2790 m;
+  widoczna długość przedramienia:     0,1395 m;
+  przerwa między bryłami przy łokciu: 0,1530 m, czyli 15,3 cm.
+
+Analogicznie między bryłami uda i goleni przerwa wynosi około 18,9 cm.
+To nie jest subtelny problem stylu. Brakuje znacznych fragmentów sylwetki. [T1]
+
+Podobne nieporozumienie dotyczy szerokości i głębokości tułowia. Wymiary są
+przekazywane jak półosie elipsoidy, ale baza ma promień 0,5 i otrzymuje je
+bez dodatkowego przeliczenia.
+
+Zmiana promienia bazowego na 1 może być testem diagnostycznym tej pomyłki,
+ale nie stanowi kompletnej naprawy. Pozostają źle rozmieszczone powierzchnie,
+kształt barków, miednicy, twarzy i kontakt części podczas zginania.
+
+Potrzebna jest jedna jawna konwencja generatora:
+
+  albo pełne wymiary width / height / depth,
+  albo półosie radiusX / radiusY / radiusZ.
+
+Nazwy parametrów i przeliczenie do skali muszą tę konwencję jednoznacznie
+odzwierciedlać. Należy sprawdzać wynikowy rozmiar, nie tylko wartość w configu.
+
+
+3. WYNIKI KONTROLI NUMERYCZNEJ OBECNEGO MODELU
+--------------------------------------------
+
+Poniższe pomiary dotyczą modelu utworzonego z phenotype.height = 1,80 m,
+bez przeskalowania root, na płaskim podłożu y = 0. Poza REST oznacza pierwotne
+transformacje fabryki, przed uruchomieniem animacji. [T1]
+
+Wielkość                                  Wynik
+-----------------------------------------------------------------------
+Liczba widocznych obiektów Mesh             18
+Liczba pozostałych węzłów transformacji     17, łącznie z root
+Obiekty THREE.Bone                         0
+Obiekty THREE.Skeleton / SkinnedMesh        0 / 0
+Rozmiar bryły klatki X/Y/Z                  0,2205 / 0,1901 / 0,1035 m
+Rozstaw pivotów barków                     0,4939 m
+Wysokość głównej bryły głowy                0,1170 m
+Rozpiętość Y obu brył głowy razem           około 0,1509 m
+Najwyższy punkt modelu REST                 y = 1,75743 m
+Najniższy punkt modelu REST                 y = -0,00720 m
+Pełna rozpiętość Y modelu REST              1,76463 m
+Najniższy punkt buta w CROUCH, czas 0       y ≈ -0,16454 m
+Najwyższy punkt dłoni w PRONE, czas 0       y ≈ 1,05252 m
+-----------------------------------------------------------------------
+
+Wnioski:
+
+Po pierwsze, wyświetlenie w panelu „height = 1,80 m” nie dowodzi, że model ma
+1,80 m. Obecny model w pozie bazowej ma inną wysokość i lekko przecina podłoże.
+
+Po drugie, ciało ma wąską bryłę klatki, a barki umieszczone daleko od niej.
+To wzmacnia wrażenie osobnych ramion nawet po poprawieniu długości kończyn.
+
+Po trzecie, poza CROUCH wciska część buta około 16,5 cm pod płaskie podłoże.
+Z kolei PRONE umieszcza dłoń ponad metr nad nim. Sama nazwa stanu nie oznacza,
+że powstała poprawna poza kucania lub leżenia.
+
+Sprawdziłem też 10 sekund aktualizacji statycznych postaw. Pozycja miednicy
+w CROUCH i PRONE nie dryfuje: aktualny plik zapisuje pozycję spoczynkową
+i przywraca ją w resetPose(). Tę poprawkę należy zachować.
+[K1: infantryAnimator.js, 13–18 i 28–41; T1]
+
+Pomiary stanowią kontrolę matematyczną istniejącego modelu, a nie pomiar
+anatomiczny człowieka ani wynik testu pełnego silnika fizyki.
+
+
+4. CZEGO BRAKUJE W ANATOMII POWIERZCHNI
+-------------------------------------
+
+BRAKUJĄCY SYSTEM / BRAKUJĄCA GEOMETRIA.
+
+Tułów potrzebuje ciągłego przejścia od szyi do barków, klatki, brzucha,
+miednicy i nóg. Osobne elipsoidy bez połączeń nie budują pachy, okolicy
+obojczyka ani przejścia między udami i miednicą.
+
+Najważniejsze brakujące formy:
+
+— bark jako połączenie tułowia z ramieniem, a nie kulka obok klatki;
+— klatka szersza w górnej części, z czytelnym przodem i plecami;
+— talia i brzuch łączące klatkę z miednicą;
+— miednica z objętością pośladków i ciągłym przejściem do dwóch ud;
+— łokieć i kolano utrzymujące powierzchnię podczas zgięcia;
+— przedramię zwężające się ku nadgarstkowi;
+— dłoń z rozróżnieniem części dłoniowej i kciuka;
+— stopa/but z piętą, podbiciem, noskiem i płaską podeszwą;
+— głowa z przodem, bokami czaszki, żuchwą i osadzeniem na szyi.
+
+Nie trzeba odwzorowywać każdego mięśnia ani budować osobnego mesha każdego
+fragmentu anatomii. Potrzebna jest wiarygodna objętość i ciągłość sylwetki.
+
+Elipsoidy mogą pozostać narzędziem konstrukcyjnym: wyznaczać objętość uda,
+klatki lub czaszki. Nie muszą jednak pozostać osobnymi bryłami renderowanymi
+na końcu całego procesu.
+
+
+5. CO OBECNIE JEST RIGIEM, A CZEGO JESZCZE NIE MA
+-----------------------------------------------
+
+W kodzie istnieje rig w podstawowym znaczeniu: zależność rodzic–dziecko
+między pivotami. Obrót barku przenosi łokieć i dłoń. Nie jest więc prawdą,
+że model nie ma żadnej hierarchii ruchu. [K1: infantryFactory.js, 63–68,
+105–158, 184–324]
+
+Brakuje natomiast standardowej reprezentacji kości, powiązania geometrii
+ze szkieletem oraz definicji ograniczeń potrzebnych przyszłej fizyce.
+
+Istotne rozróżnienie:
+
+  Bone          — transformacja reprezentująca kość/węzeł stawu;
+  Skeleton      — uporządkowane kości i dane ich powiązania;
+  SkinnedMesh   — powierzchnia, której wierzchołki podążają za kośćmi;
+  SkeletonHelper— rysunek pomocniczy szkieletu, nie symulacja;
+  RigidBody     — fizyczny człon o masie i bezwładności;
+  Collider      — kształt używany do kontaktów;
+  Joint         — ograniczenie względnego ruchu członów fizycznych.
+
+Bone jest wyspecjalizowanym Object3D. SkinnedMesh potrzebuje dodatkowo
+indeksów kości i wag w geometrii. Samo zastąpienie nazwy Object3D przez Bone
+nie wypełnia dziur, nie poprawia pozy i nie włącza ragdolla. [S02–S04, S13]
+
+Ragdoll można podłączyć również do modelu ze sztywnych części. Bones nie są
+matematycznym warunkiem fizyki. Dla tego projektu są jednak proponowanym
+wspólnym interfejsem animacji, deformacji i późniejszego sterowania z fizyki.
+
+
+6. SZKIELET OPARTY NA STAWACH, NIE NA ŚRODKACH ELIPSOID
+----------------------------------------------------
+
+PROPOZYCJA PROJEKTOWA.
+
+Najpierw trzeba zdefiniować punkty stawów i osie ich ruchu. Dopiero potem
+wyprowadzać z nich widoczne segmenty oraz przyszłe collidery.
+
+Podstawy anatomiczne mają znaczenie praktyczne: bark i biodro umożliwiają
+ruch wieloosiowy; zgięcie łokcia ma dominującą oś; obrót przedramienia trzeba
+odróżnić od zgięcia łokcia. Z tego powodu kopiowanie tej samej swobody XYZ
+do każdego stawu nie jest dobrym modelem człowieka. [S10, S11]
+
+Proponowany rdzeń szkieletu, około 22 kości:
+
+  unitWorldRoot                  [Object3D: pozycja i kierunek w świecie]
+    hips                         [Bone]
+      spineLower
+        spineUpper
+          chest
+            neck
+              head
+            clavicle.L
+              upperArm.L
+                foreArm.L
+                  hand.L
+            clavicle.R
+              upperArm.R
+                foreArm.R
+                  hand.R
+      thigh.L
+        shin.L
+          foot.L
+            toes.L
+      thigh.R
+        shin.R
+          foot.R
+            toes.R
+
+To schemat logiczny. Ostateczne osadzenie SkinnedMesh względem kości musi
+mieć spójne przestrzenie i bind matrices.
+
+Obojczyki pozwolą prowadzić barki bez obracania całego tułowia. Kilka odcinków
+kręgosłupa umożliwi rozłożenie pochylenia. Kości palców stóp ułatwią odrywanie
+pięty i przetaczanie stopy. Nie każda z tych kości potrzebuje osobnego ciała
+fizycznego w przyszłym ragdollu.
+
+Kość żuchwy, kości oczu i kości rozkładające skręt przedramienia można dodać,
+gdy wybrana szczegółowość twarzy/deformacji będzie ich wymagała. Pełny rig
+wszystkich palców dłoni nie jest warunkiem naprawienia obecnej piechoty.
+
+
+7. PROPORCJE — JEDNA DEFINICJA I MIERZALNY WZROST
+----------------------------------------------
+
+PROPOZYCJA PROJEKTOWA, NIE TABELA NORM ANTROPOMETRYCZNYCH.
+
+Obecne proporcje są niezależnymi mnożnikami. Nie gwarantują zgodności wzrostu,
+położenia podeszew ani szerokości tułowia z pozycją barków. [K1]
+
+Zamiast sumować przypadkowe długości należy zdefiniować zestaw punktów
+odniesienia w pozie stojącej. Przykładowy spójny szablon startowy:
+
+  Poziom / punkt                              Wysokość względem H
+  ----------------------------------------------------------------
+  Podłoże i spód podeszwy                     0,000 H
+  Staw skokowy                               0,045 H
+  Kolano                                     0,285 H
+  Staw biodrowy                              0,525 H
+  Główny pivot miednicy                       0,540 H
+  Dolny odcinek kręgosłupa                    0,600 H
+  Górny odcinek kręgosłupa                    0,700 H
+  Pivot klatki                               0,770 H
+  Bark                                       0,800 H
+  Nasada szyi                                0,840 H
+  Pivot głowy                                0,900 H
+  Najwyższy punkt geometrii głowy             1,000 H
+  ----------------------------------------------------------------
+
+Są to współrzędne w jednym układzie, a nie długości, które należy dodać.
+Pivot głowy nie oznacza jej najniższego punktu. Geometria głowy może otaczać
+ten pivot z obu stron, podobnie jak miednica otacza punkty bioder.
+
+Długości kości wynikają z odległości między ich końcami. Dla ustawienia A-pose
+ramiona mają również składową poprzeczną: długość liczymy w 3D, nie jako samą
+różnicę wysokości. Szerokość klatki i kształt barku wyznaczamy wspólnie.
+
+Zakres H = 1,60–1,95 m pozostaje parametrem projektowym z obecnej specyfikacji,
+a nie twierdzeniem o rzeczywistym rozkładzie wzrostu populacji.
+
+Wzrost oznacza wysokość postaci w pozie referencyjnej, nie bieżącą wysokość
+bounding boxa w kucaniu. Należy osobno nazwać „standingHeight” i „poseBounds”.
+W tym projekcie warto ustalić, że H jest wysokością stojącego modelu w butach.
+
+Warunek testowy: dla zadanego H najwyższy punkt stojącego modelu znajduje się
+na H, a spód podeszwy na 0, w zadanej tolerancji technicznej.
+
+
+8. OSIE, POZA BAZOWA I PRZESTRZENIE TRANSFORMACJI
+----------------------------------------------
+
+Utrzymujemy Y jako pion oraz +Z jako przód postaci. Jest to zgodne z obliczaniem
+heading = atan2(facingX, facingZ) w obecnym ruchu. [K1: infantryUnit.js, 80–89]
+
+Potrzebna jest jawna definicja lokalnych osi każdego stawu: kierunku kości,
+osi zginania i osi skrętu. Sama znajomość dwóch końców kości nie wyznacza jej
+obrotu wokół własnej długości. Ten brakujący kąt, często nazywany roll,
+wpływa później na zginanie łokci i ustawienie ograniczeń fizycznych.
+
+Proponuję ustalić spokojną A-pose jako pozę wiązania geometrii. Powinna być
+symetryczna, bez przenikania rąk przez tułów, z jawnymi lokalnymi orientacjami.
+Nie jest to obowiązek użycia A-pose w animacji IDLE.
+
+Rest pose: zapisana pozycja i orientacja bazowa kości.
+Bind pose: konfiguracja, w której geometrię powiązano ze szkieletem.
+Animation pose: wynik animatora w danym momencie.
+Physics pose: wynik przyszłej symulacji członów fizycznych.
+
+W tym projekcie rest pose i bind pose mogą być tą samą konfiguracją, ale
+muszą pozostać odróżnialnymi pojęciami. Macierze odwrotne wiązania opisują
+przejście względem konfiguracji początkowej. [S03, S05]
+
+Kości generujemy w rzeczywistych metrach, z domyślną skalą (1,1,1).
+Unikamy ujemnych skal służących do lustrzanego odbicia kończyn i nierównomiernej
+skali na rodzicach szkieletu. Odbicie tworzymy w danych punktów i orientacji.
+To uprości późniejsze przenoszenie transformacji między szkieletem i fizyką.
+
+
+9. JAK ZBUDOWAĆ POWIERZCHNIĘ — TRZY MOŻLIWE DROGI
+------------------------------------------------
+
+WARIANT A: POPRAWIONE SZTYWNE ELIPSOIDY NA KOŚCIACH.
+
+Naprawiamy wymiary, dodajemy objętości przy stawach, mocujemy bryły do Bone.
+To mały krok i pozwala szybko sprawdzić anatomię szkieletu. Wadą pozostają
+szwy, przenikanie przy zgięciach i duża liczba osobnych obiektów. Ten wariant
+może służyć jako model diagnostyczny, ale nie jako docelowy szczegółowy podgląd.
+
+WARIANT B: PROCEDURALNA POWIERZCHNIA O STAŁEJ TOPOLOGII + SKINNING.
+
+Kończyny powstają z pierścieni o eliptycznych przekrojach. Pierścienie
+interpolujemy wzdłuż kości i łączymy trójkątami. Tułów ma kontrolowane
+przekroje klatki, talii i miednicy. Barki i okolice bioder mają zaprojektowane
+połączenia siatki, zamiast liczyć na zetknięcie końców dwóch kul.
+
+Indeksy trójkątów mogą być stałą częścią generatora. Wierzchołki, rozmiary,
+UV i wagi powstają z parametrów. To nadal jest model proceduralny: nie
+wymaga importu FBX/GLTF ani losowej geometrii w każdej klatce.
+
+To rekomendowany kierunek dla tego projektu. Elipsoidy pozostają źródłem
+kształtu, ale powierzchnia i stawy otrzymują kontrolowaną ciągłość.
+
+WARIANT C: POLE OBJĘTOŚCIOWE / METABALLS / POWIERZCHNIA NIEJAWNA.
+
+Można połączyć objętości w pole i wyprowadzić wspólną powierzchnię. Taki projekt
+wymaga jednak osobnego rozwiązania topologii, UV, wag oraz unikania zlewania
+rąk z tułowiem. Nie traktuję go jako najprostszego następnego kroku.
+
+W każdym wariancie sama operacja połączenia buforów geometrii nie wypełnia
+dziur między bryłami. Potrzebne są nowe połączenia powierzchni lub świadome
+nakładanie objętości. Również gładkie normalne nie naprawiają brakujących
+trójkątów.
+
+
+10. SKINNING — CO KONKRETNIE MUSI POWSTAĆ
+---------------------------------------
+
+SkinnedMesh potrzebuje atrybutów określających, które kości wpływają na dany
+wierzchołek i z jaką wagą. Dla używanej wersji Three.js można zaplanować do
+czterech wpływów na wierzchołek. Wagi muszą być nieujemne, znormalizowane,
+a indeksy wskazywać istniejące kości. [S04, S05, S17]
+
+Proponowany sposób nadawania wag:
+
+Środek segmentu kończyny jest głównie przypisany do jednej kości. W pobliżu
+stawu wagi płynnie przechodzą do kości sąsiedniej. Pachy i biodra potrzebują
+odrębnych reguł, bo ruch łączy kończynę i tułów. Sztywne szczegóły, na przykład
+część nosa lub element podeszwy, nie muszą mieć takiego samego rozkładu wag
+jak miękki rękaw przy łokciu.
+
+Wagi należy przypisywać według obszaru generatora i sąsiedztwa szkieletu.
+Samo wybranie najbliższej kości w przestrzeni grozi przypisaniem pachwiny
+do niewłaściwej nogi albo rękawa do klatki.
+
+Staw potrzebuje kilku przekrojów geometrii, a nie pojedynczego wąskiego pasa.
+W przeciwnym razie mocne zgięcie ścisną łokieć lub kolano, nawet przy dobrych
+wagach. Dla dużego skrętu przedramienia można później dodać kość rozkładającą
+skręt, ale dopiero po ocenie deformacji podstawowego modelu.
+
+Jeżeli siatka ma rozdzielone wierzchołki na szwie UV, odpowiadające sobie
+pozycje muszą otrzymać zgodne wagi. Inaczej po animacji pojawi się szczelina.
+
+Testy skinningu: wyprost, zgięty łokieć, ramię nad głową, kucanie, krok,
+skręt tułowia oraz prone. Dopiero te pozy pokażą, czy powierzchnia rzeczywiście
+jest połączona i czy jej objętość nie zapada się przy stawach.
+
+
+11. TWARZ — CO ZBUDOWAĆ PROCEDURALNIE
+-----------------------------------
+
+BRAKUJĄCA GEOMETRIA.
+Obecna głowa to dwie elipsoidy z jednym materiałem. Kod nie tworzy oczu, nosa,
+ust, uszu ani linii żuchwy. Zwiększenie rozdzielczości tych samych elipsoid
+nie spowoduje powstania twarzy. [K1: infantryFactory.js, 158–182]
+
+Proponowany model głowy ma trzy poziomy szczegółu konstrukcyjnego:
+
+A. Sylwetka: czaszka, zwężenie żuchwy, podbródek, spłaszczenie okolicy twarzy,
+   policzki i osadzenie szyi. Muszą działać z przodu, z boku i pod kątem.
+
+B. Rozpoznawalne elementy: nos z grzbietem i czubkiem, zagłębienia oczodołów,
+   powieki, oczy osadzone wewnątrz głowy, uszy oraz cienka linia ust.
+
+C. Detal materiałowy: brwi, przyciemnienie nozdrzy, kontur ust i niewielkie
+   zróżnicowanie skóry. To nie powinno zastępować geometrii nosa i żuchwy.
+
+Najbardziej przewidywalny generator to parametryzowana siatka głowy o stałej
+topologii. Zmieniają się pozycje punktów kontrolnych i skala wynikająca ze
+wzrostu, a nie losowość każdego rysu. Na obecnym etapie nie ma potrzeby dodawania
+nowych genów twarzy: stały projekt twarzy jest zgodny z genomem height + speed.
+
+Nie należy tworzyć dwóch białych kul na wierzchu głowy. Oczy potrzebują
+powiek, częściowego zakrycia i czytelnego kierunku patrzenia. Dłoń podobnie
+zyska więcej na kciuku i kształcie śródręcza niż na wielu przypadkowych kulkach.
+
+Detale można wygenerować raz do CanvasTexture albo do danych wierzchołków.
+CanvasTexture przyjmuje canvas jako źródło tekstury; nie wymaga gotowego
+zewnętrznego obrazka. [S09]
+
+Nie proponuję teraz mimiki, ruchu ust, pełnego systemu włosów ani symulacji
+oczu. Podstawą jest nieruchoma, poprawna twarz przypięta do kości head.
+
+
+12. UNIFORM — DLACZEGO SAM KOLOR NIE WYSTARCZA
+-------------------------------------------
+
+BRAKUJĄCY MODEL UBRANIA.
+Obecne „uniformMaterial” to wspólny materiał przypisywany bryłom ciała.
+Nie istnieje osobny krój bluzy, spodni ani rękawów. [K1: infantryFactory.js,
+42–50 i wywołania makePart()]
+
+Proponowane minimum rozpoznawalnego uniformu:
+
+— bluza z czytelnym kołnierzem i dolną krawędzią;
+— rękawy łączące się z barkami i kończące mankietami;
+— spodnie z pasem, połączeniem między nogami i nogawkami;
+— podstawowe przeszycia i plisy lub klapy kieszeni jako detal ubrania;
+— buty z cholewką, piętą, noskiem i podeszwą.
+
+Nie jest to propozycja dodawania oporządzenia, plecaków, hełmów lub broni.
+To opis elementów samego ubrania, które ma już być widoczne.
+
+Ubranie powinno korzystać z tych samych punktów stawów, ale mieć własny profil
+powierzchni: rękaw nie jest gołym ramieniem pomalowanym na zielono. Potrzebuje
+luzu, końcówek i nieco innego rozkładu objętości.
+
+Dwa wykonalne rozwiązania:
+
+1. Model docelowo ubrany: uniform jest główną powierzchnią, a pod całkowicie
+   zakrytymi obszarami nie ma niewidocznej warstwy skóry. Mniej geometrii
+   i mniejsze ryzyko przebijania skóry przez materiał. Proponuję to na start.
+
+2. Pełne ciało i osobna odzież: większa elastyczność przyszłej wymiany ubrań,
+   ale więcej geometrii i problemów penetracji. Obecny zakres tego nie wymaga.
+
+Uniform pozostaje podłączony do tego samego szkieletu i porusza się przez
+skinning. Drobne fałdy mogą być generowane w pozie bazowej lub jako niewielka
+korekta związana ze zgięciem stawu. Nie potrzeba jeszcze symulacji tkaniny.
+
+Kolor pochodzi od strony; seed wzrostu nie może przypadkowo zmieniać koloru
+przynależności. Współdzielone materiały należy zachować tam, gdzie parametry
+wyglądu są rzeczywiście identyczne.
+
+
+13. OŚWIETLENIE I DLACZEGO POSTAĆ WYGLĄDA NA BARDZO JASNĄ
+------------------------------------------------------
+
+Na zrzucie uniform i skóra są jasne, a płaskie ściany brył wyraźnie widoczne.
+Kod używa flatShading oraz jasnego zestawu oświetlenia w podglądzie:
+HemisphereLight 1,35, DirectionalLight 2,0 i ekspozycji 1,10.
+[K1: infantryFactory.js, 18–49; debugPanel.js, 22–40; K2]
+
+Nie ustalam wyłącznie na podstawie obrazka, czy główną przyczyną rozjaśnienia
+jest zarządzanie kolorem, ekspozycja, światła czy kombinacja tych czynników.
+Wymaga to sprawdzenia renderu i ustawień konkretnej wersji silnika.
+
+Proponowana kolejność oceny: poprawna bryła w prostym jednolitym materiale,
+następnie poprawny materiał skóry i tkaniny, na końcu kontrola ekspozycji.
+Nie należy przykrywać błędów anatomii efektem cieniowania.
+
+Gładkie normalne warto zastosować na skórze i dużych fragmentach ubrania.
+Twardsze krawędzie zachować tam, gdzie wynikają z kroju lub podeszwy.
+Nie trzeba narzucać flatShading całej postaci tylko dlatego, że konstrukcja
+jest proceduralna i korzysta z elipsoidalnych objętości.
+
+Kontaktowy cień może pomóc ocenić podparcie, ale nie zastąpi właściwego
+położenia stóp. Nie traktuję dodania cieni jako osobnego zamówionego systemu.
+
+
+14. ANIMACJE — BŁĘDY I OGRANICZENIA POTWIERDZONE W KODZIE
+-------------------------------------------------------
+
+A. NIESPÓJNY ZNAK POCHYLENIA.
+
+Ruch używa +Z jako przodu. Jednak RUN ustawia spine.rotation.x = -0.13,
+a PRONE ustawia pelvis.rotation.x = -1.36. Obrót ujemny wokół X przenosi
+wektor tułowia +Y w stronę -Z. Kierunek wizualnego pochylenia jest przeciwny
+do przyjętego przodu. [K1: infantryAnimator.js, 115 i 155–161;
+infantryUnit.js, 80–82]
+
+Dla orientacji bazowej przodem +Z ujemny obrót miednicy obraca też przód
+powierzchni tułowia ku górze. To nie jest poprawna definicja leżenia na brzuchu.
+Nie wystarczy jednak odwrócić jednego znaku: trzeba sprawdzić cały układ
+miednicy, kręgosłupa, głowy i kończyn po zmianie konwencji.
+
+B. KUCANIE JEST STAŁYM PRZESUNIĘCIEM O 0,28 M.
+
+Offset nie wynika z długości nóg ani docelowego położenia stóp. Dla H=1,80 m
+numeryczny test pokazuje przecięcie podłoża przez but. Podobnie prone używa
+stałego obniżenia 0,52 m, niezależnego od wysokości postaci. [K1; T1]
+
+C. BRAK PŁYNNYCH PRZEJŚĆ.
+
+setState() natychmiast zmienia stan i zeruje czas. Nie istnieje mieszanie
+poprzedniej i nowej pozy ani osobna faza schodzenia do prone.
+[K1: infantryAnimator.js, 21–25]
+
+D. CYKL NIE WYNIKA Z RZECZYWISTEGO PRZEMIESZCZENIA.
+
+Częstotliwości WALK i RUN to stałe 6 i 9 mnożone przez playbackRate.
+Prędkość ruchu jest liczona osobno. Nie istnieje informacja, która stopa
+ma w danym momencie pozostać nieruchoma względem gruntu. [K1: animator,
+91–129; infantryUnit.js, 47–83]
+
+E. ZMIANA KIERUNKU JEST NATYCHMIASTOWA.
+
+Testowy ruch odwraca znak kierunku i ustawia nowe heading. Nie ma przejścia
+obrotu ani kroku korygującego. To ograniczenie demonstracji, nie brak AI.
+
+F. SINUS NIE JEST SAM W SOBIE CYKLEM CHODU.
+
+Sinus jest dobrym składnikiem ruchu, ale obecne równania nie definiują
+przetaczania stopy, fazy podparcia ani koordynacji podparcia z pozycją miednicy.
+
+
+15. CO REALNIE POPRAWIĄ BONES W ANIMACJACH
+----------------------------------------
+
+Kości dadzą wspólny, nazwany układ stawów dla różnych wysokości postaci.
+Umożliwią użycie powierzchni deformowanej i powtarzalne adresowanie łokcia,
+biodra lub głowy. Nie dadzą automatycznie poprawnych ruchów. [S02–S04]
+
+Proponowany animator powinien obliczać kompletną pozę na podstawie:
+
+  stanu postawy,
+  stanu ruchu,
+  rzeczywistej prędkości i kierunku,
+  fazy cyklu,
+  czasu przejścia,
+  długości kończyn,
+  opcjonalnych celów kontaktu z podłożem.
+
+Potem zapisuje rotacje kości i pozycję miednicy względem pozy bazowej.
+Wartości mają być wyliczane od rest pose, nie kumulowane bez kontroli.
+
+Do mieszania orientacji proponuję kwaterniony i interpolację sferyczną.
+Kąty w radianach mogą pozostać wygodnymi parametrami generatora pojedynczej
+pozy, ale końcowe mieszanie całych orientacji nie powinno polegać wyłącznie
+na liniowym dodawaniu rotation.x/y/z.
+
+Dwie dopuszczalne implementacje późniejszego animatora:
+
+— własne funkcje proceduralne zwracające bufor pozy i własny system mieszania;
+— generowane proceduralnie klipy odtwarzane przez AnimationMixer.
+
+AnimationAction oferuje wagi, zmianę szybkości i cross-fade. To użyteczne
+narzędzia, nie zamiennik projektu dobrej pozy. [S06]
+
+Nie należy jednocześnie pozwalać obu rozwiązaniom nadpisywać tych samych
+kości bez wyraźnej kolejności i zasad łączenia.
+
+
+16. CHÓD I BIEG: POWIĄZANIE CYKLU Z METRAMI
+------------------------------------------
+
+PROPOZYCJA PROJEKTOWA.
+
+Rozdzielamy prędkość przemieszczania jednostki od pozy generowanej na kościach.
+Animator otrzymuje rzeczywistą prędkość, a nie sam napis RUN.
+
+Fazę cyklu można prowadzić według pokonanej drogi:
+
+  przyrost_fazy = pokonana_droga / droga_na_pełny_cykl.
+
+Pełny cykl oznacza powrót tej samej nogi do tej samej fazy. Nie należy mylić
+go z pojedynczym krokiem, bo to wprowadzi dwukrotny błąd częstotliwości.
+
+Docelowa droga na cykl jest parametrem animacji zależnym od długości nóg
+oraz rodzaju ruchu. speedGene zmienia prędkość, a ta zmienia tempo cyklu.
+heightGene zmienia długości kończyn, więc może wpływać na rytm i zakres
+ruchu bez automatycznej zmiany zadanej prędkości świata.
+
+W każdej nodze potrzebne są co najmniej dwie logiczne fazy: podparcie
+oraz przenoszenie stopy. Ścieżka przenoszenia ma określony prześwit nad
+podłożem. W podparciu stopa nie powinna przesuwać się razem z root.
+
+Do tego dodajemy przeciwny ruch ramion, niewielki skręt miednicy względem
+klatki i kontrolowany ruch pionowy. Najpierw poprawiamy stopy i długość kroku,
+a dopiero potem ozdobne ruchy tułowia.
+
+Podgląd w miejscu pozostaje przydatny, ale nie ujawni pełnego ślizgania stóp.
+Trzeba sprawdzać ten sam cykl przy rzeczywistym przesunięciu po podłożu.
+
+
+17. CROUCH, PRONE I PRONE_MOVE WYMAGAJĄ INNEGO PODPARCIA
+-----------------------------------------------------
+
+CROUCH: docelowe obniżenie bioder wyznaczamy w odniesieniu do nóg i miejsc
+podparcia obu stóp. Kąt kolan i bioder ma wynikać ze spójnej pozy, a nie
+z obniżenia root o stałą liczbę centymetrów. Trzeba również zapobiec
+przebijaniu ud przez tułów i nienaturalnemu łamaniu kostek.
+
+PRONE: potrzebna jest poza z przodem tułowia skierowanym ku ziemi, głową
+w stronę +Z i nogami za miednicą. Położenie wynika z grubości ciała i punktów
+podparcia, nie tylko z obrotu całego pionowego człowieka. Ramiona należy
+ustawić tak, aby nie sterczały nad postacią, jak w obecnym teście.
+
+PRONE_MOVE: do poprawnej pozy leżącej dodajemy naprzemienne przenoszenie
+ramion i nóg oraz niewielkie przesunięcia tułowia. Ruch świata nadal jest
+oddzielny; animacja nie może przesuwać samego mesha bez zgodnej zmiany
+pozycji jednostki.
+
+Przejście stojący → leżący powinno mieć fazę pośrednią: obniżenie środka
+postaci i ustawienie podpór. Sam cross-fade dwóch skrajnych poz może na
+krótko przeprowadzić ciało przez ziemię. Trzeba testować również przejście
+odwrotne, ale nie dodawać z tego powodu nowych mechanik rozgrywki.
+
+Dla każdej postawy można mieć inny profil wizualnej wysokości i przyszłego
+collidera ruchowego. Nie powinien nim być bezwarunkowo pionowy kształt
+odpowiadający stojącemu żołnierzowi.
+
+
+18. TEREN I IK — PROBLEM DOTYCZY TAKŻE PODŁOŻA
+---------------------------------------------
+
+BŁĄD ZGODNOŚCI REPREZENTACJI.
+
+Teren ma 300 segmentów na długości 2000 m, czyli odstęp wierzchołków około
+6,67 m. Widoczna powierzchnia pomiędzy nimi jest powierzchnią trójkątów.
+Tymczasem getHeightAt() ponownie wywołuje ciągłą funkcję szumu. Te wysokości
+nie muszą pokrywać się pomiędzy wierzchołkami. [K1: config.js; terrain.js,
+90–114 i 217–219]
+
+Dlatego jednostka może być nad lub pod widocznym terenem nawet przy
+poprawnie ustawionym root. Naprawianie tego stałym offsetem maskowałoby błąd.
+
+Proponuję wspólną usługę zapytania o powierzchnię: wysokość i normalną
+wynikające z tych samych trójkątów co render. Dla regularnej siatki można
+policzyć to bez przeszukiwania całej mapy: odnaleźć komórkę, wybrać jej
+trójkąt i interpolować zgodnie z rzeczywistym podziałem przekątnej.
+
+Następnie prosty IK dla dwóch segmentów nogi może dopasować kolano i biodro
+do docelowej stopy. Rozwiązanie musi znać długości kości, preferowany kierunek
+zgięcia oraz maksymalny zasięg. Cel poza zasięgiem należy ograniczyć albo
+skorygować miednicą, nie rozciągać dowolnie kości.
+
+Three.js ma CCDIKSolver dla SkinnedMesh. To potwierdzenie dostępności narzędzia,
+nie gwarancja, że gotowy solver sam zapewni poprawny kontakt stóp. Dla dwóch
+kości można również zaprojektować własne rozwiązanie analityczne. [S07]
+
+Na początku wystarczy kontrola kontaktu na płaskim podłożu. Dopasowanie nóg
+do stoków jest osobnym krokiem jakości animacji. Dla prone trzeba później
+badać więcej punktów podparcia niż sam punkt między stopami.
+
+Sektor 5×5 m to podział logiczny. Nie oznacza, że pozycje stóp, kości lub
+colliderów wolno zmieniać tylko co 5 m. Jednostki pozostają w skali metrowej,
+a ruch i geometria działają również wewnątrz sektora.
+
+
+19. RAGDOLL — JAKIE DANE PRZYGOTOWAĆ TERAZ
+----------------------------------------
+
+PROPOZYCJA ARCHITEKTURY POD PÓŹNIEJSZĄ FIZYKĘ.
+
+Ragdoll wymaga członów fizycznych, kształtów kontaktu i ograniczeń między
+członami. Sam szkielet graficzny tego nie zawiera. [S12–S14]
+
+Już teraz warto opisać we wspólnej definicji:
+
+  identyfikator kości i rodzica;
+  pozycję oraz orientację w pozie bazowej;
+  punkty początku/końca segmentu;
+  lokalną oś zginania i kierunek skrętu;
+  przewidywany człon fizyczny reprezentujący segment;
+  transformację między kością i tym członem;
+  punkty kotwiczenia stawu;
+  kategorię ograniczeń i docelowy profil kontaktów.
+
+To dane, nie aktywna symulacja. Nie trzeba dziś tworzyć świata fizyki,
+obliczać ragdolla dla każdej jednostki ani dodawać nowej opcji rozgrywki.
+
+Dobry kontrakt pozwoli później wykorzystać ten sam wzrost do wygenerowania
+kości, powierzchni i wymiarów colliderów. Zły kontrakt to drugi, ręcznie
+rozstawiony zestaw brył fizycznych, który tylko „mniej więcej” pasuje do riga.
+
+Nie każda kość renderująca musi odpowiadać ciału fizycznemu. Oczy, żuchwa,
+kości rozkładające skręt czy palce mogą pozostać sterowane przez rodzica
+lub prostą pozę podczas ragdolla.
+
+
+20. PROPONOWANY RIG FIZYCZNY I OGRANICZENIA STAWÓW
+------------------------------------------------
+
+Dla pierwszego przyszłego pasywnego ragdolla proponuję rdzeń 12–14 głównych
+członów: miednica, dolny tułów, klatka, głowa, po dwa ramiona i przedramiona,
+po dwa uda i golenie oraz uproszczenie stóp do wybranego członu lub osobnych
+ciał. Ostateczna liczba zależy właśnie od sposobu reprezentacji stóp i dłoni;
+nie jest to wymóg silnika ani komplet ludzkich kości.
+
+Warto policzyć warianty jawnie: 3 człony tułowia z miednicą + głowa + 4 człony
+rąk + 4 człony nóg = 12. Dodanie dwóch osobnych stóp daje 14, a dwóch dłoni 16.
+Dla projektu proponuję rozważyć rdzeń 12 lub 14, zamiast przypadkowego
+zwiększania liczby elementów.
+
+Collidery nie muszą kopiować elipsoid z renderu. Kandydaci to kapsuły
+kończyn, proste wypukłe bryły tułowia i kształt głowy. Dokumentacja Rapiera
+opisuje kapsuły i bryły wypukłe; dla dynamicznych ciał odradza używanie
+złożonych powierzchni trójkątowych bez wnętrza. [S14]
+
+Uwaga na powtórzenie obecnej pomyłki: konstruktor fizyczny może przyjmować
+promień i połowę długości. Parametry renderu nie powinny być przepisywane
+bez sprawdzenia definicji kształtu.
+
+Proponowane zachowanie stawów:
+
+— łokieć i kolano: główna oś zgięcia, ograniczenie przeprostu;
+— bark i biodro: ograniczony ruch wieloosiowy i oddzielna kontrola skrętu;
+— kręgosłup i szyja: mniejsze dopuszczalne odchylenia, rozłożone po segmentach;
+— nadgarstek i kostka: ograniczona swoboda lub uproszczenie w pierwszym wariancie.
+
+Nie podaję jednego uniwersalnego zestawu „anatomicznie poprawnych” kątów.
+Zależą od definicji osi, uproszczeń modelu i ruchu. Liczby należy określić
+jako parametry gry i zweryfikować na pozach, nie jako normy medyczne.
+
+Nieograniczony joint kulisty nie zabezpiecza przed nienaturalnym obrotem
+ramienia. W Rapierze spherical joint blokuje rozjeżdżanie kotwic, pozostawiając
+swobodę obrotu. Obsługę potrzebnych limitów i osi należy sprawdzić w konkretnym
+wybranym API JavaScript, nie tylko na podstawie nazwy stawu. [S13]
+
+
+21. MASA, KOLIZJE I ZGODNOŚĆ Z GENOMEM
+-------------------------------------
+
+Obecny genom pozostaje dwugenowy: heightGene i speedGene. Nie trzeba dodawać
+genu masy tylko dlatego, że przyszła fizyka potrzebuje wartości masowych.
+Może to być parametr szablonu lub wartość pochodna wymiarów.
+
+Przykładowe podejście projektowe: ustalić bazową masę całkowitą i udziały
+segmentów albo wyprowadzić masę z objętości i dobranych gęstości. Nie mieszać
+obu metod bez kontroli, bo masa może zostać policzona podwójnie. Rapier
+uwzględnia wkład colliderów do masy i bezwładności ciała. [S12, S14]
+
+Ważniejsze od pozornej precyzji jest to, aby środek masy i bezwładność były
+spójne z kształtem, a bardzo mała kończyna nie otrzymała masy całego tułowia.
+Nie należy przypisywać każdej kości identycznej masy.
+
+Dla skalowanych proporcjonalnie postaci objętość zmienia się z trzecią potęgą
+skali. Automatyczne stosowanie tej zależności do masy jest jednak decyzją
+modelowania, nie założeniem wymuszonym przez heightGene.
+
+Trzeba zaplanować filtrowanie kolizji sąsiednich członów, które stykają się
+w stawie. Jednocześnie całkowite wyłączenie wszystkich kontaktów wewnątrz
+ragdolla pozwalałoby kończynom przechodzić przez tułów. Docelowa konfiguracja
+powinna rozróżniać te przypadki.
+
+Fizyka i rendering muszą korzystać z tej samej skali metrów. Dokumentacja
+Rapiera zaleca jednostki SI; człowiek o wysokości 1,8 nie może przypadkowo
+stać się colliderem wysokim na 180. [S15]
+
+
+22. PRZEŁĄCZENIE ANIMACJI NA RAGDOLL — NAJWAŻNIEJSZA PUŁAPKA
+----------------------------------------------------------
+
+Kość zwykle reprezentuje okolice stawu. Transformacja ciała fizycznego może
+odpowiadać środkowi segmentu i mieć inną orientację osi. Nie wolno kopiować
+pozycji collidera bezpośrednio do lokalnej pozycji kości.
+
+Proponowany kontrakt matematyczny, dla macierzy jednorodnych:
+
+  B — macierz świata kości;
+  C — stałe przesunięcie/orientacja od kości do członu fizycznego;
+  P — macierz świata członu fizycznego.
+
+  P = B · C
+  B = P · odwrotność(C)
+
+Lokalna macierz kości musi następnie uwzględnić rodzica:
+
+  B_local = odwrotność(B_parent_world) · B_world.
+
+Jeżeli rodzicem korzenia szkieletu jest unitWorldRoot, w tym miejscu trzeba
+użyć jego macierzy świata. Pominięcie tego kroku podwaja przemieszczenie
+lub obrót postaci przy innym heading niż zero.
+
+Przyszła sekwencja przejścia powinna wyglądać następująco:
+
+1. Dokończyć pozę animacji i zaktualizować transformacje świata.
+2. Ustawić człony fizyczne zgodnie z aktualną pozą, nie z T-pose/A-pose.
+3. Nadać im spójne prędkości wynikające z ruchu postaci i, gdy potrzebne,
+   zmian pozy kończyn. Nie zerować całego ruchu bez przyczyny.
+4. Włączyć właściwy tryb dynamiki i przekazać sterowanie kośćmi fizyce.
+5. Odczytywać pozycje świata członów, przeliczać je przez offsety i rodziców,
+   a dopiero potem aktualizować szkielet renderujący.
+
+To propozycja adaptera animacja–fizyka, nie gotowy kod silnika.
+
+W danym momencie musi istnieć jeden nadrzędny sterownik każdej kości.
+Animator, IK i ragdoll nie mogą niezależnie nadpisywać jej w przypadkowej
+kolejności. W trybie ragdoll obecne wymuszanie root.y = terrainHeight trzeba
+zastąpić właściwym trybem pozycjonowania, inaczej będzie walczyć z fizyką.
+
+Pasywny ragdoll jest wystarczającym przyszłym celem. Aktywny ragdoll,
+który używa napędów do utrzymywania pozy, to osobny i znacznie szerszy system.
+
+
+23. AKTUALIZACJA CZASU, WYDAJNOŚĆ I PODZIAŁ ODPOWIEDZIALNOŚCI
+------------------------------------------------------------
+
+Obecne użycie dt jest poprawnym kierunkiem. Jednak Math.min(dt, 0.05)
+ucina czas podczas większego opóźnienia: przy klatce trwającej 0,10 s symulacja
+przesuwa się tylko o 0,05 s. To nie jest rozwiązanie stałego kroku fizyki.
+[K1: game.js, 188–195]
+
+Dla późniejszego ragdolla proponuję stały krok, na przykład 1/60 s, akumulator
+czasu i interpolację stanu na potrzeby renderu. Liczba kroków nadrabiania
+musi mieć limit, a polityka po zatrzymaniu karty powinna być jawna. To parametr
+projektowy do testów, nie obietnica identyczności wszystkich symulacji.
+
+Podział odpowiedzialności:
+
+  ruch jednostki        → pozycja i prędkość w świecie;
+  animator              → bazowa poza szkieletu;
+  IK/kontakty           → kontrolowane korekty wybranych kości;
+  adapter ragdolla       → alternatywne źródło pozy w trybie fizyki;
+  rendering             → powierzchnia wynikająca ze szkieletu.
+
+W obecnym modelu 18 osobnych Mesh oznacza do 18 zgłoszeń rysowania postaci
+w pojedynczym głównym przebiegu, gdy wszystkie są widoczne. Wspólna geometria
+oszczędza pamięć, ale nie scala tych wywołań. 1000 takich postaci mogłoby więc
+wytworzyć około 18 000 zgłoszeń samej piechoty, przed innymi przebiegami.
+To oszacowanie z organizacji kodu, nie wykonany benchmark. [K1]
+
+Dla docelowego modelu proponuję ograniczyć liczbę obiektów i grup materiałów.
+Samo przekształcenie 18 brył w 18 SkinnedMesh nie realizuje tego celu.
+
+Podgląd generatora może używać bogatszej geometrii niż odległa jednostka
+na mapie. LOD geometrii, detalu twarzy, animacji i przyszłej fizyki trzeba
+traktować oddzielnie. Nie deklaruję liczby obsługiwanych jednostek bez pomiaru.
+
+Model i tekstury generujemy przy tworzeniu lub zmianie parametrów, nie
+w każdej klatce. Kości jednej animowanej postaci nie powinny być przypadkowo
+współdzielone z drugą, bo zmiana pozy jednej zmieniłaby obie.
+
+
+24. WYMAGANIE FILE:// I ZGODNOŚĆ Z THREE.JS r128
+----------------------------------------------
+
+Uruchomienie dwuklikiem index.html pozostaje warunkiem architektury.
+Nie należy wracać do lokalnych importów modułowych, które spowodowały
+poprzedni błąd uruchamiania.
+
+Obecna paczka ładuje Three.js 0.128.0 i klasyczne skrypty. Szkielet i skinning
+można rozwijać w tej wersji bez zmiany sposobu startu projektu. Kod r128
+zawiera SkinnedMesh, bind, skinIndex i skinWeight. [K1: index.html; S17]
+
+Istotna pułapka wersji: MeshStandardMaterial w r128 ma właściwość skinning,
+domyślnie false. Projektując deformowaną powierzchnię dla tego wydania trzeba
+uwzględnić konfigurację materiału. Nie wolno kopiować bez sprawdzenia wyłącznie
+przykładu z bieżącej dokumentacji. [S18]
+
+Również metody pomocnicze różnią się między wydaniami: w odczytanym źródle
+r128 występuje boneTransform(), podczas gdy współczesna dokumentacja opisuje
+applyBoneTransform(). Mechanizm należy sprawdzać dla przypiętej wersji. [S04, S17]
+
+Dla przyszłej fizyki Rapier jest kandydatem, nie wdrożoną zależnością.
+Dokumentacja opisuje pakiet compat z osadzonym WebAssembly, przydatny do
+ograniczenia zewnętrznego ładowania pliku WASM. Nadal wymaga inicjalizacji.
+Konkretny plik dystrybucyjny trzeba przetestować przez file:// w docelowej
+przeglądarce; sama nazwa „compat” nie jest dowodem zgodności paczki. [S16]
+
+Generowane w pamięci siatki i tekstury nie wymagają lokalnego fetch().
+Biblioteki z CDN nadal wymagają internetu; cache nie stanowi gwarancji offline.
+Nie proponuję obecnie aktualizowania całego stosu ani narzucania serwera.
+
+
+25. GENOM I GENERATOR — CO ZACHOWAĆ
+----------------------------------
+
+Warto zachować istniejące rozdzielenie seed → genome → phenotype.
+heightGene rzeczywiście powinien sterować wymiarami, a speedGene prędkością.
+To lepsza podstawa niż losowanie cech podczas aktualizacji animacji.
+[K1: infantryGenome.js i infantryUnit.js]
+
+Nowe dane należy wyprowadzać z tego samego phenotype:
+
+  wymiary i położenia stawów;
+  powierzchnia ciała i ubrania;
+  wielkość głowy, dłoni i butów;
+  cele i zasięgi IK;
+  przyszłe rozmiary colliderów.
+
+Nie należy dodawać ukrytych losowych cech przy każdym otwarciu podglądu.
+Gdy dojdą nowe proceduralne detale, ich losowość powinna korzystać z oddzielnych
+strumieni seeda, aby nowy szczegół twarzy nie zmieniał dotychczasowego wzrostu.
+
+Przyda się wersja generatora: sam seed nie gwarantuje identycznego modelu
+po zmianie algorytmu i proporcji. To normalne, ale musi być jawne przy
+porównywaniu kolejnych prototypów.
+
+
+26. CO POWINIEN POZWALAĆ SPRAWDZIĆ ISTNIEJĄCY PODGLĄD UNITS
+---------------------------------------------------------
+
+To propozycja wykorzystania obecnego okna diagnostycznego, nie rozszerzenia
+głównego interfejsu gry o kolejne przyciski.
+
+Generator powinien umożliwić oddzielną ocenę sylwetki, szkieletu, deformacji
+oraz informacji liczbowych. SkeletonHelper może wyświetlić kości, ale sam
+nie potwierdza jakości wag i geometrii. [S08]
+
+Najbardziej użyteczne dane diagnostyczne:
+
+  wzrost zadany oraz zmierzony w pozie referencyjnej;
+  bieżący rozmiar obwiedni pozy;
+  liczba kości i widocznych meshów;
+  najniższy punkt stopy względem podłoża;
+  seed, strona i aktywna animacja;
+  poprawność wag oraz stałość długości kości.
+
+Widoki kontrolne można pogrupować w istniejącym popupie: MODEL, SKELETON,
+ANIMATION. Podgląd przyszłych colliderów ma sens dopiero po powstaniu danych
+fizycznych. Nie należy dodawać niedziałających checkboxów „Ragdoll”.
+
+Obecny podgląd sam obraca root w pętli. Taki ruch utrudnia porównywanie
+nieruchomej pozy i nie był konieczny do jej oceny. W diagnostyce powinno się
+móc utrzymać stały widok z przodu lub z boku. [K1: debugPanel.js, 112–114]
+
+Po zmianie seeda model należy wymienić bez pozostawiania nieużywanych
+zasobów. Dotychczasowe współdzielone bryły nie wymagają kasowania przy każdej
+wymianie, ale przyszłe unikalne geometrie, tekstury i szkielety będą wymagały
+jawnego zarządzania własnością i zwalnianiem zasobów.
+
+
+27. KIERUNEK ZMIAN W OBECNYCH PLIKACH
+------------------------------------
+
+To mapa odpowiedzialności do przyszłej implementacji, nie gotowy patch.
+
+js/config.js
+Zebrać parametry proporcji, konwencję osi i skali. Odróżnić długość kości,
+wymiar powierzchni i parametry animacji. Nie mieszać ich pod nazwą „height”.
+
+js/units/infantryGenome.js
+Zachować dwa geny. Rozszerzyć wyrażanie phenotype o spójne dane wymiarowe,
+bez dokładania nowych losowych cech poza zamówionym zakresem.
+
+js/rendering/infantryFactory.js
+Usunąć dwuznaczność promień/średnica. Przestać wyliczać model jako osobne,
+rozstawione bryły. Fabryka powinna składać wynik z definicji anatomii,
+szkieletu, powierzchni i materiałów.
+
+Nowa definicja riga, np. js/rendering/infantryRig.js
+Jedno źródło nazw kości, rodziców, punktów stawów, osi i rest pose.
+Tutaj powstaje THREE.Skeleton. Nie drugi niezależny generator proporcji.
+
+Generator powierzchni, np. js/rendering/infantrySurface.js
+Topologia, pozycje wierzchołków, UV i wagi. Twarz i uniform mogą mieć czytelne
+funkcje wewnętrzne lub osobne pliki, gdy uzasadni to rozmiar kodu.
+
+js/animation/infantryAnimator.js
+Zachować odtwarzanie pozy bazowej. Zmienić adresowanie na kości, naprawić znaki
+osi, dodać spójne pozy oraz projekt przejść. Powiązać cykl z rzeczywistym ruchem.
+Nie dodawać w tym pliku bezpośredniego zarządzania ciałami fizycznymi.
+
+js/units/infantryUnit.js
+Przekazywać do animatora prędkość i stan postawy. Utrzymać oddzielną pozycję
+świata. Przygotować rozróżnienie źródła pozy na przyszłość, bez włączania
+ragdolla teraz.
+
+js/terrain.js
+Udostępnić spójne zapytanie o faktycznie renderowaną powierzchnię.
+To podstawa późniejszego kontaktu stóp i zgodności collidera terenu.
+
+js/ui/debugPanel.js
+Wykorzystać istniejący popup do kontroli modelu i riga. Oddzielić wysokość
+phenotype od mierzonego rozmiaru. Dbać o zasoby wymienianych podglądów.
+
+js/game.js i index.html
+Zachować start przez file://. Kontrolować kolejność aktualizacji ruchu,
+animacji i renderu. Nie dodawać teraz biblioteki fizyki „na zapas”.
+
+Dopiero na etapie fizyki: osobny adapter ragdolla oparty na tej samej
+definicji riga. Nie tworzyć obecnie pustych plików udających gotowy system.
+
+
+28. KOLEJNOŚĆ NAPRAW I PUNKTY KONTROLNE
+--------------------------------------
+
+ETAP A — GEOMETRIA I MIARA.
+Naprawić interpretację wymiarów. Ustawić stawy w jednym spójnym układzie.
+Sprawdzić H, podeszwę, barki i ciągłość sylwetki bez animacji.
+Bez tego dalszy tuning animatora odbywa się na niewłaściwym ciele.
+
+ETAP B — SZKIELET I POWIĄZANIE POWIERZCHNI.
+Utworzyć kości, rest/bind pose i skinned powierzchnię. Sprawdzić manualne
+zgięcie pojedynczego łokcia i kolana przed generowaniem pełnego cyklu.
+
+ETAP C — TWARZ I UNIFORM.
+Dodać kontrolowany kształt głowy oraz ubranie. Nie zastępować ich jedynie
+bardziej złożonym shaderem. Ocenić przód, bok i perspektywę trzech czwartych.
+
+ETAP D — POPRAWNE POZY I RUCH.
+Naprawić IDLE, WALK, RUN, CROUCH, PRONE i PRONE_MOVE. Połączyć ruch świata
+z cyklem. Sprawdzić przejścia i podparcie na płaskiej powierzchni.
+
+ETAP E — KONTAKT Z TERENEM.
+Ujednolicić powierzchnię renderu i zapytań. Dopiero potem dodawać ograniczone
+IK i kontrolę podparcia na nachyleniach.
+
+ETAP F — GOTOWOŚĆ DO RAGDOLLA.
+Sprawdzić, czy definicja riga zawiera punkty, osie i dane potrzebne do
+wyznaczenia przyszłych colliderów i offsetów. To nadal może być etap bez
+aktywnej fizyki.
+
+ETAP G — RAGDOLL, WYŁĄCZNIE JAKO OSOBNO ZLECONY KROK.
+Najpierw test jednej postaci na płaskim podłożu i przekazanie pozy między
+animacją a fizyką. Dopiero potem teren, wiele jednostek i optymalizacja.
+
+
+29. KRYTERIA AKCEPTACJI POPRAWIONEGO FUNDAMENTU
+--------------------------------------------
+
+GEOMETRIA I SKALA
+Model dla H=1,60 / 1,80 / 1,95 m ma zgodny wzrost w pozie referencyjnej.
+Podeszwa pokrywa się z podłożem. Nie ma prześwitów pomiędzy tułowiem,
+barkami, szyją, biodrami i kończynami w zatwierdzonych pozach.
+Jako początkową tolerancję wzrostu proponuję 5 mm, do przyjęcia w projekcie.
+
+TWARZ I UNIFORM
+Z przodu i z boku widać nos, żuchwę, oczy, usta i uszy, nie dwa owale.
+Ubranie ma krój i czytelne zakończenia. Kolor strony nie zmienia się wraz
+z przypadkowym seedem, a skóra nie przebija przez uniform w podstawowych pozach.
+
+SZKIELET I DEFORMACJA
+Każda kość ma jednoznaczną nazwę i rodzica. Poza bazowa jest odtwarzalna.
+Długości kości pozostają stałe w animacjach. Wszystkie wagi są poprawne,
+sumy wag bliskie 1, brak odwołań poza listę kości i rozchodzących się szwów.
+
+ANIMACJE
+Chód i bieg mają spójny przód. Stopy nie zanurzają się w płaskim podłożu.
+Prone jest leżeniem na brzuchu, bez pionowo wystających kończyn.
+Zmiana postawy nie teleportuje miednicy ani nie prowadzi głowy przez podłogę.
+Cykl jest kontrolowany przy 30, 60 i 120 klatkach/s oraz po zatrzymaniu karty.
+
+TEREN
+Wysokość użyta do ustawiania stóp odpowiada trójkątom widocznym na ekranie.
+Próby obejmują punkty pomiędzy wierzchołkami terenu, nie wyłącznie same węzły.
+
+PRZYGOTOWANIE POD FIZYKĘ
+Można jednoznacznie wyprowadzić człony i kotwice ze szkieletu.
+Konwersja kość → człon → kość odtwarza transformację także po obrocie i
+przesunięciu całej jednostki. Dla tego etapu nie wymaga się jeszcze spadania
+ciała ani zderzeń: to kryteria późniejszego wdrożenia ragdolla.
+
+DZIAŁANIE PROJEKTU
+Index.html nadal uruchamia się dwuklikiem. Nie dodano importów lokalnych
+wymagających serwera, niezleconych mechanik ani dodatkowego głównego UI.
+
+
+30. PODSUMOWANIE DECYZJI PROJEKTOWEJ
+-----------------------------------
+
+Najpierw trzeba naprawić interpretację wymiarów i zbudować spójny anatomiczny
+szkielet. Następnie wygenerować wokół niego powierzchnię ciała/ubrania oraz
+twarz. Dopiero potem poprawiać pełne cykle i ich kontakt z podłożem.
+
+Bones są właściwym kierunkiem dla wspólnego riga, ale nie są automatyczną
+naprawą anatomii. SkinnedMesh jest właściwym narzędziem do deformacji
+powierzchni, ale nie tworzy jej topologii. Ragdoll jest osobną reprezentacją
+fizyczną, która powinna korzystać z tych samych punktów i wymiarów.
+
+Rekomendowany fundament:
+
+  proceduralna anatomia oparta na stawach;
+  THREE.Bone + THREE.Skeleton;
+  ciągła, parametryzowana powierzchnia i kontrolowane wagi;
+  proceduralna twarz i krój uniformu;
+  animator poz oraz cykli powiązanych z ruchem;
+  wspólny kontrakt dla przyszłej fizyki, bez jej przedwczesnego wdrażania.
+
+To zmiana sposobu budowy postaci, nie tylko dodanie kilku brył do obecnego
+modelu. Pozwala zachować proceduralność i styl elipsoid, a jednocześnie
+usunąć widoczne braki ciała i przygotować rozsądną podstawę pod ragdoll.
+
+
+ŹRÓDŁA I UWAGI DO RESEARCHU
+===========================
+
+Dostęp do źródeł: 24.09.2026. Dokumentacja bieżąca służy do weryfikacji
+mechanizmów. Przy szczegółach implementacyjnych dla prototypu nadrzędne są
+źródła przypiętej wersji r128. Proponowane proporcje, kolejność prac, liczby
+kości i tolerancje są decyzjami projektowymi opisanymi w tym dokumencie.
+
+[S01] Three.js — SphereGeometry.
+Znaczenie promienia i liczby segmentów.
+`https://threejs.org/docs/pages/SphereGeometry.html`
+
+[S02] Three.js — Bone.
+Kość jako element hierarchii szkieletu, wywodzący się z Object3D.
+`https://threejs.org/docs/pages/Bone.html`
+
+[S03] Three.js — Skeleton.
+Hierarchia kości, inverse matrices i dane szkieletu.
+`https://threejs.org/docs/pages/Skeleton.html`
+
+[S04] Three.js — SkinnedMesh.
+Wagi, indeksy kości i wiązanie geometrii ze szkieletem.
+`https://threejs.org/docs/pages/SkinnedMesh.html`
+
+[S05] Khronos Group — glTF Tutorials: Skins.
+Relacja między kośćmi, inverse bind matrices i deformacją wierzchołków.
+Przywołana jako opis mechanizmu, nie propozycja importowania modelu glTF.
+`https://github.khronos.org/glTF-Tutorials/gltfTutorial/gltfTutorial_020_Skins.html`
+
+[S06] Three.js — AnimationAction.
+Wagi animacji, skala czasu oraz przejścia cross-fade.
+`https://threejs.org/docs/pages/AnimationAction.html`
+
+[S07] Three.js — CCDIKSolver.
+Solver odwrotnej kinematyki przeznaczony dla SkinnedMesh.
+`https://threejs.org/docs/pages/CCDIKSolver.html`
+
+[S08] Three.js — SkeletonHelper.
+Pomocnicza wizualizacja hierarchii kości.
+`https://threejs.org/docs/pages/SkeletonHelper.html`
+
+[S09] Three.js — CanvasTexture.
+Tekstura tworzona ze źródła canvas.
+`https://threejs.org/docs/pages/CanvasTexture.html`
+
+[S10] OpenStax, Anatomy and Physiology 2e — 9.4 Synovial Joints.
+Rodzaje stawów i różnice w dozwolonych kierunkach ruchu.
+`https://openstax.org/books/anatomy-and-physiology-2e/pages/9-4-synovial-joints`
+
+[S11] OpenStax, Anatomy and Physiology 2e — 9.5 Types of Body Movements.
+Rozróżnienie zgięcia, skrętu i ruchów przedramienia.
+`https://openstax.org/books/anatomy-and-physiology-2e/pages/9-5-types-of-body-movements`
+
+[S12] Rapier — JavaScript: Rigid-bodies.
+Ciała dynamiczne/kinematyczne, masa, bezwładność i transformacje.
+`https://rapier.rs/docs/user_guides/javascript/rigid_bodies/`
+
+[S13] Rapier — JavaScript: Joints.
+Kotwice, stopnie swobody oraz stawy spherical i revolute.
+`https://rapier.rs/docs/user_guides/javascript/joints/`
+
+[S14] Rapier — JavaScript: Colliders.
+Kapsuły, bryły wypukłe, heightfields, triangle meshes i właściwości masowe.
+`https://rapier.rs/docs/user_guides/javascript/colliders/`
+
+[S15] Rapier — JavaScript: Common mistakes.
+Znaczenie poprawnych jednostek fizycznych i właściwości masowych.
+`https://rapier.rs/docs/user_guides/javascript/common_mistakes/`
+
+[S16] Rapier — JavaScript: Getting started.
+Wariant compat, osadzone WebAssembly i asynchroniczna inicjalizacja.
+`https://rapier.rs/docs/user_guides/javascript/getting_started_js/`
+
+[S17] Three.js r128 — źródło src/objects/SkinnedMesh.js.
+Weryfikacja bind(), skinIndex, skinWeight i boneTransform() w używanej wersji.
+`https://raw.githubusercontent.com/mrdoob/three.js/r128/src/objects/SkinnedMesh.js`
+
+[S18] Three.js r128 — źródło src/materials/MeshStandardMaterial.js.
+Weryfikacja właściwości skinning oraz jej wartości domyślnej.
+`https://raw.githubusercontent.com/mrdoob/three.js/r128/src/materials/MeshStandardMaterial.js`
+
+KONIEC ANALIZY

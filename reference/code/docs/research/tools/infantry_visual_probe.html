@@ -1,0 +1,97 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>Infantry — audyt wizualny</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#18252e;color:#edf1f2;font:14px system-ui}header{height:84px;padding:14px 20px;border-bottom:1px solid #53626d}h1{font-size:21px;margin:0 0 7px}p{margin:0;color:#c2d0d7}#grid{display:grid;grid-template-columns:repeat(6,1fr)}article{border-right:1px solid #50616b;border-bottom:1px solid #50616b;text-align:center;background:#263840}h3{font-size:13px;margin:0;padding:8px 2px;height:34px}canvas{display:block;width:100%;height:auto}small{display:block;height:27px;padding:4px;font-size:11px;color:#d0dde3}</style></head>
+<body><header><h1 id="title"></h1><p id="note"></p></header><div id="grid"></div><script>
+window.onerror=(m,s,l,c,e)=>window.reviewError=String(e||m);
+async function script(src){await new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(Error('Cannot load '+src));document.head.append(s);});}
+(async()=>{
+ await script('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js');
+ const loader=await(await fetch('../../../js/loader.js')).text();
+ const modules=Function('return '+loader.match(/const local=(\[[\s\S]*?\]);/)[1])();
+ for(const m of modules)await script('../../../'+m);
+ const R=RTS,side=new R.Side('SIDE_A',R.Config.SIDES.SIDE_A),query=new URLSearchParams(location.search),mode=query.get('sheet')||'faces';
+ const seeds=(query.get('seeds')||'0,63,1001,1003,2002,2003').split(',').map(Number);
+ const titles={faces:'Twarze neutralne: przód i profil',expressions:'Ekspresje: intensywność 1.0',intensity:'Ta sama twarz: ekspresja 1.0 i 0.45',necks:'Szyja: neutralnie, obrót i pochylenie',bodies:'Sylwetki: proporcje i wyposażenie',experiment:'Próba parametrów: obecny genom i łagodniejsze zakresy',lod:'Geometria: high i world, ten sam kadr'};
+ document.getElementById('title').textContent=titles[mode];
+ document.getElementById('note').textContent='Render rzeczywistego kodu · Three.js r128 · wspólne światło i skala · '+(query.get('label')||'lokalny generator, commit '+(query.get('revision')||'nieoznaczony'));
+ const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setSize(238,390);
+ renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x364951);
+ scene.add(new THREE.HemisphereLight(0xe5f0f5,0x72675a,.80));
+ const light=new THREE.DirectionalLight(0xfff2de,1.6);light.position.set(-3,5,5);scene.add(light);
+ const fill=new THREE.DirectionalLight(0xc1daed,.3);fill.position.set(3,1,-1);scene.add(fill);
+ const baseExpress=R.InfantryGenome.express,results=[];
+ // A deliberately small, isolated parameter experiment. Production functions
+ // and source files are restored after each unit; this is not the final design.
+ function experiment(g) {
+   const b=baseExpress(g),f={...b.face},mix=(a,v,w)=>a+(v-a)*w;
+   for(const key of ['headWidthScale','headDepthScale','headLengthScale','foreheadWidthScale','templeWidthScale','jawWidthScale','jawLengthScale','jawAngle','chinWidthScale','cheekboneScale','eyeWidthScale','eyeHeightScale','eyeRoundness','noseWidthScale','noseLengthScale','noseProjectionScale','noseBridgeScale','noseTipWidthScale','nostrilWidthScale'])f[key]=mix(1,f[key],.58);
+   f.eyeSpacing=mix(.0207,f.eyeSpacing,.6);f.eyeY=mix(.940,f.eyeY,.65);f.browY=mix(.9505,f.browY,.65);
+   f.mouthWidth=mix(.026,f.mouthWidth,.55);f.mouthY=mix(.895,f.mouthY,.55);
+   for(const key of ['chinProjection','chinHeight','cheekFullness','cheekboneY','midfaceProjection','eyeAsymmetry','browAsymmetry','mouthAsymmetry'])f[key]*=.6;
+   return Object.freeze({...b,face:Object.freeze(f)});
+ }
+ if(mode==='weapons'||mode==='weaponhands'){
+   document.getElementById('title').textContent=mode==='weapons'?'Broń proceduralna — geometria':'Broń — dopasowanie do dłoni';
+   document.getElementById('grid').style.gridTemplateColumns='repeat(3,1fr)';renderer.setSize(478,390);
+   const ids=mode==='weapons'?['sidearm','carbine','rifle','marksman_rifle','support_gun','heavy_support_gun']:['sidearm','sidearm','rifle','carbine','marksman_rifle','support_gun'];
+   for(let i=0;i<ids.length;i++){
+     const id=ids[i],slot=id==='sidearm'?'secondaryWeapon':'primaryWeapon';
+     const u=new R.InfantryUnit({id:'weapon-review'+i,side,seed:1001,detail:'high',equipmentOptions:{loadout:null,overrides:{head:null,back:null,primaryWeapon:null,secondaryWeapon:null}}});
+     u.equip(slot,id);u.weapons.select(slot);
+     const item=u.weapons.instances[slot];let object,target,span;
+     if(mode==='weapons'){
+       object=item.root;object.position.set(0,0,0);object.quaternion.identity();scene.add(object);object.updateMatrixWorld(true);
+       const bounds=new THREE.Box3().setFromPoints(item.points);target=bounds.getCenter(new THREE.Vector3());
+       span=Math.max(bounds.max.z-bounds.min.z,(bounds.max.y-bounds.min.y)*1.3)*1.15;
+     }else{
+       u.weapons.setGrip(id==='sidearm'&&i===0?'1H':'2H');u.weapons.setReadiness(1);u.weapons.draw();
+       for(let t=0;t<240;t++)u.step(1/60,R.FlatSurface,true);u.render(1);object=u.root;scene.add(object);
+       target=item.primary.position.clone().applyQuaternion(item.root.quaternion).add(item.root.position);target.y+=.08;span=.78;
+     }
+     const camera=new THREE.OrthographicCamera(-span*478/390/2,span*478/390/2,span/2,-span/2,.01,30);
+     camera.position.copy(target).add(new THREE.Vector3(mode==='weapons'?3:2.2,mode==='weapons'?.7:.3,mode==='weapons'?1.2:2.5));camera.lookAt(target);renderer.render(scene,camera);
+     const a=document.createElement('article'),h=document.createElement('h3');h.textContent=R.EquipmentCatalog.get(id).label+(mode==='weaponhands'?' · '+u.weapons.grip:'');a.append(h);
+     const c=document.createElement('canvas');c.width=478;c.height=390;c.getContext('2d').drawImage(renderer.domElement,0,0);a.append(c);
+     const note=document.createElement('small');note.textContent=item.triangles+' trójkątów'+(mode==='weaponhands'?' · błąd chwytu '+(u.weapons.metrics.gripError*1000).toFixed(2)+' mm':'');a.append(note);document.getElementById('grid').append(a);
+     results.push({id,triangles:item.triangles,grip:u.weapons.grip,error:u.weapons.metrics.gripError,drawCalls:renderer.info.render.calls,muzzle:item.muzzle.toArray()});
+     scene.remove(object);u.dispose();
+   }
+   renderer.dispose();window.reviewResult={mode,revision:query.get('revision'),label:query.get('label'),three:THREE.REVISION,results};return;
+ }
+ for(let row=0;row<2;row++)for(let col=0;col<6;col++) {
+   let seed=seeds[col],expression='NEUTRAL',intensity=1,view=row?'side':'front',body=false,detail='high',variant='obecnie',pose='IDLE';
+   if(mode==='expressions'){seed=row?seeds[5]:seeds[1];expression=['NEUTRAL','ALERT','FEAR','ANGER','PAIN','FATIGUE'][col];view='front';}
+   if(mode==='intensity'){seed=seeds[1];expression=['NEUTRAL','ALERT','FEAR','ANGER','PAIN','FATIGUE'][col];view='front';intensity=row?.45:1;variant='intensywność '+intensity;}
+   if(mode==='necks'){seed=row?seeds[5]:seeds[1];view=col%2?'side':'front';variant=['neutralna','neutralna','obrót 40°','obrót 40°','pochylenie 20°','pochylenie 20°'][col];}
+   if(mode==='bodies'){body=true;view='threequarter';variant=row?'ekwipunek':'bez oporządzenia';}
+   if(mode==='experiment'){view='front';variant=row?'próba: zawężone zakresy':'obecnie';}
+   if(mode==='lod'){view='threequarter';detail=row?'world':'high';variant=detail;}
+   const equipmentOptions={loadout:row&&body?'RIFLEMAN':null,overrides:{head:null,face:null,back:null,primaryWeapon:null,secondaryWeapon:null}};
+   if(mode==='experiment'&&row)R.InfantryGenome.express=experiment;
+   let u;
+   try{u=new R.InfantryUnit({id:'audit'+row+col,side,seed,state:pose,detail,equipmentOptions});}finally{R.InfantryGenome.express=baseExpress;}
+   u.setExpression(expression,intensity);u.seek(.25);
+   // seek(0.25) advances the body pose but intentionally has dt=0. Resolve
+   // the facial spring in isolation so a screenshot shows the requested target.
+   for(let tick=0;tick<120;tick++)u.faceAnimator.updateExpressions(1/60);
+   u.faceAnimator.apply();
+   if(mode==='necks'&&col>=2){
+     const axis=col<4?'y':'x',angle=col<4?40*Math.PI/180:20*Math.PI/180;
+     u.rig.byName.neck.rotation[axis]+=angle*.45;u.rig.byName.head.rotation[axis]+=angle*.55;
+     u.rig.root.updateMatrixWorld(true);u.rig.skeleton.update();
+   }
+   const H=u.phenotype.height,span=body?H*1.18:H*.25,aspect=238/390;
+   const camera=new THREE.OrthographicCamera(-span*aspect/2,span*aspect/2,span/2,-span/2,.01,30);
+   const target=new THREE.Vector3(0,H*(body?.52:.903),body?0:.012*H);
+   camera.position.copy(target).add(new THREE.Vector3(view==='front'?0:view==='side'?3:1.7,0,view==='side'?0:3));camera.lookAt(target);
+   scene.add(u.root);renderer.render(scene,camera);
+   const article=document.createElement('article'),h=document.createElement('h3');h.textContent='seed '+seed+' · '+(mode==='expressions'||mode==='intensity'?expression:view==='side'?'profil':'przód / ¾');article.append(h);
+   const canvas=document.createElement('canvas');canvas.width=238;canvas.height=390;canvas.getContext('2d').drawImage(renderer.domElement,0,0);article.append(canvas);
+   const caption=document.createElement('small');caption.textContent=variant;article.append(caption);document.getElementById('grid').append(article);
+   const g=u.model.mesh.geometry;
+   const tagCounts=Object.fromEntries(Object.entries(u.model.surface.tags).map(([k,v])=>[k,v.length]));
+   results.push({seed,expression,intensity,view,detail,variant,vertices:g.attributes.position.count,triangles:g.index.count/3,bones:u.rig.bones.length,drawCalls:renderer.info.render.calls,adjustments:u.model.anatomy.faceLayout.adjustments,tagCounts});u.dispose();
+ }
+ renderer.dispose();window.reviewResult={mode,revision:query.get('revision'),three:THREE.REVISION,results};
+})().catch(e=>window.reviewError=String(e));
+</script></body></html>

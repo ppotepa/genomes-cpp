@@ -1,0 +1,128 @@
+RTS v0.12 — CIĄGŁA POSTAWA I LOKOMOCJA
+======================================
+Data: 24.09.2026. Baza: v0.11.0. Generator anatomii pozostaje infantry-5.0.0.
+
+1. ZAKRES
+---------
+Dwa niezależne parametry sterują jedną rodziną postaw na stopach:
+  requestedCrouch: 0..1
+  requestedSpeedMps: 0..phenotype.runSpeed
+IDLE, WALK, RUN, CROUCH i CROUCH_WALK pozostają presetami. W tej rodzinie
+setState nie restartuje fazy ani nie miesza wielokrotnie zamrożonej pozy.
+PRONE, PRONE_MOVE, SITTING i REST zachowują odrębne znaczenie i przejścia.
+Sitting nie staje się najniższym końcem suwaka. Nie dodano nowych genów,
+walki, obozów, staminy ani fizyki ekwipunku.
+
+2. EDYTOR
+---------
+DEBUG -> UNITS -> Generator jednostek -> Animacja.
+Dostępne są suwaki Obniżenie postawy i Żądana prędkość. Wybór presetu ustawia
+oba cele. Ręczna edycja działa przez event input bez regenerowania modelu.
+Odczyty pokazują cele, aktualne parametry, prędkość faktyczną, limit postawy,
+udzial biegu, długość pełnego cyklu i stan kontaktów.
+W rodzinach PRONE/SEATED/REST suwaki są wyłączone, lecz wartości zapamiętane.
+Wybranie kolejnego presetu BIPED świadomie ustawia jego parametry.
+Pauza + zmiana parametru rozwiązuje nową pozę przy tej samej fazie. Nie czeka
+na filtr czasowy. Wznowienie korzysta ze zsynchronizowanych snapshotów.
+Zmiana genomu zachowuje parametry i fazę, przelicza anatomię oraz ograniczenia.
+Zmiana sprzętu i LOD nie zmienia c/v. Kamera nie wraca do presetu przy edycji
+biologii. Podgląd pozostaje wirtualną bieżnią, nie dowodem world foot locking.
+
+3. API
+------
+unit.setLocomotion({crouch: 0.65, speedMps: 0.70});
+unit.setLocomotion({speedMps: 0}); // pozostaje na wybranej głębokości
+unit.setLocomotion({crouch: 0.20}); // zachowuje prędkość żądaną
+
+Niepodane pole pozostaje bez zmiany. NaN/Infinity są odrzucane; zero jest
+wartością poprawną. Zakres wejścia jest ograniczony do 0..1 i 0..runSpeed.
+Wywołanie poza rodziną BIPED zgłasza błąd zamiast wywoływać przypadkowe wstanie.
+API ruchu bez patrolu przesuwa jednostkę wzdłuż heading; edytor używa treadmill.
+
+unit.locomotion:
+  requestedCrouch, actualCrouch, requestedSpeedMps, actualSpeedMps,
+  targetSpeedMps, runWeight, limitReason, maxCrouch, custom
+
+actualCrouch to aktualny, ograniczony parametr kontrolera, nie kliniczny pomiar
+kątów. Wynikowe położenie może otrzymać dodatkową korektę podłoża/IK, widoczną
+w metrykach bodyLift i maxIKError. Brak fizycznej równowagi i pełnego solvera
+samokolizji; nie traktować etykiety aktualnej głębokości jako certyfikatu pozy.
+
+4. NOWE MODUŁY
+--------------
+js/animation/postureProfile.js
+  Ciągłe, monotoniczne krzywe Hermite'a między pięcioma profilami sylwetki.
+  Parametry wymiarowe są w metrach. sampleBiped jawnie przelicza je na Pose/H.
+  Odrębne krzywe bioder, setback, miednicy i trzech segmentów tułowia.
+  Obrócony offset hips->thigh uczestniczy w wyznaczaniu stawu biodrowego.
+  Wspólny profil cyklu: prędkość, długość kroku, udział podporu i WALK/RUN.
+  Większa głębokość skraca kroki i ogranicza prędkość. Nie jest to biomechaniczna
+  norma; zakresy to parametry animacji do strojenia.
+
+js/animation/locomotionController.js
+  Krytycznie tłumiona sprężyna parametru postawy zachowuje wartość i prędkość
+  przy zmianie celu. Analityczny krok dla dt, nie lerp stały na klatkę.
+  POSTURE_PRIORITY: głębokość docelowa ogranicza prędkość. Przy szybkim biegu
+  obniżanie czeka na wyhamowanie; przy wstawaniu prędkość odblokowuje się
+  stopniowo. Parametry rytmu są wygładzane bez restartowania fazy.
+  Konserwatywna granica BODY_CLEARANCE dla wyjątkowo szerokich ud/brzucha jest
+  heurystyką wyglądu, nie fizjologią ani kompletnym wykrywaniem przecinania.
+
+js/animation/bipedFeet.js
+  Światowe cele wymachu. Przy zmianie parametrów cel jest przeliczany od
+  aktualnej pozycji i prędkości przez ograniczony krok Hermite'a.
+  Na postoju większa zmiana rozstawu wykonuje krótkie przestawienie jednej
+  stopy; druga zachowuje podporę. Nie rozsuwamy dwóch przyklejonych butów.
+  Ten planner nie działa na bieżni edytora ani podczas zmiany rodziny podpór.
+
+5. MODUŁY ZMIENIONE
+------------------
+infantryAnimator.js: sampleBiped, wspólne cele kończyn, ciągły tułów, kończenie
+wymachu po zatrzymaniu, zachowanie fazy, planner stóp i metryki.
+infantryUnit.js: API setLocomotion, sprzężenie parametrów z rzeczywistą prędkością,
+postój patrolu bez utraty głębokości, seek kontrolera.
+groundContact.js: licznik awaryjnych reanchor; nie jest używany zamiast kroku.
+unitPreview.js / debugPanel.js / index.html / css/style.css: dwa suwaki w
+istniejącym panelu, odczyty i zachowanie nastaw podczas przebudowy anatomii.
+loader.js: klasyczne skrypty we właściwej kolejności, bez nowej biblioteki.
+
+6. KONTAKTY I OGRANICZENIA
+-------------------------
+Stance utrzymuje punkt w świecie; wymach ma własny cel i powrót. Kończenie
+kroku po zatrzymaniu używa krótkiej fazy lokalnej, nie nieskończonego zegara
+chodu przy speed=0. Ułożenie stóp oraz zasięg IK nie skalują kości.
+Kolana prowadzone są przez cele wynikające z rozstawu. Kołysanie tułowia i
+ramion maleje z prędkością i głębokością. Głowa zachowuje warstwę spojrzenia.
+Prone oraz sitting nie są mieszane z maksymalnym crouch przez suwaki.
+
+Ograniczenia pozostałe do strojenia przez użytkownika:
+- pełna samokolizja ud, brzucha i ładownic nie jest zaimplementowana;
+- granica dla dużych sylwetek jest przybliżeniem, nie gwarancją wszystkich genów;
+- nagłe nawroty demo nadal zwalniają kontakty zamiast pełnego turn-in-place;
+- warping nie jest motion matchingiem ani pełną inercjalizacją wszystkich kości;
+- footprint/clearance pozostają punktowymi kontrolami, bez sił reakcji podłoża;
+- skrajne seedy/ekwipunek mogą wymagać korekty parametrów.
+
+7. WERYFIKACJA TEJ ITERACJI
+--------------------------
+Wykonano node --check wszystkich skryptów, kontrolę lokalnych ścieżek,
+integralności ZIP i cztery grupy tests/locomotion_smoke.cjs.
+Testy: dwa seedy i pięć głębokości, niezmienność genomu i długości kości,
+prędkość/hamowanie przy zejściu z RUN, zachowanie fazy oraz krótki world patrol.
+Wyniki: tests/out/v12_locomotion_numeric.json i docs/reports/.
+Dotychczasowe cztery grupy tests/posture_smoke.cjs także przeszły.
+Środowisko: Node + dołączona numeric_math.cjs. NIE Three.js ani test WebGL.
+CDN nie był dostępny z kontenera. tests/index.html zawiera dodatkową kontrolę
+ciągłej postawy do wykonania na prawdziwej bibliotece w przeglądarce.
+Nie deklarujemy zweryfikowanej płynności ani wyglądu wszystkich wariantów.
+
+8. ŹRÓDŁA KONCEPCJI I HISTORIA
+-----------------------------
+Bazowy plan v0.11: docs/history/PLAN_CIAGLA_POSTAWA_V11.txt.
+Własne krzywe i parametry w kodzie nie są wynikami badań człowieka.
+Dokumentacja operacji kwaternionowych:
+https://threejs.org/docs/pages/Quaternion.html
+Opis sprężyn i analitycznego tłumienia:
+https://theorangeduck.com/page/spring-roll-call
+Pozostałe źródła biomechaniczne i warping: bibliografia zachowanego planu.
+Biblioteka pozostaje przypięta do Three.js r128. Bez aktualizacji CDN.

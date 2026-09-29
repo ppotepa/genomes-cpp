@@ -1,0 +1,831 @@
+RTS v0.10 — ANALIZA ANIMACJI: CZOŁGANIE, CROUCH, CROUCH_WALK I SITTING
+===============================================================================
+Data: 24.09.2026
+Dokument: analiza kodu i wyników researchu; projekt następnej iteracji.
+Baza: rts_prototype_v10_equipment.zip
+Wersja: 0.10.0; generator: infantry-5.0.0.
+SHA-256 badanej paczki:
+cdae575b67c9e857bf7f5e22465c26c6dcf8a93f8f5567799f7b2d48f079682a
+
+Nie zmieniono kodu gry. Numery linii dotyczą oryginalnej paczki v0.10.
+Odwołania [R1]–[R8] prowadzą do bibliografii na końcu dokumentu.
+Wartości oznaczone jako PROPOZYCJA są parametrami do strojenia animacji, a nie
+wynikami badania ludzi ani gwarancją poprawności przyszłej implementacji.
+
+
+01. WNIOSEK I ZAKRES ZMIAN
+===============================================================================
+
+Problemy mają trzy różne przyczyny, których nie należy naprawiać jednym suwakiem.
+
+CZOŁGANIE: końcowy etap animatora wymusza ustawienie butów podeszwą do terenu,
+po czym obraca oba jednakowo o 180 stopni. Nie zachowuje naturalnej relacji
+but–podudzie w pozycji leżącej i nie daje osobnego ustawienia na zewnątrz dla
+lewej i prawej stopy. Ponadto cykl czołgania nie korzysta z zakotwiczania stóp,
+a dłonie poruszają się względem jednostki, bez zapamiętanego punktu podparcia.
+
+CROUCH: obecna poza ma mocno cofniętą miednicę, uda zbliżone do poziomu i dość
+pionowy tułów. Można zachować ją jako bazę SITTING. Nie należy jednak nazywać
+jej gotowym siedzeniem na ziemi: miednica pozostaje znacznie nad podłożem,
+a kod nie definiuje siedziska ani podparcia pośladków.
+
+NOWE POSTAWY: potrzebujemy odrębnego CROUCH, czyli mobilnej postawy obniżonej,
+oraz CROUCH_WALK, czyli chodu zachowującego tę postawę. Nie powinny powstać
+przez dalsze obniżenie aktualnego CROUCH ani przez dodanie zwykłego WALK do
+siedzącej sylwetki.
+
+Docelowa zmiana zakresu:
+  PRONE       — poprawione ustawienie spoczynkowe nóg, butów i podparcia;
+  PRONE_MOVE  — poprawiony cykl czołgania, oparty na kontaktach i dystansie;
+  SITTING     — zachowany charakter starego CROUCH, z jawną semantyką siedzenia;
+  CROUCH      — nowa, obniżona postawa gotowa do ruchu;
+  CROUCH_WALK — nowy cykl chodu w obniżonej postawie.
+
+Nie potrzeba teraz nowych genów, modeli z internetu, motion capture w runtime,
+silnika fizyki, walki, nowych obozów ani przebudowy całej gry.
+
+
+02. CO ZOSTAŁO RZECZYWIŚCIE SPRAWDZONE
+===============================================================================
+
+Przeczytano kod animatora, solvera IK, szkieletu, anatomii, butów, wyposażenia,
+ruchu jednostki, podglądu i konfiguracji stanów. Sprawdzono poprawność archiwum.
+
+Dodatkowo odtworzono 28 próbek pozy: dwa seedy (1003 i 2003), dwa profile sprzętu
+(RIFLEMAN i ENGINEER), IDLE, CROUCH, PRONE oraz cztery fazy PRONE_MOVE.
+Próbki wykonano na płaskim podłożu, bez skrętu całej jednostki. Obliczono pozycje
+stawów, kierunki butów i korekty miednicy.
+
+Środowisko pomiarów: Node oraz dołączona do projektu warstwa numeric_math.cjs,
+z uzupełnieniami interfejsu potrzebnymi do odczytu modeli. To NIE jest właściwy
+Three.js, WebGL ani test wyglądu w przeglądarce. Nie potwierdza shaderów,
+oświetlenia, wizualnej jakości skinningu ani płynności w czasie rzeczywistym.
+
+Próbki używały seek(), czyli trybu podglądu w miejscu. Ten tryb sam wyłącza
+world locking. Wniosek, że PRONE_MOVE nie blokuje stóp również na mapie,
+wynika z warunków w kodzie, nie z samego odczytu flag po seek().
+
+Nie znam seeda ani dokładnej klatki, którą użytkownik ostatnio oglądał.
+Wybrane seedy są przypadkami reprodukcyjnymi, nie identyfikacją jego widoku.
+
+
+03. GŁÓWNY BŁĄD STÓP PODCZAS CZOŁGANIA
+===============================================================================
+
+Źródło: js/animation/infantryAnimator.js:613–681.
+
+Po ustaleniu celów stóp funkcja placeFeet() wykonuje:
+
+  footQ = obrót lokalnego UP do normalnej terenu;
+  yaw = moveWarp * 0.90 + pose.prone * Math.PI;
+  footQ *= Quaternion(footPitch, yaw, 0);
+
+Następnie solveFoot() rozwiązuje pozycje uda i podudzia, ale na końcu wpisuje
+wprost powyższą orientację do kości foot przez setModelQuaternion().
+
+Dla PRONE i PRONE_MOVE na płaskiej mapie, bez skrętu, daje to:
+  przód lewego buta:  (0, 0, -1);
+  przód prawego buta: (0, 0, -1);
+  góra obu butów:    (0, 1, 0).
+
+Czyli oba buty pozostają ustawione jak do stania na podeszwach, jedynie
+odwrócone palcami do tyłu. Tymczasem podudzia leżą prawie poziomo.
+Brakuje lustrzanego rozłożenia stóp na boki i orientacji wynikającej z nogi.
+
+To rozróżnia dwa znaczenia „jak na stojąco”:
+  A. Tak samo względem świata: but pionowo, podeszwa zawsze na ziemi.
+  B. Podobna relacja stopy do podudzia, lecz cała noga jest inaczej ułożona.
+
+Dla oczekiwanego wyglądu przyjmuję B. Nie kopiujemy globalnego ustawienia
+stojącego buta na poziome podudzie. Zachowujemy wiarygodną konstrukcję kostki,
+a kierunek na boki uzyskujemy z ułożenia całej kończyny i ograniczonej korekty
+stawu skokowego. Duży obrót nie może odbywać się wyłącznie w kostce.
+
+Sama poprawka w sampleProne(), np. dodanie obrotu foot, nie wystarczy:
+solveFoot() później ją nadpisze. Należy zmienić sposób reprezentacji i końcowego
+rozwiązywania orientacji stóp, nie tylko współczynniki jednej pozy.
+
+Ten sam skrót powoduje problem w przejściu. sampleSupport() ustawia prone=0.63,
+więc obecny wzór dodaje obu butom około 113,4 stopnia skrętu. Parametr mieszania
+postawy nie powinien automatycznie oznaczać takiego obrotu obuwia.
+
+
+04. DLACZEGO BUT MOŻE WYGLĄDAĆ NA ZŁAMANY
+===============================================================================
+
+Źródła: js/rendering/infantrySurface.js:195–212;
+js/animation/twoBoneIK.js:10–28; js/rendering/infantryRig.js:89.
+
+Cholewka buta przechodzi wagami od foot do shin, a przód obuwia korzysta także
+z toes. Jest to sensowna konstrukcja dla umiarkowanego zginania kostki.
+Jednak duża rozbieżność orientacji shin i wymuszonego foot silnie deformuje
+obszar przejściowy.
+
+Dla PRONE, faza 0, zmierzony kąt między osią góry buta a kierunkiem od kostki
+do kolana wynosi około 83,4 stopnia dla seeda 1003 i 84,5 stopnia dla 2003.
+W IDLE u seeda 1003 analogiczny wskaźnik wynosi około 3,6 stopnia.
+
+To WSKAŹNIK GEOMETRYCZNY osi modelu, nie kliniczny pomiar zgięcia kostki.
+Pokazuje dużą zmianę relacji but–podudzie. Nie określa samodzielnie fizjologicznej
+poprawności nogi ani wielkości widocznego artefaktu.
+
+Własny TwoBoneIK wyznacza kierunki segmentów przez najkrótszy obrót pomiędzy
+wektorami. Rozwiązuje położenie stawów, lecz nie zapewnia kompletnego,
+anatomicznego układu osi z kontrolowanym skrętem segmentu. Płaszczyzna zgięcia
+oraz orientacja buta muszą zostać uzgodnione, inaczej stopa może być zwrócona
+na bok przy podudziu, którego powierzchnia nadal jest skręcona inaczej.
+
+Najpierw naprawić orientacje, potem ewentualnie dostroić wagi cholewki.
+Nie zaczynać od mnożenia polygonów lub ukrywania kostki dodatkową bryłą.
+
+
+05. CZOŁGANIE NIE MA JESZCZE PEŁNEGO CYKLU PODPARCIA
+===============================================================================
+
+Źródło: js/animation/infantryAnimator.js:442–473, 629–640, 689–738.
+
+sampleProne() używa sinusa dla obu stron oraz max(0, sinus) dla części ruchu
+nogi. Nie ustawia gait, footPlant ani support. Pozostają równe zero.
+World locking wymaga natomiast jednocześnie gait > 0.78 i footPlant > 0.72.
+Dlatego ten mechanizm nie uruchomi się dla aktualnego PRONE_MOVE na mapie.
+
+Zakres ruchu stopy w osi przód–tył wynosi 0.094 długości nogi: około 7,1 cm
+u seeda 1003 i 8,0 cm u 2003. Przez część cyklu cel pozostaje nieruchomy
+względem przesuwającego się modelu, a nie względem podłoża. To nie jest kontakt
+stopy z ziemią. Wynika z tego ryzyko ślizgu nawet przy poprawnym kształcie nogi.
+
+Dłonie także nie otrzymują zachowanego światowego punktu podparcia.
+Ich cele przesuwają się razem z rootem, z dodanym ruchem cyklicznym.
+Elbow pole określa stronę zgięcia ręki, ale NIE ustawia łokcia na gruncie.
+Podobnie knee pole nie jest docelową pozycją kolana.
+
+Dodatkowo max(0, sinus) ma nieciągłą pierwszą pochodną przy przejściu przez zero.
+Może to dawać zmianę prędkości celu odczuwaną jako szarpnięcie. Wygładzanie
+kości nie jest pełną naprawą błędnej trajektorii kończyny.
+
+Dobra część obecnego systemu: faza ruchu jest powiązana z dystansem.
+Należy to zachować. Brakuje zgodności długości cyklu, długości ruchu kończyn,
+podparcia i przesunięcia całego ciała, a nie kolejnego niezależnego zegara.
+
+
+06. CO DOKŁADNIE ROBI OBECNY CROUCH
+===============================================================================
+
+Źródło: js/animation/infantryAnimator.js:405–421.
+
+Przyjmując L = długość nogi i a = wysokość kostki, aktualny profil ustawia:
+  wysokość hips: a + 0.635 L;
+  cofnięcie hips: -0.202 L;
+  położenie stóp w przód: +0.073 L.
+
+Uwaga: hips jest kością miednicy, a nie samym środkiem stawu biodrowego.
+Przy wyliczaniu zasięgu nogi trzeba dodatkowo uwzględnić offset do thigh.
+
+Pomiary bieżącej pozy, płaski teren, profil RIFLEMAN:
+
+  Wartość                                      Seed 1003      Seed 2003
+  -------------------------------------------------------------------
+  Wysokość kości hips nad ziemią                 55,9 cm        62,1 cm
+  Cofnięcie hips względem kostek w osi Z          20,9 cm        23,5 cm
+  Zgięcie lewego kolana; 0° oznacza wyprost        97,3°          96,8°
+  Pochylenie odcinka hips–neck do pionu             9,8°           9,8°
+
+Analogiczne wartości uzyskano w tych próbach dla ENGINEER.
+
+Połączenie cofniętej miednicy i dość pionowej górnej sylwetki uzasadnia odbiór
+„siedzenia na niewidzialnym krześle”. Sam kąt kolana nie rozstrzyga jednak,
+czy poza jest crouch czy sitting: znaczenie mają również tułów, podparcie
+oraz położenie masy ciała. Projekt nie ma obecnie fizycznego modelu równowagi.
+
+Nie należy podawać sumy lokalnych obrotów spineLower + spineUpper + chest
+jako zmierzonego kąta tułowia. Suma wynosi około 18,9°, ale rzeczywisty kierunek
+hips–neck w tej pozie daje około 9,8°. To różne wielkości.
+
+
+07. RESEARCH: NAJWAŻNIEJSZE WYNIKI I OGRANICZENIA
+===============================================================================
+
+[R1] Hora i współautorzy, „Muscle activity during crouched walking”.
+To najbardziej dopasowane źródło dla nowego CROUCH_WALK. Badano 19 zdrowych,
+aktywnych dorosłych mężczyzn, idących boso z głową poniżej ograniczenia na
+90%, 80% i 70% wzrostu. Można było swobodnie dobierać ustawienie stawów.
+Lekkie obniżenie uzyskiwano głównie tułowiem; w głębszych postawach ważniejszy
+stawał się również udział bioder i kolan. Średnie zgięcie kolana w cyklu
+wynosiło odpowiednio około 46°, 57° i 69°: to nie kąty z jednej klatki.
+Prędkość w tej próbie nie różniła się istotnie między zadaniami. Zatem nasze
+spowolnienie CROUCH_WALK będzie decyzją gry, nie „normą” dowiedzioną badaniem.
+Warunki bez butów i sprzętu ograniczają bezpośrednie przenoszenie wyników.
+Źródło przemawia za sterowaniem całą sylwetką, nie samą wysokością miednicy.
+
+[R2] Skvortsov, Anisimov i Aizenshtein, badanie czołgania na brzuchu.
+Ośmioro uczestników w wieku 15–31 lat, bez profesjonalnego przygotowania,
+pokonywało 4 m na miękkiej powierzchni. Średni cykl wynosił 2,2 ± 0,8 s,
+a prędkość około 0,5 ± 0,1 m/s. Przesunięcie prawej i lewej strony oscylowało
+wokół połowy cyklu. To przydatna referencja koordynacji i tempa, lecz mała próba
+nie definiuje jednego wzorca dla wszystkich żołnierzy. Rozmieszczenie markerów
+nie daje podstaw do przepisania dokładnych trójosiowych obrotów stopy do riga.
+Nie wyprowadzam z tej publikacji nakazu „kostka ma mieć konkretnie X stopni”.
+
+[R3] Gallagher, Pollard i Porter, NIOSH, ruch w ograniczonej przestrzeni.
+Dziewięć osób wykonywało chód w pochyleniu oraz dwa rodzaje przemieszczania
+na kolanach. Rycina 1 jasno rozróżnia te ruchy: ich four-point crawl to dłonie
+i kolana, NIE nasze leżenie na brzuchu. Rycina 2 pokazuje kąt wewnętrzny kolana;
+zakres około 95–150° dla stoopwalk odpowiada około 30–85° zgięcia przy konwencji
+0° = wyprost. Nie wolno przepisać tych liczb jako 95–150° knee flexion.
+Źródło pomaga kontrolować terminologię i sposób czytania wykresów, ale nie jest
+bezpośrednim wzorcem nowego niskiego czołgania. Sprawdzono także obrazy PDF.
+
+[R4] Vitali i współautorzy, pomiary czołgania czujnikami IMU.
+Abstrakt opisuje 33 uczestników i związek większej prędkości z krótszym cyklem
+oraz lepszą koordynacją kończyn, w tym współpracą kończyn przeciwległych.
+Zapoznano się z abstraktem, nie pełnym artykułem. Wynik wspiera użycie spójnego
+rytmu, ale nie uzasadnia twierdzenia, że każda osoba zawsze porusza się według
+identycznej przekątnej ani że znamy właściwe kąty kostek.
+
+[R5] Dokumentacja Two Bone IK w Unity osobno opisuje cel pozycji, cel orientacji
+i hint kierunku zgięcia. [R6] Dokumentacja Epic omawia dopasowanie długości kroku
+i korekty miednicy z ograniczeniami zasięgu. To referencje architektury solvera,
+nie propozycja zmiany silnika. [R7–R8] Dokumentacja Three.js określa operacje
+kwaternionowe i relacje transformacji rodzic–dziecko potrzebne do takiej naprawy.
+
+Wniosek metodologiczny: nie mieszać klinicznego „crouch gait”, kociego chodu
+czworonożnego, pełnego przysiadu, chodu z mocnym pochyleniem i czołgania na
+brzuchu. Podobne słowa w wyszukiwaniu nie oznaczają tego samego zadania ruchowego.
+Żadne z powyższych badań nie jest gotowym klipem dla naszych genomów i sprzętu.
+
+
+08. NOWE ZNACZENIE STANÓW
+===============================================================================
+
+  Stan          Podstawowe podparcie       Charakter
+  --------------------------------------------------------------------------
+  IDLE          Stopy                     Wyprostowana pozycja spoczynkowa.
+  WALK          Naprzemiennie stopy        Zwykły chód.
+  RUN           Krótkie kontakty stóp      Bieg; istniejący profil pozostaje.
+  CROUCH        Stopy                     Obniżona postawa, gotowość do kroku.
+  CROUCH_WALK   Naprzemiennie stopy        Ruch bez powrotu do wyprostu.
+  SITTING       Siedzisko + opcj. stopy    Osobna poza siedząca.
+  PRONE         Niski kontakt ciała       Leżenie, kończyny ułożone na boki.
+  PRONE_MOVE    Zmieniane niskie kontakty  Czołganie bez zamiany w four-point.
+  REST          Nie jest akcją postaci    Poza referencyjna do diagnostyki.
+
+Nazwy w interfejsie mogą pozostać angielskie, ale stanów nie należy interpretować
+wyłącznie przez liczbę stopni obrotu bioder. Kluczowy jest rodzaj podparcia.
+Wewnętrzny SUPPORT pozostaje fazą przejściową, nie nowym typem piechoty.
+
+
+09. PROJEKT STÓP: ORIENTACJA WZGLĘDEM NOGI, NIE TYLKO PODŁOŻA
+===============================================================================
+
+Należy dodać do pozy informację o docelowej orientacji i jej trybie, np.:
+  footMode: GROUND_CONTACT / LIMB_RELATIVE;
+  footRotation: quaternion;
+  contactKind: SOLE / TOE / OUTER_EDGE / FREE;
+  contactWeight: 0..1.
+
+Nazwy powyżej są projektem nowych pól, nie istniejącym API v0.10.
+
+Dla stojącego chodu punktem wyjścia pozostaje układ podłoża. Dla czołgania
+punktem wyjścia ma być układ podudzia i neutralna relacja kostki. Należy
+wyznaczyć pełne osie kończyny z kierunku segmentu i płaszczyzny zgięcia kolana,
+a nie tylko minimalny obrót jednego wektora.
+
+Lewe i prawe kolano kierujemy na właściwe strony. Z tej pozy wynika ustawienie
+podudzia; dopiero potem dopasowujemy but na zewnątrz. Potrzebny skręt należy
+rozłożyć na ustawienie biodra, kierunek zgięcia oraz ograniczoną korektę kostki.
+Nie wolno wykonywać całego rozłożenia stopy na bok przez obrót kolana jak
+przegubu kulowego albo przez 90-stopniowe wygięcie samej kostki.
+
+Schemat obliczeń orientacji:
+  Qfoot_model = Qshin_model * Qankle_relative;
+  Qfoot_local = inverse(Qparent_world) * Qfoot_world.
+
+Qankle_relative uwzględnia układ spoczynkowy konkretnego riga i korektę pozy.
+Drugi wzór jest konwersją współrzędnych, a nie dodatkowym obrotem. Istniejące
+setModelQuaternion() można zachować po upewnieniu się, w jakiej przestrzeni
+przekazywany jest cel. Kwaterniony normalizujemy i mieszamy przez slerp. [R7–R8]
+
+Wizualny cel: cholewka stanowi ciąg dalszy nogi, a palce lewego i prawego buta
+układają się na zewnątrz w lustrzany, lecz nie idealnie identyczny sposób.
+Podeszwa nie musi być płaska na ziemi; kontakt może wypadać przy jej krawędzi
+lub przedniej części. Konkretny stopień rozłożenia to ustawienie artystyczne,
+uzgadniane z osiągalnością riga, nie wartość przejęta z publikacji.
+
+
+10. PUNKT KONTAKTU BUTA MUSI PODĄŻAĆ ZA JEGO OBROTEM
+===============================================================================
+
+Nie można obrócić buta na bok i nadal ustawiać kostki na stałej wysokości
+ankleHeight. Ta wysokość została dobrana do stojącego buta.
+
+Jeżeli p jest lokalnym punktem podparcia względem kostki, R jest orientacją
+buta, a C jest punktem terenu, to:
+
+  ankleWorld = C - R * p
+
+To prosty warunek geometryczny: po obrocie wybrany punkt buta ma trafić na C.
+Przy kontakcie powierzchnią potrzebna jest mała grupa próbek, nie tylko punkt.
+Wartości p pochodzą z rzeczywistego rozmiaru stopy i wybranego obuwia.
+
+Orientacja, cel kostki i IK wpływają na siebie. Praktyczna wersja może wykonać
+krótką, ograniczoną korektę: obliczyć orientację, przesunąć cel kostki, rozwiązać
+nogę, sprawdzić kontakt i skorygować wynik. Nie wykonywać pętli bez limitu.
+Dwie iteracje to propozycja budżetu startowego, nie dowiedziona wystarczalność.
+
+Kość toes może korygować przód podeszwy, lecz nie zastępuje ustawienia kostki.
+Palce nie powinny wyginać całej cholewki. Przy bucie sztywniejszym zmniejszamy
+wizualny zakres zgięcia przodu, bez zmiany biologicznego genomu jednostki.
+
+
+11. NOWY CYKL PRONE_MOVE
+===============================================================================
+
+Rekomenduję cztery logiczne etapy dla aktywnej kończyny:
+  CONTACT / PUSH_OR_PULL / RELEASE / RECOVER.
+
+CONTACT: wyznaczenie punktu terenu i zapamiętanie go w świecie.
+PUSH_OR_PULL: root przesuwa ciało, a aktywny punkt podparcia pozostaje stabilny.
+RELEASE: płynne wygaszenie kontaktu przed przekroczeniem zasięgu kończyny.
+RECOVER: niski ruch kończyny do następnego miejsca podparcia.
+
+Nie wszystkie punkty muszą być nieruchome. Brzuch może przesuwać się po gruncie,
+a boczna część buta może mieć zaprojektowany odcinek ślizgu. Ważne, aby ten
+ślizg był opisany, a nie wynikał przypadkowo z dziedziczenia ruchu roota.
+
+Na początek zastosować naprzemienny rytm lewej i prawej strony z przesunięciem
+około połowy cyklu. Współpracę ręki i przeciwległej nogi potraktować jako bazę
+animacji, nie jako sztywną zasadę biologiczną. Krzywe kontaktów rąk i nóg mogą
+mieć różne czasy; nie należy kopiować jednej sinusoidy na wszystkie stawy.
+
+Klatka i miednica wykonują mały przeciwny skręt, ale nie kołyszą całej postaci
+jak deski. Głowa zachowuje dotychczasowy system rozglądania z ograniczeniami
+postawy leżącej. Przedramię może pełnić funkcję podpory; jego punkt styku nie
+jest tym samym co wrist target ani elbow pole.
+
+Długość cyklu musi pasować do zasięgu kończyn. Obecne 0,55 m/s można zachować
+jako prędkość gry. Nie wpisywać osobno „2,2 s cyklu” bez sprawdzenia, czy
+wynikający z tego dystans jest osiągalny dla konkretnych rąk i nóg.
+
+  cycleDistance = speed * cycleTime
+  phase += actualDistance / cycleDistance
+
+Dla fazy podporu przesunięcie lokalnego celu musi kompensować ruch roota.
+Przy ruchu bez obrotu oznacza to w przybliżeniu velocityLocal = -velocityRoot.
+Krzywa odzyskiwania kończyny powinna łączyć się z podporą bez skoku prędkości.
+Można użyć Hermite'a z zadanymi pochodnymi lub trajektorii w świecie. Zwykły
+smoothstep z zerową prędkością na obu końcach w przestrzeni roota nie zawsze
+pasuje do niezerowej prędkości lokalnej stopy podczas podparcia.
+
+
+12. NOWY CROUCH: MOBILNA POSTAWA OBNIŻONA
+===============================================================================
+
+Cel to rozpoznawalna sylwetka człowieka obniżającego ciało, który może wykonać
+następny krok bez wstawania. Nie chodzi o maksymalnie głęboki przysiad,
+klęknięcie na jednym kolanie ani siedzenie na piętach.
+
+Najpierw ustalamy preferowaną wysokość całej sylwetki, położenie podparcia i
+kąt tułowia. Potem wyliczamy miednicę oraz kończyny z anatomii. Nie określamy
+niezależnie sześciu kątów, które mogą przeczyć długościom kości.
+
+PROPOZYCJE dla pierwszego strojenia:
+  wysokość anatomicznego czubka głowy: około 0,75–0,82 wzrostu;
+  pochylenie kierunku hips–neck: około 30–40° do pionu;
+  wysokość stawów biodrowych nad kostkami: około 0,74–0,81 długości nóg;
+  cofnięcie miednicy za środek podparcia: niewielkie, nie stałe 20–24 cm;
+  małe zwrócenie stóp na zewnątrz i kolana zgodne z ich kierunkiem.
+
+To preferencje do pogodzenia, nie niezależne twarde nakazy. Priorytet mają
+kontakt, zasięg i brak nieprawidłowej deformacji. Rozmiar hełmu nie zmienia
+biologicznej wysokości głowy, ale musi wejść do kontroli obwiedni ze sprzętem.
+
+Pochylenie rozkładamy na biodra i segmenty tułowia, bez gwałtownego zgięcia
+samej szyi. Ramiona nie powinny zostać w pozycji siedzącej ze stale uniesionymi
+łokciami. Dłonie pozostają swobodne; trzymanie broni nie jest częścią tej zmiany.
+
+Rzut kości hips nie jest środkiem masy. Dla wiarygodnej kompozycji można użyć
+uproszczonego ważonego środka segmentów, ale trzeba go nazwać przybliżeniem.
+Samo przypięcie hips do środka między stopami nie dowodzi równowagi.
+
+
+13. JAK WYLICZAĆ CROUCH DLA RÓŻNYCH GENOMÓW
+===============================================================================
+
+Zamiast powielać stałe procenty H, wykorzystać:
+  L1 — długość uda;
+  L2 — długość podudzia;
+  hipRest — punkt stawu biodrowego, a nie pivot całej miednicy;
+  ankleRest — punkt kostki;
+  footGeometry — rozmiar i punkty podeszwy;
+  torsoRest — długości odcinków tułowia.
+
+Z odległości d pomiędzy biodrem i kostką wynika geometria kolana:
+
+  flexion = PI - acos((L1*L1 + L2*L2 - d*d) / (2*L1*L2))
+
+W praktyce argument acos musi być ograniczony do [-1,1], a d do zasięgu nogi.
+Dla dwóch równych segmentów jest to równoważne 2*acos(d/(L1+L2)).
+To geometria szkieletu, nie dodatkowy parametr biologiczny.
+
+Zgięcie kolana należy kontrolować jako wynik. Gdy biodra są za nisko lub cel
+za daleko, nie wydłużać nogi przez scale. Podnieść albo przybliżyć miednicę,
+skrócić krok lub zmniejszyć głębokość obniżenia.
+
+Szerokość podparcia wynika z bioder, rozmiarów butów i potrzebnego prześwitu.
+Szersze ciało nie musi automatycznie chodzić w szerokim rozkroku; dodajemy tylko
+uzasadniony luz. Różne genomy mają dawać różne sylwetki tej samej czynności,
+a nie różne jakości poprawności animacji.
+
+
+14. CROUCH_WALK: OSOBNY PROFIL RUCHU
+===============================================================================
+
+Nowy profil korzysta z tej samej anatomii i poziomu obniżenia co CROUCH.
+Nogi pozostają zgięte w podporze; podczas wymachu zginają się dodatkowo tyle,
+ile potrzeba do przejścia buta nad podłożem. Nie podnosimy miednicy do IDLE
+przy każdym kroku i nie kopiujemy zakresów z RUN.
+
+PROPOZYCJE parametrów gry:
+  prędkość bazowa: 0,75 m/s, mnożona przez istniejący speedMultiplier;
+  pełny dystans cyklu: początkowo około 0,75 długości nogi;
+  udział podporu jednej stopy: 0,70 cyklu;
+  faza prawej nogi: faza lewej + 0,5;
+  podniesienie buta w wymachu: 2–4 cm dla przeciętnej sylwetki;
+  pionowa praca miednicy: około 0,5–1,2 cm, nie bounce biegu.
+
+Pełny cykl to od kontaktu danej stopy do kolejnego kontaktu tej samej stopy.
+Przy symetrii obejmuje DWA kroki. Nie mylić cycleDistance z odległością
+między kolejnym krokiem lewej i prawej nogi.
+
+Przykład czysto projektowy: noga 0,8 m daje cykl 0,6 m. Przy 0,75 m/s trwa on
+0,8 s, czyli 1,25 cyklu/s i 2,5 kroku/s. Dla duty=0,70 wymach trwa 0,24 s.
+Wartości należy potem dostroić wizualnie; obliczenie sprawdza ich wzajemną
+spójność, nie realizm końcowego klipu.
+
+Dwie fazy podporu nakładają się, więc profil nie ma fazy lotu. Miednica przenosi
+się w stronę nogi podpierającej, lecz boczny ruch nie może destabilizować kolan.
+Tors i głowa pracują subtelnie; rozglądanie pozostaje warstwą dodatkową.
+
+Start: pierwsza noga odrywa się po przejęciu ciężaru przez drugą.
+Stop: zamykamy bieżący krok i pozostajemy w CROUCH, zamiast zamrażać nogę w
+powietrzu lub wracać do IDLE. Prędkość roota także musi narastać i wygasać
+zgodnie z ruchem; samo wygładzenie kości nie usuwa skoku przesunięcia postaci.
+
+
+15. SITTING: ZACHOWAĆ STARĄ POZĘ, ALE USTALIĆ PODPARCIE
+===============================================================================
+
+Należy zachować sampleCrouch() jako materiał wyjściowy sampleSitting(), zanim
+powstanie nowy crouch. Pozwoli to nie stracić ruchu, który użytkownik chce
+wykorzystać. Nie robić dwóch nazw wskazujących na tę samą funkcję.
+
+Proponowany SITTING jest pozą na siedzisku: podparta miednica, uda skierowane
+w przód, stopy zależnie od wysokości siedziska dotykają ziemi albo swobodnie
+zwisają. Potrzebuje seatAnchor/seatHeight w kontekście animacji.
+
+Bez kotwicy może być prezentowany w edytorze jako poza referencyjna „na
+siedzisku”, ale nie powinien być przedstawiany jako poprawne siedzenie na
+ziemi. W świecie nie należy automatycznie używać go na końcu patrolu.
+Nie dodajemy przy okazji krzeseł ani systemu interakcji z budynkami.
+
+Siedzenie na ziemi wymagałoby innego ustawienia nóg i realnego kontaktu miednicy
+z gruntem. To oddzielny wariant, którego nie należy ukrywać pod prostą zmianą
+nazwy starej pozy. Samo opuszczenie hips o pół metra zablokuje nogi w terenie.
+
+W siedzeniu mały oddech i rozglądanie zostają; miednica nie powinna podskakiwać
+według fazy chodu. Plecak i tylne kieszenie muszą być uwzględnione przy przyszłym
+siedzisku, bez automatycznego zdejmowania wyposażenia.
+
+
+16. POPRAWKA KONTAKTU Z TERENEM I WYPOSAŻENIEM
+===============================================================================
+
+Źródło obecnego ograniczenia: infantryAnimator.js:574–600, 741–778.
+
+Aktualna kontrola wybiera najniższą próbkę ciała lub sprzętu i w razie kolizji
+podnosi całe hips. Następnie sprawdza całe podeszwy. Nie rozróżnia, czy aktualnym
+podparciem jest podeszwa, bok buta, kolano, przedramię czy siedzisko.
+
+W próbkach PRONE dodatkowe podniesienie hips wyniosło około 5,57 cm dla 1003
+i 0,71 cm dla 2003. Wyniki były takie same dla dwóch sprawdzonych profili.
+Nie ustalono tu, który konkretny wierzchołek był pierwszą przyczyną korekty,
+i nie dowodzi to, że sprzęt jest głównym źródłem problemu. Pokazuje działanie
+korekty całej postaci zależnej od geometrii.
+
+buildSupports() próbkuje kurtkę, głowę, szyję i dłonie, ale nie ma oddzielnych
+podpór kolan i przedramion. Kontrola rzadkich wierzchołków nie jest fizycznym
+solverem ani pełną ochroną przed każdym przecięciem.
+
+Proponowane rozdzielenie:
+  REQUIRED_CONTACT — powierzchnia ma stykać się z terenem;
+  FREE_CLEARANCE   — część w ruchu ma pozostawać nad terenem;
+  ALLOWED_SLIDE    — część może przesuwać się wzdłuż powierzchni;
+  FORBIDDEN_PENETRATION — twarda część nie może wejść w grunt.
+
+Nie wyłączać kontroli podeszew: po obrocie nadal trzeba zapobiegać przenikaniu.
+Trzeba jednak sprawdzać obuwie w aktualnej orientacji i użyć właściwego kontaktu,
+zamiast ponownie prostować but do pozy stojącej.
+
+Ograniczyć gwałtowne korekty miednicy, mierzyć ich wielkość i ponawiać IK po
+korekcie. Gdy profil jest nieosiągalny, podnieść postawę w kontrolowany sposób,
+a nie wyciągać kończyny. Głowę/hełm sprawdzać po nałożeniu końcowego spojrzenia;
+obecnie faceAnimator uruchamia się po animatorze ciała.
+
+
+17. PRZEJŚCIA, FAZA I DOTYCHCZASOWE DEMO
+===============================================================================
+
+Źródła: infantryAnimator.js:171–220, 534–536;
+infantryUnit.js:141–160, 195–264.
+
+Docelowe podstawowe przejścia:
+  IDLE <-> CROUCH <-> CROUCH_WALK
+  WALK <-> CROUCH_WALK
+  CROUCH <-> SUPPORT <-> PRONE <-> PRONE_MOVE
+  IDLE/CROUCH <-> SITTING, tylko ze świadomą obsługą siedziska.
+
+W WALK <-> CROUCH_WALK można zachować fazę i stronę podporu, ale trzeba
+przeliczyć zasięg oraz rozłożyć zmianę wysokości. Nie zachowywać automatycznie
+wszystkich starych kotwic, jeżeli po zmianie kontaktu stały się nieosiągalne.
+SITTING nie ma cyklu kroku, więc synchronizacja fazy chodu nie jest jego celem.
+
+Po skopiowaniu starego CROUCH do SITTING fazy przejściowe muszą wskazywać nowy
+CROUCH. W przeciwnym razie żołnierz dalej „usiądzie” w drodze do leżenia.
+Usunąć zależność yaw stóp od prone * PI także w SUPPORT.
+
+Obecny patrol na każdym końcu odcinka wymusza IDLE, również dla czołgającej się
+jednostki. Należy wprowadzić prostą parę moveState/restState:
+  WALK lub RUN -> IDLE;
+  CROUCH_WALK  -> CROUCH;
+  PRONE_MOVE   -> PRONE.
+
+To naprawa istniejącej demonstracji, nie dodanie AI. Zawracanie nie może polegać
+na obrocie roota o 180° przy jednoczesnym sztywnym zablokowaniu wszystkich
+kontaktów. Kontakt trzeba zwolnić lub wykonać krótkie przestawienie kończyn.
+Na teraz wystarczy kontrolowany zwrot, bez nowego rozbudowanego systemu skrętów.
+
+
+18. ZGODNOŚĆ Z GENOMEM I EKWIPUNKIEM
+===============================================================================
+
+Genom jest stały. Postawa nie może zmieniać długości kości, rozmiaru stóp,
+wzrostu ani twarzy. Nie tworzymy „genomu do crouch” i drugiego do crawling.
+Wszystkie cele mają wynikać z jednej anatomii jednostki.
+
+Nowy crouchSpeed należy wyprowadzić z istniejącego speedMultiplier. Nie dodać
+nowego losowania, które przesunie wyniki pozostałych genów. Zmiana profilu ruchu
+nie powinna zmieniać seeda sprzętu ani wyposażenia.
+
+Buty potrzebują aktualnych wymiarów i punktów kontaktu; luźniejsza lub wyższa
+cholewka nie może wymagać uniwersalnej wysokości kostki. Kieszenie udowe muszą
+podążać za rzeczywistym obrotem uda, a plecak za pochyleniem tułowia.
+
+Masa ekwipunku pozostaje w tej iteracji informacyjna, jak dotychczas.
+Nie wdrażać mimochodem spowolnienia ciężkich profili, staminy ani ragdolla.
+Dopuszczalne są ograniczone korekty wizualne: nieprzenikanie hełmu, płyty,
+plecaka lub ładownic. Nie zdejmować automatycznie przedmiotów ani nie zmieniać
+ich rozmiarów tylko po to, by ukryć złą pozycję ciała.
+
+Na pochyłości korzystać z renderowanej powierzchni terenu, jak już robi projekt.
+Sektory 5 m nie służą do kwantyzowania celów kończyn. Stopa ma poruszać się
+ciągle w metrach, także wewnątrz jednej komórki świata.
+
+
+19. REKOMENDOWANA KOLEJNOŚĆ PRZETWARZANIA ANIMACJI
+===============================================================================
+
+  1. Ruch roota, prędkość i rzeczywiście pokonany dystans.
+  2. Profil postawy i rytm właściwego rodzaju ruchu.
+  3. Wybór kontaktów, przewidywane następne punkty podparcia.
+  4. Docelowa miednica i bazowy tułów z anatomii.
+  5. Układy kończyn, orientacje kostek, cele kontaktów.
+  6. Mieszanie przejścia z zachowaniem wykonalnych kotwic.
+  7. IK nóg i rąk; synchronizacja orientacji buta z nogą.
+  8. Ograniczona korekta podłoża/sprzętu oraz ponowienie potrzebnego IK.
+  9. Końcowa kontrola po rozglądaniu; zapis do istniejących snapshotów.
+
+Nie nakładać po finalnym IK sinusoidalnego obrotu bioder, który unieważni
+ustalone podparcie. Dodatkowy ruch barków czy głowy można liczyć wcześniej lub
+objąć końcową korektą zależnych kończyn. Zachować dotychczasowy fixed timestep
+i interpolację renderowania; nie zastępować ich czasem liczonym w klatkach.
+
+Wspólny solver może obsługiwać różne rodzaje kontaktu. Same profile muszą
+pozostać odrębne: bieg, obniżony chód i czołganie mają inne warunki.
+Nie warto dodawać kolejnego warunku „if prone” do każdej linijki chodu.
+
+
+20. ZMIANY PER PLIK — PLAN WYKONAWCZY
+===============================================================================
+
+js/config.js:11–22
+Dodać SITTING i CROUCH_WALK. Dodać prędkość oraz parametry profilu obniżonego
+chodu. Zachować stare nazwy PRONE/PRONE_MOVE. Oddzielić zakresy ruchu od genomu.
+
+js/units/infantryGenome.js:145
+Dodać wyliczane crouchSpeed. Nie zmieniać kolejności generatora genów.
+
+js/animation/infantryAnimator.js
+Skopiować obecną sampleCrouch do sampleSitting, potem stworzyć nową sampleCrouch.
+Przebudować sampleProne oraz reprezentację orientacji stóp i kontaktów.
+Usunąć globalne prone * PI. Zaktualizować setState, samplePose, phase advance,
+copy/blend/clear pozy oraz warunki utrzymywania kontaktu. Oddzielić korektę
+podparcia od ogólnego przesuwania całego modelu do góry.
+
+js/animation/gaitProfile.js:33–39
+Dodać jawny profil CROUCH_WALK, bez wpadania do domyślnego WALK. Uzgodnić duty,
+dystans cyklu i trajektorie. Profil niskiego czołgania można wydzielić do
+crawlProfile.js, jeżeli realnie uprości kod; nie tworzyć pustych modułów.
+
+js/animation/twoBoneIK.js:10–28
+Pozostawić analityczne wyznaczanie długości i zgięcia, ale udostępnić spójny
+układ osi oraz kontrolę skrętu segmentów. Hint nie jest kontaktem kolana.
+Dodać jawne ograniczenia, stabilne zachowanie przy prawie prostej nodze oraz
+raport nieosiągalnego celu zamiast ukrytego rozciągania kości.
+
+js/rendering/infantryRig.js
+Udostępnić osie spoczynkowe kończyn i lokalne punkty kontaktu. Nie potrzeba
+nowego szkieletu dla każdej animacji. Kości toes już istnieją.
+
+js/rendering/infantrySurface.js:195–212
+Sprawdzić wagi buta dopiero po naprawieniu orientacji. Dodać znaczniki
+kontaktów obuwia i potrzebnych stref kończyn bez przebudowy wyglądu postaci.
+
+js/equipment/equipmentFit.js oraz js/equipment/infantryGear.js
+Udostępnić rozmiary/kandydatów kontaktu i clearance sprzętu. Nie zmieniać
+loadoutów ani funkcji edycji gear. Odróżnić twardy element od luźnego detalu.
+
+js/units/infantryUnit.js:73–79, 141–160, 195–264, 307–325
+Obsłużyć crouchSpeed, restState patrolu, start/stop oraz seek nowych stanów.
+Nie resetować genomu, ekwipunku, kamery lub mimiki podczas wyboru animacji.
+
+index.html:48; js/ui/unitPreview.js; js/ui/debugPanel.js:80
+Rozszerzyć istniejący selektor o SITTING i CROUCH_WALK. Podgląd fazy, pauza
+i istniejące widoki kamery mają działać dla nowych profili. Odczyt „podeszwa”
+zastąpić właściwą informacją o aktywnym kontakcie, gdy jednostka leży.
+Nie dodawać osobnego panelu ani przycisków na głównym ekranie gry.
+
+js/game.js:lista demo
+Zmienić przykłady tak, by było widać nowy CROUCH i CROUCH_WALK oraz poprawione
+czołganie. Zachować prezentację dziesięciu loadoutów. SITTING nie musi pojawiać
+się w świecie bez siedziska; wystarczy wybór w istniejącym laboratorium.
+
+docs/
+Zaktualizować opis animacji, API jednostki, demo i changelog. Dodać opis decyzji
+tej iteracji, np. 15_CRAWL_CROUCH_SITTING.txt. Stare audyty pozostawić jako
+historię z numerami wersji, a nie jako bieżącą instrukcję działania animatora.
+
+
+21. JAK NIE MASKOWAĆ PROBLEMU
+===============================================================================
+
+Nie obracać obu stóp o tę samą stałą wartość i nie kopiować znaków bez
+sprawdzenia lokalnych osi lewej/prawej nogi. Nie wyłączać depth testu ani
+kontroli podłoża. Nie zwiększać wzrostu root.scale, żeby ukryć zbyt niski tułów.
+
+Nie definiować crouch jako stałego kąta 90° we wszystkich kolanach.
+Nie uznawać wszystkiego za poprawne tylko dlatego, że maxIKError wynosi zero:
+cel może być osiągalny i jednocześnie wyglądać źle albo dawać zły kontakt.
+
+Nie przypisywać nowych obrotów buta wyłącznie w funkcji próbkującej pozę,
+jeżeli późniejszy etap je nadpisuje. Nie używać całego kołysania chodu jako
+„przejścia” do siadania. Nie ignorować trybu treadmill: brak przesunięcia
+modelu w edytorze nie dowodzi poprawnego światowego podparcia na mapie.
+
+
+22. MAŁY, CELOWANY ZESTAW KRYTERIÓW ODBIORU
+===============================================================================
+
+A. PRONE/PRONE_MOVE, seedy 1003 i 2003, widok z boku i z góry.
+Buty nie stoją pionowo na podeszwach pod poziomymi łydkami. Ułożenie na boki
+jest lustrzane; cholewka nie skręca się gwałtownie względem podudzia.
+
+B. Cztery fazy czołgania oraz jeden pełny przejazd na mapie.
+Aktywne kontakty nie płyną bez powodu po gruncie. Kończyny mają widoczny powrót,
+a postać nie zamienia się w chód na dłoniach i kolanach. Sprawdzić także
+płynność przejścia przez fazę 0/1 i zmianę podpory.
+
+C. CROUCH obok SITTING, ten sam seed, sprzęt i kamera boczna.
+Różnica jest czytelna bez etykiety: nowy crouch jest obniżoną postawą ruchową,
+a sitting zachowuje charakter siedzenia. Nie nazywać braku siedziska poprawnym
+kontaktem z ziemią.
+
+D. CROUCH_WALK start, marsz, stop i nawrót demo.
+Brak prostowania całej postaci co krok, uderzania butami o grunt i powrotu do
+IDLE na końcu odcinka. Kolana pozostają po właściwej stronie płaszczyzny nogi.
+
+E. Dwa–trzy kontrastowe genomy i wybrane lekkie/ciężkie zestawy gear.
+Sprawdzić dłuższe nogi, większe stopy i grubsze uda. Dla wszystkich dziesięciu
+loadoutów wystarczy krótki przegląd neutralnej i najniższej pozy, nie ogromna
+nowa infrastruktura testowa. Skrajne ręczne kombinacje są osobnym stress testem.
+
+F. Techniczne minimum.
+Składnia, skończone transformacje, znormalizowane kwaterniony, brak nowego
+skalowania kości, poprawne nazwy stanów oraz start przez file://. Kontrola
+podparcia na płaskim i łagodnie nachylonym terenie. Nie deklarować pełnej
+walidacji fizycznej ani płynności bez obejrzenia wersji w prawdziwej przeglądarce.
+
+
+23. KOLEJNOŚĆ WDROŻENIA
+===============================================================================
+
+Najpierw zachować dotychczasową pozę jako SITTING i dodać nowe nazwy stanów.
+Potem naprawić wspólny mechanizm orientacji butów i ich punktów kontaktu.
+Następnie dostroić statyczne PRONE i CROUCH na tych samych genomach.
+
+Dopiero na poprawnych pozach zbudować cykle PRONE_MOVE i CROUCH_WALK.
+Na końcu dopasować przejścia, restState patrolu, ograniczenia sprzętu oraz
+odczyty istniejącego edytora. Dzięki temu nie stroimy płynności animacji,
+której wyjściowa pozycja kostki jest już błędna.
+
+Największy spodziewany zysk wynika z połączenia poprawnej przestrzeni rotacji,
+rzeczywistych kontaktów i osobnego projektu crouch. Więcej kości czy nowa
+biblioteka animacji nie jest warunkiem tej naprawy. Końcowe zakresy i tempo
+pozostają do sprawdzenia w ruchu na naszym modelu.
+
+
+24. BIBLIOGRAFIA I DOSTĘP DO ŹRÓDEŁ
+===============================================================================
+
+Dostęp sprawdzony 24.09.2026. Użyto prac pierwotnych i dokumentacji producentów.
+Materiały opisują ruch/animację; nie stanowią norm dla każdego genomu i sprzętu.
+
+[R1] Hora, M.; Struška, M.; Matějovská, Z.; Kubový, P.; Sládek, V.
+„Muscle activity during crouched walking”. American Journal of Biological
+Anthropology, 183(1), 79–91, wydanie 2024; publikacja online 22.08.2023.
+DOI: 10.1002/ajpa.24834
+https://onlinelibrary.wiley.com/doi/full/10.1002/ajpa.24834
+Przeczytano pełny tekst, zwłaszcza Methods 2.2/2.4, tabele 2/3 i ograniczenia.
+Zastosowanie: dobrowolny crouch zdrowych dorosłych, nie patologiczny chód.
+
+[R2] Skvortsov, D.; Anisimov, V.; Aizenshtein, A.
+„Experimental Study of Military Crawl as a Special Type of Human Quadripedal
+Automatic Locomotion”. Applied Sciences, 11(16), 7666, 2021.
+DOI: 10.3390/app11167666
+https://www.mdpi.com/2076-3417/11/16/7666
+Odczytano pełny tekst wydawcy udostępniony na stronie publikacji:
+https://www.researchgate.net/publication/354072073_Experimental_Study_of_Military_Crawl_as_a_Special_Type_of_Human_Quadripedal_Automatic_Locomotion
+Bezpośredni dostęp do strony MDPI w tej sesji nie działał poprawnie.
+Zastosowanie: belly crawl, rytm i ograniczenia pomiaru; nie dokładny rig kostki.
+
+[R3] Gallagher, S.; Pollard, J.; Porter, W. L.
+„Locomotion in restricted space: Kinematic and electromyographic analysis of
+stoopwalking and crawling”. Gait & Posture, 33, 71–76, 2011.
+DOI: 10.1016/j.gaitpost.2010.09.027
+Repozytorium CDC/NIOSH:
+https://stacks.cdc.gov/view/cdc/227276
+https://stacks.cdc.gov/view/cdc/227276/cdc_227276_DS1.pdf
+Przeczytano PDF oraz sprawdzono obrazy stron 72–73: ryciny 1/2 i tabele 1/2.
+Zastosowanie: rozróżnienie postaw, konwencja kąta kolana, rodzaje podparcia.
+
+[R4] Vitali, R. V.; Cain, S. M.; Davidson, S. P.; Perkins, N. C.
+„Human crawling performance and technique revealed by inertial measurement
+units”. Journal of Biomechanics, 84, 121–128, 2019.
+DOI: 10.1016/j.jbiomech.2018.12.030
+https://pubmed.ncbi.nlm.nih.gov/30638720/
+Abstrakt odczytany również na stronie publikacji:
+https://www.researchgate.net/publication/329883528_Human_Crawling_Performance_and_Technique_Revealed_by_Inertial_Measurement_Units
+Dostęp: abstrakt; pełnego tekstu nie odczytano. Zastosowanie ograniczone do
+opisanej koordynacji i parametrów, bez dopowiadania trajektorii kostek.
+
+[R5] Unity Technologies. Animation Rigging 1.2 — Two Bone IK Constraint.
+https://docs.unity3d.com/Packages/com.unity.animation.rigging@1.2/manual/constraints/TwoBoneIKConstraint.html
+Dokumentacja pierwotna: osobne target position, target rotation i hint.
+Wykorzystanie koncepcji w naszym własnym solverze, bez zależności od Unity.
+
+[R6] Epic Games. Pose Warping in Unreal Engine.
+https://dev.epicgames.com/documentation/en-us/unreal-engine/pose-warping-in-unreal-engine
+Dokumentacja pierwotna: orientation/stride warping, korekty miednicy i zasięgu.
+Nie zakłada migracji silnika. Opisany tam slope warping jest oznaczony jako
+eksperymentalny; nie jest proponowaną zależnością tej iteracji.
+
+[R7] Three.js Authors. Quaternion.
+https://threejs.org/docs/pages/Quaternion.html
+Operacje obrotów, mnożenie, normalizacja i slerp.
+
+[R8] Three.js Authors. Object3D.
+https://threejs.org/docs/pages/Object3D.html
+Hierarchia transformacji i przestrzenie lokalne/świata.
+[R7–R8] odczytano jako dokumentację koncepcji. Prototyp pozostaje przy własnej,
+przypiętej wersji biblioteki; raport nie zaleca automatycznej aktualizacji CDN.
+
+
+25. MATERIAŁ AUDYTU I PODSUMOWANIE DECYZJI
+===============================================================================
+
+Podstawą ustaleń o grze są pliki wskazane w sekcjach 03–06, 16–17 i 20,
+pochodzące z archiwum o podanym na początku hashu. Pomiary w raporcie są
+własnymi odczytami tej wersji kodu, nie wartościami przypisanymi publikacjom.
+
+Próbki kontrolne obejmowały ustawienie pozy, nie pełny test dynamicznego
+podparcia w świecie. W szczególności nie zmierzono tu tarcia, sił reakcji
+podłoża ani kosztu energetycznego postaci. Te systemy nie są potrzebne do
+wykonania zamówionej poprawki wizualnej.
+
+Decyzja dla następnej iteracji:
+  zachować starą sylwetkę jako bazę SITTING;
+  stworzyć nowe CROUCH i CROUCH_WALK jako jedną rodzinę postawy;
+  naprawić PRONE/PRONE_MOVE przez właściwe osie nóg i kontakty;
+  zachować genomy, gear, rozglądanie, file:// i obecny edytor;
+  nie dodawać przy okazji niezamówionych systemów gameplay.
+
+KONIEC RAPORTU

@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -47,7 +48,7 @@ enum class HairStyle : std::uint8_t {
 };
 
 inline constexpr foundation::Color kDefaultUniformColor{
-    0.23F, 0.29F, 0.22F, 1.0F};
+    0.0998987282F, 0.135633330F, 0.0595112382F, 1.0F};
 
 [[nodiscard]] constexpr HairStyle canonicalHairStyle(HairStyle style) noexcept {
     switch (style) {
@@ -112,11 +113,50 @@ struct AppearanceVertex final {
     std::uint16_t material_region{0};
 };
 
+struct AppearanceIndexGroup final {
+    std::uint32_t start{0};
+    std::uint32_t count{0};
+    std::uint16_t material{0};
+};
+
+struct AppearanceVertexTag final {
+    std::string name;
+    std::vector<std::uint32_t> vertices;
+};
+
+struct AppearanceMaterialDescriptor final {
+    std::string name;
+    foundation::Color base_color{1.0F,1.0F,1.0F,1.0F};
+    float roughness{1.0F};
+    float metalness{0.0F};
+    float opacity{1.0F};
+    bool transparent{false};
+};
+
 struct AppearanceMesh final {
     std::vector<AppearanceVertex> vertices;
     std::vector<std::uint32_t> indices;
+    std::vector<AppearanceIndexGroup> groups;
+    std::vector<AppearanceVertexTag> tags;
+    std::vector<AppearanceMaterialDescriptor> materials;
     foundation::Vec3 minimum{};
     foundation::Vec3 maximum{};
+    foundation::Vec3 sphere_center{};
+    float sphere_radius{0.0F};
+};
+
+struct FaceEyeMetadata final {
+    foundation::Vec3 center{};
+    float radius{0.0F};
+    std::vector<std::uint32_t> rim;
+    std::vector<std::uint32_t> outer;
+    float neutral_open{0.0F};
+};
+
+struct FaceSurfaceMetadata final {
+    std::array<FaceEyeMetadata,2U> eyes{};
+    bool neck_connected{false};
+    bool mouth_opening{false};
 };
 
 struct MorphTarget final {
@@ -135,6 +175,7 @@ struct AppearanceArtifact final {
     foundation::Vec3 maximum{};
     bool has_eye_openings{false};
     bool has_mouth_opening{false};
+    FaceSurfaceMetadata face_metadata{};
 
     [[nodiscard]] bool valid(const SkeletonData&) const noexcept;
 };

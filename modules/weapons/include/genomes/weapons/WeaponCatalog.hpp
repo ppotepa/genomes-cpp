@@ -40,6 +40,9 @@ enum class WeaponMount : std::uint8_t {
     Primary,
 };
 
+enum class WeaponFamily : std::uint8_t { OneHanded, TwoHanded };
+enum class WeaponVisualKind : std::uint8_t { Knife, Grenade, Pistol, Long };
+
 struct WeaponDefinition final {
     WeaponId id{0};
     std::string_view identifier{};
@@ -58,6 +61,14 @@ struct WeaponDefinition final {
     float range_m{0.0F};
     float damage{0.0F};
     std::uint32_t version{1};
+    WeaponFamily family{WeaponFamily::OneHanded};
+    WeaponVisualKind visual_kind{WeaponVisualKind::Knife};
+    std::uint8_t grip_profile_mask{1U}; // bit 0: 1H, bit 1: 2H
+    float visual_length{0.1F};
+    float draw_seconds{1.0F};
+    float holster_seconds{1.0F};
+    float fire_interval_seconds{0.0F};
+    float visual_kick{0.0F};
 
     [[nodiscard]] bool valid() const noexcept;
 };
@@ -89,6 +100,7 @@ struct WeaponVertex final {
     foundation::Vec3 position{};
     foundation::Vec3 normal{0.0F, 1.0F, 0.0F};
     foundation::Vec2 uv{};
+    foundation::Color color{1.0F, 1.0F, 1.0F, 1.0F};
     std::uint32_t material_region{0};
 };
 
@@ -102,6 +114,7 @@ struct WeaponMesh final {
 struct WeaponAttachment final {
     foundation::Vec3 local_position{};
     foundation::Vec3 local_forward{0.0F, 0.0F, 1.0F};
+    std::array<float,4U> local_rotation{0.0F,0.0F,0.0F,1.0F};
 };
 
 struct WeaponArtifact final {
@@ -109,6 +122,8 @@ struct WeaponArtifact final {
     WeaponId weapon_id{0};
     foundation::StableId cache_key{0};
     WeaponMesh mesh;
+    WeaponMesh slide;
+    WeaponMesh muzzle_flash;
     WeaponAttachment muzzle{};
     WeaponAttachment primary_grip{};
     WeaponAttachment support_grip{};

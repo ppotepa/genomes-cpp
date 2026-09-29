@@ -26,22 +26,29 @@ public:
         const BodyPhenotype&);
 
     [[nodiscard]] const LocomotionLimits& limits() const noexcept { return limits_; }
-    [[nodiscard]] LocomotionState initialState() const noexcept { return {}; }
+    [[nodiscard]] const BodyPhenotype& body() const noexcept { return body_; }
+    [[nodiscard]] double proneCycleMeters() const noexcept;
+    [[nodiscard]] LocomotionState initialState() const noexcept;
 
     [[nodiscard]] foundation::Result<void, foundation::Error> setRequested(
         LocomotionState&, const LocomotionRequest&) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> setPreset(
-        LocomotionState&, BipedPreset) const noexcept;
+        LocomotionState&, BipedPreset, bool immediate = false) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> setFamily(
-        LocomotionState&, LocomotionFamily) const noexcept;
+        LocomotionState&, LocomotionFamily, bool moving = false) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> step(
         LocomotionState&, float fixed_dt_seconds) const noexcept;
+    [[nodiscard]] foundation::Result<void, foundation::Error> sampleGait(
+        LocomotionState&, float actual_speed_mps, float fixed_dt_seconds,
+        bool immediate = false) const noexcept;
     [[nodiscard]] PostureSample posture(const LocomotionState&) const noexcept;
 
 private:
-    explicit LocomotionController(LocomotionLimits limits) noexcept : limits_(limits) {}
+    explicit LocomotionController(LocomotionLimits limits, BodyPhenotype body) noexcept
+        : limits_(limits), body_(body) {}
 
     LocomotionLimits limits_{};
+    BodyPhenotype body_{};
 };
 
 } // namespace genomes::infantry

@@ -6,6 +6,10 @@ function(genomes_enable_test_assertions target)
     endif()
 endfunction()
 
+if(TARGET genomes_render_smoke)
+    add_test(NAME render.diligent_headless COMMAND genomes_render_smoke)
+endif()
+
 add_executable(genomes_test_foundation_smoke foundation_smoke.cpp)
 target_link_libraries(genomes_test_foundation_smoke PRIVATE genomes::foundation)
 genomes_set_project_warnings(genomes_test_foundation_smoke)
@@ -45,11 +49,19 @@ if(GENOMES_ENABLE_RMLUI)
     add_test(NAME ui.rml_smoke COMMAND genomes_test_ui_rml_smoke)
 endif()
 
-add_executable(genomes_test_unit_lab_smoke unit_lab_smoke.cpp)
-target_link_libraries(genomes_test_unit_lab_smoke PRIVATE genomes::runtime)
-genomes_set_project_warnings(genomes_test_unit_lab_smoke)
-genomes_enable_test_assertions(genomes_test_unit_lab_smoke)
-add_test(NAME runtime.unit_lab_smoke COMMAND genomes_test_unit_lab_smoke)
+if(GENOMES_ENABLE_INFANTRY)
+    add_executable(genomes_test_unit_lab_smoke unit_lab_smoke.cpp)
+    target_link_libraries(genomes_test_unit_lab_smoke PRIVATE genomes::runtime)
+    genomes_set_project_warnings(genomes_test_unit_lab_smoke)
+    genomes_enable_test_assertions(genomes_test_unit_lab_smoke)
+    add_test(NAME runtime.unit_lab_smoke COMMAND genomes_test_unit_lab_smoke)
+
+    add_executable(genomes_test_infantry_presentation infantry_presentation_tests.cpp)
+    target_link_libraries(genomes_test_infantry_presentation PRIVATE genomes::runtime)
+    genomes_set_project_warnings(genomes_test_infantry_presentation)
+    genomes_enable_test_assertions(genomes_test_infantry_presentation)
+    add_test(NAME infantry.presentation COMMAND genomes_test_infantry_presentation)
+endif()
 
 add_executable(genomes_test_foundation_primitives
     foundation/primitives_smoke.cpp)
@@ -442,6 +454,21 @@ genomes_enable_test_assertions(genomes_test_full_presentation)
 add_test(NAME render.full_presentation COMMAND genomes_test_full_presentation)
 
 if(GENOMES_ENABLE_INFANTRY)
+    add_library(genomes_test_infantry_fixture STATIC infantry_fixture_reader.cpp)
+    target_include_directories(genomes_test_infantry_fixture PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_SOURCE_DIR}/external/json/single_include")
+    target_compile_features(genomes_test_infantry_fixture PUBLIC cxx_std_20)
+    genomes_set_project_warnings(genomes_test_infantry_fixture)
+
+    add_executable(genomes_test_infantry_fixture_reader infantry_fixture_reader_tests.cpp)
+    target_link_libraries(genomes_test_infantry_fixture_reader PRIVATE genomes_test_infantry_fixture)
+    target_compile_definitions(genomes_test_infantry_fixture_reader PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    genomes_set_project_warnings(genomes_test_infantry_fixture_reader)
+    genomes_enable_test_assertions(genomes_test_infantry_fixture_reader)
+    add_test(NAME infantry.fixture_reader COMMAND genomes_test_infantry_fixture_reader)
+
     add_executable(genomes_test_infantry_boundary
         infantry_boundary_tests.cpp)
     target_link_libraries(genomes_test_infantry_boundary PRIVATE genomes::infantry)
@@ -452,6 +479,10 @@ if(GENOMES_ENABLE_INFANTRY)
     add_executable(genomes_test_infantry_genome_phenotype
         infantry_genome_phenotype_tests.cpp)
     target_link_libraries(genomes_test_infantry_genome_phenotype PRIVATE genomes::infantry)
+    target_include_directories(genomes_test_infantry_genome_phenotype PRIVATE
+        "${CMAKE_SOURCE_DIR}/external/json/single_include")
+    target_compile_definitions(genomes_test_infantry_genome_phenotype PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_test_infantry_genome_phenotype)
     genomes_enable_test_assertions(genomes_test_infantry_genome_phenotype)
     add_test(NAME infantry.genome_phenotype COMMAND genomes_test_infantry_genome_phenotype)
@@ -514,7 +545,8 @@ if(GENOMES_ENABLE_INFANTRY)
 
     add_executable(genomes_test_infantry_reference_parity
         infantry_reference_parity_tests.cpp)
-    target_link_libraries(genomes_test_infantry_reference_parity PRIVATE genomes::infantry)
+    target_link_libraries(genomes_test_infantry_reference_parity PRIVATE
+        genomes::infantry genomes_test_infantry_fixture)
     target_compile_definitions(genomes_test_infantry_reference_parity PRIVATE
         GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_test_infantry_reference_parity)

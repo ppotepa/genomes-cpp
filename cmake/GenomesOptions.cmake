@@ -26,6 +26,10 @@ option(GENOMES_ENABLE_INFANTRY
     "Build and compose the optional infantry domain module"
     ON)
 
+option(GENOMES_ENABLE_JS_REFERENCE_PARITY
+    "Regenerate infantry parity fixtures with the pinned JavaScript reference (developer-only)"
+    OFF)
+
 set(GENOMES_ENABLE_CUDA
     "AUTO"
     CACHE STRING

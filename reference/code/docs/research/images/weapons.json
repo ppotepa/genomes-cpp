@@ -1,0 +1,80 @@
+{
+  "mode": "weapons",
+  "revision": "e40bf85",
+  "label": "commit e40bf85 + local changes",
+  "three": "128",
+  "results": [
+    {
+      "id": "sidearm",
+      "triangles": 1896,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 5,
+      "muzzle": [
+        0,
+        0.05851521638869307,
+        0.152139562610602
+      ]
+    },
+    {
+      "id": "carbine",
+      "triangles": 2964,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 3,
+      "muzzle": [
+        0,
+        0.07772842414379119,
+        0.4984335198220609
+      ]
+    },
+    {
+      "id": "rifle",
+      "triangles": 3396,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 3,
+      "muzzle": [
+        0,
+        0.07952251737229526,
+        0.6115281585929505
+      ]
+    },
+    {
+      "id": "marksman_rifle",
+      "triangles": 4020,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 3,
+      "muzzle": [
+        0,
+        0.07997991855740547,
+        0.702623584526807
+      ]
+    },
+    {
+      "id": "support_gun",
+      "triangles": 3700,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 3,
+      "muzzle": [
+        0,
+        0.07984763285461814,
+        0.6868892616318524
+      ]
+    },
+    {
+      "id": "heavy_support_gun",
+      "triangles": 3844,
+      "grip": null,
+      "error": 0,
+      "drawCalls": 3,
+      "muzzle": [
+        0,
+        0.08076941534616053,
+        0.7390401504173688
+      ]
+    }
+  ]
+}

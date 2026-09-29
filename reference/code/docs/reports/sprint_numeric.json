@@ -1,0 +1,99 @@
+{
+  "environment": "Node + numeric_math.cjs; NOT Three.js/WebGL",
+  "checks": [
+    {
+      "name": "Continuous sprint intensity and contact trajectory",
+      "ok": true,
+      "details": {
+        "intensities": [
+          0,
+          0,
+          3.6852098765432205e-7,
+          0.20987654320987703,
+          0.7901234567901239,
+          1
+        ],
+        "peakSwing": 0.41
+      }
+    },
+    {
+      "name": "Sprint silhouette, hand relaxation and all loadouts",
+      "ok": true,
+      "details": {
+        "loadouts": 10,
+        "maxIK": 0,
+        "minBoot": 0.0014999999552963617,
+        "maxHipExcursion": 0.04876183147511152
+      }
+    },
+    {
+      "name": "Extreme body proportions and isolated hand morph",
+      "ok": true,
+      "details": [
+        {
+          "extreme": 0,
+          "height": 1.6,
+          "changedVertices": 250
+        },
+        {
+          "extreme": 1,
+          "height": 1.95,
+          "changedVertices": 250
+        }
+      ]
+    },
+    {
+      "name": "Arm timing preserved at 30/60/120 Hz",
+      "ok": true,
+      "details": [
+        {
+          "seed": 1003,
+          "hz": 30,
+          "maxAngularError": 5.16191365590357e-8
+        },
+        {
+          "seed": 1003,
+          "hz": 60,
+          "maxAngularError": 5.16191365590357e-8
+        },
+        {
+          "seed": 1003,
+          "hz": 120,
+          "maxAngularError": 5.16191365590357e-8
+        },
+        {
+          "seed": 2003,
+          "hz": 30,
+          "maxAngularError": 4.2146848510894035e-8
+        },
+        {
+          "seed": 2003,
+          "hz": 60,
+          "maxAngularError": 5.16191365590357e-8
+        },
+        {
+          "seed": 2003,
+          "hz": 120,
+          "maxAngularError": 4.2146848510894035e-8
+        }
+      ]
+    },
+    {
+      "name": "Acceleration, braking, posture and support transitions",
+      "ok": true,
+      "details": {
+        "maxArmJump": 0.1850402655057809
+      }
+    },
+    {
+      "name": "World sprint contacts and recovery",
+      "ok": true,
+      "details": {
+        "lockedFrames": 167,
+        "maxSlip": 7.709331519833995e-7,
+        "maxIK": 0,
+        "reanchors": 0
+      }
+    }
+  ]
+}

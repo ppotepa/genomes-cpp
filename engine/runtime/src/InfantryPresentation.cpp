@@ -6,11 +6,17 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <utility>
 
 namespace genomes::runtime::infantry_presentation {
 
 namespace {
+
+std::mutex prototype_cache_mutex;
+std::unordered_map<foundation::StableId,
+                   std::weak_ptr<const render::SkinnedMeshPrototype>> prototype_cache;
 
 [[nodiscard]] std::array<float, 16U> transformMatrix(
     const infantry::RigTransform& transform) noexcept {
@@ -62,8 +68,20 @@ namespace {
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model) {
+    // Geometry is a model prototype: poses, morph weights and chunk transforms
+    // live in the per-instance palette records.  Keep one immutable owner per
+    // complete compiler key so Unit Lab and Battlefield share the same buffers.
+    std::scoped_lock cache_lock(prototype_cache_mutex);
+    if (const auto found = prototype_cache.find(model.cache_key);
+        found != prototype_cache.end()) {
+        if (auto existing = found->second.lock()) {
+            return existing;
+        }
+        prototype_cache.erase(found);
+    }
     auto mesh = std::make_shared<render::SkinnedMeshPrototype>();
-    mesh->mesh_id = foundation::stable_id("mesh.unit-lab.infantry");
+    mesh->mesh_id = foundation::stableHashCombine(
+        foundation::stable_id("mesh.infantry.prototype"), model.cache_key);
     mesh->revision = model.cache_key;
     const auto append = [&mesh](const infantry::AppearanceMesh& source) {
         const auto base = static_cast<std::uint32_t>(mesh->vertices.size());
@@ -102,6 +120,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
             mesh->morphs[index].normal_deltas.resize(mesh->vertices.size(), {});
         }
     }
+    prototype_cache.emplace(model.cache_key, mesh);
     return mesh;
 }
 

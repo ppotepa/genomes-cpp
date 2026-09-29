@@ -1,0 +1,77 @@
+GENOMES v0.15 — PUNKT 1: PROFILE OBSŁUGI 1H / 2H
+================================================
+Baza main: 483eae4b9e25910e2dba5a9ed84842e717b599e4.
+Bazowa anatomia pozostaje z infantry-7.0.0; runtime generator ma wersję
+infantry-7.1.0 z uwagi na pomijanie subpikselowych morphów twarzy w dalekim LOD.
+Nie zmieniamy genomów,
+modeli broni, optyki ani dziesięciu profili wyposażenia.
+
+OBSŁUGA
+DEBUG -> UNITS -> Generator jednostek -> Ekwipunek: załóż pistolet,
+nóż lub granat. W Broń wybierz przedmiot i naciśnij Wyjmij.
+Podniesienie 0..1 płynnie zmienia noszenie w pozycję podniesioną.
+Dla pistoletu wybierz 1H albo 2H. Lewa ręka dołącza/zwalnia podparcie
+bez resetowania fazy nóg. W pauzie wybór chwytu pokazuje jego pozycję
+końcową; przy odtwarzaniu przejście jest wygładzane.
+Odczyty Profil ruchu i Udział podparcia 2H pokazują działający profil.
+Suwaki postawy i prędkości pozostają w istniejącej zakładce Animacja.
+
+PROFILE
+PISTOL_1H: niskie noszenie, ograniczony ruch w chodzie, zwarta pozycja
+biegu, podnoszenie i kierunek obejmujące broń oraz wyciągnięcie ręki.
+PISTOL_2H: bardziej centralne położenie, mniejszy ruch od kroków,
+inny cel łokcia i łagodniejsza wizualna odpowiedź strzału.
+KNIFE_1H: własne ustawienie nadgarstka, noszenie przy boku, zwarta
+pozycja biegu i prezentacyjne podniesienie; bez celowania/odrzutu.
+GRENADE_OVAL_1H: krótsze wyciągnięcie, spokojniejszy ruch i chwyt kulisty.
+GRENADE_CYLINDER_1H: przygotowany profil dla definicji kind='grenade',
+gripShape='CYLINDER'. Aktualny katalog ma tylko jeden granat owalny.
+Nie dodano pozornego drugiego modelu ani przełącznika kształtu w UI.
+
+Profile opisują cele w ułamkach rzeczywistej długości ramienia, nie
+skalują broni. Bieżąca miednica, bark, crouch, prone, faza i faktyczna
+prędkość wynikają z istniejącego animatora. Palce używają obecnych kości.
+Długa broń zachowuje swój dotychczasowy profil podparcia przy ramieniu.
+
+PRZEJŚCIA I KOLEJNOŚĆ
+PISTOL_1H/2H są mieszane tą samą ciągłą wagą co dołączanie lewej ręki.
+Zmiana chwytu nie zmienia czasu akcji, fazy chodu, tożsamości ani gear.
+Wspierająca dłoń zbliża się w przestrzeni pozycji od bieżącej wolnej
+pozy do ramki chwytu. Domknięty chwyt jest korygowany po interpolacji
+renderowania. Palce zaciskają się niezależnie od wagi IK ramienia.
+Wolna lewa ręka zachowuje swój ruch albo podparcie w pozycji leżącej.
+Wyjmowanie zamyka palce dopiero w końcowej części sięgnięcia; chowanie
+zwalnia chwyt przy oddawaniu przedmiotu do mocowania.
+Punkty początkowe podglądu akcji pochodzą z bazowej pozy rąk. Powtórne
+cofanie fazy nie narasta od poprzednio nałożonego chwytu.
+
+Wizualny strzał pistoletu 1H/2H ma różną siłę impulsu i tempo powrotu.
+Nóż/granat nie dostają strzałów. Masa sprzętu nadal nie zmienia ruchu.
+Zachowana polityka PRONE_MOVE: najpierw schowanie, następnie czołganie.
+
+PLIKI
+js/weapons/weaponHandlingProfiles.js — dane oraz próbkowanie pozy.
+js/weapons/weaponController.js — integracja, przejścia, IK i snapshoty.
+js/weapons/handRig.js — profile noża, cylindra i dłoni podpierającej pistolet.
+js/ui/weaponEditor.js — istniejące kontrolki, odczyty i wybór chwytu w pauzie.
+js/loader.js — kolejność klasycznych skryptów; file:// bez nowych zależności.
+tests/weapon_profiles_smoke.cjs — krótka kontrola punktu 1.
+
+WERYFIKACJA
+Składnia zmienionych JS, test numeryczny obsługi broni oraz pięć grup
+kontroli profili: różne sylwetki 1H; zmiana/przerwanie 1H/2H; ruch i crouch;
+powtarzalność seek; odrzut i ograniczenie akcji do firearm.
+Środowisko: Node + tests/numeric_math.cjs. Nie jest to Three.js/WebGL,
+kontrola estetyki ani obietnica braku przecinania każdej kombinacji gear.
+Polecenia:
+  node tests/weapons_smoke.cjs
+  node tests/weapon_profiles_smoke.cjs
+
+OGRANICZENIA
+Ułożenia są parametrami animacji do strojenia, nie danymi biomechanicznymi.
+Brak solvera kontaktu każdej opuszki i pełnej samokolizji.
+Nieosiągalne mocowanie nadal zwraca DRAW_BLOCKED. Próby skrajniejszych
+postaw testu korzystają wtedy z jawnego podglądu DRAW na końcu akcji,
+a nie z wyłączenia kontroli zasięgu w normalnej grze.
+Arsenał 20 modeli, optyka, rzuty, eksplozje i ataki nożem nie należą
+do tej iteracji. Ręka główna pozostaje prawa.

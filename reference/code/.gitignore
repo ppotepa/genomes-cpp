@@ -1,0 +1,7 @@
+node_modules/
+.codegraph/
+.DS_Store
+Thumbs.db
+__pycache__/
+tests/out/
+*.log

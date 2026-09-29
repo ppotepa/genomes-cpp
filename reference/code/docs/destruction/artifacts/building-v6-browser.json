@@ -1,0 +1,10 @@
+{
+  "result": {
+    "schema": "rts.building-manifest/6",
+    "generatorVersion": "building-6.0.0",
+    "components": 296,
+    "storeys": 4,
+    "navmesh": true
+  },
+  "errors": []
+}

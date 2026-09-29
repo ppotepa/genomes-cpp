@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Genomes — Generator otoczenia</title><link rel="stylesheet" href="css/environment.css"><link rel="stylesheet" href="css/labUi.css"></head>
+<body class="environment-lab"><header><a class="lab-action" href="index.html">← Mapa i piechota</a><div><small>GENERATORY / OTOCZENIE</small><h1>Generator otoczenia</h1></div><span>Rośliny · 20 gatunków</span></header>
+<main>
+  <section class="stage">
+    <div class="toolbar"><span>Podgląd rośliny</span><button id="frame">Dopasuj kamerę</button></div>
+    <div id="viewport" aria-label="Interaktywny podgląd rośliny 3D"></div>
+    <footer>LPM: obrót · PPM: przesunięcie · Kółko: zoom · Siatka: 1 m<span id="stats"></span></footer><p id="message" role="status">Ładowanie generatora…</p>
+  </section>
+  <aside aria-label="Kategorie i ustawienia otoczenia">
+    <details class="lab-section" open><summary>Rodzaj otoczenia</summary><nav id="categories" aria-label="Kategorie otoczenia"></nav></details>
+    <details class="lab-section" open><summary>Roślina</summary>
+      <label>Gatunek<select id="species"></select></label><p id="latin"></p>
+      <label>Seed<input id="seed" type="number" value="1337" min="0" max="4294967295" step="1"></label><button id="randomize">Nowy osobnik</button>
+    </details>
+    <details class="lab-section" open><summary>Sezon i rozwój</summary>
+      <label>Pora roku<select id="season"><option value="spring">Wiosna</option><option value="summer" selected>Lato</option><option value="autumn">Jesień</option><option value="winter">Zima</option></select></label>
+      <label>Wiek / dojrzałość <output id="ageValue">100%</output><input id="age" type="range" min=".05" max="1" step=".01" value="1"></label>
+    </details>
+    <details class="lab-section" open><summary>Genom</summary><div id="genes"></div><button id="reset">Przywróć genom z seeda</button></details>
+    <details class="lab-section"><summary>Wyświetlanie</summary><label>Detal<select id="detail"><option value="high">Blisko</option><option value="world">Dystans</option></select></label><label>Jakość obrazu<select id="renderQuality"><option value="low">Oszczędny</option><option value="balanced">Zrównoważony</option><option value="high">Wysoka jakość</option></select></label><small>Ogranicza rozdzielczość podglądu; nie zmienia geometrii obiektów.</small></details>
+    <details class="lab-section"><summary>Import i eksport</summary><button id="export">Eksportuj DNA (JSON)</button><label class="import">Wczytaj DNA<input id="import" type="file" accept=".json,application/json"></label></details>
+  </aside>
+</main>
+<script src="js/environment/environmentLab.js"></script></body></html>

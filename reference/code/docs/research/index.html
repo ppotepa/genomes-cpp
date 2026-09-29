@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Piechota — porównanie modeli i mimiki</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101a20;--panel:#19282f;--line:#364951;--text:#f1f2ed;--muted:#bccbd0;--accent:#efc787}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+    a{color:var(--accent);text-underline-offset:4px}
+    a:hover{text-decoration-thickness:2px}
+    button,select{font:inherit;color:var(--text);background:#22353e;border:1px solid #617580;border-radius:7px;min-height:44px;padding:9px 13px}
+    button{cursor:pointer}
+    button:hover,select:hover{background:#304650}
+    button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#172128}
+    :focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+    .skip{position:absolute;top:-100px;left:12px;background:var(--panel);padding:10px;z-index:5}
+    .skip:focus{top:12px}
+    .shell{max-width:1600px;margin:0 auto;padding:36px clamp(18px,4vw,56px)}
+    header{display:flex;align-items:flex-start;justify-content:space-between;gap:25px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+    .eyebrow{color:var(--accent);font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;margin:0 0 8px}
+    h1{font-size:clamp(27px,3vw,42px);font-weight:650;line-height:1.18;letter-spacing:-.035em;margin:0 0 13px}
+    .intro{color:var(--muted);max-width:860px;margin:0}
+    .stamp{white-space:nowrap;font-size:13px;color:var(--muted);padding-top:7px}
+    .toolbar{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:24px 0}
+    .choice{display:grid;gap:6px;min-width:min(100%,360px)}
+    label,.control-label{font-size:13px;color:var(--muted)}
+    .zoom-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .zoom-controls a{margin-left:7px;font-size:14px}
+    .brief{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden;margin-bottom:20px}
+    .finding,.legend{padding:22px 25px}
+    .legend{border-left:1px solid var(--line)}
+    h2{font-size:21px;line-height:1.3;margin:0 0 10px;letter-spacing:-.015em}
+    #observation{margin:0;color:var(--muted)}
+    dl{margin:0;display:grid;grid-template-columns:105px 1fr;gap:8px 15px;font-size:14px}
+    dt{color:var(--muted)}
+    dd{margin:0}
+    .note{border-left:3px solid var(--accent);background:#2a2b27;padding:14px 18px;margin:0 0 20px;color:#f3ddba;font-size:14px}
+    [hidden]{display:none!important}
+    figure{margin:0}
+    .image-window{overflow:auto;border:1px solid var(--line);border-radius:10px;background:#344952;max-height:85vh;scrollbar-color:#82949d #1c2e36}
+    .image-window img{display:block;max-width:100%;width:100%;height:auto;margin:auto}
+    .image-window.is-zoomed img{max-width:none;margin:0}
+    figcaption{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;padding:10px 2px 0;color:var(--muted);font-size:13px}
+    #error{padding:18px;background:#472e26}
+    .resources{border-top:1px solid var(--line);margin-top:32px;padding-top:24px;display:flex;flex-wrap:wrap;gap:12px 24px;font-size:14px}
+    .resources strong{width:100%;font-weight:600;color:var(--muted)}
+    footer{color:#93a8b2;font-size:12px;margin-top:24px}
+    noscript p{padding:16px;border:1px solid var(--line)}
+    @media(max-width:850px){header{display:block}.stamp{margin:16px 0 0}.brief{grid-template-columns:1fr}.legend{border-left:0;border-top:1px solid var(--line)}.toolbar{align-items:stretch}.choice{width:100%}.finding,.legend{padding:18px}.control-label{width:100%}}
+    @media print{body{background:white;color:black}.shell{padding:0}.toolbar,.skip,.resources,footer{display:none}.brief{background:white}.finding,.legend{color:black}.image-window{overflow:visible;max-height:none}.image-window img{max-width:100%!important;width:100%!important}.intro,#observation,dt,figcaption{color:#333}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#comparison">Przejdź do porównania</a>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Genomes / studium wyglądu</p>
+        <h1>Proste modele. Naturalniejsza piechota.</h1>
+        <p class="intro">Porównanie rzeczywistych renderów generatora: baza przed poprawkami oraz kadry po wdrożeniu 0.14.0. Te same wybrane seedy, ujęcia i światło ułatwiają ocenę twarzy, ekspresji, szyi i sylwetki.</p>
+      </div>
+      <p class="stamp">24 września 2026<br>Audyt: 36b3808 · po zmianach: 0.14.0</p>
+    </header>
+
+    <nav class="resources" aria-label="Building Lab — research architektury">
+      <strong>Building Lab — reguły i odbiór generatora</strong>
+      <a href="building-patterns.md">Wzorce i referencje fotograficzne</a>
+      <a href="building-roofs.md">Bryły i dachy</a>
+      <a href="building-interiors.md">Wnętrza i wyposażenie</a>
+      <a href="building-generator.md">Generator i kryteria odbioru</a>
+      <a href="../../building-lab/index.html">Uruchom laboratorium</a>
+    </nav>
+
+    <div class="toolbar">
+      <div class="choice">
+        <label for="gallery">Wybierz porównanie</label>
+        <select id="gallery">
+          <option value="faces">01 — Twarze: przód i profil</option>
+          <option value="faces-selected">02 — Twarze: przypadki wybrane z próby</option>
+          <option value="expressions">03 — Ekspresje dwóch genomów</option>
+          <option value="intensity">04 — Intensywność ekspresji</option>
+          <option value="necks">05 — Szyja: obrót i pochylenie</option>
+          <option value="bodies">06 — Sylwetki i wyposażenie</option>
+          <option value="experiment">07 — Próba zawężenia parametrów</option>
+          <option value="experiment-selected">08 — Próba: wybrane przypadki</option>
+          <option value="lod">09 — Szczegółowość high / world</option>
+          <option value="after-faces">10 — Po wdrożeniu: twarze</option>
+          <option value="after-expressions">11 — Po wdrożeniu: mimika</option>
+          <option value="after-necks">12 — Po wdrożeniu: szyja</option>
+          <option value="after-bodies">13 — Po wdrożeniu: sylwetka</option>
+        </select>
+      </div>
+      <div class="zoom-controls" role="group" aria-label="Rozmiar obrazu">
+        <span class="control-label">Widok</span>
+        <button id="fit" type="button" aria-pressed="true" aria-controls="image-window">Dopasuj</button>
+        <button id="zoom" type="button" aria-pressed="false" aria-controls="image-window">Powiększ 150%</button>
+        <a id="original" href="images/faces.png" target="_blank" rel="noopener">Otwórz PNG ↗</a>
+      </div>
+    </div>
+
+    <section id="comparison" aria-labelledby="comparison-title">
+      <div class="brief">
+        <div class="finding">
+          <h2 id="comparison-title">Twarze neutralne: przód i profil</h2>
+          <p id="observation">Poziome uskoki bryły wokół żuchwy i policzków są widoczne także w profilu. Korekta bazowego kształtu i osadzenia oczu ma większy priorytet niż drobne detale.</p>
+        </div>
+        <div class="legend">
+          <dl>
+            <dt>Górny rząd</dt><dd id="top-row">Widok z przodu, ekspresja NEUTRAL.</dd>
+            <dt>Dolny rząd</dt><dd id="bottom-row">Te same twarze z profilu.</dd>
+            <dt>Kolumny</dt><dd id="columns">Seedy od lewej: 0, 63, 1001, 1003, 2002, 2003.</dd>
+          </dl>
+        </div>
+      </div>
+      <p id="note" class="note" hidden></p>
+      <figure>
+        <div id="image-window" class="image-window" tabindex="0" role="region" aria-label="Obszar porównania, po powiększeniu można przewijać obraz" aria-describedby="image-help">
+          <img id="sheet" src="images/faces.png" width="1440" height="990" alt="Sześć twarzy w pozycji neutralnej. Górny rząd pokazuje przód, dolny profil. Seedy od lewej: 0, 63, 1001, 1003, 2002, 2003.">
+          <p id="error" role="alert" hidden>Nie udało się otworzyć obrazu. Zachowaj katalog images obok tego pliku HTML.</p>
+        </div>
+        <figcaption><span id="image-help">Po powiększeniu przewijaj obraz w poziomie i pionie.</span><span id="file-name">faces.png · 1 / 13</span></figcaption>
+      </figure>
+      <p id="selection-status" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)"></p>
+    </section>
+
+    <nav class="resources" aria-label="Raporty z audytu">
+      <strong>Wnioski, kod i źródła</strong>
+      <a href="../../environment.html">Generator otoczenia — 20 roślin</a>
+      <a href="images/plants.png">Atlas porównawczy roślin</a>
+      <a href="../24_GENERATOR_OTOCZENIA_ROSLINY.md">Rośliny: genom, sezonowość i rozwój generatora</a>
+      <a href="../27_AUDYT_WYDAJNOSCI_KODU.md">Audyt wydajności i plan optymalizacji</a>
+      <a href="../23_MODELE_BRONI_V16.md">Modele broni i pistolet — 0.16.0</a>
+      <a href="../19_AUDYT_WYGLADU_PIECHOTY.md">Pełny audyt i kolejność zmian</a>
+      <a href="face_expression_audit.md">Twarz i mimika</a>
+      <a href="anatomy_rig_audit.md">Anatomia, kości i powierzchnia</a>
+      <a href="genome_distribution_audit.md">Genomy i rozkład proporcji</a>
+    </nav>
+    <noscript><p>Wybór plansz wymaga JavaScript. Obrazy można otworzyć bezpośrednio:
+      <a href="images/faces.png">twarze</a>, <a href="images/faces-selected.png">wybrane twarze</a>,
+      <a href="images/expressions.png">ekspresje</a>, <a href="images/intensity.png">intensywność</a>,
+      <a href="images/necks.png">szyja</a>, <a href="images/bodies.png">sylwetki</a>,
+      <a href="images/experiment.png">eksperyment</a>, <a href="images/experiment-selected.png">wybrane przypadki eksperymentu</a>,
+      <a href="images/lod.png">szczegółowość</a>. Plansze po wdrożeniu: <a href="images/faces-selected-v14-final.png">twarze</a>,
+      <a href="images/expressions-selected-v14-final.png">mimika</a>, <a href="images/necks-selected-v14-final.png">szyja</a>,
+      <a href="images/bodies-selected-v14-final.png">sylwetka</a>.</p></noscript>
+    <footer>Galeria działa lokalnie, bez połączenia z siecią. Plansze pokazują statyczne kadry; obserwacje wizualne należy zestawić z analizą kodu w raportach.</footer>
+  </main>
+  <script>
+    'use strict';
+    const standardSeeds = 'Seedy od lewej: 0, 63, 1001, 1003, 2002, 2003.';
+    const selectedSeeds = 'Seedy od lewej: 1533, 607, 1187, 638, 119, 1574.';
+    const expressions = 'Od lewej: NEUTRAL, ALERT, FEAR, ANGER, PAIN, FATIGUE.';
+    const experimentNote = 'Izolowana próba badawcza: zawężono wybrane parametry genomu tylko na potrzeby renderu. Kod aplikacji pozostał bez zmian. Dolny rząd nie jest finalną poprawą ani zatwierdzonym wyglądem.';
+    const sheets = {
+      faces: {
+        title:'Twarze neutralne: przód i profil',
+        observation:'Poziome uskoki bryły wokół żuchwy i policzków są widoczne także w profilu. Korekta bazowego kształtu i osadzenia oczu ma większy priorytet niż drobne detale.',
+        top:'Widok z przodu, ekspresja NEUTRAL.', bottom:'Te same twarze z profilu.', columns:standardSeeds
+      },
+      'faces-selected': {
+        title:'Twarze wybrane z analizy genomów',
+        observation:'Przypadki 607, 1187 i 1574 wyraźnie pokazują szeroką półkę pod ustami. Takie połączenie podbródka i szyi wymaga poprawy konstrukcji powierzchni, a nie tylko drobnego wygładzenia.',
+        top:'Widok z przodu, ekspresja NEUTRAL.', bottom:'Te same twarze z profilu.', columns:selectedSeeds,
+        note:'Przypadki wybrano na podstawie analizy proporcji. Plansza ilustruje konkretne problemy; nie pokazuje ich częstości w całej populacji genomów.'
+      },
+      expressions: {
+        title:'Ekspresje: ten sam zestaw, dwa genomy',
+        observation:'FEAR i PAIN są odczytywane głównie przez duże otwarcie ust. Neutralne i zagniewane twarze nadal mają szczelinę między wargami; brwi oraz okolica oczu potrzebują spójniejszej pracy skóry.',
+        top:'Seed 63, intensywność wszystkich presetów 1,0.', bottom:'Seed 2003, intensywność wszystkich presetów 1,0.', columns:expressions
+      },
+      intensity: {
+        title:'Intensywność 1,0 i 0,45',
+        observation:'Mniejsza intensywność ogranicza szeroko otwarte usta i łagodzi ekspresję. Nadal pozostają te same proporcje, neutralna szczelina ust oraz kształt oczodołów.',
+        top:'Seed 63, intensywność 1,0.', bottom:'Seed 63, intensywność 0,45.', columns:expressions
+      },
+      necks: {
+        title:'Szyja: neutralnie, obrót, pochylenie',
+        observation:'Profil pozwala ocenić przejście żuchwy w szyję, a obrót ujawnia sposób deformacji tej bryły. Kość szyi już istnieje; poprawy wymaga kształt i rozkład jej wpływu na powierzchnię.',
+        top:'Seed 63.', bottom:'Seed 2003.',
+        columns:'Pary od lewej: pozycja neutralna, obrót 40°, pochylenie 20°. W każdej parze: przód, profil.',
+        note:'Diagnostyka statyczna: rotacje 40° / 20° narzucono po ustawieniu czasu animacji (seek), bez ponownej aktualizacji neckFlex. To porównanie kształtu i skinningu, nie pełny test animacji szyi.'
+      },
+      bodies: {
+        title:'Sylwetki: proporcje i wyposażenie',
+        observation:'Ekwipunek dodaje czytelnych punktów odniesienia na tułowiu. Bez niego łatwiej ocenić stosunek barków, talii i bioder oraz kształt dłoni. Dalsze detale warto dobierać pod kątem całej sylwetki.',
+        top:'Postacie bez oporządzenia, widok ¾.', bottom:'Te same genomy z wyposażeniem, ten sam widok.', columns:standardSeeds
+      },
+      experiment: {
+        title:'Próba: łagodniejsze zakresy parametrów',
+        observation:'Zawężenie wybranych parametrów zmienia szerokość i proporcje rysów. Poziome uskoki twarzy oraz sztuczny wygląd okolic oczu nadal są widoczne, więc samo strojenie zakresów nie wystarczy.',
+        top:'Obecny generator, ekspresja NEUTRAL.', bottom:'Te same seedy po izolowanej korekcie wybranych parametrów.', columns:standardSeeds, note:experimentNote
+      },
+      'experiment-selected': {
+        title:'Próba parametrów: wybrane przypadki',
+        observation:'W trudniejszych genomach nadal pozostają szerokie półki pod ustami i gwałtowne przejście do szyi. Ten eksperyment wskazuje na potrzebę zmiany bazowej geometrii oraz lokalnego działania cech.',
+        top:'Obecny generator, ekspresja NEUTRAL.', bottom:'Te same seedy po izolowanej korekcie wybranych parametrów.', columns:selectedSeeds, note:experimentNote
+      },
+      lod: {
+        title:'Szczegółowość: high i world',
+        observation:'Oba poziomy zachowują te same charakterystyczne uskoki proporcji. Gęstsza geometria zwiększa liczbę detali, lecz nie rozwiązuje problemów bazowej bryły.',
+        top:'Poziom high, widok ¾.', bottom:'Poziom world, identyczny kadr i genomy.', columns:standardSeeds,
+        note:'To porównanie dwóch poziomów geometrii w tym samym zbliżeniu. Nie jest pomiarem wydajności ani oceną czytelności z docelowej odległości kamery RTS.'
+      },
+      'after-faces': {
+        title:'Po wdrożeniu 0.14.0: twarze i profil szyi',
+        observation:'Na tych samych seedach oczy są mniej wypukłe, neutralna szczelina ust niemal zamknięta, a podbródek przechodzi w szyję na dłuższym odcinku. Uproszczona, geometryczna twarz pozostaje zamierzonym stylem.',
+        top:'Twarze neutralne, widok z przodu.', bottom:'Te same seedy z profilu.', columns:selectedSeeds,
+        file:'faces-selected-v14-final.png',
+        note:'Render po zmianach na gałęzi main za scaleniem v13. Porównaj z „02 — Twarze: przypadki wybrane z próby”; obie plansze używają seedów 1533, 607, 1187, 638, 119 i 1574.'
+      },
+      'after-expressions': {
+        title:'Po wdrożeniu 0.14.0: mimika',
+        observation:'Neutral, alert i złość zachowują zamknięte usta; FEAR i PAIN otwierają je w ograniczonym zakresie. Brwi mają mocniejszy udział w presetach i niewielki wpływ na skórę czoła.',
+        top:'Seed 607; od lewej: NEUTRAL, ALERT, FEAR, ANGER, PAIN, FATIGUE.', bottom:'Seed 1574; te same presety.', columns:expressions,
+        file:'expressions-selected-v14-final.png',
+        note:'Sonda aktualizuje mimikę do celu przed zrzutem obrazu. Kadry są statyczne; płynne przejścia oraz połączenia z ruchem głowy wymagają obejrzenia w aplikacji.'
+      },
+      'after-necks': {
+        title:'Po wdrożeniu 0.14.0: szyja i podbródek',
+        observation:'Dłuższy profil przejścia ogranicza wrażenie poziomej półki i lepiej łączy górną szyję z żuchwą w przodzie, profilu i pochyleniu.',
+        top:'Seed 607.', bottom:'Seed 1574.',
+        columns:'Pary od lewej: neutralnie, obrót 40°, pochylenie 20°. W każdej parze: przód i profil.',
+        file:'necks-selected-v14-final.png',
+        note:'Statyczna kontrola kształtu. Obrót/pochylenie są narzucone po seek, więc nie mierzą pełnej pracy corrective neckFlex podczas animacji.'
+      },
+      'after-bodies': {
+        title:'Po wdrożeniu 0.14.0: sylwetki',
+        observation:'Bark korzysta teraz ze strefy wag przez istniejący obojczyk, a profil noska buta ma lekkie zwężenie i przyśrodkowe przesunięcie. Zmiany utrzymują prosty poziom detalu.',
+        top:'Postacie bez oporządzenia, widok ¾.', bottom:'Te same genomy z wyposażeniem.', columns:selectedSeeds,
+        file:'bodies-selected-v14-final.png',
+        note:'Porównaj z „06 — Sylwetki i wyposażenie”. Kadr pokazuje bryłę postaci; drobna zmiana noska jest lepiej widoczna z bliska niż w tej skali.'
+      }
+    };
+    const get = id => document.getElementById(id);
+    const gallery = get('gallery'), sheet = get('sheet'), imageWindow = get('image-window');
+    let enlarged = false;
+    function setZoom(value) {
+      enlarged = value;
+      imageWindow.classList.toggle('is-zoomed', value);
+      sheet.style.width = value ? ((sheet.naturalWidth || 1440) * 1.5) + 'px' : '100%';
+      get('fit').setAttribute('aria-pressed', String(!value));
+      get('zoom').setAttribute('aria-pressed', String(value));
+      imageWindow.scrollTop = 0;
+      imageWindow.scrollLeft = 0;
+    }
+    function show(key, updateHash) {
+      if (!Object.prototype.hasOwnProperty.call(sheets, key)) key = 'faces';
+      const entry = sheets[key];
+      gallery.value = key;
+      get('comparison-title').textContent = entry.title;
+      get('observation').textContent = entry.observation;
+      get('top-row').textContent = entry.top;
+      get('bottom-row').textContent = entry.bottom;
+      get('columns').textContent = entry.columns;
+      get('note').textContent = entry.note || '';
+      get('note').hidden = !entry.note;
+      get('error').hidden = true;
+      sheet.hidden = false;
+      sheet.alt = entry.title + '. Górny rząd: ' + entry.top + ' Dolny rząd: ' + entry.bottom + ' ' + entry.columns;
+      sheet.src = 'images/' + (entry.file || key + '.png');
+      get('original').href = sheet.src;
+      get('file-name').textContent = (entry.file || key + '.png') + ' · ' + (Object.keys(sheets).indexOf(key) + 1) + ' / ' + Object.keys(sheets).length;
+      get('selection-status').textContent = 'Wybrano: ' + entry.title;
+      setZoom(false);
+      if (updateHash && location.hash !== '#' + key) location.hash = key;
+    }
+    gallery.addEventListener('change', () => show(gallery.value, true));
+    get('fit').addEventListener('click', () => setZoom(false));
+    get('zoom').addEventListener('click', () => setZoom(true));
+    sheet.addEventListener('load', () => { if (enlarged) sheet.style.width = (sheet.naturalWidth * 1.5) + 'px'; });
+    sheet.addEventListener('error', () => { get('error').hidden = false; sheet.hidden = true; });
+    window.addEventListener('hashchange', () => show(location.hash.slice(1), false));
+    show(location.hash.slice(1), false);
+  </script>
+</body>
+</html>

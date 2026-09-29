@@ -1,0 +1,241 @@
+{
+  "version": "0.4.0",
+  "date": "2026-09-24",
+  "syntax": [
+    {
+      "file": "js/animation/infantryAnimator.js",
+      "ok": true
+    },
+    {
+      "file": "js/animation/twoBoneIK.js",
+      "ok": true
+    },
+    {
+      "file": "js/config.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/fixedClock.js",
+      "ok": true
+    },
+    {
+      "file": "js/core/seededRandom.js",
+      "ok": true
+    },
+    {
+      "file": "js/game.js",
+      "ok": true
+    },
+    {
+      "file": "js/loader.js",
+      "ok": true
+    },
+    {
+      "file": "js/noise.js",
+      "ok": true
+    },
+    {
+      "file": "js/physics/ragdollSchema.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/infantryFace.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/infantryFactory.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/infantryMaterials.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/infantryRig.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/infantrySurface.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/surfaceBuilder.js",
+      "ok": true
+    },
+    {
+      "file": "js/rendering/unitDiagnostics.js",
+      "ok": true
+    },
+    {
+      "file": "js/terrain.js",
+      "ok": true
+    },
+    {
+      "file": "js/ui/debugPanel.js",
+      "ok": true
+    },
+    {
+      "file": "js/ui/unitPreview.js",
+      "ok": true
+    },
+    {
+      "file": "js/units/infantryGenome.js",
+      "ok": true
+    },
+    {
+      "file": "js/units/infantryUnit.js",
+      "ok": true
+    },
+    {
+      "file": "js/world/side.js",
+      "ok": true
+    },
+    {
+      "file": "tests/acceptance.js",
+      "ok": true
+    },
+    {
+      "file": "tests/numeric_math.cjs",
+      "ok": true
+    },
+    {
+      "file": "tests/run_numeric.cjs",
+      "ok": true
+    }
+  ],
+  "localReferences": [
+    {
+      "from": "index.html",
+      "target": "css/style.css",
+      "exists": true
+    },
+    {
+      "from": "index.html",
+      "target": "js/loader.js",
+      "exists": true
+    },
+    {
+      "from": "tests/index.html",
+      "target": "../js/loader.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/animation/infantryAnimator.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/animation/twoBoneIK.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/config.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/core/fixedClock.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/core/seededRandom.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/game.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/noise.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/physics/ragdollSchema.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/infantryFace.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/infantryFactory.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/infantryMaterials.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/infantryRig.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/infantrySurface.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/surfaceBuilder.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/rendering/unitDiagnostics.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/terrain.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/ui/debugPanel.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/ui/unitPreview.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/units/infantryGenome.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/units/infantryUnit.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "js/world/side.js",
+      "exists": true
+    },
+    {
+      "from": "js/loader.js",
+      "target": "tests/acceptance.js",
+      "exists": true
+    }
+  ],
+  "tests": {
+    "mathematicalGroupsPassed": 12,
+    "mathematicalGroupsFailed": 0,
+    "actualThreeWebGL": "NOT_RUN: CDN unavailable; file:// blocked by Chromium environment policy",
+    "isolatedDOM": "PASSED; renderer mocked; not an end-to-end test"
+  },
+  "archiveIntegrity": "Final ZIP was reopened, CRC-tested and compared byte-for-byte with the source folder during packaging.",
+  "hashes": "manifest.sha256 covers all files except the manifest itself."
+}

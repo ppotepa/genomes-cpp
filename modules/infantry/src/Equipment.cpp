@@ -1,12 +1,10 @@
 #include <genomes/infantry/EquipmentCatalog.hpp>
 
-#include <genomes/proc/RandomStream.hpp>
-#include <genomes/proc/SeedPath.hpp>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <initializer_list>
+#include <string>
 #include <utility>
 
 namespace genomes::infantry {
@@ -15,30 +13,55 @@ namespace {
 
 using foundation::StableId;
 
+[[nodiscard]] std::uint32_t equipmentHash(std::uint32_t seed,
+                                          std::string_view text) noexcept {
+    std::uint32_t hash = 2166136261U ^ seed;
+    for (const unsigned char character : text) {
+        hash = (hash ^ character) * 16777619U;
+    }
+    hash = (hash ^ (hash >> 16U)) * 0x7feb352dU;
+    hash = (hash ^ (hash >> 15U)) * 0x846ca68bU;
+    return hash ^ (hash >> 16U);
+}
+
+class EquipmentRandom final {
+public:
+    explicit EquipmentRandom(std::uint32_t seed) noexcept : state_(seed) {}
+    [[nodiscard]] double next() noexcept {
+        state_ += 0x6D2B79F5U;
+        std::uint32_t value = state_;
+        value = (value ^ (value >> 15U)) * (value | 1U);
+        value ^= value + (value ^ (value >> 7U)) * (value | 61U);
+        return static_cast<double>(value ^ (value >> 14U)) / 4294967296.0;
+    }
+private:
+    std::uint32_t state_{0U};
+};
+
 [[nodiscard]] const std::array<EquipmentSlotDefinition, kEquipmentSlotCount>& slotDefinitions() {
     static const std::array<EquipmentSlotDefinition, kEquipmentSlotCount> value{{
-        {EquipmentSlot::Head, "head", ""},
-        {EquipmentSlot::Face, "face", ""},
-        {EquipmentSlot::Neck, "neck", ""},
-        {EquipmentSlot::TorsoBase, "torsoBase", "field_jacket"},
-        {EquipmentSlot::Legs, "legs", "field_pants"},
-        {EquipmentSlot::Feet, "feet", "combat_boots"},
-        {EquipmentSlot::Hands, "hands", ""},
-        {EquipmentSlot::TorsoArmor, "torsoArmor", ""},
-        {EquipmentSlot::ChestRig, "chestRig", ""},
-        {EquipmentSlot::Back, "back", ""},
-        {EquipmentSlot::Belt, "belt", ""},
-        {EquipmentSlot::LeftHip, "leftHip", ""},
-        {EquipmentSlot::RightHip, "rightHip", ""},
-        {EquipmentSlot::LeftThigh, "leftThigh", ""},
-        {EquipmentSlot::RightThigh, "rightThigh", ""},
-        {EquipmentSlot::Utility1, "utility1", ""},
-        {EquipmentSlot::Utility2, "utility2", ""},
-        {EquipmentSlot::Utility3, "utility3", ""},
-        {EquipmentSlot::MeleeWeapon, "meleeWeapon", ""},
-        {EquipmentSlot::Throwable, "throwable", ""},
-        {EquipmentSlot::PrimaryWeapon, "primaryWeapon", ""},
-        {EquipmentSlot::SecondaryWeapon, "secondaryWeapon", ""},
+        {EquipmentSlot::Head, "head", "", "HEAD"},
+        {EquipmentSlot::Face, "face", "", "HEAD_FRONT"},
+        {EquipmentSlot::Neck, "neck", "", "NECK"},
+        {EquipmentSlot::TorsoBase, "torsoBase", "field_jacket", ""},
+        {EquipmentSlot::Legs, "legs", "field_pants", ""},
+        {EquipmentSlot::Feet, "feet", "combat_boots", ""},
+        {EquipmentSlot::Hands, "hands", "", ""},
+        {EquipmentSlot::TorsoArmor, "torsoArmor", "", "CHEST_CENTER"},
+        {EquipmentSlot::ChestRig, "chestRig", "", "CHEST_CENTER"},
+        {EquipmentSlot::Back, "back", "", "BACK_CENTER"},
+        {EquipmentSlot::Belt, "belt", "", "WAIST"},
+        {EquipmentSlot::LeftHip, "leftHip", "", "HIP_L"},
+        {EquipmentSlot::RightHip, "rightHip", "", "HIP_R"},
+        {EquipmentSlot::LeftThigh, "leftThigh", "", "THIGH_L"},
+        {EquipmentSlot::RightThigh, "rightThigh", "", "THIGH_R"},
+        {EquipmentSlot::Utility1, "utility1", "", "WAIST_FRONT"},
+        {EquipmentSlot::Utility2, "utility2", "", "WAIST_BACK"},
+        {EquipmentSlot::Utility3, "utility3", "", "CHEST_LEFT"},
+        {EquipmentSlot::MeleeWeapon, "meleeWeapon", "", "HIP_R"},
+        {EquipmentSlot::Throwable, "throwable", "", "WAIST_FRONT"},
+        {EquipmentSlot::PrimaryWeapon, "primaryWeapon", "", "WEAPON_BACK"},
+        {EquipmentSlot::SecondaryWeapon, "secondaryWeapon", "", "WEAPON_HIP"},
     }};
     return value;
 }
@@ -59,6 +82,10 @@ using foundation::StableId;
             item.fit_scale = scale;
             item.fit_thickness = thickness;
             item.style = style;
+            item.visual.style = style;
+            if (kind == EquipmentKind::Cap) item.visual.coverage = "cap";
+            if (kind == EquipmentKind::Helmet) item.visual.coverage = "helmet";
+            if (kind == EquipmentKind::Armor) item.visual.thickness = thickness;
             for (const EquipmentSlot slot : allowed) {
                 if (item.allowed_slot_count < item.allowed_slots.size()) {
                     item.allowed_slots[item.allowed_slot_count++] = slot;
@@ -111,7 +138,10 @@ using foundation::StableId;
         add("pack_engineer", EquipmentKind::Pack, {EquipmentSlot::Back}, 3.8F, 1.08F, .050F, "engineer");
         add("belt_light", EquipmentKind::Belt, {EquipmentSlot::Belt}, .24F, 1.0F, .008F, "light");
         add("belt_utility", EquipmentKind::Belt, {EquipmentSlot::Belt}, .5F, 1.01F, .010F, "utility");
-        add("canteen", EquipmentKind::Pouch, {EquipmentSlot::LeftHip, EquipmentSlot::RightHip}, 1.0F, 1.0F, .020F, "canteen");
+        add("canteen", EquipmentKind::Pouch,
+            {EquipmentSlot::LeftHip, EquipmentSlot::RightHip, EquipmentSlot::Utility1,
+             EquipmentSlot::Utility2},
+            1.0F, 1.0F, .020F, "canteen");
         add("pouch_utility", EquipmentKind::Pouch, {EquipmentSlot::LeftHip, EquipmentSlot::RightHip, EquipmentSlot::LeftThigh, EquipmentSlot::RightThigh, EquipmentSlot::Utility1, EquipmentSlot::Utility2, EquipmentSlot::Utility3}, .25F, 1.0F, .018F, "utility");
         add("pouch_ammo", EquipmentKind::Pouch, {EquipmentSlot::LeftHip, EquipmentSlot::RightHip, EquipmentSlot::LeftThigh, EquipmentSlot::RightThigh, EquipmentSlot::Utility1, EquipmentSlot::Utility2, EquipmentSlot::Utility3}, .7F, 1.02F, .022F, "ammo");
         add("pouch_medical", EquipmentKind::Pouch, {EquipmentSlot::LeftHip, EquipmentSlot::RightHip, EquipmentSlot::LeftThigh, EquipmentSlot::RightThigh, EquipmentSlot::Utility1, EquipmentSlot::Utility2, EquipmentSlot::Utility3}, .55F, 1.01F, .021F, "medical");
@@ -127,6 +157,51 @@ using foundation::StableId;
         add("knife", EquipmentKind::Weapon, {EquipmentSlot::MeleeWeapon}, .25F, 1.0F, .012F, "knife");
         add("grenade", EquipmentKind::Weapon, {EquipmentSlot::Throwable}, .4F, 1.0F, .015F, "grenade");
         add("sidearm", EquipmentKind::Weapon, {EquipmentSlot::SecondaryWeapon}, .85F, 1.0F, .020F, "sidearm");
+        const auto configure = [&result](std::string_view id,
+                                         auto configure_visual) {
+            const auto found = std::find_if(result.begin(), result.end(),
+                [id](const EquipmentItemDefinition& item) {
+                    return item.identifier == id;
+                });
+            if (found != result.end()) configure_visual(found->visual);
+        };
+        for (const auto id : {"field_jacket", "combat_shirt", "winter_jacket",
+                              "field_pants", "combat_pants", "winter_pants"}) {
+            configure(id, [&result, id](EquipmentVisualDefinition& visual) {
+                const auto item = std::find_if(result.begin(), result.end(),
+                    [id](const EquipmentItemDefinition& candidate) {
+                        return candidate.identifier == id;
+                    });
+                visual.ease = item->fit_scale;
+            });
+        }
+        configure("combat_pants", [](EquipmentVisualDefinition& visual) { visual.pads = true; });
+        configure("combat_boots", [](EquipmentVisualDefinition& visual) {
+            visual.width = 1.0F; visual.shaft = 1.0F;
+        });
+        configure("light_boots", [](EquipmentVisualDefinition& visual) {
+            visual.width = 0.96F; visual.shaft = 0.87F;
+        });
+        configure("heavy_boots", [](EquipmentVisualDefinition& visual) {
+            visual.width = 1.07F; visual.shaft = 1.08F;
+        });
+        configure("winter_boots", [](EquipmentVisualDefinition& visual) {
+            visual.width = 1.10F; visual.shaft = 1.04F;
+        });
+        configure("webbing", [](EquipmentVisualDefinition& visual) { visual.count = 2U; });
+        configure("chest_standard", [](EquipmentVisualDefinition& visual) { visual.count = 3U; });
+        configure("chest_assault", [](EquipmentVisualDefinition& visual) { visual.count = 4U; });
+        configure("chest_ammo", [](EquipmentVisualDefinition& visual) { visual.count = 3U; });
+        configure("chest_medical", [](EquipmentVisualDefinition& visual) { visual.count = 2U; });
+        configure("chest_tools", [](EquipmentVisualDefinition& visual) { visual.count = 3U; });
+        configure("pack_small", [](EquipmentVisualDefinition& visual) { visual.size = {.26F, .32F, .13F}; });
+        configure("pack_medium", [](EquipmentVisualDefinition& visual) { visual.size = {.32F, .43F, .19F}; });
+        configure("pack_large", [](EquipmentVisualDefinition& visual) {
+            visual.size = {.37F, .53F, .22F}; visual.roll = true;
+        });
+        configure("pack_medical", [](EquipmentVisualDefinition& visual) { visual.size = {.35F, .42F, .19F}; });
+        configure("pack_radio", [](EquipmentVisualDefinition& visual) { visual.size = {.31F, .39F, .18F}; });
+        configure("pack_engineer", [](EquipmentVisualDefinition& visual) { visual.size = {.33F, .43F, .20F}; });
         return result;
     }();
     return value;
@@ -157,7 +232,7 @@ using foundation::StableId;
         };
         for (std::size_t index = 0U; index < result.size(); ++index) {
             set(index, EquipmentSlot::TorsoBase, {"field_jacket"});
-            set(index, EquipmentSlot::Legs, {"field_pants"});
+            set(index, EquipmentSlot::Legs, {"combat_pants"});
             set(index, EquipmentSlot::Feet, {"combat_boots"});
             set(index, EquipmentSlot::Belt, {"belt_utility"});
             set(index, EquipmentSlot::LeftHip, {"canteen"});
@@ -366,9 +441,8 @@ foundation::Result<EquipmentState, foundation::Error> EquipmentResolver::resolve
         return foundation::Result<EquipmentState, foundation::Error>::failure(
             {foundation::ErrorCode::NotFound, "unknown infantry equipment loadout"});
     }
-    const proc::Seed equipment_seed =
-        foundation::stableHashCombine(unit_seed, foundation::stable_id("EQUIPMENT/v1"));
-    const proc::SeedPath root(equipment_seed);
+    const std::uint32_t equipment_seed = equipmentHash(
+        static_cast<std::uint32_t>(unit_seed), "EQUIPMENT/v1");
     EquipmentState state{};
     state.unit_seed = unit_seed;
     state.equipment_seed = equipment_seed;
@@ -378,13 +452,14 @@ foundation::Result<EquipmentState, foundation::Error> EquipmentResolver::resolve
     for (std::size_t index = 0U; index < kEquipmentSlotCount; ++index) {
         const EquipmentSlot slot = static_cast<EquipmentSlot>(index);
         const EquipmentSlotDefinition* slot_definition = slotFor(slot);
-        const proc::SeedPath slot_path = root.childStableId("slot", EquipmentCatalog::slotId(slot));
         const LoadoutChoice choice = loadout == nullptr ? LoadoutChoice{}
                                                          : loadout->choices[index];
         StableId selected = 0;
         if (choice.count != 0U) {
-            proc::RandomStream random(slot_path.child("choice", 0U));
-            const std::uint32_t selected_index = random.bounded(choice.count);
+            EquipmentRandom random(equipmentHash(
+                equipment_seed, std::string("slot/") + std::string(slot_definition->identifier)));
+            const std::uint32_t selected_index = static_cast<std::uint32_t>(
+                random.next() * static_cast<double>(choice.count));
             if (selected_index < choice.count) {
                 selected = choice.definitions[selected_index];
             }
@@ -408,16 +483,17 @@ foundation::Result<EquipmentState, foundation::Error> EquipmentResolver::resolve
             return foundation::Result<EquipmentState, foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidArgument, "equipment item is incompatible with slot"});
         }
-        const proc::Seed variant_seed =
-            slot_path.childStableId("item", definition->id).seed();
-        proc::RandomStream variant_random(variant_seed);
+        const std::uint32_t variant_seed = equipmentHash(
+            equipment_seed, std::string(slot_definition->identifier) + "/" +
+                                std::string(definition->identifier));
+        EquipmentRandom variant_random(variant_seed);
         EquipmentItem item{};
         item.definition_id = definition->id;
         item.slot = slot;
         item.seed = variant_seed;
-        item.variant = {0.965F + static_cast<float>(variant_random.uniform01()) * 0.07F,
-                        0.92F + static_cast<float>(variant_random.uniform01()) * 0.13F,
-                        static_cast<float>(variant_random.uniform01())};
+        item.variant = {static_cast<float>(.965 + variant_random.next() * .07),
+                        static_cast<float>(.92 + variant_random.next() * .13),
+                        static_cast<float>(variant_random.next())};
         item.weight_kg = definition->weight_kg;
         state.slots[index] = item;
         state.total_weight_kg += item.weight_kg;

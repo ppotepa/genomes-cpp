@@ -1,0 +1,91 @@
+AKTUALIZACJA v0.12
+Bieżący opis ciągłej postawy: 16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt.
+CROUCH/WALK/RUN w rodzinie BIPED są teraz presetami suwaków c/v.
+Pozostały opis niżej zachowuje kontekst wcześniejszych iteracji.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+PIPELINE
+========
+unitSeed -> istniejący InfantryGenome -> phenotype -> anatomia -> szkielet
+                                                     -> powierzchnia ciała
+unitSeed -> hash EQUIPMENT/v1 -> equipmentSeed -> profil + override -> Equipment
+                                   -> EquipmentFit(anatomia, ubranie, sloty)
+                                   -> proceduralna geometria wyposażenia
+
+FINALNY MODEL
+=============
+model.root
+  hips -> istniejąca hierarchia 39 kości
+  InfantrySurface: SkinnedMesh, ubranie / skóra / włosy / twarz
+  InfantryEquipment: SkinnedMesh, wyposażenie podpięte do TEGO SAMEGO skeletonu
+
+Przedmioty sztywne mają wagę 1 do właściwej kości; szelki i elastyczne panele
+mają mieszane wagi. Nie tworzymy osobnego szkieletu dla plecaka/hełmu.
+Sprzęt jest budowany we współrzędnych pozy referencyjnej w metrach, następnie
+wiąże się z istniejącą macierzą bind, nawet gdy żołnierz aktualnie kuca.
+
+NIEZALEŻNOŚĆ DANYCH
+==================
+R.Unit posiada Equipment niezależnie od category/type. Przyszły pojazd
+przekazuje własny slotSchema i własny renderer; nie dziedziczy anatomii człowieka.
+InfantryUnit extends Unit i przekazuje 20 slotów opisanych w EquipmentSlots.
+Rola piechoty jest wyłącznie profilem loadoutu. Nie tworzy nowej klasy ani genomu.
+
+NOWE PLIKI
+==========
+js/units/unit.js                       bazowa jednostka i komponent Equipment
+js/equipment/equipmentCatalog.js       20 slotów / 59 definicji przedmiotów
+js/equipment/infantryLoadouts.js        dokładnie 10 profili; tylko dane
+js/equipment/equipment.js              instancje, seed, walidacja, override, masa
+js/equipment/equipmentFit.js           wspólny profil ubrania i punkty montażu
+js/equipment/gearGeometry.js           proceduralne bryły, panele i wstęgi
+js/equipment/infantryGear.js            generatory wszystkich kategorii gear
+js/ui/equipmentEditor.js               edycja slotów w istniejącym popupie
+
+ZMODYFIKOWANE PLIKI
+==================
+js/loader.js: kolejność skryptów; nadal klasyczne pliki pod file://.
+js/config.js: numer wersji/generatora.
+js/rendering/infantrySurface.js: ubranie dopasowane do wyboru slotów,
+  rękawiczki, buty i maska; nie generuje zdublowanej skóry pod rękawiczką.
+js/rendering/infantryHair.js: kompresja włosów pod nakryciem głowy.
+js/rendering/surfaceBuilder.js: opcjonalny filtr trójkątów zasłoniętych włosów.
+js/rendering/infantryFactory.js: kompletowanie wyglądu, atomowa podmiana
+  buforów geometrii, zachowanie kości/morfów i zwalnianie starych buforów.
+js/units/infantryUnit.js: equip/setEquipment/setLoadout/setEquipmentSeed.
+js/animation/infantryAnimator.js: próbkowana korekta kolizji gear z podłożem;
+  obwiednia pozy uwzględnia punkty wyposażenia. Reszta locomotion bez przebudowy.
+js/ui/unitPreview.js: podgląd wyposażenia, materiały debug, zmiany bez resetu fazy.
+js/ui/debugPanel.js: powiązanie edytorów genomu i ekwipunku.
+js/game.js: 10 profili w demonstracji oraz zwalnianie materiałów gear.
+index.html, css/style.css: jedna nowa zakładka wewnątrz istniejącego inspektora.
+
+POZOSTAŁE SYSTEMY
+================
+js/core/*: RNG i stały krok symulacji 1/60 s.
+js/terrain.js, js/noise.js: teren 2x2 km, sampling renderowanych trójkątów.
+js/rendering/faceAnatomy.js, infantryRig.js, infantryFace.js:
+  istniejąca anatomia, rig, twarz, otwory oczu i ust.
+js/animation/faceAnimator.js: spojrzenie, mruganie i mimika.
+js/animation/gaitProfile.js, twoBoneIK.js: fazy ruchu i solver kończyn.
+js/physics/ragdollSchema.js: dane przyszłej fizyki, bez aktywnego ragdolla.
+
+WYMIANA GEOMETRII
+================
+setEquipment buduje nowe bufory przed zastąpieniem starych. Błąd generatora
+zachowuje poprzedni model. Nie wymienia skeletonu, genomu ani animatorów.
+W podglądzie kamera, faza, pause, mimika i czas rozglądania zostają zachowane.
+Zmiana anatomii w edytorze genomu przebudowuje jednostkę, ale zachowuje dane gear.
+
+ZASOBY
+======
+Geometria jest własnością modelu i jest dispose() przy podmianie/usunięciu.
+Materiały ciała i gear są współdzielone w świecie. Podgląd klonuje materiały
+wyłącznie do trybu wireframe. Jego klony zwalnia UnitPreview, materiały wspólne
+zwalnia Game przy zakończeniu. Dane Equipment nie zawierają obiektów Three.js.
+
+DODATEK 0.11
+GroundContact (js/animation/groundContact.js) jest własnością animatora.
+Przechowuje punkt w świecie i lokalny punkt podparcia. Nie jest komponentem
+fizyki ani genomu. Unit steruje prędkością demo i mapowaniem move/rest.

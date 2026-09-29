@@ -210,9 +210,9 @@ GpuUploadBatch GpuScene::fullUpload() const {
 foundation::Result<GpuUploadBatch, foundation::Error> GpuScene::sync(
     std::span<const RenderInstance> instances) {
     if (present_.size() < slots_.size()) {
-        present_.resize(slots_.size(), 0);
+        present_.resize(slots_.size(), std::uint8_t{0});
     }
-    std::fill(present_.begin(), present_.end(), 0);
+    std::fill(present_.begin(), present_.end(), std::uint8_t{0});
 
     // Validate semantic uniqueness before mutating slots. Existing handles
     // use the reusable present marker; IDs that are new in this snapshot are
@@ -224,7 +224,7 @@ foundation::Result<GpuUploadBatch, foundation::Error> GpuScene::sync(
         for (const foundation::StableId id : staged_ids) {
             semantic_to_handle_.erase(id);
         }
-        std::fill(present_.begin(), present_.end(), 0);
+        std::fill(present_.begin(), present_.end(), std::uint8_t{0});
     };
     for (const RenderInstance& instance : instances) {
         if (!validInstance(instance)) {
@@ -248,7 +248,7 @@ foundation::Result<GpuUploadBatch, foundation::Error> GpuScene::sync(
     for (const foundation::StableId id : staged_ids) {
         semantic_to_handle_.erase(id);
     }
-    std::fill(present_.begin(), present_.end(), 0);
+    std::fill(present_.begin(), present_.end(), std::uint8_t{0});
 
     GpuUploadBatch batch{};
     for (const RenderInstance& instance : instances) {

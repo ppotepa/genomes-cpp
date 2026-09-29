@@ -20,4 +20,8 @@ inline constexpr std::uint32_t StableHashAlgorithmVersion = 1;
     return stableHashU64(static_cast<std::uint64_t>(std::bit_cast<std::uint32_t>(value)));
 }
 
+[[nodiscard]] inline std::uint64_t stableHashDouble(double value) noexcept {
+    return stableHashU64(std::bit_cast<std::uint64_t>(value));
+}
+
 } // namespace genomes::foundation

@@ -1,0 +1,21 @@
+{
+  "mode": "weaponui",
+  "three": "128",
+  "results": [
+    {
+      "addPistol": true,
+      "identityPreserved": true,
+      "phasePreserved": true,
+      "primaryPreserved": true,
+      "persisted": true,
+      "draw": true,
+      "twoHanded": true,
+      "fire": true,
+      "slide": true,
+      "holster": true,
+      "gripError": 2.8609792490763985e-16
+    }
+  ],
+  "baseRevision": "e40bf85",
+  "workingTree": true
+}

@@ -13,34 +13,42 @@ namespace {
 const std::array<WeaponDefinition, 8> kCatalog{{
     {weapon_id("knife"), "knife", WeaponCategory::OneHanded, WeaponGrip::OneHanded,
      WeaponMount::Melee, false, 0U, dimensions(0.42F, 0.035F, 0.07F), {0.18F, 0.0F, 0.0F},
-     {-0.12F, 0.0F, 0.0F}, {}, {-0.08F, -0.08F, 0.0F}, 0.0F, 0.0F, 4.0F, 28.0F, 1U},
+     {-0.12F, 0.0F, 0.0F}, {}, {-0.08F, -0.08F, 0.0F}, 0.0F, 0.0F, 4.0F, 28.0F, 1U,
+     WeaponFamily::OneHanded, WeaponVisualKind::Knife, 1U, .25F, 1.00F, 1.05F, 0, 0},
     {weapon_id("grenade"), "grenade", WeaponCategory::OneHanded, WeaponGrip::OneHanded,
      WeaponMount::Throwable, false, 0U, dimensions(0.08F, 0.12F, 0.08F), {},
-     {0.0F, -0.06F, 0.0F}, {}, {-0.08F, -0.08F, 0.0F}, 0.0F, 0.0F, 35.0F, 80.0F, 1U},
+     {0.0F, -0.06F, 0.0F}, {}, {-0.08F, -0.08F, 0.0F}, 0.0F, 0.0F, 35.0F, 80.0F, 1U,
+     WeaponFamily::OneHanded, WeaponVisualKind::Grenade, 1U, .105F, .95F, 1.00F, 0, 0},
     {weapon_id("sidearm"), "sidearm", WeaponCategory::Sidearm, WeaponGrip::OneHanded,
      WeaponMount::Secondary, true, foundation::stable_id("ammo_9mm"),
      dimensions(0.20F, 0.14F, 0.035F), {0.20F, 0.0F, 0.0F}, {0.0F, -0.07F, 0.0F}, {},
-     {-0.08F, -0.08F, 0.0F}, 10.0F, 360.0F, 120.0F, 20.0F, 1U},
+     {-0.08F, -0.08F, 0.0F}, 10.0F, 360.0F, 120.0F, 20.0F, 1U,
+     WeaponFamily::OneHanded, WeaponVisualKind::Pistol, 3U, .215F, 1.05F, 1.12F, .23F, .20F},
     {weapon_id("carbine"), "carbine", WeaponCategory::Carbine, WeaponGrip::TwoHanded,
      WeaponMount::Primary, true, foundation::stable_id("ammo_556"),
      dimensions(0.82F, 0.18F, 0.065F), {0.40F, 0.0F, 0.0F}, {-0.14F, -0.03F, 0.0F},
-     {0.15F, -0.02F, 0.0F}, {-0.16F, -0.10F, 0.0F}, 12.0F, 870.0F, 300.0F, 18.0F, 1U},
+     {0.15F, -0.02F, 0.0F}, {-0.16F, -0.10F, 0.0F}, 12.0F, 870.0F, 300.0F, 18.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, .70F, 1.38F, 1.45F, .17F, .23F},
     {weapon_id("rifle"), "rifle", WeaponCategory::Rifle, WeaponGrip::TwoHanded,
      WeaponMount::Primary, true, foundation::stable_id("ammo_556"),
      dimensions(0.98F, 0.20F, 0.07F), {0.49F, 0.0F, 0.0F}, {-0.16F, -0.03F, 0.0F},
-     {0.19F, -0.02F, 0.0F}, {-0.18F, -0.11F, 0.0F}, 10.0F, 900.0F, 350.0F, 22.0F, 1U},
+     {0.19F, -0.02F, 0.0F}, {-0.18F, -0.11F, 0.0F}, 10.0F, 900.0F, 350.0F, 22.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, .84F, 1.45F, 1.50F, .19F, .25F},
     {weapon_id("marksman_rifle"), "marksman_rifle", WeaponCategory::MarksmanRifle,
      WeaponGrip::TwoHanded, WeaponMount::Primary, true, foundation::stable_id("ammo_762"),
      dimensions(1.18F, 0.22F, 0.075F), {0.59F, 0.0F, 0.0F}, {-0.18F, -0.03F, 0.0F},
-     {0.24F, -0.02F, 0.0F}, {-0.20F, -0.12F, 0.0F}, 3.5F, 820.0F, 600.0F, 58.0F, 1U},
+     {0.24F, -0.02F, 0.0F}, {-0.20F, -0.12F, 0.0F}, 3.5F, 820.0F, 600.0F, 58.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, .96F, 1.48F, 1.53F, .36F, .29F},
     {weapon_id("support_gun"), "support_gun", WeaponCategory::SupportGun, WeaponGrip::Supported,
      WeaponMount::Primary, true, foundation::stable_id("ammo_556"),
      dimensions(1.05F, 0.25F, 0.09F), {0.51F, 0.0F, 0.0F}, {-0.19F, -0.04F, 0.0F},
-     {0.22F, -0.03F, 0.0F}, {-0.22F, -0.14F, 0.0F}, 11.0F, 850.0F, 350.0F, 20.0F, 1U},
+     {0.22F, -0.03F, 0.0F}, {-0.22F, -0.14F, 0.0F}, 11.0F, 850.0F, 350.0F, 20.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, .94F, 1.55F, 1.60F, .15F, .22F},
     {weapon_id("heavy_support_gun"), "heavy_support_gun", WeaponCategory::HeavySupportGun,
      WeaponGrip::Supported, WeaponMount::Primary, true, foundation::stable_id("ammo_762"),
      dimensions(1.34F, 0.30F, 0.12F), {0.66F, 0.0F, 0.0F}, {-0.23F, -0.05F, 0.0F},
-     {0.30F, -0.03F, 0.0F}, {-0.26F, -0.16F, 0.0F}, 8.0F, 780.0F, 500.0F, 38.0F, 1U},
+     {0.30F, -0.03F, 0.0F}, {-0.26F, -0.16F, 0.0F}, 8.0F, 780.0F, 500.0F, 38.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, 1.00F, 1.60F, 1.65F, .18F, .28F},
 }};
 
 [[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
@@ -53,6 +61,12 @@ bool WeaponDefinition::valid() const noexcept {
     return id != 0U && !identifier.empty() && finite(dimensions) && dimensions.x > 0.0F &&
            dimensions.y > 0.0F && dimensions.z > 0.0F && finite(muzzle) && finite(primary_grip) &&
            finite(support_grip) && finite(stow_anchor) && version > 0U &&
+           grip_profile_mask > 0U && grip_profile_mask <= 3U &&
+           std::isfinite(visual_length) && visual_length > 0.0F &&
+           std::isfinite(draw_seconds) && draw_seconds > 0.0F &&
+           std::isfinite(holster_seconds) && holster_seconds > 0.0F &&
+           std::isfinite(fire_interval_seconds) && fire_interval_seconds >= 0.0F &&
+           std::isfinite(visual_kick) && visual_kick >= 0.0F &&
            ((!firearm && ammunition_id == 0U && rounds_per_second == 0.0F &&
              muzzle_velocity_mps == 0.0F) ||
             (firearm && ammunition_id != 0U && std::isfinite(rounds_per_second) &&

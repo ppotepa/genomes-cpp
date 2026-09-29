@@ -12,6 +12,7 @@ struct BodyCrossSection final {
     float half_width{0.0F};
     float half_depth{0.0F};
     float front_offset{0.0F};
+    double reference_y{0.0};
 };
 
 struct HeadCrossSection final {
@@ -43,6 +44,7 @@ struct ScalpProfile final {
 
 struct ResolvedAnatomy final {
     std::uint32_t version{1};
+    bool reference_profile{false};
     float height{0.0F};
     std::vector<BodyCrossSection> torso_sections;
     std::vector<HeadCrossSection> head_sections;

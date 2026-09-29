@@ -1,0 +1,63 @@
+RTS PROTOTYPE 0.8.0 | generator infantry-4.0.0 | 24.09.2026
+
+ZMIANY PO AUDYCIE v0.7
+=====================
+Zakres: naprawa deformacji, nie nowe systemy gry. Bazą był ZIP v0.7.
+Pełny audyt źródłowy jest zachowany w history/AUDYT_v07.txt.
+
+1. GŁOWA / SZYJA
+Usunięto nakładającą się otwartą rurę szyi i zaślepkę czaszki. Jeden zestaw
+indeksowanych przekrojów biegnie od podstawy szyi do czubka głowy.
+Dolny przekrój głowy respektuje grubość szyi. Pierścienie mają ciągłą
+interpolację wymiarów. Wagi podstawy: chest/neck/head; gardło/żuchwa: jaw.
+Niewielki neckFlex nie zastępuje poprawnej topologii — jest tylko korektą.
+
+2. WSPÓLNE LANDMARKI
+Nowy faceAnatomy.js działa przed budową kości i mesha. Profil daje mocowania
+oczu, brwi, nosa, warg, uszu i włosów. Nie ma już stałego eyeZ=0.0435 dla
+niezależnie zmienianej czaszki. Kontrakt fizyki głowy również używa profilu.
+
+3. OCZODOŁY / POWIEKI
+Usunięto trójkąty skóry przebiegające przed oczami. Granice wycięć są
+połączone z pierścieniami powiek. Gałka jest kulista, jej obrót jest osobny.
+Górny/dolny brzeg definiują kontrolowane otwarcie, nie grubości elipsoid.
+Zamknięcie i łuk są dwoma względnymi morfami. Kontrolery powiek nie są
+już potomkami kości oka. Skóra ma margines nad przybliżoną trójkątami kulą.
+Przy pełnym zamknięciu stosuje się bardzo mały styk z różnicą głębokości,
+żeby błąd float32 nie zostawiał pojedynczej szczeliny przez środek źrenicy.
+
+4. MIMIKA
+Żuchwa/broda mają rzeczywiste wagi jaw. Policzki mają cheek. Skóra przechodzi
+w wagi warg i kącików. Usta mają otwór oraz ciemne wnętrze, bez skóry przez
+środek. Ograniczono rozciąganie ust względem realnej szerokości.
+Head-follow pamięta bazową pozę i nie narasta przy kolejnych edycjach w pauzie.
+
+5. KOŁNIERZ / BARKI
+Profil górnej kurtki wynika z szyi + luz. Usunięto niezależną stójkę o stałym
+promieniu. Płaty kołnierza są podzieloną siatką próbkowaną na kurtce i mają
+zgodne wagi. Obszar wpływu barku zależy od rzeczywistych shoulderY/shoulderHalf.
+
+6. POSTAWY
+Usunięto istotne absolutne pozycje wzorcowego ciała z Pose.clear oraz
+WALK/RUN/CROUCH/SUPPORT/PRONE. Stawy, zasięg, podpory i miednica używają
+hipY, hipHalf, długości nóg, ramion oraz tułowia. Nadal jest to proceduralny
+system o ograniczonym zakresie, nie silnik balansu.
+
+7. WŁOSY I GENOM
+Scalp korzysta z tego samego profilu. Hairline respektuje brwi. Dodano bald
+jako brak powierzchni włosów; pozostałe sześć wariantów zachowuje objętość.
+Naprawiono applyVariation(0). Rozstrzygnięte relacje są dostępne w debug.
+
+8. NORMALNE / KONTAKT / LOD
+Morfy mają normalne i pozycje. CPU skinVertex uwzględnia morfy przy obwiedni
+oraz próbkach kontaktu. Snapshoty interpolują wpływy razem z kośćmi.
+High jest automatycznie włączany blisko kamery świata (10/15 m, co 400 ms),
+bez wymiany tożsamości jednostki ani resetu animacji.
+
+9. WERYFIKACJA I GRANICE
+10 celowanych grup matematycznych zakończyło się poprawnie. Testy wykrywają
+m.in. brak połączenia skóra-szyja oraz centralne zasłonięcie oczu wybranych
+seedów. Nie orzekają o wszystkich kombinacjach genomu, kątach i ekspresjach.
+Składnia i kompletność paczki są sprawdzane osobno.
+CDN w środowisku autora był niedostępny: nie ma wykonanego tu testu realnego
+WebGL. tests/index.html zawiera kontrolę na prawdziwej bibliotece u użytkownika.

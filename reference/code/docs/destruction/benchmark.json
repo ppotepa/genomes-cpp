@@ -1,0 +1,421 @@
+{
+  "date": "2026-09-25T15:58:00.531Z",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "arch": "x64",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12600K",
+  "logicalCpus": 16,
+  "totalMemoryGiB": 127.76477432250977,
+  "seed": 2026,
+  "rendering": false,
+  "building": {
+    "buildingType": "EURO_HOUSE",
+    "material": "brick",
+    "floors": 1
+  },
+  "method": {
+    "tick": "drain target jobs; fire/detach if due; physics.step; world.step(1/60); physics.syncDynamic; drain target jobs",
+    "included": "Ballistics, material changes, target mesh/material rebuild and retirement, Rapier collider changes, rigid-body simulation, dynamic material volumes.",
+    "excluded": "WASM initialization, source generation, target creation/disposal, scripted aiming, counters/assertions, browser, WebGL, GPU, rasterization.",
+    "draining": "All queued geometry work is drained inside the measured tick. This exposes its full CPU cost rather than spreading it across rendered frames.",
+    "aiming": "From +Z toward actual centroids of surviving front-facing volumes, 5 m outside the original front facade; normal gravity and drag. Target remaining walls first, then remaining building sections/debris after the facade collapses.",
+    "statistics": "One sample per fixed simulation tick; arithmetic mean, nearest-rank p95, maximum. No explicit GC or warm-up; GC and JIT can affect peaks.",
+    "memory": "Process heap differences include garbage collection and are not a leak measurement.",
+    "scope": "These CPU results do not establish 60 FPS or visual acceptance."
+  },
+  "scenarios": [
+    {
+      "id": "Continuous MINIMI 30 seconds on a persistent generated building",
+      "ticks": 1800,
+      "shots": 400,
+      "rejectedShots": 0,
+      "confirmedHits": 329,
+      "buildingHits": 254,
+      "groundHits": 75,
+      "penetrations": 156,
+      "explosions": 0,
+      "buildingExplosions": 0,
+      "targetRebuilds": 0,
+      "rebuildReasons": [],
+      "events": {
+        "world": {
+          "shot": 400,
+          "flight": 370747,
+          "hit": 329
+        },
+        "material": {
+          "impact": 259,
+          "replace": 119,
+          "detach": 740,
+          "remove": 492
+        }
+      },
+      "maxParts": 606,
+      "maxChannels": 131,
+      "maxBodies": 249,
+      "maxColliders": 607,
+      "maxDebrisBodies": 248,
+      "maxDynamicBodies": 128,
+      "maxAwakeBodies": 128,
+      "maxPendingBodies": 0,
+      "maxOwnedGeometry": 581,
+      "maxOwnedMaterials": 0,
+      "maxQueuedRebuilds": 3,
+      "maxProjectiles": 200,
+      "maxFragments": 0,
+      "fragmentsDropped": 0,
+      "geometryBudgetHits": 44,
+      "channelsDropped": 0,
+      "initialParts": 203,
+      "initialOwnedGeometry": 164,
+      "final": {
+        "parts": 249,
+        "channels": 128,
+        "debrisBodies": 248,
+        "dynamicBodies": 107,
+        "pendingBodies": 0,
+        "ownedGeometry": 247,
+        "ownedMaterials": 0,
+        "projectiles": 199,
+        "rebuildJobs": 0,
+        "attachedBuildingParts": 0,
+        "attachedByCategory": {},
+        "initialFoundationTop": 0,
+        "stationaryStructureAboveFoundation": 0,
+        "stationaryStructureAboveFoundationByCategory": {}
+      },
+      "meanStepMs": 3.4210428888888846,
+      "p95StepMs": 5.06899999999996,
+      "maxStepMs": 17.364500000000135,
+      "weapon": "minimi",
+      "ammo": "556-ball",
+      "rate": "catalogue cadence",
+      "persistentTarget": true,
+      "noTargetTicks": 0,
+      "simulatedSeconds": 30,
+      "elapsedMs": 6556.8818,
+      "heapDeltaBytes": 55860248,
+      "rssBytes": 301711360
+    },
+    {
+      "id": "Continuous 30 mm AP 30 seconds on a persistent generated building",
+      "ticks": 1800,
+      "shots": 100,
+      "rejectedShots": 0,
+      "confirmedHits": 726,
+      "buildingHits": 332,
+      "groundHits": 394,
+      "penetrations": 331,
+      "explosions": 0,
+      "buildingExplosions": 0,
+      "targetRebuilds": 0,
+      "rebuildReasons": [],
+      "events": {
+        "world": {
+          "shot": 100,
+          "flight": 176444,
+          "hit": 726
+        },
+        "material": {
+          "impact": 336,
+          "replace": 178,
+          "detach": 463,
+          "remove": 21
+        }
+      },
+      "maxParts": 606,
+      "maxChannels": 273,
+      "maxBodies": 443,
+      "maxColliders": 607,
+      "maxDebrisBodies": 442,
+      "maxDynamicBodies": 105,
+      "maxAwakeBodies": 105,
+      "maxPendingBodies": 0,
+      "maxOwnedGeometry": 583,
+      "maxOwnedMaterials": 0,
+      "maxQueuedRebuilds": 8,
+      "maxProjectiles": 29,
+      "maxFragments": 0,
+      "fragmentsDropped": 0,
+      "geometryBudgetHits": 79,
+      "channelsDropped": 0,
+      "initialParts": 203,
+      "initialOwnedGeometry": 164,
+      "final": {
+        "parts": 606,
+        "channels": 273,
+        "debrisBodies": 442,
+        "dynamicBodies": 102,
+        "pendingBodies": 0,
+        "ownedGeometry": 583,
+        "ownedMaterials": 0,
+        "projectiles": 29,
+        "rebuildJobs": 0,
+        "attachedBuildingParts": 163,
+        "attachedByCategory": {
+          "door": {
+            "count": 8,
+            "volume": 0.15148227017898194,
+            "minY": 0.04000003337860103,
+            "maxY": 2.109999966621399
+          },
+          "floor": {
+            "count": 19,
+            "volume": 13.655000403978093,
+            "minY": -0.15999999821186067,
+            "maxY": -1.7881393449270533e-9
+          },
+          "foundation": {
+            "count": 4,
+            "volume": 21.27954016267247,
+            "minY": -0.21999999940395354,
+            "maxY": -5.960464483090178e-10
+          },
+          "gable": {
+            "count": 24,
+            "volume": 3.212503032024418,
+            "minY": 2.811000108718872,
+            "maxY": 5.59181022644043
+          },
+          "wall": {
+            "count": 104,
+            "volume": 18.738060765269232,
+            "minY": -5.435943606357796e-8,
+            "maxY": 2.811000054359436
+          },
+          "window": {
+            "count": 4,
+            "volume": 0.18648239641387038,
+            "minY": 0.9050000190734862,
+            "maxY": 2.1949999809265135
+          }
+        },
+        "initialFoundationTop": 0,
+        "stationaryStructureAboveFoundation": 128,
+        "stationaryStructureAboveFoundationByCategory": {
+          "gable": {
+            "count": 24,
+            "volume": 3.212503032024418,
+            "minY": 2.811000108718872,
+            "maxY": 5.59181022644043
+          },
+          "wall": {
+            "count": 104,
+            "volume": 18.738060765269232,
+            "minY": -5.435943606357796e-8,
+            "maxY": 2.811000054359436
+          }
+        }
+      },
+      "meanStepMs": 2.28250522222221,
+      "p95StepMs": 4.099299999999857,
+      "maxStepMs": 13.084899999999834,
+      "weapon": "mk44",
+      "ammo": "30-ap",
+      "rate": "catalogue cadence",
+      "persistentTarget": true,
+      "noTargetTicks": 0,
+      "simulatedSeconds": 30,
+      "elapsedMs": 4288.400900000001,
+      "heapDeltaBytes": 28882456,
+      "rssBytes": 321335296
+    },
+    {
+      "id": "20 actual 105 mm HE detonations on generated building sections",
+      "ticks": 962,
+      "shots": 29,
+      "rejectedShots": 0,
+      "confirmedHits": 3040,
+      "buildingHits": 424,
+      "groundHits": 2616,
+      "penetrations": 329,
+      "explosions": 29,
+      "buildingExplosions": 20,
+      "targetRebuilds": 0,
+      "rebuildReasons": [],
+      "events": {
+        "world": {
+          "shot": 29,
+          "flight": 1258664,
+          "explosion": 29,
+          "hit": 3040
+        },
+        "material": {
+          "blast": 2262,
+          "impact": 2676,
+          "replace": 165,
+          "detach": 534,
+          "remove": 533
+        }
+      },
+      "maxParts": 279,
+      "maxChannels": 86,
+      "maxBodies": 129,
+      "maxColliders": 280,
+      "maxDebrisBodies": 128,
+      "maxDynamicBodies": 128,
+      "maxAwakeBodies": 128,
+      "maxPendingBodies": 0,
+      "maxOwnedGeometry": 256,
+      "maxOwnedMaterials": 0,
+      "maxQueuedRebuilds": 29,
+      "maxProjectiles": 1595,
+      "maxFragments": 1595,
+      "fragmentsDropped": 0,
+      "geometryBudgetHits": 0,
+      "channelsDropped": 0,
+      "initialParts": 203,
+      "initialOwnedGeometry": 164,
+      "final": {
+        "parts": 18,
+        "channels": 2,
+        "debrisBodies": 1,
+        "dynamicBodies": 1,
+        "pendingBodies": 0,
+        "ownedGeometry": 16,
+        "ownedMaterials": 0,
+        "projectiles": 1400,
+        "rebuildJobs": 0,
+        "attachedBuildingParts": 16,
+        "attachedByCategory": {
+          "floor": {
+            "count": 15,
+            "volume": 14.519922647509857,
+            "minY": -0.15999999821186067,
+            "maxY": -1.7881393449270533e-9
+          },
+          "foundation": {
+            "count": 1,
+            "volume": 21.295886910287315,
+            "minY": -0.21999999940395354,
+            "maxY": -5.960464483090178e-10
+          }
+        },
+        "initialFoundationTop": 0,
+        "stationaryStructureAboveFoundation": 0,
+        "stationaryStructureAboveFoundationByCategory": {}
+      },
+      "meanStepMs": 4.098676507276503,
+      "p95StepMs": 5.300499999999374,
+      "maxStepMs": 84.96799999999894,
+      "weapon": "m68",
+      "ammo": "105-he",
+      "nonBuildingExplosions": 9,
+      "rate": "Artificial stress cadence: at most one shot each 0.5 seconds; 2 seconds settling after the 20th building detonation",
+      "persistentTarget": true,
+      "simulatedSeconds": 16.03333333333333,
+      "elapsedMs": 4011.8413999999993,
+      "heapDeltaBytes": 12103792,
+      "rssBytes": 324538368
+    },
+    {
+      "id": "Generated building debris through Target/DestructionPhysics with reduced caps",
+      "ticks": 1800,
+      "shots": 0,
+      "rejectedShots": 0,
+      "confirmedHits": 0,
+      "buildingHits": 0,
+      "groundHits": 0,
+      "penetrations": 0,
+      "explosions": 0,
+      "buildingExplosions": 0,
+      "targetRebuilds": 0,
+      "rebuildReasons": [],
+      "events": {
+        "world": {},
+        "material": {
+          "detach": 98,
+          "remove": 34
+        }
+      },
+      "maxParts": 203,
+      "maxChannels": 0,
+      "maxBodies": 65,
+      "maxColliders": 204,
+      "maxDebrisBodies": 64,
+      "maxDynamicBodies": 16,
+      "maxAwakeBodies": 16,
+      "maxPendingBodies": 0,
+      "maxOwnedGeometry": 164,
+      "maxOwnedMaterials": 0,
+      "maxQueuedRebuilds": 0,
+      "maxProjectiles": 0,
+      "maxFragments": 0,
+      "fragmentsDropped": 0,
+      "geometryBudgetHits": 0,
+      "channelsDropped": 0,
+      "initialParts": 203,
+      "initialOwnedGeometry": 164,
+      "final": {
+        "parts": 169,
+        "channels": 0,
+        "debrisBodies": 64,
+        "dynamicBodies": 0,
+        "pendingBodies": 0,
+        "ownedGeometry": 140,
+        "ownedMaterials": 0,
+        "projectiles": 0,
+        "rebuildJobs": 0,
+        "attachedBuildingParts": 104,
+        "attachedByCategory": {
+          "door": {
+            "count": 5,
+            "volume": 0.4321050050166988,
+            "minY": 0.039999961853027344,
+            "maxY": 2.2100000381469727
+          },
+          "floor": {
+            "count": 16,
+            "volume": 15.48791749067718,
+            "minY": -0.15999999821186067,
+            "maxY": -1.7881393449270533e-9
+          },
+          "foundation": {
+            "count": 1,
+            "volume": 21.295886910287315,
+            "minY": -0.21999999940395354,
+            "maxY": -5.960464483090178e-10
+          },
+          "wall": {
+            "count": 73,
+            "volume": 26.91171175764839,
+            "minY": -5.435943606357796e-8,
+            "maxY": 2.811000054359436
+          },
+          "window": {
+            "count": 9,
+            "volume": 0.4195853919312165,
+            "minY": 0.9050000190734862,
+            "maxY": 2.1949999809265135
+          }
+        },
+        "initialFoundationTop": 0,
+        "stationaryStructureAboveFoundation": 73,
+        "stationaryStructureAboveFoundationByCategory": {
+          "wall": {
+            "count": 73,
+            "volume": 26.91171175764839,
+            "minY": -5.435943606357796e-8,
+            "maxY": 2.811000054359436
+          }
+        }
+      },
+      "meanStepMs": 0.32625122222220043,
+      "p95StepMs": 0.46639999999933934,
+      "maxStepMs": 4.763499999999112,
+      "durationSeconds": 30,
+      "requestedDetaches": 88,
+      "retainedPoolRetirements": 14,
+      "caps": {
+        "retainedDebris": 64,
+        "dynamicDebris": 16
+      },
+      "method": "Detach existing generated sections from the roof downward via MaterialModel: 16 initially, then batches of 8 every 3 seconds to allow natural settling. Target owns visual transfer and collider creation. Reduced product caps force eviction/rejection without constructing a manual Rapier pool.",
+      "rate": "Synthetic debris lifecycle stress, not a ballistic damage scenario",
+      "simulatedSeconds": 30,
+      "elapsedMs": 615.8209000000006,
+      "heapDeltaBytes": 41546808,
+      "rssBytes": 327970816
+    }
+  ]
+}

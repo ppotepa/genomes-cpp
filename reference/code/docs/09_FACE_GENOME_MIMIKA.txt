@@ -1,0 +1,43 @@
+RTS PROTOTYPE 0.10.0 | generator infantry-5.0.0 | 24.09.2026
+
+TWARZ 0.8: TOŻSAMOŚĆ A STAN
+==========================
+Genom twarzy nadal deterministycznie określa czaszkę, szczękę, policzki,
+oczy, brwi, nos, usta, uszy, włosy oraz neutralną ekspresję.
+Mimika nie mutuje genomu. Emocje są wagami runtime.
+
+NOWY WSPÓLNY UKŁAD
+FaceAnatomy.section(y) -> profil.
+FaceAnatomy.point(y,theta) / frontZ(x,y) -> finalna powierzchnia.
+FaceAnatomy.eyes, brows, mouth, jaw, noseBaseY, hairFloor -> mocowania.
+Rig i generator detali używają tych samych punktów.
+
+OCZY
+Oczodoły są wyciętymi obszarami siatki, a nie wgłębieniem nad schowanym okiem.
+Gałka jest kulą. Kolor tęczówki/źrenicy leży na sferycznej powierzchni,
+ma te same wagi eye.L/R. Powieki są pierścieniami skóry wokół otworu.
+Ruch spojrzenia nie obraca powiek. Otwarcie wynika z faktycznej wysokości
+oka danego fenotypu. Morfy zamykają szczelinę i korygują tor nad gałką.
+Górny/dolny brzeg otrzymuje minimalny styk przy zamknięciu, nie przezroczystość
+ani wyłączenie depthTest. Margines skóry uwzględnia przybliżenie trójkątami.
+
+USTA, SZCZĘKA, POLICZKI
+Otwór ma wnętrze i pierścienie warg. Dolna twarz ma wpływ jaw; dolna warga
+jest potomkiem jaw, górna pozostaje na head. Wagi przechodzą w skórę.
+Policzki mają rzeczywiste wagi cheek.L/R. Nie ma animowanych zębów/języka.
+Nos, uszy i brwi są wyprowadzane z finalnego profilu; nie mają już jednego
+stałego z dla każdej osoby. Brwi mają wewnętrzną/zewnętrzną kontrolkę.
+
+EMOCJE I SPOJRZENIE
+NEUTRAL, ALERT, FEAR, ANGER, PAIN, FATIGUE, EYES_CLOSED.
+Zachowane ważone mieszanie, sprężynowe wygładzanie, deterministyczne mruganie,
+małe ruchy oczu oraz world look target. Powtórna aplikacja mimiki podczas
+pauzy nie dokłada w kółko tego samego head-follow.
+
+WŁOSY
+hairStyleGene dzieli się na 7 stanów: bald, buzz, crew, crop, side, fade, messy.
+Bald nie generuje mesha włosów. Pozostałe warianty mają objętość, kolor,
+gęstość i hairline z genomu. Skorupa próbuje finalnej czaszki i kończy się
+nad brwiami z marginesem; nie odtwarza osobnej, uproszczonej głowy.
+Zmiana mapowania fryzur zmienia wygląd części starych seedów; wersja generatora
+została zwiększona. Własne liczby genów pozostają odtwarzalne.

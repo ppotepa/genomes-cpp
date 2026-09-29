@@ -1,0 +1,144 @@
+ANALIZA: MAKSYMALNY RUN JAKO SPRINT Z WOLNYMI RĘKAMI
+==================================================
+Data: 24.09.2026. Baza: v0.12.0. Status: propozycja, bez zmian runtime.
+Aktualizacja: wdrożenie i wyniki kontroli opisuje docs/18_SPRINT.txt.
+Poniżej zachowano pierwotną analizę stanu sprzed wdrożenia.
+
+Cel: górny zakres prędkości ma wyraźnie zmieniać sylwetkę na sprint.
+Przy broni schowanej dłonie pracują naprzemiennie do przodu, łokcie są
+mocniej zgięte, a barki i tułów wspierają rytm nóg. Zachowujemy ciągły
+suwak prędkości, postawy oraz fazę kroku.
+
+1. CO JEST TERAZ
+---------------
+PostureProfile.gait (js/animation/postureProfile.js):
+- run = smooth5((speed/speedMultiplier - 1.75) / 1.05), z tłumieniem crouch.
+- Dla postawy stojącej run osiąga 1 przy 2.8 * speedMultiplier.
+- Maksimum to 4.2 * speedMultiplier: pełny profil biegu pojawia się już
+  przy 2/3 maksymalnej prędkości. Pozostała część zakresu zmienia długość
+  cyklu i jego częstotliwość, ale nie dodaje ekspresji górnej części ciała.
+
+InfantryAnimator.sampleLocomotion:
+- RUN ma stałą amplitudę ramion 0.66 rad (~38 stopni) plus harmoniczną.
+- Rotacja łokcia to 0.88 rad (~50 stopni) plus do około 14 stopni.
+- Brakuje parametru odróżniającego spokojny bieg od maksymalnego wysiłku.
+
+InfantryAnimator.sampleBiped:
+- Miesza górną część WALK/RUN, następnie nadpisuje biodra i tułów.
+- Cele stóp liczy ponownie przez sampleLowContact.
+- Dlatego sama zmiana tułowia/stóp w sampleLocomotion lub RUN_DUTY
+  w config.js nie zmieni właściwego końcowego profilu v0.12.
+- runningLean zależy od run, więc również przestaje rosnąć przy 2/3 maksimum.
+
+InfantryAnimator.dampPose / boneResponse:
+- Każda klatka filtruje pełną rotację ramion, także ruch cykliczny.
+- Szybki wymach traci amplitudę i otrzymuje opóźnienie względem nóg.
+- Suwak fazy korzysta z dt=0 i pomija filtr. Z tego powodu dobra poza
+  na pauzie nie gwarantuje tego samego wyglądu podczas odtwarzania.
+
+Broń:
+- infantryGear.weapon przypisuje broń główną do WEAPON_BACK, boczną do
+  WEAPON_HIP. Equipment nie przechowuje stanu HOLSTER/READY/AIM.
+- Obecnie są to wyłącznie rekwizyty transportowe; wszystkie loadouty mają
+  wolne ręce w sensie animacji. Nie ma chwytu broni ani warstwy celowania.
+- handIK w animatorze służy podporom przy niskich postawach; nie jest
+  istniejącym IK chwytu broni.
+
+2. POMIAR KODU
+--------------
+Sonda: tests/out/analyze_sprint.cjs.
+Uruchomienie: rtk proxy node tests/out/analyze_sprint.cjs.
+Wynik: tests/out/sprint_analysis_numeric.json.
+To lokalne artefakty analizy w ignorowanym tests/out, nie test regresyjny.
+Środowisko: Node + tests/numeric_math.cjs, bez Three.js/WebGL.
+
+Dwa seedy (1003 i 2003), cztery prędkości, po 100 faz cyklu:
+- Porównanie prędkości bazowych 2.8, 3.5 i 4.2 przy crouch=0 dało te same
+  rotacje ramion, przedramion, bioder i trzech segmentów tułowia w danej fazie.
+- Docelowy zakres rotacji ramienia w osi X: około -37.3 do +40.2 stopnia.
+- Rotacja przedramienia odpowiadająca zginaniu łokcia: około 50.4–64.0 stopnia.
+  To rotacje lokalne kości, nie pomiar anatomicznego kąta stawu.
+- Po ustaleniu animacji przy 60 Hz zakres ruchu ramienia stanowił 78.2%
+  i 76.6% zakresu docelowego, zależnie od sylwetki i tempa cyklu.
+- duty=0.42 już przewiduje krótkie fazy bez podporu obu stóp. Nie należy
+  diagnozować problemu jako całkowitego braku fazy lotu.
+
+Wniosek: na maksymalnej prędkości brakuje dodatkowej charakterystyki sprintu,
+a filtr dodatkowo łagodzi ruch. Wynik liczbowy nie zastępuje oceny wyglądu.
+
+3. PROPONOWANE ZMIANY
+--------------------
+A. Ciągła intensywność sprintu
+W PostureProfile.gait dodać parametr sprint, np.:
+  speed01 = clamp(actualSpeedMps / phenotype.runSpeed, 0, 1)
+  sprint = run * smoothRange(0.70, 1.00, speed01)
+Próg 0.70 jest punktem startowym do strojenia, nie wymaganiem biomechaniki.
+W LocomotionController wygładzać nową wagę analogicznie do run i zachować
+obsługę snap/seek. RUN nadal ustawia dotychczasową maksymalną prędkość.
+Waga korzysta z faktycznej prędkości, więc nie daje pełnego sprintu podczas
+rozpędzania ani przy ograniczeniu prędkości przez głęboki crouch.
+
+B. Wolne ręce: sprint
+Wydzielić pracę ramion do funkcji otrzymującej phase, run, sprint i depth.
+Na końcu zakresu płynnie wprowadzać:
+- mocniejsze zgięcie łokci; startowo około 80–105 stopni lokalnej rotacji,
+  z dopasowaniem po obejrzeniu geometrii stawu;
+- wyższy ruch dłoni do przodu, w stronę dolnej części klatki piersiowej;
+- wyraźny ruch łokcia w tył i naprzemienność przeciwną do nóg;
+- większą amplitudę barku do przodu, startowo około 55–65 stopni, z mniejszą
+  amplitudą do tyłu i łagodnym przejściem między skrajnymi położeniami;
+- mały ruch obojczyków i nadgarstków, bez szerokiego rozrzucania dłoni.
+Zakresy są propozycją artystyczną. Sprawdzić odstęp dłoni/przedramienia
+od kamizelki i ładownic dla różnych proporcji ciała oraz wyposażenia.
+Ruch nadal można wyznaczać rotacjami kości; wolne ręce nie wymagają IK chwytu.
+
+C. Tułów i nogi
+W sampleBiped uzależnić pochylenie i kontrrotację barków od sprint.
+Uwzględnić dodatkowe pochylenie w stabilizacji głowy; obecna zmienna lean
+używana przez szyję/głowę nie zawiera runningLean.
+Najpierw zachować dotychczasowy cykl kontaktów i dostroić sylwetkę.
+W kolejnym kroku poprawić tor powrotu stopy: wyraźniejsze podciągnięcie
+pięty za ciałem i prowadzenie kolana do przodu, zsynchronizowane z podporami.
+Przy modyfikacji toru sprawdzić sampleLowContact i światowy planner BipedFeet;
+ich działanie różni się od samej bieżni edytora.
+Ewentualne skracanie duty poniżej 0.40 wymaga również zmiany ograniczenia
+w LocomotionController.sampleGait. Nie wystarczy zmienić krzywej docelowej.
+
+D. Zachowanie amplitudy w ruchu
+Docelowo filtrować parametry/przejścia, a fazowy wymach ramion obliczać
+z aktualnej fazy. Wtedy płynność przejścia nie tłumi samego sprintu.
+Mniejszą pierwszą zmianą może być odpowiedź ramion zależna od częstotliwości
+cyklu, ale nadal wymaga to oceny opóźnienia ramion względem nóg.
+Nie usuwać zbiorczo wygładzania dla wszystkich kości i przejść między postawami.
+
+E. Sposób noszenia broni
+Pierwsza iteracja może objąć istniejący wariant wolnych rąk, wspólny dla
+braku broni, broni na plecach i kabury. Nie wymaga dodania systemu walki.
+Przy późniejszym dodaniu broni w dłoniach przekazywać jawny stan noszenia
+do osobnej warstwy górnej części ciała, np. FREE/HOLSTER, CARRY, READY/AIM.
+Sama obecność przedmiotu w primaryWeapon nie oznacza zajętych dłoni.
+Wariant chwytu będzie wymagał osobnego montowania broni i celów obu dłoni;
+obecna geometria rekwizytów jest częścią siatki ekwipunku przypiętej do kości.
+
+4. KOLEJNOŚĆ I ODBIÓR
+--------------------
+Pierwsza iteracja: sprintWeight, ramiona, tułów i zachowanie amplitudy.
+Druga: dopracowanie nóg po ocenie całości w ruchu. Chwyt broni pozostaje
+osobnym rozszerzeniem, gdy pojawi się stan broni w dłoniach.
+
+Sprawdzenie wizualne:
+- widok z boku i 3/4 przy około 50%, 70%, 85% oraz 100% prędkości;
+- naprzemienny ruch dłoni do przodu i czytelna różnica trucht/sprint;
+- odtwarzanie i pauza, mała i duża sylwetka, lekki i ciężki ekwipunek;
+- rozpędzanie, hamowanie, RUN -> CROUCH i powrót, skręt oraz zatrzymanie.
+
+Sprawdzenie techniczne:
+- zachowanie fazy przy zmianie prędkości i presetu;
+- brak skoków pozy na początku zakresu sprintu;
+- porównanie amplitudy docelowej i odtwarzanej przy 30/60/120 Hz;
+- niezmienione długości kości, skończone transformacje, zasięg IK;
+- kontakty podczas ruchu w świecie oraz istniejące testy lokomocji/postaw.
+
+W tej analizie nie zmieniono animacji ani prędkości jednostek i nie oceniano
+renderingu w przeglądarce. Utworzono lokalny indeks CodeGraph wymagany przez
+instrukcje repozytorium; dla nieindeksowanych metod użyto odczytu kodu.

@@ -1,0 +1,53 @@
+AKTUALIZACJA v0.12
+Bieżący opis ciągłej postawy: 16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt.
+CROUCH/WALK/RUN w rodzinie BIPED są teraz presetami suwaków c/v.
+Pozostały opis niżej zachowuje kontekst wcześniejszych iteracji.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+DEBUG
+=====
+Istniejące zakładki Model / Genom / Szkielet / Animacja / Twarz pozostają.
+Ekwipunek: 10 profili, 20 slotów, gear seed, paleta, spłowienie, reset slotów.
+Genom i gear są niezależne. Przełączenie gear nie resetuje fazy i kamery.
+W podglądzie masa jest informacyjna, a broń jest statycznym rekwizytem.
+
+WERYFIKACJA TEJ ITERACJI
+======================
+Wykonano kontrolę składni JS, odwołań lokalnych, ID interfejsu i integralności
+paczki. Wykonano również jeden celowany smoke test wyposażenia:
+- generowanie wszystkich 10 profili;
+- skończone pozycje wierzchołków i poprawne sumy wag skinningu;
+- zmiana nakrycia głowy/plecaka na istniejącej jednostce;
+- zachowanie genomu, tożsamości szkieletu oraz fazy animacji;
+- wspólny skeleton ciała i gear;
+- deterministyczny klon danych wyposażenia;
+- pusty komponent Equipment w bazowej jednostce niehumanoidalnej;
+- odrzucenie przedmiotu niepasującego do slotu.
+
+ŚRODOWISKO
+==========
+Node + numeric_math.cjs z poprzednich wersji projektu. To izolowane kontrole
+kodów generatorów i buforów, NIE oryginalny Three.js i NIE test GPU.
+Nie uruchomiono pełnego renderu produkcyjnego w przeglądarce; CDN jest tutaj
+niedostępny. Nie należy interpretować kontroli składni jako dowodu jakości
+wyglądu wszystkich przedmiotów albo braku kolizji w każdej możliwej pozie.
+
+Raporty tej wersji: reports/v10_equipment_smoke.json i packaging_report.json.
+Raporty wcześniejsze zostały przeniesione do history/reports_before_v10.
+
+ODTWORZENIE KONTROLI
+===================
+node tests/equipment_smoke.cjs       lekki test danych/geometrii bez internetu
+node tests/run_numeric.cjs           wcześniejsze kontrole anatomii
+Dwuklik tests/index.html             test właściwego Three.js z CDN w przeglądarce
+
+Kontrole nie są wymagane do uruchomienia index.html gry.
+Krótkie sprawdzenie wizualne: porównaj Scout / Heavy Support / Radio Operator,
+zmień hełm na Brak i z powrotem, wybierz RUN lub CROUCH oraz zmień barki w Genom.
+Sprawdź kapelusz, duży plecak, gogle, rękawiczki i pancerz na wybranych seedach.
+
+PRÓBY 0.11
+node tests/posture_smoke.cjs — 4 krótkie grupy, tylko numeric_math.cjs.
+Bieżące wyniki: docs/reports/v11_postures_numeric.json.
+Nie utożsamiać ich z testem WebGL. SITTING bez siedziska jest referencją.

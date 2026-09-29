@@ -256,7 +256,8 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
                                  infantry_model_artifact_->phenotype.body.height * 0.62F,
                              state_iterator->position.z +
                                  std::cos(state_iterator->heading) * 6.0F},
-            agent.lod});
+            agent.lod,
+            &infantry_model_artifact_->appearance.body});
     }
     if (entities.empty()) {
         return;

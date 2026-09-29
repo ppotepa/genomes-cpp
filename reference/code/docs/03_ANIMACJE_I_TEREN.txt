@@ -1,0 +1,67 @@
+AKTUALIZACJA v0.12
+Bieżący opis ciągłej postawy: 16_PLYNNA_POSTAWA_I_LOKOMOCJA.txt.
+CROUCH/WALK/RUN w rodzinie BIPED są teraz presetami suwaków c/v.
+Pozostały opis niżej zachowuje kontekst wcześniejszych iteracji.
+
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+BIEŻĄCE STANY
+=============
+REST: pozycja referencyjna.
+IDLE, WALK, RUN: dotychczasowe stany wyprostowane.
+CROUCH: nowa obniżona sylwetka; biodra mniej cofnięte niż w siedzeniu,
+  pochylenie rozłożone na miednicę i tułów, stopy rozstawione według anatomii.
+CROUCH_WALK: chód bez wyprostu; prędkość 0.75 * speedMultiplier m/s.
+SITTING: dawna poza CROUCH, na siedzisku. Bez seatAnchor tylko referencja.
+PRONE, PRONE_MOVE: leżenie i czołganie; buty ułożone na zewnątrz względem nóg.
+SUPPORT pozostaje wewnętrznym etapem przejścia, nie pozycją z listy w UI.
+
+CZAS I RUCH
+===========
+Stały krok 1/60 s, render interpoluje pozycje/kwaterniony/morfy ze snapshotów.
+Faza ruchu pochodzi z pokonanego dystansu; pełny cykl zawiera dwa kroki.
+WALK / RUN / CROUCH_WALK zachowują fazę podczas zmiany profilu.
+Przejście stopniowo zmienia wysokość i sprowadza kończyny do pozy spoczynku;
+wyjście z niskiego ruchu nie oznacza automatycznego IDLE.
+Prędkość demonstracyjna narasta i hamuje w m/s; nie zależy od liczby klatek.
+
+KOLEJNOŚĆ
+=========
+1. Ruch roota i obliczenie rzeczywistego dystansu.
+2. Profil postawy oraz przejście, docelowa miednica i górna część ciała.
+3. Podparcie / powrót kończyn i zapamiętane kontakty świata.
+4. IK nóg z pełnym układem osi; orientacja buta i pozycja jego kontaktu.
+5. IK rąk, podparcie dłoni, kontrola rzeczywistej powierzchni rękawów.
+6. Ograniczona korekta prześwitu oraz ponowienie IK, bez zmiany długości kości.
+7. FaceAnimator: rozglądanie, mimika, mruganie i morfy.
+8. Dodatkowa kontrola po spojrzeniu dla głowy/nakrycia głowy.
+9. Zapis snapshotu i interpolowane renderowanie.
+
+KONTAKTY
+========
+GroundContact przechowuje punkt w przestrzeni świata. Podczas podporu może
+pozostać nieruchomy mimo ruchu roota. Wymach i zwrot zwalniają tę blokadę.
+Na bieżni w edytorze blokowanie w świecie jest świadomie wyłączone.
+Pozycja buta: kontakt = kostka + obrócony lokalny punkt obuwia.
+Źródłem lokalnych punktów jest GOTOWA geometria dopasowana do anatomii/gear.
+W staniu kontakt dotyczy podeszwy lub palców; w leżeniu bocznej części buta.
+Dłonie używają własnych kontaktów i trajektorii, przesuniętych względem nóg.
+Hint łokcia/kolana nadal nie jest fizycznym punktem kontaktu. Rękawy są dodatkowo
+sprawdzane po IK, z ograniczoną korektą płaszczyzny zgięcia ręki.
+
+TEREN / OGRANICZENIA
+===================
+Wysokość i normalna pochodzą z renderowanych trójkątów mapy, nie siatki 5 m.
+Próbkowanie skóry uwzględnia morfy. Buty są sprawdzane w końcowej orientacji,
+bez prostowania ich do podłoża w PRONE. Sprawdzana jest też część gear.
+To korekty kinematyczne, nie tarcie, siły, środek masy ani pełna samokolizja.
+SITTING nie tworzy mebla i nie służy jako postój patrolu.
+
+EDYTOR / SZCZEGÓŁY
+=================
+Selektor animacji zawiera wszystkie stany publiczne. Genom, Twarz, Ekwipunek,
+pauza, faza i kamery pozostają w tym samym popupie. Odczyt pokazuje rodzaj
+kontaktu, blokowanie, prześwit butów i informację o siedzisku.
+Zmiana sprzętu/detalu przebudowuje próbki kontaktów i zwalnia stare kotwice,
+ale nie resetuje fazy, tożsamości ani kamery.
+Pełny opis zmian i parametrów: 15_CRAWL_CROUCH_SITTING_V11.txt.

@@ -1,0 +1,8 @@
+{
+  "version": "0.12.0",
+  "syntaxScripts": 45,
+  "loaderPaths": 37,
+  "missingPaths": [],
+  "webglTested": false,
+  "numericTests": "4 v12 groups and 4 v11 posture groups passed"
+}

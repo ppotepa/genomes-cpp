@@ -28,7 +28,7 @@ int main() {
         assert(state && state.value().valid());
         const auto repeat = EquipmentResolver::resolve(17U, loadout.id);
         assert(repeat && repeat.value().identity == state.value().identity);
-        const auto fit = EquipmentFitter::build(state.value(), phenotype.value().body, rig.value());
+        const auto fit = EquipmentFitter::build(state.value(), phenotype.value(), rig.value());
         assert(fit && fit.value().valid(rig.value()));
         const auto gear = GearGenerator::build(state.value(), fit.value(), rig.value());
         assert(gear && gear.value().valid(rig.value()));
@@ -73,5 +73,41 @@ int main() {
         EquipmentOverride::item(EquipmentCatalog::findItem("rifle")->id);
     const auto rejected = EquipmentResolver::resolve(17U, rifleman, invalid);
     assert(!rejected);
+
+    const auto reference_genome = InfantryGenome::generate(0U, 0.0);
+    const auto reference_phenotype = reference_genome
+        ? PhenotypeResolver::resolve(reference_genome.value())
+        : genomes::foundation::Result<PhenotypeArtifact, genomes::foundation::Error>::failure(
+              reference_genome.error());
+    const auto reference_rig = reference_phenotype
+        ? RigBuilder::build(reference_phenotype.value().body, reference_phenotype.value().face)
+        : genomes::foundation::Result<SkeletonData, genomes::foundation::Error>::failure(
+              reference_phenotype.error());
+    const auto reference_state = EquipmentResolver::resolve(0U, rifleman);
+    assert(reference_phenotype && reference_rig && reference_state);
+    const auto reference_fit = EquipmentFitter::build(
+        reference_state.value(), reference_phenotype.value(), reference_rig.value());
+    assert(reference_fit);
+    const auto reference_gear = GearGenerator::build(
+        reference_state.value(), reference_fit.value(), reference_rig.value(),
+        kDefaultUniformColor, 3U, .25F);
+    assert(reference_gear);
+    const auto reference_surface = GearSurfaceGenerator::build(reference_gear.value());
+    assert(reference_surface);
+    const auto tag_size = [&reference_surface](std::string_view name) {
+        for (const auto& tag : reference_surface.value().tags)
+            if (tag.name == name) return tag.vertices.size();
+        return std::size_t{0U};
+    };
+    assert(tag_size("gear.head") == 1569U);
+    assert(tag_size("gear.legs") == 1200U);
+    assert(tag_size("gear.chestRig") == 1806U);
+    assert(tag_size("gear.torsoArmor") == 1302U);
+    assert(tag_size("gear.back") == 2508U);
+    assert(tag_size("gear.belt") == 246U);
+    assert(tag_size("gear.leftHip") == 262U);
+    assert(tag_size("gear.rightHip") == 600U);
+    assert(tag_size("gear.primaryWeapon") == 4U);
+    assert(reference_surface.value().vertices.size() == 9497U);
     return 0;
 }

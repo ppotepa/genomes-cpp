@@ -1,0 +1,32 @@
+RTS PROTOTYPE 0.11.0 | generator infantry-5.0.0 | 24.09.2026
+
+DOKUMENTACJA TECHNICZNA
+======================
+Projekt nadal przypina three@0.128.0 i OrbitControls z tej samej wersji,
+ponieważ używa klasycznych skryptów pod file://. Nie migrowano do modułów.
+
+BufferGeometry — atrybuty, indeksy, normalne, relative morph targets:
+https://threejs.org/docs/pages/BufferGeometry.html
+SkinnedMesh — skeleton, skinIndex/skinWeight i macierze wiązania:
+https://threejs.org/docs/pages/SkinnedMesh.html
+Mesh — morphTargetDictionary i morphTargetInfluences:
+https://threejs.org/docs/pages/Mesh.html
+
+Powyższe strony opisują aktualną dokumentację API, nie zamrożone r128.
+W kodzie zachowano nazwy r128: outputEncoding, sRGBEncoding, skinning,
+morphTargets i morphNormals w materiałach. Nie używać nowszego API
+applyBoneTransform jako nieprzetestowanej podmiany w r128.
+
+Połączenie skóry, anatomia ograniczona relacjami, topologia otworów i kształty
+powiek są autorskimi rozwiązaniami tego prototypu, nie cytatami z publikacji
+ani twierdzeniem o zgodności biomechanicznej.
+Źródła i raporty wcześniejszych analiz przechowywane są w history/.
+
+DODATEK v0.10: sprawdzono publiczną dokumentację Object3D, SkinnedMesh i
+BufferGeometry przy projektowaniu mocowań oraz zwalniania zasobów:
+https://threejs.org/docs/pages/Object3D.html
+https://threejs.org/docs/pages/SkinnedMesh.html
+https://threejs.org/docs/pages/BufferGeometry.html
+Kod dalej używa API r128 (m.in. boneTransform), nie nowszych zamienników.
+Kształty, wymiary i wagi wyposażenia są autorskimi parametrami gry, nie
+odtworzeniem autentycznego produktu ani danymi z publikacji.

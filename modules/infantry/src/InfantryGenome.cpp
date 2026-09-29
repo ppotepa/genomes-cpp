@@ -7,6 +7,36 @@ namespace genomes::infantry {
 
 namespace {
 
+constexpr std::array<std::string_view, GenomeGeneCount> kGenomeGeneNames{
+    "heightGene", "speedGene",
+    "body.frameGene", "body.massGene", "body.musculatureGene", "body.adiposityGene",
+    "body.shoulderBreadthGene", "body.hipBreadthGene", "body.torsoLegRatioGene",
+    "body.armLengthGene", "body.legLengthGene", "body.chestDepthGene",
+    "body.waistWidthGene", "body.limbThicknessGene", "body.neckThicknessGene",
+    "body.headScaleGene", "body.handScaleGene", "body.footScaleGene", "body.skinToneGene",
+    "face.headWidthGene", "face.headDepthGene", "face.headLengthGene",
+    "face.foreheadWidthGene", "face.foreheadSlopeGene", "face.templeWidthGene",
+    "face.browRidgeGene", "face.jawWidthGene", "face.jawLengthGene", "face.jawAngleGene",
+    "face.chinWidthGene", "face.chinHeightGene", "face.chinProjectionGene",
+    "face.cheekboneWidthGene", "face.cheekboneHeightGene", "face.cheekFullnessGene",
+    "face.midfaceProjectionGene", "face.eyeSpacingGene", "face.eyeWidthGene",
+    "face.eyeHeightGene", "face.eyeRoundnessGene", "face.eyeDepthGene", "face.eyeTiltGene",
+    "face.eyeVerticalGene", "face.eyeColorGene", "face.browHeightGene",
+    "face.browThicknessGene", "face.browTiltGene", "face.browSpacingGene",
+    "face.noseWidthGene", "face.noseLengthGene", "face.noseProjectionGene",
+    "face.noseBridgeGene", "face.noseTipWidthGene", "face.noseTipRotationGene",
+    "face.nostrilWidthGene", "face.mouthWidthGene", "face.upperLipGene",
+    "face.lowerLipGene", "face.mouthHeightGene", "face.earSizeGene", "face.earAngleGene",
+    "face.hairColorGene", "face.hairBrightnessGene", "face.hairStyleGene",
+    "face.hairDensityGene", "face.hairThicknessGene", "face.hairVolumeGene",
+    "face.hairlineGene", "face.templeRecessionGene", "face.widowPeakGene",
+    "face.restingEyeOpennessGene", "face.restingBrowGene", "face.restingMouthGene",
+    "face.eyeHeightAsymmetryGene", "face.browHeightAsymmetryGene",
+    "face.mouthCornerAsymmetryGene", "face.earAsymmetryGene", "face.blinkRateGene",
+    "face.blinkSpeedGene", "face.gazeRestlessnessGene", "face.expressionScaleGene",
+    "face.eyeExpressionGene", "face.mouthExpressionGene", "face.browExpressionGene",
+};
+
 [[nodiscard]] bool finite(float value) noexcept { return std::isfinite(value); }
 
 [[nodiscard]] float normalizedGene(float value, float minimum, float maximum) noexcept {
@@ -34,32 +64,94 @@ private:
     std::uint32_t state_{0};
 };
 
-[[nodiscard]] float varied(ReferenceRandom& random) noexcept {
-    const float signed_value = static_cast<float>(random.uniform01() * 2.0 - 1.0);
-    const float magnitude = std::pow(std::abs(signed_value), 1.30F);
-    return std::clamp(0.5F + 0.5F * (signed_value < 0.0F ? -magnitude : magnitude), 0.0F,
-                      1.0F);
+[[nodiscard]] double varied(ReferenceRandom& random) noexcept {
+    const double signed_value = static_cast<double>(random.uniform01()) * 2.0 - 1.0;
+    const double magnitude = std::pow(std::abs(signed_value), 1.30);
+    return std::clamp(0.5 + 0.5 * (signed_value < 0.0 ? -magnitude : magnitude), 0.0, 1.0);
 }
 
 [[nodiscard]] float centred(ReferenceRandom& random) noexcept {
     return static_cast<float>((random.uniform01() + random.uniform01()) * 0.5);
 }
 
-void hashOptional(std::uint64_t& hash, const std::optional<float>& value) noexcept {
+void hashOptional(std::uint64_t& hash, const std::optional<double>& value) noexcept {
     hash = foundation::stableHashCombine(hash, value.has_value() ? 1U : 0U);
     if (value.has_value()) {
-        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(*value));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashDouble(*value));
+    }
+}
+
+constexpr std::array<double BodyGenes::*, 17> kBodyGeneMembers{
+    &BodyGenes::frame, &BodyGenes::mass, &BodyGenes::musculature, &BodyGenes::adiposity,
+    &BodyGenes::shoulder_width, &BodyGenes::hip_width, &BodyGenes::torso_leg_ratio,
+    &BodyGenes::arm_length, &BodyGenes::leg_length, &BodyGenes::chest_depth,
+    &BodyGenes::waist_width, &BodyGenes::limb_thickness, &BodyGenes::neck_thickness,
+    &BodyGenes::head_scale, &BodyGenes::hand_scale, &BodyGenes::foot_scale, &BodyGenes::skin_tone,
+};
+
+constexpr std::array<float FaceGenes::*, 65> kFaceGeneMembers{
+    &FaceGenes::head_width, &FaceGenes::head_depth, &FaceGenes::head_length,
+    &FaceGenes::forehead_width, &FaceGenes::forehead_slope, &FaceGenes::temple_width,
+    &FaceGenes::brow_ridge, &FaceGenes::jaw_width, &FaceGenes::jaw_length,
+    &FaceGenes::jaw_angle, &FaceGenes::chin_width, &FaceGenes::chin_height,
+    &FaceGenes::chin_projection, &FaceGenes::cheekbone_width, &FaceGenes::cheekbone_height,
+    &FaceGenes::cheek_fullness, &FaceGenes::midface_projection, &FaceGenes::eye_spacing,
+    &FaceGenes::eye_width, &FaceGenes::eye_height, &FaceGenes::eye_roundness,
+    &FaceGenes::eye_depth, &FaceGenes::eye_tilt, &FaceGenes::eye_vertical,
+    &FaceGenes::eye_color, &FaceGenes::brow_height, &FaceGenes::brow_thickness,
+    &FaceGenes::brow_tilt, &FaceGenes::brow_spacing, &FaceGenes::nose_width,
+    &FaceGenes::nose_length, &FaceGenes::nose_projection, &FaceGenes::nose_bridge,
+    &FaceGenes::nose_tip_width, &FaceGenes::nose_tip_rotation, &FaceGenes::nostril_width,
+    &FaceGenes::mouth_width, &FaceGenes::upper_lip, &FaceGenes::lower_lip,
+    &FaceGenes::mouth_height, &FaceGenes::ear_size, &FaceGenes::ear_angle,
+    &FaceGenes::hair_color, &FaceGenes::hair_brightness, &FaceGenes::hair_style,
+    &FaceGenes::hair_density, &FaceGenes::hair_thickness, &FaceGenes::hair_volume,
+    &FaceGenes::hairline, &FaceGenes::temple_recession, &FaceGenes::widow_peak,
+    &FaceGenes::resting_eye_openness, &FaceGenes::resting_brow, &FaceGenes::resting_mouth,
+    &FaceGenes::eye_height_asymmetry, &FaceGenes::brow_height_asymmetry,
+    &FaceGenes::mouth_corner_asymmetry, &FaceGenes::ear_asymmetry, &FaceGenes::blink_rate,
+    &FaceGenes::blink_speed, &FaceGenes::gaze_restlessness, &FaceGenes::expression_scale,
+    &FaceGenes::eye_expression, &FaceGenes::mouth_expression, &FaceGenes::brow_expression,
+};
+
+void applyGeneOverride(InfantryGenome& genome, GenomeGene gene, double value) noexcept {
+    const auto index = static_cast<std::size_t>(gene);
+    if (gene == GenomeGene::Height) {
+        genome.height = 1.60F + value * 0.35F;
+    } else if (gene == GenomeGene::Speed) {
+        genome.move_speed = 2.6F + value;
+    } else if (index >= static_cast<std::size_t>(GenomeGene::BodyFrame) &&
+               index <= static_cast<std::size_t>(GenomeGene::BodySkinTone)) {
+        genome.body.*kBodyGeneMembers[index - static_cast<std::size_t>(GenomeGene::BodyFrame)] =
+            value;
+    } else if (index >= static_cast<std::size_t>(GenomeGene::FaceHeadWidth) &&
+               index < static_cast<std::size_t>(GenomeGene::Count)) {
+        genome.face.*kFaceGeneMembers[index - static_cast<std::size_t>(GenomeGene::FaceHeadWidth)] =
+            value;
     }
 }
 
 } // namespace
 
+std::string_view genomeGeneName(GenomeGene gene) noexcept {
+    const auto index = static_cast<std::size_t>(gene);
+    return index < kGenomeGeneNames.size() ? kGenomeGeneNames[index] : std::string_view{};
+}
+
+std::optional<GenomeGene> genomeGeneFromName(std::string_view name) noexcept {
+    const auto found = std::find(kGenomeGeneNames.begin(), kGenomeGeneNames.end(), name);
+    if (found == kGenomeGeneNames.end()) {
+        return std::nullopt;
+    }
+    return static_cast<GenomeGene>(std::distance(kGenomeGeneNames.begin(), found));
+}
+
 bool BodyGenes::valid() const noexcept {
-    const float values[] = {frame, mass, musculature, adiposity, shoulder_width, chest_depth,
+    const double values[] = {frame, mass, musculature, adiposity, shoulder_width, chest_depth,
                             hip_width, torso_leg_ratio, arm_length, leg_length, waist_width,
                             limb_thickness, neck_thickness, head_scale, hand_scale, foot_scale,
                             skin_tone};
-    for (const float value : values) {
+    for (const double value : values) {
         if (!finite(value) || value < 0.0F || value > 1.0F) {
             return false;
         }
@@ -95,6 +187,11 @@ bool GenomeOverrides::valid() const noexcept {
     const auto valid_optional = [](const std::optional<float>& value) {
         return !value.has_value() || std::isfinite(*value);
     };
+    for (const auto& gene : genes) {
+        if (gene && (!std::isfinite(*gene) || *gene < 0.0 || *gene > 1.0)) {
+            return false;
+        }
+    }
     return valid_optional(height) && valid_optional(shoulder_width) &&
            valid_optional(chest_depth) && valid_optional(hip_width) && valid_optional(arm_length) &&
            valid_optional(leg_length) && valid_optional(eye_spacing) && valid_optional(eye_size) &&
@@ -102,8 +199,35 @@ bool GenomeOverrides::valid() const noexcept {
            valid_optional(mouth_width) && valid_optional(jaw_width) && valid_optional(hairline);
 }
 
+bool GenomeOverrides::set(GenomeGene gene, double value) noexcept {
+    const auto index = static_cast<std::size_t>(gene);
+    if (index >= genes.size() || !std::isfinite(value) || value < 0.0 || value > 1.0) {
+        return false;
+    }
+    genes[index] = value;
+    return true;
+}
+
+bool GenomeOverrides::set(std::string_view name, double value) noexcept {
+    const auto gene = genomeGeneFromName(name);
+    return gene && set(*gene, value);
+}
+
+std::optional<double> GenomeOverrides::get(GenomeGene gene) const noexcept {
+    const auto index = static_cast<std::size_t>(gene);
+    return index < genes.size() ? genes[index] : std::nullopt;
+}
+
+std::optional<double> GenomeOverrides::get(std::string_view name) const noexcept {
+    const auto gene = genomeGeneFromName(name);
+    return gene ? get(*gene) : std::nullopt;
+}
+
 foundation::StableId GenomeOverrides::hash() const noexcept {
-    std::uint64_t result = foundation::stable_id("genomes.infantry.overrides.v1");
+    std::uint64_t result = foundation::stable_id("genomes.infantry.overrides.v2");
+    for (const auto& gene : genes) {
+        hashOptional(result, gene);
+    }
     hashOptional(result, height);
     hashOptional(result, shoulder_width);
     hashOptional(result, chest_depth);
@@ -125,13 +249,13 @@ bool InfantryGenome::valid() const noexcept {
            finite(move_speed) && move_speed >= 0.0F && move_speed <= 20.0F &&
            finite(perception_radius) && perception_radius > 0.0F && finite(attack_range) &&
            attack_range > 0.0F && finite(max_health) && max_health > 0.0F &&
-           finite(diversity_scale) && diversity_scale >= 0.0F && diversity_scale <= 2.0F &&
+           finite(diversity_scale) && diversity_scale >= 0.0F && diversity_scale <= 1.75F &&
            body.valid() && face.valid();
 }
 
 foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     proc::Seed seed, float diversity_scale) {
-    if (!std::isfinite(diversity_scale) || diversity_scale < 0.0F || diversity_scale > 2.0F) {
+    if (!std::isfinite(diversity_scale) || diversity_scale < 0.0F || diversity_scale > 1.75F) {
         return foundation::Result<InfantryGenome, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid infantry diversity scale"});
     }
@@ -236,7 +360,7 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
 
 foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::applyVariation(
     float scale) const {
-    if (!valid() || !std::isfinite(scale) || scale < 0.0F || scale > 2.0F) {
+    if (!valid() || !std::isfinite(scale) || scale < 0.0F || scale > 1.75F) {
         return foundation::Result<InfantryGenome, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid infantry genome variation"});
     }
@@ -244,6 +368,8 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::applyVaria
     result.diversity_scale = scale;
     const float height_gene = vary(normalizedGene(height, 1.60F, 1.95F), scale);
     result.height = 1.60F + height_gene * 0.35F;
+    const float speed_gene = vary(normalizedGene(move_speed, 2.60F, 3.60F), scale);
+    result.move_speed = 2.60F + speed_gene;
     result.body.shoulder_width = vary(body.shoulder_width, scale);
     result.body.chest_depth = vary(body.chest_depth, scale);
     result.body.hip_width = vary(body.hip_width, scale);
@@ -337,6 +463,12 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::withOverri
             {foundation::ErrorCode::InvalidArgument, "invalid infantry genome override"});
     }
     InfantryGenome result = *this;
+    for (std::size_t index = 0; index < overrides.genes.size(); ++index) {
+        if (overrides.genes[index]) {
+            applyGeneOverride(result, static_cast<GenomeGene>(index),
+                              *overrides.genes[index]);
+        }
+    }
     if (overrides.height) {
         result.height = *overrides.height;
     }
@@ -383,6 +515,21 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::withOverri
                       "infantry override is outside the genome domain"});
 }
 
+double InfantryGenome::geneValue(GenomeGene gene) const noexcept {
+    const auto index = static_cast<std::size_t>(gene);
+    if (gene == GenomeGene::Height) return normalizedGene(height, 1.60F, 1.95F);
+    if (gene == GenomeGene::Speed) return normalizedGene(move_speed, 2.6F, 3.6F);
+    if (index >= static_cast<std::size_t>(GenomeGene::BodyFrame) &&
+        index <= static_cast<std::size_t>(GenomeGene::BodySkinTone)) {
+        return body.*kBodyGeneMembers[index - static_cast<std::size_t>(GenomeGene::BodyFrame)];
+    }
+    if (index >= static_cast<std::size_t>(GenomeGene::FaceHeadWidth) &&
+        index < static_cast<std::size_t>(GenomeGene::Count)) {
+        return face.*kFaceGeneMembers[index - static_cast<std::size_t>(GenomeGene::FaceHeadWidth)];
+    }
+    return 0.0;
+}
+
 foundation::StableId InfantryGenome::identityHash() const noexcept {
     std::uint64_t result = foundation::stableHashCombine(
         foundation::stable_id("genomes.infantry.genome.v1"), seed);
@@ -394,7 +541,7 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
     result = foundation::stableHashCombine(result, foundation::stableHashFloat(max_health));
     result = foundation::stableHashCombine(result, appearance_variant);
     result = foundation::stableHashCombine(result, foundation::stableHashFloat(diversity_scale));
-    const float body_values[] = {body.frame, body.mass, body.musculature, body.adiposity,
+    const double body_values[] = {body.frame, body.mass, body.musculature, body.adiposity,
                                  body.shoulder_width, body.chest_depth, body.hip_width,
                                  body.torso_leg_ratio, body.arm_length, body.leg_length,
                                  body.waist_width, body.limb_thickness, body.neck_thickness,
@@ -420,8 +567,8 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
                                  face.ear_asymmetry, face.blink_rate, face.blink_speed,
                                  face.gaze_restlessness, face.expression_scale, face.eye_expression,
                                  face.mouth_expression, face.brow_expression};
-    for (const float value : body_values) {
-        result = foundation::stableHashCombine(result, foundation::stableHashFloat(value));
+    for (const double value : body_values) {
+        result = foundation::stableHashCombine(result, foundation::stableHashDouble(value));
     }
     for (const float value : face_values) {
         result = foundation::stableHashCombine(result, foundation::stableHashFloat(value));
@@ -430,4 +577,3 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
 }
 
 } // namespace genomes::infantry
-

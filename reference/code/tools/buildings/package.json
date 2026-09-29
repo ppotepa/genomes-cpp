@@ -1,0 +1,16 @@
+{
+  "name": "genomes-building-toolchain",
+  "private": true,
+  "scripts": {
+    "bundle": "node bundle.cjs",
+    "test": "node run-suite.cjs"
+  },
+  "dependencies": {
+    "@lume/kiwi": "0.4.4",
+    "earcut": "3.2.3",
+    "esbuild": "0.25.5",
+    "navcat": "0.4.1",
+    "polygon-clipping": "0.15.7",
+    "straight-skeleton": "3.0.0"
+  }
+}

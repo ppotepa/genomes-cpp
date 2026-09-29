@@ -1,0 +1,1 @@
+(function(){const R=globalThis.RTS,S=R.DestructionAmmunitionStrategies;if(!S)return;const s=S.register(new S.KineticCaliberStrategy({id:'127-kinetic',caliberId:'127',kind:'ball',construction:'ball',penetration:1.3,deformation:.25}));s.registerVariant({...R.DestructionAmmo['127-ball'],caliberId:'127',variantId:'ball',construction:'ball'});})();

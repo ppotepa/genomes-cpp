@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 namespace genomes::infantry {
 
@@ -47,6 +48,151 @@ using foundation::Vec3;
 [[nodiscard]] Vec3 mix(Vec3 left, Vec3 right, float amount) noexcept {
     return add(left, multiply(subtract(right, left), amount));
 }
+
+[[nodiscard]] double mix(double left, double right, double amount) noexcept {
+    return left + (right - left) * amount;
+}
+
+[[nodiscard]] double smooth(double value) noexcept {
+    const double t = std::clamp(value, 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+[[nodiscard]] double bell(double x, double y = 0.0) noexcept {
+    return std::exp(-x * x - y * y);
+}
+
+struct ReferenceFaceLayout final {
+    struct Section final {
+        double y;
+        double radius_x;
+        double radius_z;
+        double center_z;
+    };
+    struct Eye final {
+        double x;
+        double y;
+        double z;
+        double height;
+        double radius;
+    };
+    struct Brow final { Vec3 inner; Vec3 outer; };
+
+    explicit ReferenceFaceLayout(const BodyPhenotype& body, const FacePhenotype& face)
+        : face_(face) {
+        const double neck_x = .0285 * body.neck_scale;
+        const double neck_z = .024 * body.neck_scale;
+        neck_joint_y = mix(.837, .843, std::clamp((body.neck_scale - .76) / .56, 0.0, 1.0));
+        constexpr std::array<std::array<double, 4>, 12> base{{
+            {{.881,.034,.030,.013}}, {{.890,.039,.037,.010}},
+            {{.900,.041,.041,.008}}, {{.913,.045,.044,.005}},
+            {{.925,.049,.046,.003}}, {{.938,.048,.046,.002}},
+            {{.948,.047,.046,.001}}, {{.959,.0465,.046,0}},
+            {{.973,.043,.043,-.001}}, {{.986,.032,.034,-.003}},
+            {{.995,.015,.018,-.004}}, {{.999,0,0,-.004}}
+        }};
+        std::vector<Section> shaped;
+        shaped.reserve(base.size());
+        for (const auto& value : base) {
+            const double y0 = value[0];
+            const double low = smooth(std::clamp((.928-y0)/.058, 0.0, 1.0));
+            const double cheek = bell((y0-(.928+face.cheekbone_y))/.020);
+            const double temple = bell((y0-.951)/.020);
+            const double forehead = smooth((y0-.948)/.038);
+            const double chin = bell((y0-.887)/.015);
+            (void)cheek;
+            double y = y0;
+            if (y0 < .925) y = .925+(y0-.925)*face.jaw_length_scale+face.chin_height*chin*.65;
+            if (y0 > .947) y = .999-(.999-y0)*face.head_length_scale;
+            double scale = mix(1, face.jaw_width_scale, low) *
+                           mix(1, face.jaw_angle, low*low*.40);
+            scale = mix(scale, face.temple_width_scale, temple*.55);
+            scale = mix(scale, face.forehead_width_scale, forehead*.65);
+            shaped.push_back({y, value[1]*scale*face.head_width_scale*mix(1,body.head_scale,.4),
+                              value[2]*face.head_depth_scale*mix(1,body.head_scale,.4), value[3]});
+        }
+        shaped[0].y = std::clamp(shaped[0].y, .8755, .8855);
+        for (std::size_t i=1; i<shaped.size(); ++i)
+            shaped[i].y = std::max(shaped[i].y, shaped[i-1].y+.003);
+        chin_y = shaped[0].y;
+        head_pivot_y = std::clamp(chin_y+.018, .892, .904);
+        levels.push_back({.828,neck_x*1.14,neck_z*1.12,-.002});
+        levels.push_back({.841,neck_x*1.06,neck_z*1.04,-.002});
+        levels.push_back({.853,neck_x,neck_z,-.002});
+        for (const double t : {.2,.4,.6,.8}) {
+            const double blend=smooth(t);
+            levels.push_back({mix(.853,chin_y,t),mix(neck_x*.99,shaped[0].radius_x,blend),
+                              mix(neck_z*1.01,shaped[0].radius_z,blend),
+                              mix(.001,shaped[0].center_z,blend)});
+        }
+        levels.insert(levels.end(), shaped.begin(), shaped.end());
+        slopes.resize(levels.size());
+        for (std::size_t i=0; i<levels.size(); ++i) {
+            const auto component = [](const Section& s, std::size_t k) {
+                return k==0?s.y:(k==1?s.radius_x:(k==2?s.radius_z:s.center_z));
+            };
+            for (std::size_t k=0; k<4; ++k) {
+                if (i==0) slopes[i][k]=(component(levels[1],k)-component(levels[0],k))/(levels[1].y-levels[0].y);
+                else if (i+1==levels.size()) slopes[i][k]=(component(levels[i],k)-component(levels[i-1],k))/(levels[i].y-levels[i-1].y);
+                else {
+                    const double dl=(component(levels[i],k)-component(levels[i-1],k))/(levels[i].y-levels[i-1].y);
+                    const double dr=(component(levels[i+1],k)-component(levels[i],k))/(levels[i+1].y-levels[i].y);
+                    slopes[i][k]=dl*dr<=0?0:2*dl*dr/(dl+dr);
+                }
+            }
+        }
+        mouth_y=std::clamp(static_cast<double>(face.mouth_y_ratio),chin_y+.014,face.eye_y_ratio-.031);
+        const Section mouth_section=section(mouth_y);
+        mouth_half=std::clamp(static_cast<double>(face.mouth_width_ratio)*.5,.007,mouth_section.radius_x*.57);
+        mouth_z=frontZ(0,mouth_y);
+        const double eye_w=.0083*face.eye_width_scale, eye_h=.0034*face.eye_height_scale;
+        const double radius=std::max(eye_w*1.12,eye_h*1.65)*.82;
+        const double rx=section(face.eye_y_ratio).radius_x;
+        const double spacing=std::clamp(static_cast<double>(face.eye_spacing_ratio),radius*1.20+.003,
+                                        std::max(radius*1.20+.003,rx*.66));
+        for (std::size_t side=0; side<2; ++side) {
+            const double sign=side==0?1:-1;
+            const double x=sign*spacing, y=face.eye_y_ratio+sign*face.eye_asymmetry*.5;
+            const double z=frontZ(x,y)-radius*.80+face.eye_depth*.16;
+            eyes[side]={x,y,z,eye_h,radius};
+            const double by=std::max(face.brow_y_ratio+sign*face.brow_asymmetry*.5,y+eye_h+.006);
+            const double inner_x=sign*std::max(.006,spacing-.007+face.brow_spacing*.5);
+            const double outer_x=sign*(spacing+.008+face.brow_spacing*.5);
+            brows[side]={{static_cast<float>(inner_x),static_cast<float>(by),static_cast<float>(frontZ(inner_x,by)+.0012)},
+                         {static_cast<float>(outer_x),static_cast<float>(by+face.brow_tilt*.006),static_cast<float>(frontZ(outer_x,by+face.brow_tilt*.006)+.0012)}};
+        }
+    }
+
+    [[nodiscard]] Section section(double y) const noexcept {
+        std::size_t i=0;
+        while (i+1<levels.size() && levels[i+1].y<y) ++i;
+        if (i+1>=levels.size()) return {y,0,0,levels.back().center_z};
+        const double span=levels[i+1].y-levels[i].y;
+        const double t=std::clamp((y-levels[i].y)/span,0.0,1.0),t2=t*t,t3=t2*t;
+        const auto hermite=[&](double a,double b,double ma,double mb){return (2*t3-3*t2+1)*a+(t3-2*t2+t)*ma*span+(-2*t3+3*t2)*b+(t3-t2)*mb*span;};
+        return {y,std::max(0.0,hermite(levels[i].radius_x,levels[i+1].radius_x,slopes[i][1],slopes[i+1][1])),
+                std::max(0.0,hermite(levels[i].radius_z,levels[i+1].radius_z,slopes[i][2],slopes[i+1][2])),
+                hermite(levels[i].center_z,levels[i+1].center_z,slopes[i][3],slopes[i+1][3])};
+    }
+    [[nodiscard]] double frontZ(double x,double y) const noexcept {
+        const Section p=section(y); const double sx=std::clamp(x/std::max(.00001,p.radius_x),-.9999,.9999);
+        const double cz=std::sqrt(std::max(0.0,1-sx*sx));
+        const double chin=bell((y-(chin_y+.014))/.020),side=smooth((std::abs(sx)-.10)/.72);
+        const double px=p.radius_x*sx*(1+(face_.chin_width_scale-1)*.30*chin*side);
+        double z=p.center_z+p.radius_z*cz;
+        if(cz>0&&y>.882){const double front=smooth((cz-.02)/.48);const double cheek=bell((std::abs(px)-.030*face_.cheekbone_scale)/.014,(y-(.925+face_.cheekbone_y))/.016);
+            z+=(.0014+face_.cheek_fullness*.42+(face_.cheekbone_scale-1)*.0018)*cheek*front;
+            z+=face_.chin_projection*.30*bell(px/.023,(y-(chin_y+.014))/.020)*front;
+            z+=face_.brow_ridge*bell((std::abs(px)-face_.eye_spacing_ratio)/.017,(y-(face_.eye_y_ratio+.010))/.009)*cz;
+            z+=face_.midface_projection*.38*bell(px/.034,(y-.918)/.024)*cz;
+            z+=face_.forehead_slope*smooth((y-.947)/.045)*cz;}
+        return z;
+    }
+    [[nodiscard]] double globeFront(const Eye& eye,double x,double y) const noexcept {const double d=(x-eye.x)*(x-eye.x)+(y-eye.y)*(y-eye.y);return eye.z+std::sqrt(std::max(0.0,eye.radius*eye.radius-d));}
+    const FacePhenotype& face_; std::vector<Section> levels; std::vector<std::array<double,4>> slopes;
+    double neck_joint_y{},chin_y{},head_pivot_y{},mouth_y{},mouth_half{},mouth_z{};
+    std::array<Eye,2> eyes{}; std::array<Brow,2> brows{};
+};
 
 [[nodiscard]] bool finite(Vec3 value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
@@ -193,21 +339,21 @@ void buildFinger(std::array<Vec3, kRigBoneCount>& points,
                  BoneId first,
                  Vec3 hand,
                  Vec3 forearm,
-                 Vec3 lateral,
                  float lateral_offset,
                  bool thumb,
-                 float height) noexcept {
+                 float height,
+                 float hand_scale,
+                 float digit_length) noexcept {
     const Vec3 direction = normalized(subtract(hand, forearm), {0.0F, -1.0F, 0.0F});
-    const Vec3 side = normalized(cross(direction, {0.0F, 0.0F, 1.0F}), lateral);
-    Vec3 axis = direction;
+    const Vec3 side = normalized(cross(direction, {0.0F, 0.0F, 1.0F}));
+    Vec3 axis = add(direction, multiply({0.0F, 0.0F, 1.0F}, thumb ? .22F : .08F));
     if (thumb) {
-        axis = normalized(add(add(direction, multiply({0.0F, 0.0F, 1.0F}, 0.22F)),
-                             multiply(side, lateral_offset < 0.0F ? -0.75F : 0.75F)),
-                          direction);
+        axis = add(axis, multiply(side, lateral_offset < 0.0F ? -0.75F : 0.75F));
     }
-    const Vec3 start = add(add(hand, multiply(direction, height * (thumb ? 0.024F : 0.052F))),
-                           multiply(side, height * lateral_offset));
-    const float segment_length = height * (thumb ? 0.034F : 0.030F);
+    axis = normalized(axis, direction);
+    const Vec3 start = add(add(hand, multiply(direction, height * hand_scale * (thumb ? 0.024F : 0.052F))),
+                           multiply(side, height * hand_scale * lateral_offset));
+    const float segment_length = height * hand_scale * digit_length;
     const std::size_t first_index = boneIndex(first);
     setPoint(points, static_cast<BoneId>(first_index), start);
     setPoint(points, static_cast<BoneId>(first_index + 1U),
@@ -300,69 +446,67 @@ foundation::Result<SkeletonData, foundation::Error> RigBuilder::build(
     }
 
     std::array<Vec3, kRigBoneCount> points{};
-    setPoint(points, BoneId::Hips, body.pelvis);
-    setPoint(points, BoneId::SpineLower, mix(body.pelvis, body.chest, 0.25F));
-    setPoint(points, BoneId::SpineUpper, mix(body.pelvis, body.chest, 0.56F));
-    setPoint(points, BoneId::Chest, body.chest);
-    const Vec3 neck = mix(body.chest, body.head, 0.63F);
-    setPoint(points, BoneId::Neck, neck);
-    setPoint(points, BoneId::Head, body.head);
+    const ReferenceFaceLayout layout(body, face);
+    const float height=body.height, hip_y=body.hip_y*height;
+    const float neck_y=static_cast<float>(layout.neck_joint_y*height);
+    const float head_y=static_cast<float>(layout.head_pivot_y*height);
+    const float chest_y=static_cast<float>(mix(body.hip_y,layout.neck_joint_y,.76)*height);
+    setPoint(points, BoneId::Hips, {0,hip_y,0});
+    setPoint(points, BoneId::SpineLower, {0,static_cast<float>(mix(body.hip_y,layout.neck_joint_y,.25)*height),0});
+    setPoint(points, BoneId::SpineUpper, {0,static_cast<float>(mix(body.hip_y,layout.neck_joint_y,.56)*height),0});
+    setPoint(points, BoneId::Chest, {0,chest_y,0});
+    setPoint(points, BoneId::Neck, {0,neck_y,0});
+    setPoint(points, BoneId::Head, {0,head_y,0});
 
-    const float shoulder_half = std::max(0.02F, body.shoulder_width * 0.5F);
-    const float clavicle_half = std::max(0.01F, shoulder_half * 0.20F);
-    const float shoulder_y = body.chest.y + (neck.y - body.chest.y) * 0.34F;
-    setPoint(points, BoneId::ClavicleL, {-clavicle_half, shoulder_y, body.chest.z});
-    setPoint(points, BoneId::UpperArmL, {-shoulder_half, shoulder_y, body.chest.z});
-    setPoint(points, BoneId::ForeArmL,
-             mix(points[boneIndex(BoneId::UpperArmL)], body.left_hand, 0.5F));
-    setPoint(points, BoneId::HandL, body.left_hand);
-    setPoint(points, BoneId::ClavicleR, {clavicle_half, shoulder_y, body.chest.z});
-    setPoint(points, BoneId::UpperArmR, {shoulder_half, shoulder_y, body.chest.z});
-    setPoint(points, BoneId::ForeArmR,
-             mix(points[boneIndex(BoneId::UpperArmR)], body.right_hand, 0.5F));
-    setPoint(points, BoneId::HandR, body.right_hand);
+    const float shoulder_half=.128F*body.shoulder_width_scale*height;
+    const float clavicle_half=.050F*(.75F+.25F*body.shoulder_width_scale)*height;
+    const float shoulder_y=static_cast<float>(mix(chest_y/height,layout.neck_joint_y,.34)*height);
+    const float arm_angle=22.0F*3.14159265358979323846F/180.0F;
+    const float upper_length=.18F*body.arm_length_scale*height;
+    const float fore_length=.155F*body.arm_length_scale*height;
+    const auto build_side=[&](float sign,BoneId clavicle,BoneId upper,BoneId fore,BoneId hand){
+        const float ax=std::sin(arm_angle)*sign, ay=-std::cos(arm_angle);
+        setPoint(points,clavicle,{clavicle_half*sign,shoulder_y-.010F*height,0});
+        setPoint(points,upper,{shoulder_half*sign,shoulder_y,0});
+        setPoint(points,fore,{shoulder_half*sign+ax*upper_length,shoulder_y+ay*upper_length,0});
+        setPoint(points,hand,{shoulder_half*sign+ax*(upper_length+fore_length),shoulder_y+ay*(upper_length+fore_length),0});
+    };
+    build_side(1,BoneId::ClavicleL,BoneId::UpperArmL,BoneId::ForeArmL,BoneId::HandL);
+    build_side(-1,BoneId::ClavicleR,BoneId::UpperArmR,BoneId::ForeArmR,BoneId::HandR);
 
-    const Vec3 left_thigh{body.left_foot.x, body.pelvis.y - body.height * 0.012F, body.pelvis.z};
-    const Vec3 right_thigh{body.right_foot.x, body.pelvis.y - body.height * 0.012F, body.pelvis.z};
+    const float hip_half=.052F*body.hip_width_scale*height;
+    const float thigh_y=(body.hip_y-.015F)*height, ankle_y=.045F*height;
+    const Vec3 left_thigh{hip_half,thigh_y,0};
+    const Vec3 right_thigh{-hip_half,thigh_y,0};
     setPoint(points, BoneId::ThighL, left_thigh);
-    setPoint(points, BoneId::ShinL, mix(left_thigh, body.left_foot, 0.5F));
-    setPoint(points, BoneId::FootL, body.left_foot);
+    const Vec3 left_foot{hip_half,ankle_y,0}, right_foot{-hip_half,ankle_y,0};
+    setPoint(points, BoneId::ShinL, mix(left_thigh, left_foot, 0.5F));
+    setPoint(points, BoneId::FootL, left_foot);
     setPoint(points, BoneId::ToesL,
-             add(body.left_foot, {0.0F, -body.height * 0.012F, body.height * 0.048F}));
+             {hip_half,.018F*height,.085F*body.foot_scale*height});
     setPoint(points, BoneId::ThighR, right_thigh);
-    setPoint(points, BoneId::ShinR, mix(right_thigh, body.right_foot, 0.5F));
-    setPoint(points, BoneId::FootR, body.right_foot);
+    setPoint(points, BoneId::ShinR, mix(right_thigh, right_foot, 0.5F));
+    setPoint(points, BoneId::FootR, right_foot);
     setPoint(points, BoneId::ToesR,
-             add(body.right_foot, {0.0F, -body.height * 0.012F, body.height * 0.048F}));
+             {-hip_half,.018F*height,.085F*body.foot_scale*height});
 
-    const float jaw_y = std::max(face.mouth_y + 0.022F, body.head.y - body.height * 0.055F);
-    setPoint(points, BoneId::Jaw, {0.0F, jaw_y, face.frontZ(jaw_y)});
-    setPoint(points, BoneId::MouthUpper,
-             {0.0F, face.mouth_y + 0.0012F, face.frontZ(face.mouth_y) + 0.0009F});
-    setPoint(points, BoneId::MouthLower,
-             {0.0F, face.mouth_y - 0.0012F, face.frontZ(face.mouth_y) + 0.0009F});
+    setPoint(points, BoneId::Jaw, {0,static_cast<float>(.915*height),static_cast<float>(.001*height)});
+    setPoint(points, BoneId::MouthUpper,{0,static_cast<float>((layout.mouth_y+.0012)*height),static_cast<float>((layout.mouth_z+.0009)*height)});
+    setPoint(points, BoneId::MouthLower,{0,static_cast<float>((layout.mouth_y-.0012)*height),static_cast<float>((layout.mouth_z+.0009)*height)});
 
     const auto setFaceSide = [&](bool left, BoneId eye, BoneId lid_upper, BoneId lid_lower,
                                  BoneId brow_inner, BoneId brow_outer, BoneId mouth_corner,
                                  BoneId cheek) {
-        const float side = left ? -1.0F : 1.0F;
-        const float eye_x = side * face.eye_spacing;
-        setPoint(points, eye, {eye_x, face.eye_y, face.frontZ(face.eye_y) - face.eye_radius * 0.8F});
-        setPoint(points, lid_upper,
-                 {eye_x, face.eye_y + face.eye_radius, face.frontZ(face.eye_y + face.eye_radius)});
-        setPoint(points, lid_lower,
-                 {eye_x, face.eye_y - face.eye_radius, face.frontZ(face.eye_y - face.eye_radius)});
-        const float inner_x = side * std::max(0.006F, face.eye_spacing - 0.007F);
-        const float outer_x = side * (face.eye_spacing + 0.008F);
-        setPoint(points, brow_inner, {inner_x, face.brow_y, face.frontZ(face.brow_y) + 0.0012F});
-        setPoint(points, brow_outer,
-                 {outer_x, face.brow_y, face.frontZ(face.brow_y) + 0.0012F});
-        setPoint(points, mouth_corner,
-                 {side * face.mouth_width * 0.5F, face.mouth_y,
-                  face.frontZ(face.mouth_y) + 0.001F});
-        const float cheek_x = side * (face.eye_spacing + 0.006F);
-        const float cheek_y = face.eye_y - 0.016F;
-        setPoint(points, cheek, {cheek_x, cheek_y, face.frontZ(cheek_y)});
+        const std::size_t side=left?0U:1U; const double sign=left?1:-1; const auto& e=layout.eyes[side];
+        setPoint(points,eye,{static_cast<float>(e.x*height),static_cast<float>(e.y*height),static_cast<float>(e.z*height)});
+        setPoint(points,lid_upper,{static_cast<float>(e.x*height),static_cast<float>((e.y+e.height)*height),static_cast<float>(layout.globeFront(e,e.x,e.y+e.height)*height)});
+        setPoint(points,lid_lower,{static_cast<float>(e.x*height),static_cast<float>((e.y-e.height)*height),static_cast<float>(layout.globeFront(e,e.x,e.y-e.height)*height)});
+        const auto& br=layout.brows[side];
+        setPoint(points,brow_inner,multiply(br.inner,height)); setPoint(points,brow_outer,multiply(br.outer,height));
+        const double corner_x=sign*layout.mouth_half, corner_y=layout.mouth_y+sign*face.mouth_asymmetry*.5;
+        setPoint(points,mouth_corner,{static_cast<float>(corner_x*height),static_cast<float>(corner_y*height),static_cast<float>((layout.frontZ(corner_x,layout.mouth_y)+.001)*height)});
+        const double cheek_x=e.x+sign*.006,cheek_y=face.eye_y_ratio-.016;
+        setPoint(points,cheek,{static_cast<float>(cheek_x*height),static_cast<float>(cheek_y*height),static_cast<float>(layout.frontZ(cheek_x,cheek_y)*height)});
     };
     setFaceSide(true, BoneId::EyeL, BoneId::LidUpperL, BoneId::LidLowerL,
                 BoneId::BrowInnerL, BoneId::BrowOuterL, BoneId::MouthCornerL, BoneId::CheekL);
@@ -375,16 +519,17 @@ foundation::Result<SkeletonData, foundation::Error> RigBuilder::build(
     const std::array<BoneId, 5U> right_first{
         BoneId::FingerRIndex0, BoneId::FingerRMiddle0, BoneId::FingerRRing0,
         BoneId::FingerRLittle0, BoneId::FingerRThumb0};
-    const std::array<float, 4U> left_offsets{-1.5F, -0.5F, 0.5F, 1.5F};
-    const std::array<float, 4U> right_offsets{1.5F, 0.5F, -0.5F, -1.5F};
+    const std::array<float, 4U> offsets{-1.5F, -0.5F, 0.5F, 1.5F};
+    const std::array<float, 4U> left_lengths{.029F,.039F,.042F,.033F};
+    const std::array<float, 4U> right_lengths{.033F,.042F,.039F,.029F};
     for (std::size_t index = 0U; index < 5U; ++index) {
-        buildFinger(points, left_first[index], body.left_hand, points[boneIndex(BoneId::ForeArmL)],
-                    {-1.0F, 0.0F, 0.0F}, index == 4U ? -0.017F : left_offsets[index] * 0.0101F,
-                    index == 4U, body.height);
-        buildFinger(points, right_first[index], body.right_hand,
-                    points[boneIndex(BoneId::ForeArmR)], {1.0F, 0.0F, 0.0F},
-                    index == 4U ? 0.017F : right_offsets[index] * 0.0101F, index == 4U,
-                    body.height);
+        buildFinger(points, left_first[index], points[boneIndex(BoneId::HandL)], points[boneIndex(BoneId::ForeArmL)],
+                    index == 4U ? .017F : offsets[index] * .0101F, index == 4U,
+                    height, body.hand_scale, index == 4U ? .034F : left_lengths[index]);
+        buildFinger(points, right_first[index], points[boneIndex(BoneId::HandR)],
+                    points[boneIndex(BoneId::ForeArmR)], index == 4U ? -.017F : offsets[index] * .0101F,
+                    index == 4U, height, body.hand_scale,
+                    index == 4U ? .034F : right_lengths[index]);
     }
 
     SkeletonData result{};

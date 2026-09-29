@@ -1,0 +1,11 @@
+{
+  "rapier": "0.19.3",
+  "three": "0.128.0",
+  "esbuild": "0.25.5",
+  "sha256": {
+    "rapier-0.19.3.js": "32b2175902d4805b8d35c7fcc1cb3ff127deaadc449632497dbb217e23946240",
+    "convex-hull-r128.js": "816bcaacd94114c806aea534753f6abd9d8f27b0c4d42d5838b6fdc9042b8885",
+    "RAPIER-LICENSE": "4c05555705e3efde601fb1252ae48f1d63992af8a8fb8947745b7fa834e8f519",
+    "THREE-LICENSE": "7dddf7c5b8fd10ee654db8857d75d104b5557889aa5a91fc4ca545ea7c07062f"
+  }
+}

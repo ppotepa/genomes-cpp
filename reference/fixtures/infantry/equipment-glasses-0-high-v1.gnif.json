@@ -1,0 +1,2220 @@
+{
+  "schema": "genomes.infantry.reference.v1",
+  "provenance": {
+    "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+    "sourceTree": "50e15a425f00611df1900b3d56c1d382978ec19e",
+    "generatorVersion": "genomes-infantry-exporter-v10",
+    "schemaVersion": 1,
+    "files": [
+      {
+        "path": "js/equipment/equipmentCatalog.js",
+        "sha256": "dedf0f2ef2c0dc2f95babbaa2ba4a7482534e8ec0281b2a2ccbe065fc83bcb3e"
+      },
+      {
+        "path": "js/weapons/weaponCatalog.js",
+        "sha256": "b4af868e33708a7e2325a35e154ec30ea0407dfb4f7fbcbe0e4fcbb0224fcbc1"
+      },
+      {
+        "path": "js/equipment/infantryLoadouts.js",
+        "sha256": "8112ea4c424728bb3da0e936527ea1a0bfdaa31589651d562eb429df9b761ce7"
+      },
+      {
+        "path": "js/equipment/equipment.js",
+        "sha256": "f224284b8b854c667926b3e81bcef50851330e642159e01f86b5556abdb1b5fb"
+      },
+      {
+        "path": "js/units/infantryGenome.js",
+        "sha256": "1fe0132188cca41528c9eb954ead3ebc6e6d59d4a68fe1f2851029d40b5eaff1"
+      },
+      {
+        "path": "js/weapons/handRig.js",
+        "sha256": "ef06768f80d9a4ebeb1bca45a4ffb914803d42fb1d2b91dc31d488d47fb6bedd"
+      },
+      {
+        "path": "js/rendering/infantryRig.js",
+        "sha256": "41cea12ea429761441563dfb733348d3fd9d537d43e45bc7c6414eae7ee82d0a"
+      },
+      {
+        "path": "js/rendering/faceAnatomy.js",
+        "sha256": "fa563062e5a61437c9a51eb532495ba5a9854744d6ecfb70c5ad67f00ee0e196"
+      },
+      {
+        "path": "js/rendering/surfaceBuilder.js",
+        "sha256": "76ed0f3f3efdb30842dcaf4481f9b76ab134d8a2045eeadf8ee17a58cb7c7b2b"
+      },
+      {
+        "path": "js/equipment/equipmentFit.js",
+        "sha256": "ff96328da3b7c1e47872d52c077ffd164763476ef29ce54c32a5443074d26a1a"
+      },
+      {
+        "path": "js/equipment/gearGeometry.js",
+        "sha256": "d21dc5ec79c1f18293322ca0ece4503b56f63c1ce80190393c1ee5402fe49323"
+      },
+      {
+        "path": "js/equipment/infantryGear.js",
+        "sha256": "717e775b0f6413578fc4ad08aa67b8a5d4f8079c1212881b6149328ebb8374fa"
+      },
+      {
+        "path": "js/rendering/infantryHair.js",
+        "sha256": "ad839743d62271101b82deddafd3108c92a16e5efda2c1e540c5c3266a16876f"
+      },
+      {
+        "path": "js/rendering/infantryFace.js",
+        "sha256": "0f3f15d4d49664fe74f21d050bcd66eca01858fb5e69395bcd87352e7bc51499"
+      },
+      {
+        "path": "js/rendering/infantrySurface.js",
+        "sha256": "c9dd81fe2603e0800ea77e3d50c4307aab9d9ea045df27e066a70ead6c589d7a"
+      },
+      {
+        "path": "js/rendering/infantryMaterials.js",
+        "sha256": "86550af1dcb4dcfb804afdae25df0577893e1b6b6b097ef0a8c2fc3495b7e933"
+      },
+      {
+        "path": "js/rendering/infantryFactory.js",
+        "sha256": "1650331a11edd14da6e1f5e7a08d97cb8eb6b88cb5522c7263da79178e514cd5"
+      },
+      {
+        "path": "js/animation/infantryAnimator.js",
+        "sha256": "3d0b3af84d091304847a3c79257d86e6bb4f40618ecdb646757c16ab224166d1"
+      },
+      {
+        "path": "js/weapons/weaponGeometry.js",
+        "sha256": "fe9f64efedfc489aa2ccd610f341be03c2b36ee954ffed3e89e4d0c49d0e32b0"
+      },
+      {
+        "path": "js/weapons/weaponHandlingProfiles.js",
+        "sha256": "b7319dd93f0b45d8c7de0a13be12d1d4821ecb3de2f9ebddfd041f6db332a488"
+      },
+      {
+        "path": "js/weapons/weaponController.js",
+        "sha256": "93c28973aadcaadee6886afdae40e7c138c62b8a3a3ea86de32b4ee2a305a1ca"
+      },
+      {
+        "path": "js/units/infantryUnit.js",
+        "sha256": "92fdb0e0804e43536d33aeac7038a6bde27c2ebd5f9384152a76cc068e44d2bd"
+      },
+      {
+        "path": "js/combat/infantryDamageRuntime.js",
+        "sha256": "e8a170a7b9317a56c8e6f7973c57f9c0fa22071a04be7b5452421332d5ab3bea"
+      }
+    ]
+  },
+  "request": {
+    "mode": "equipment",
+    "seed": 0,
+    "variation": 0,
+    "detail": "high",
+    "equipment": "neutral",
+    "loadout": null,
+    "wear": 0.25,
+    "hairStyle": 3
+  },
+  "equipmentSchema": "EQUIPMENT/v1",
+  "equipmentState": {
+    "schema": "EQUIPMENT/v1",
+    "seed": 525446116,
+    "palette": "side",
+    "wear": 0.25,
+    "slots": {
+      "head": null,
+      "face": {
+        "definitionId": "glasses",
+        "seed": 1963831658,
+        "variant": {
+          "size": 1.0193342221085913,
+          "shade": 1.0120779277337715,
+          "detail": 0.46155451657250524
+        }
+      },
+      "neck": null,
+      "torsoBase": {
+        "definitionId": "field_jacket",
+        "seed": 1301027283,
+        "variant": {
+          "size": 1.0177354844333604,
+          "shade": 0.9945518171321601,
+          "detail": 0.2521696693729609
+        }
+      },
+      "legs": {
+        "definitionId": "field_pants",
+        "seed": 434658427,
+        "variant": {
+          "size": 0.9772703024884686,
+          "shade": 0.9334713283623569,
+          "detail": 0.3170282789506018
+        }
+      },
+      "feet": {
+        "definitionId": "combat_boots",
+        "seed": 4262022784,
+        "variant": {
+          "size": 0.9690954712312668,
+          "shade": 0.9536805677134544,
+          "detail": 0.896490859799087
+        }
+      },
+      "hands": null,
+      "torsoArmor": null,
+      "chestRig": null,
+      "back": null,
+      "belt": null,
+      "leftHip": null,
+      "rightHip": null,
+      "leftThigh": null,
+      "rightThigh": null,
+      "utility1": null,
+      "utility2": null,
+      "utility3": null,
+      "meleeWeapon": null,
+      "throwable": null,
+      "primaryWeapon": null,
+      "secondaryWeapon": null
+    }
+  },
+  "equipmentFit": {
+    "height": 1.775,
+    "hipY": 0.5421,
+    "armorGap": 0,
+    "jacket": [
+      [
+        0.5061,
+        0.11480000000055447,
+        0.071
+      ],
+      [
+        0.5210112676056338,
+        0.11582500000569691,
+        0.071
+      ],
+      [
+        0.5538160563380282,
+        0.11275000058924797,
+        0.067
+      ],
+      [
+        0.596561690140845,
+        0.0963500887524148,
+        0.056
+      ],
+      [
+        0.6412954929577465,
+        0.1024079138967365,
+        0.05947255043731778
+      ],
+      [
+        0.6989523943661972,
+        0.11577344606921477,
+        0.0680904576
+      ],
+      [
+        0.7357335211267606,
+        0.12635478932225727,
+        0.06865643986880467
+      ],
+      [
+        0.7595915492957747,
+        0.1351677428466101,
+        0.0665856
+      ],
+      [
+        0.7854377464788733,
+        0.1415134024797865,
+        0.0645048
+      ],
+      [
+        0.8092957746478874,
+        0.13371270547330957,
+        0.0593028
+      ],
+      [
+        0.8252011267605633,
+        0.11713468531266917,
+        0.053060399999999994
+      ],
+      [
+        0.8411064788732394,
+        0.05498005007331247,
+        0.035616308578574764
+      ],
+      [
+        0.8520414084507042,
+        0.03373983301738345,
+        0.028574364819124662
+      ],
+      [
+        0.859,
+        0.03244767206962202,
+        0.028316579282361497
+      ]
+    ],
+    "packDimensions": null,
+    "sockets": {
+      "HEAD": {
+        "bone": "head",
+        "position": [
+          0,
+          0.899056946731414,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "HEAD_FRONT": {
+        "bone": "head",
+        "position": [
+          0,
+          0.94,
+          0.04856449862677841
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "NECK": {
+        "bone": "neck",
+        "position": [
+          0,
+          0.866,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "CHEST_CENTER": {
+        "bone": "chest",
+        "position": [
+          0,
+          0.725792676056338,
+          0.07150347168804665
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "CHEST_LEFT": {
+        "bone": "chest",
+        "position": [
+          0.05927758407428878,
+          0.7804673239436619,
+          0.06282663362604103
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "BACK_CENTER": {
+        "bone": "spineUpper",
+        "position": [
+          0,
+          0.725792676056338,
+          -0.07650347168804664
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ]
+      },
+      "WAIST": {
+        "bone": "hips",
+        "position": [
+          0,
+          0.5501,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "WAIST_FRONT": {
+        "bone": "hips",
+        "position": [
+          0,
+          0.5351,
+          0.07892693101016825
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "WAIST_BACK": {
+        "bone": "hips",
+        "position": [
+          0,
+          0.5361,
+          -0.07892693101016825
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ]
+      },
+      "HIP_L": {
+        "bone": "hips",
+        "position": [
+          0.12664106195368005,
+          0.5241,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ]
+      },
+      "THIGH_L": {
+        "bone": "thigh.L",
+        "position": [
+          0.12357744950000002,
+          0.4651,
+          0
+        ],
+        "normal": [
+          1,
+          0,
+          0
+        ]
+      },
+      "HAND_L": {
+        "bone": "hand.L",
+        "position": [
+          0.26059172488227383,
+          0.4791035896644703,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "FOOT_L": {
+        "bone": "foot.L",
+        "position": [
+          0.053840878,
+          0.045,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "HIP_R": {
+        "bone": "hips",
+        "position": [
+          -0.12664106195368005,
+          0.5241,
+          0
+        ],
+        "normal": [
+          -1,
+          0,
+          0
+        ]
+      },
+      "THIGH_R": {
+        "bone": "thigh.R",
+        "position": [
+          -0.12357744950000002,
+          0.4651,
+          0
+        ],
+        "normal": [
+          -1,
+          0,
+          0
+        ]
+      },
+      "HAND_R": {
+        "bone": "hand.R",
+        "position": [
+          -0.26059172488227383,
+          0.4791035896644703,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "FOOT_R": {
+        "bone": "foot.R",
+        "position": [
+          -0.053840878,
+          0.045,
+          0
+        ],
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      },
+      "WEAPON_BACK": {
+        "bone": "spineUpper",
+        "position": [
+          -0.03704849004643049,
+          0.725792676056338,
+          -0.09350347168804665
+        ],
+        "normal": [
+          0,
+          0,
+          -1
+        ]
+      },
+      "WEAPON_HIP": {
+        "bone": "thigh.R",
+        "position": [
+          -0.10427338600000001,
+          0.45010000000000006,
+          0.04
+        ],
+        "normal": [
+          -0.7,
+          0,
+          0.7
+        ]
+      }
+    },
+    "headBottom": []
+  },
+  "slots": [
+    {
+      "id": "head",
+      "required": null,
+      "socket": "HEAD"
+    },
+    {
+      "id": "face",
+      "required": null,
+      "socket": "HEAD_FRONT"
+    },
+    {
+      "id": "neck",
+      "required": null,
+      "socket": "NECK"
+    },
+    {
+      "id": "torsoBase",
+      "required": "field_jacket",
+      "socket": null
+    },
+    {
+      "id": "legs",
+      "required": "field_pants",
+      "socket": null
+    },
+    {
+      "id": "feet",
+      "required": "combat_boots",
+      "socket": null
+    },
+    {
+      "id": "hands",
+      "required": null,
+      "socket": null
+    },
+    {
+      "id": "torsoArmor",
+      "required": null,
+      "socket": "CHEST_CENTER"
+    },
+    {
+      "id": "chestRig",
+      "required": null,
+      "socket": "CHEST_CENTER"
+    },
+    {
+      "id": "back",
+      "required": null,
+      "socket": "BACK_CENTER"
+    },
+    {
+      "id": "belt",
+      "required": null,
+      "socket": "WAIST"
+    },
+    {
+      "id": "leftHip",
+      "required": null,
+      "socket": "HIP_L"
+    },
+    {
+      "id": "rightHip",
+      "required": null,
+      "socket": "HIP_R"
+    },
+    {
+      "id": "leftThigh",
+      "required": null,
+      "socket": "THIGH_L"
+    },
+    {
+      "id": "rightThigh",
+      "required": null,
+      "socket": "THIGH_R"
+    },
+    {
+      "id": "utility1",
+      "required": null,
+      "socket": "WAIST_FRONT"
+    },
+    {
+      "id": "utility2",
+      "required": null,
+      "socket": "WAIST_BACK"
+    },
+    {
+      "id": "utility3",
+      "required": null,
+      "socket": "CHEST_LEFT"
+    },
+    {
+      "id": "meleeWeapon",
+      "required": null,
+      "socket": "HIP_R"
+    },
+    {
+      "id": "throwable",
+      "required": null,
+      "socket": "WAIST_FRONT"
+    },
+    {
+      "id": "primaryWeapon",
+      "required": null,
+      "socket": "WEAPON_BACK"
+    },
+    {
+      "id": "secondaryWeapon",
+      "required": null,
+      "socket": "WEAPON_HIP"
+    }
+  ],
+  "items": [
+    {
+      "id": "field_cap",
+      "slots": [
+        "head"
+      ],
+      "kind": "cap",
+      "weightKg": 0.16,
+      "visual": {
+        "style": "cap",
+        "coverage": "cap"
+      }
+    },
+    {
+      "id": "patrol_cap",
+      "slots": [
+        "head"
+      ],
+      "kind": "cap",
+      "weightKg": 0.19,
+      "visual": {
+        "style": "patrol",
+        "coverage": "cap"
+      }
+    },
+    {
+      "id": "beanie",
+      "slots": [
+        "head"
+      ],
+      "kind": "cap",
+      "weightKg": 0.12,
+      "visual": {
+        "style": "beanie",
+        "coverage": "cap"
+      }
+    },
+    {
+      "id": "beret",
+      "slots": [
+        "head"
+      ],
+      "kind": "cap",
+      "weightKg": 0.13,
+      "visual": {
+        "style": "beret",
+        "coverage": "cap"
+      }
+    },
+    {
+      "id": "boonie_hat",
+      "slots": [
+        "head"
+      ],
+      "kind": "cap",
+      "weightKg": 0.22,
+      "visual": {
+        "style": "boonie",
+        "coverage": "cap"
+      }
+    },
+    {
+      "id": "helmet_light",
+      "slots": [
+        "head"
+      ],
+      "kind": "helmet",
+      "weightKg": 0.95,
+      "visual": {
+        "style": "light",
+        "coverage": "helmet"
+      }
+    },
+    {
+      "id": "helmet_standard",
+      "slots": [
+        "head"
+      ],
+      "kind": "helmet",
+      "weightKg": 1.3,
+      "visual": {
+        "style": "standard",
+        "coverage": "helmet"
+      }
+    },
+    {
+      "id": "helmet_heavy",
+      "slots": [
+        "head"
+      ],
+      "kind": "helmet",
+      "weightKg": 1.7,
+      "visual": {
+        "style": "heavy",
+        "coverage": "helmet"
+      }
+    },
+    {
+      "id": "helmet_cover",
+      "slots": [
+        "head"
+      ],
+      "kind": "helmet",
+      "weightKg": 1.4,
+      "visual": {
+        "style": "cover",
+        "coverage": "helmet"
+      }
+    },
+    {
+      "id": "glasses",
+      "slots": [
+        "face"
+      ],
+      "kind": "eyewear",
+      "weightKg": 0.06,
+      "visual": {
+        "style": "glasses"
+      }
+    },
+    {
+      "id": "goggles",
+      "slots": [
+        "face"
+      ],
+      "kind": "eyewear",
+      "weightKg": 0.18,
+      "visual": {
+        "style": "goggles"
+      }
+    },
+    {
+      "id": "balaclava",
+      "slots": [
+        "face"
+      ],
+      "kind": "mask",
+      "weightKg": 0.1,
+      "visual": {
+        "style": "balaclava"
+      }
+    },
+    {
+      "id": "respirator",
+      "slots": [
+        "face"
+      ],
+      "kind": "mask",
+      "weightKg": 0.36,
+      "visual": {
+        "style": "respirator"
+      }
+    },
+    {
+      "id": "scarf",
+      "slots": [
+        "neck"
+      ],
+      "kind": "neckwear",
+      "weightKg": 0.2,
+      "visual": {
+        "style": "scarf"
+      }
+    },
+    {
+      "id": "neck_gaiter",
+      "slots": [
+        "neck"
+      ],
+      "kind": "neckwear",
+      "weightKg": 0.1,
+      "visual": {
+        "style": "gaiter"
+      }
+    },
+    {
+      "id": "field_jacket",
+      "slots": [
+        "torsoBase"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.7,
+      "visual": {
+        "ease": 1,
+        "style": "field"
+      }
+    },
+    {
+      "id": "combat_shirt",
+      "slots": [
+        "torsoBase"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.45,
+      "visual": {
+        "ease": 0.97,
+        "style": "combat"
+      }
+    },
+    {
+      "id": "winter_jacket",
+      "slots": [
+        "torsoBase"
+      ],
+      "kind": "clothing",
+      "weightKg": 1.35,
+      "visual": {
+        "ease": 1.08,
+        "style": "winter"
+      }
+    },
+    {
+      "id": "field_pants",
+      "slots": [
+        "legs"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.65,
+      "visual": {
+        "ease": 1
+      }
+    },
+    {
+      "id": "combat_pants",
+      "slots": [
+        "legs"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.8,
+      "visual": {
+        "ease": 1.025,
+        "pads": true
+      }
+    },
+    {
+      "id": "winter_pants",
+      "slots": [
+        "legs"
+      ],
+      "kind": "clothing",
+      "weightKg": 1,
+      "visual": {
+        "ease": 1.07
+      }
+    },
+    {
+      "id": "combat_boots",
+      "slots": [
+        "feet"
+      ],
+      "kind": "clothing",
+      "weightKg": 1.2,
+      "visual": {
+        "width": 1,
+        "shaft": 1
+      }
+    },
+    {
+      "id": "light_boots",
+      "slots": [
+        "feet"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.9,
+      "visual": {
+        "width": 0.96,
+        "shaft": 0.87
+      }
+    },
+    {
+      "id": "heavy_boots",
+      "slots": [
+        "feet"
+      ],
+      "kind": "clothing",
+      "weightKg": 1.65,
+      "visual": {
+        "width": 1.07,
+        "shaft": 1.08
+      }
+    },
+    {
+      "id": "winter_boots",
+      "slots": [
+        "feet"
+      ],
+      "kind": "clothing",
+      "weightKg": 1.5,
+      "visual": {
+        "width": 1.1,
+        "shaft": 1.04
+      }
+    },
+    {
+      "id": "gloves_light",
+      "slots": [
+        "hands"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.08,
+      "visual": {
+        "style": "fingerless"
+      }
+    },
+    {
+      "id": "gloves_full",
+      "slots": [
+        "hands"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.12,
+      "visual": {
+        "style": "full"
+      }
+    },
+    {
+      "id": "gloves_winter",
+      "slots": [
+        "hands"
+      ],
+      "kind": "clothing",
+      "weightKg": 0.2,
+      "visual": {
+        "style": "winter"
+      }
+    },
+    {
+      "id": "light_vest",
+      "slots": [
+        "torsoArmor"
+      ],
+      "kind": "armor",
+      "weightKg": 2.5,
+      "visual": {
+        "style": "light",
+        "thickness": 0.01
+      }
+    },
+    {
+      "id": "plate_carrier",
+      "slots": [
+        "torsoArmor"
+      ],
+      "kind": "armor",
+      "weightKg": 6,
+      "visual": {
+        "style": "plate",
+        "thickness": 0.02
+      }
+    },
+    {
+      "id": "heavy_armor",
+      "slots": [
+        "torsoArmor"
+      ],
+      "kind": "armor",
+      "weightKg": 9.5,
+      "visual": {
+        "style": "heavy",
+        "thickness": 0.029
+      }
+    },
+    {
+      "id": "webbing",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 0.7,
+      "visual": {
+        "count": 2,
+        "style": "webbing"
+      }
+    },
+    {
+      "id": "chest_standard",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 1,
+      "visual": {
+        "count": 3,
+        "style": "standard"
+      }
+    },
+    {
+      "id": "chest_assault",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 1.2,
+      "visual": {
+        "count": 4,
+        "style": "assault"
+      }
+    },
+    {
+      "id": "chest_ammo",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 2,
+      "visual": {
+        "count": 3,
+        "style": "ammo"
+      }
+    },
+    {
+      "id": "chest_medical",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 1.6,
+      "visual": {
+        "count": 2,
+        "style": "medical"
+      }
+    },
+    {
+      "id": "chest_tools",
+      "slots": [
+        "chestRig"
+      ],
+      "kind": "rig",
+      "weightKg": 1.9,
+      "visual": {
+        "count": 3,
+        "style": "tools"
+      }
+    },
+    {
+      "id": "pack_small",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 0.7,
+      "visual": {
+        "size": [
+          0.26,
+          0.32,
+          0.13
+        ],
+        "style": "small"
+      }
+    },
+    {
+      "id": "pack_medium",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 1.2,
+      "visual": {
+        "size": [
+          0.32,
+          0.43,
+          0.19
+        ],
+        "style": "medium"
+      }
+    },
+    {
+      "id": "pack_large",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 1.8,
+      "visual": {
+        "size": [
+          0.37,
+          0.53,
+          0.22
+        ],
+        "style": "large",
+        "roll": true
+      }
+    },
+    {
+      "id": "pack_medical",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 3.5,
+      "visual": {
+        "size": [
+          0.35,
+          0.42,
+          0.19
+        ],
+        "style": "medical"
+      }
+    },
+    {
+      "id": "pack_radio",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 5.1,
+      "visual": {
+        "size": [
+          0.31,
+          0.39,
+          0.18
+        ],
+        "style": "radio"
+      }
+    },
+    {
+      "id": "pack_engineer",
+      "slots": [
+        "back"
+      ],
+      "kind": "pack",
+      "weightKg": 3.8,
+      "visual": {
+        "size": [
+          0.33,
+          0.43,
+          0.2
+        ],
+        "style": "engineer"
+      }
+    },
+    {
+      "id": "belt_light",
+      "slots": [
+        "belt"
+      ],
+      "kind": "belt",
+      "weightKg": 0.24,
+      "visual": {
+        "style": "light"
+      }
+    },
+    {
+      "id": "belt_utility",
+      "slots": [
+        "belt"
+      ],
+      "kind": "belt",
+      "weightKg": 0.5,
+      "visual": {
+        "style": "utility"
+      }
+    },
+    {
+      "id": "canteen",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "utility1",
+        "utility2"
+      ],
+      "kind": "pouch",
+      "weightKg": 1,
+      "visual": {
+        "style": "canteen"
+      }
+    },
+    {
+      "id": "pouch_utility",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "leftThigh",
+        "rightThigh",
+        "utility1",
+        "utility2",
+        "utility3"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.25,
+      "visual": {
+        "style": "utility"
+      }
+    },
+    {
+      "id": "pouch_ammo",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "leftThigh",
+        "rightThigh",
+        "utility1",
+        "utility2",
+        "utility3"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.7,
+      "visual": {
+        "style": "ammo"
+      }
+    },
+    {
+      "id": "pouch_medical",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "leftThigh",
+        "rightThigh",
+        "utility1",
+        "utility2",
+        "utility3"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.55,
+      "visual": {
+        "style": "medical"
+      }
+    },
+    {
+      "id": "pouch_tools",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "leftThigh",
+        "rightThigh",
+        "utility1",
+        "utility2",
+        "utility3"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.9,
+      "visual": {
+        "style": "tools"
+      }
+    },
+    {
+      "id": "radio_handheld",
+      "slots": [
+        "utility3",
+        "leftHip",
+        "rightHip"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.3,
+      "visual": {
+        "style": "radio"
+      }
+    },
+    {
+      "id": "binoculars",
+      "slots": [
+        "utility3",
+        "utility1"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.5,
+      "visual": {
+        "style": "binoculars"
+      }
+    },
+    {
+      "id": "map_case",
+      "slots": [
+        "leftHip",
+        "rightHip",
+        "utility1"
+      ],
+      "kind": "pouch",
+      "weightKg": 0.2,
+      "visual": {
+        "style": "map"
+      }
+    },
+    {
+      "id": "rifle",
+      "slots": [
+        "primaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 3.1,
+      "visual": {
+        "style": "rifle"
+      }
+    },
+    {
+      "id": "carbine",
+      "slots": [
+        "primaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 2.6,
+      "visual": {
+        "style": "carbine"
+      }
+    },
+    {
+      "id": "support_gun",
+      "slots": [
+        "primaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 5.2,
+      "visual": {
+        "style": "support"
+      }
+    },
+    {
+      "id": "heavy_support_gun",
+      "slots": [
+        "primaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 7,
+      "visual": {
+        "style": "heavy"
+      }
+    },
+    {
+      "id": "marksman_rifle",
+      "slots": [
+        "primaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 4,
+      "visual": {
+        "style": "marksman"
+      }
+    },
+    {
+      "id": "knife",
+      "slots": [
+        "meleeWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 0.25,
+      "visual": {
+        "style": "knife"
+      }
+    },
+    {
+      "id": "grenade",
+      "slots": [
+        "throwable"
+      ],
+      "kind": "weapon",
+      "weightKg": 0.4,
+      "visual": {
+        "style": "grenade"
+      }
+    },
+    {
+      "id": "sidearm",
+      "slots": [
+        "secondaryWeapon"
+      ],
+      "kind": "weapon",
+      "weightKg": 0.85,
+      "visual": {
+        "style": "sidearm"
+      }
+    }
+  ],
+  "loadouts": [
+    {
+      "id": "RIFLEMAN",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": [
+          "helmet_standard",
+          "helmet_cover"
+        ],
+        "torsoArmor": [
+          "light_vest",
+          "plate_carrier"
+        ],
+        "chestRig": "chest_standard",
+        "back": [
+          null,
+          null,
+          "pack_small"
+        ],
+        "hands": "gloves_light",
+        "primaryWeapon": "rifle"
+      }
+    },
+    {
+      "id": "ASSAULT",
+      "slots": {
+        "torsoBase": "combat_shirt",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": "helmet_light",
+        "torsoArmor": "plate_carrier",
+        "chestRig": "chest_assault",
+        "back": [
+          null,
+          "pack_small"
+        ],
+        "face": [
+          null,
+          "goggles"
+        ],
+        "hands": "gloves_full",
+        "primaryWeapon": "carbine"
+      }
+    },
+    {
+      "id": "LIGHT_SUPPORT",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": [
+          "helmet_standard",
+          "helmet_cover"
+        ],
+        "torsoArmor": "plate_carrier",
+        "chestRig": "chest_ammo",
+        "back": "pack_medium",
+        "leftThigh": "pouch_ammo",
+        "hands": "gloves_full",
+        "primaryWeapon": "support_gun"
+      }
+    },
+    {
+      "id": "HEAVY_SUPPORT",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "heavy_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": "helmet_heavy",
+        "torsoArmor": "heavy_armor",
+        "chestRig": "chest_ammo",
+        "back": "pack_large",
+        "leftThigh": "pouch_ammo",
+        "rightThigh": "pouch_ammo",
+        "hands": "gloves_full",
+        "primaryWeapon": "heavy_support_gun"
+      }
+    },
+    {
+      "id": "MARKSMAN",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": [
+          "field_cap",
+          "helmet_light"
+        ],
+        "torsoArmor": "light_vest",
+        "chestRig": "webbing",
+        "back": "pack_small",
+        "hands": "gloves_light",
+        "utility3": "binoculars",
+        "primaryWeapon": "marksman_rifle"
+      }
+    },
+    {
+      "id": "SCOUT",
+      "slots": {
+        "torsoBase": "combat_shirt",
+        "legs": "field_pants",
+        "feet": "light_boots",
+        "belt": "belt_light",
+        "leftHip": "canteen",
+        "rightHip": "map_case",
+        "head": [
+          "boonie_hat",
+          "field_cap",
+          "patrol_cap",
+          "beanie"
+        ],
+        "chestRig": "webbing",
+        "back": "pack_small",
+        "utility3": "binoculars",
+        "primaryWeapon": "carbine"
+      }
+    },
+    {
+      "id": "MEDIC",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_medical",
+        "head": "helmet_standard",
+        "torsoArmor": "light_vest",
+        "chestRig": "chest_medical",
+        "back": "pack_medical",
+        "leftThigh": "pouch_medical",
+        "hands": "gloves_full",
+        "primaryWeapon": "carbine"
+      }
+    },
+    {
+      "id": "ENGINEER",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "heavy_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_tools",
+        "head": [
+          "helmet_standard",
+          "helmet_cover"
+        ],
+        "torsoArmor": "plate_carrier",
+        "face": "goggles",
+        "chestRig": "chest_tools",
+        "back": "pack_engineer",
+        "rightThigh": "pouch_tools",
+        "hands": "gloves_full",
+        "primaryWeapon": "carbine"
+      }
+    },
+    {
+      "id": "RADIO_OPERATOR",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "pouch_utility",
+        "head": "helmet_standard",
+        "torsoArmor": "light_vest",
+        "chestRig": "chest_standard",
+        "back": "pack_radio",
+        "utility3": "radio_handheld",
+        "hands": "gloves_light",
+        "primaryWeapon": "rifle"
+      }
+    },
+    {
+      "id": "SQUAD_LEADER",
+      "slots": {
+        "torsoBase": "field_jacket",
+        "legs": "combat_pants",
+        "feet": "combat_boots",
+        "belt": "belt_utility",
+        "leftHip": "canteen",
+        "rightHip": "map_case",
+        "head": [
+          "helmet_cover",
+          "beret"
+        ],
+        "torsoArmor": "plate_carrier",
+        "chestRig": "chest_standard",
+        "back": "pack_small",
+        "utility3": "radio_handheld",
+        "utility1": "binoculars",
+        "hands": "gloves_light",
+        "primaryWeapon": "carbine",
+        "secondaryWeapon": "sidearm"
+      }
+    }
+  ],
+  "gear": {
+    "groups": [
+      {
+        "start": 0,
+        "count": 2544,
+        "material": 1
+      }
+    ],
+    "tags": {
+      "gear.face": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        234,
+        235,
+        236,
+        237,
+        238,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        250,
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        259,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273,
+        274,
+        275,
+        276,
+        277,
+        278,
+        279,
+        280,
+        281,
+        282,
+        283,
+        284,
+        285,
+        286,
+        287,
+        288,
+        289,
+        290,
+        291,
+        292,
+        293,
+        294,
+        295,
+        296,
+        297,
+        298,
+        299,
+        300,
+        301,
+        302,
+        303,
+        304,
+        305,
+        306,
+        307,
+        308,
+        309,
+        310,
+        311,
+        312,
+        313,
+        314,
+        315,
+        316,
+        317,
+        318,
+        319,
+        320,
+        321,
+        322,
+        323,
+        324,
+        325,
+        326,
+        327,
+        328,
+        329,
+        330,
+        331,
+        332,
+        333,
+        334,
+        335,
+        336,
+        337,
+        338,
+        339,
+        340,
+        341,
+        342,
+        343,
+        344,
+        345,
+        346,
+        347,
+        348,
+        349,
+        350,
+        351,
+        352,
+        353,
+        354,
+        355,
+        356,
+        357,
+        358,
+        359,
+        360,
+        361,
+        362,
+        363,
+        364,
+        365,
+        366,
+        367,
+        368,
+        369,
+        370,
+        371,
+        372,
+        373,
+        374,
+        375,
+        376,
+        377,
+        378,
+        379,
+        380,
+        381,
+        382,
+        383,
+        384,
+        385,
+        386,
+        387,
+        388,
+        389,
+        390,
+        391,
+        392,
+        393,
+        394,
+        395,
+        396,
+        397,
+        398,
+        399,
+        400,
+        401,
+        402,
+        403,
+        404,
+        405,
+        406,
+        407,
+        408,
+        409,
+        410,
+        411,
+        412,
+        413,
+        414,
+        415,
+        416,
+        417,
+        418,
+        419,
+        420,
+        421,
+        422,
+        423,
+        424,
+        425,
+        426,
+        427,
+        428,
+        429,
+        430,
+        431,
+        432,
+        433,
+        434,
+        435,
+        436,
+        437,
+        438,
+        439,
+        440,
+        441,
+        442,
+        443,
+        444,
+        445,
+        446,
+        447,
+        448,
+        449,
+        450,
+        451,
+        452,
+        453,
+        454,
+        455,
+        456,
+        457,
+        458,
+        459,
+        460,
+        461,
+        462,
+        463
+      ]
+    },
+    "records": [
+      {
+        "slot": "face",
+        "id": "glasses",
+        "label": "Okulary",
+        "vertices": 464
+      },
+      {
+        "slot": "torsoBase",
+        "id": "field_jacket",
+        "label": "Bluza polowa",
+        "vertices": 0
+      },
+      {
+        "slot": "legs",
+        "id": "field_pants",
+        "label": "Spodnie polowe",
+        "vertices": 0
+      },
+      {
+        "slot": "feet",
+        "id": "combat_boots",
+        "label": "Buty standardowe",
+        "vertices": 0
+      }
+    ],
+    "vertices": 464,
+    "triangles": 848,
+    "morphs": [],
+    "extrema": {
+      "positions": {
+        "minimum": [
+          -0.09248726069927216,
+          1.6585912704467773,
+          0.0026381181087344885
+        ],
+        "maximum": [
+          0.09248726069927216,
+          1.6784087419509888,
+          0.08823981136083603
+        ]
+      },
+      "normals": {
+        "minimum": [
+          -0.9987356662750244,
+          -0.999999463558197,
+          -0.9999650120735168
+        ],
+        "maximum": [
+          0.9956815838813782,
+          0.999999463558197,
+          0.9999503493309021
+        ]
+      },
+      "indices": {
+        "minimum": [
+          0
+        ],
+        "maximum": [
+          463
+        ]
+      }
+    },
+    "faceMetadata": null,
+    "bounds": {
+      "minimum": [
+        -0.09248726069927216,
+        1.6585912704467773,
+        0.0026381181087344885
+      ],
+      "maximum": [
+        0.09248726069927216,
+        1.6784087419509888,
+        0.08823981136083603
+      ],
+      "sphereCenter": [
+        0,
+        0.8875,
+        0
+      ],
+      "sphereRadius": 2.1324221386787903
+    },
+    "materials": [
+      {
+        "name": "",
+        "color": [
+          null,
+          null,
+          null
+        ],
+        "roughness": 0.95,
+        "metalness": 0,
+        "opacity": 1,
+        "transparent": false,
+        "vertexColors": true
+      }
+    ]
+  },
+  "body": null,
+  "streams": [
+    {
+      "name": "gear.positions",
+      "type": 1,
+      "elements": 1392,
+      "bytes": 5568,
+      "quantizedFNV1a64": "ac9d61e64f892a03"
+    },
+    {
+      "name": "gear.normals",
+      "type": 1,
+      "elements": 1392,
+      "bytes": 5568,
+      "quantizedFNV1a64": "bdd39aac60cc23d1"
+    },
+    {
+      "name": "gear.colors",
+      "type": 1,
+      "elements": 1392,
+      "bytes": 5568,
+      "quantizedFNV1a64": "b715c23067248685"
+    },
+    {
+      "name": "gear.uvs",
+      "type": 1,
+      "elements": 928,
+      "bytes": 3712,
+      "quantizedFNV1a64": "c7762f812af381a9"
+    },
+    {
+      "name": "gear.skinIndices",
+      "type": 1,
+      "elements": 1856,
+      "bytes": 7424,
+      "quantizedFNV1a64": "9c1d9b63f8495b85"
+    },
+    {
+      "name": "gear.skinWeights",
+      "type": 1,
+      "elements": 1856,
+      "bytes": 7424,
+      "quantizedFNV1a64": "c086ad92d54c7425"
+    },
+    {
+      "name": "gear.indices",
+      "type": 4,
+      "elements": 2544,
+      "bytes": 10176,
+      "quantizedFNV1a64": "cc26d2e18d0f9555"
+    }
+  ]
+}

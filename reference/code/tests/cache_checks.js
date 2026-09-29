@@ -1,0 +1,33 @@
+(function(){
+  const R=RTS,cache=R.AppearanceCache,assert=(ok,msg)=>{if(!ok)throw Error(msg);},side=R.game.sides.SIDE_A;
+  cache.clear();cache.setLimit(0);
+  const u=new R.InfantryUnit({id:'cache-probe',side,seed:97031,detail:'world'}),rig=u.rig;
+  let before=cache.stats(),start=performance.now();
+  for(const detail of ['high','world','high','world'])u.setDetail(detail);
+  const uncachedMs=performance.now()-start,uncachedBuilds=cache.stats().builds-before.builds;
+  cache.setLimit(64*1024*1024);u.setDetail('high');u.setDetail('world');
+  const geometry=u.model.surface.geometry,gearGeometry=u.model.gear.geometry;
+  u.model.mesh.morphTargetInfluences[0]=.42;before=cache.stats();start=performance.now();
+  for(const detail of ['high','world','high','world'])u.setDetail(detail);
+  const cachedMs=performance.now()-start,after=cache.stats(),cachedBuilds=after.builds-before.builds;
+  assert(uncachedBuilds===4&&after.builds===before.builds&&after.hits-before.hits===4,'LOD cache hits');
+  assert(u.model.surface.geometry===geometry&&u.model.gear.geometry===gearGeometry,'Geometry reused exactly');
+  assert(u.rig===rig&&u.model.mesh.morphTargetInfluences[0]===.42,'Rig and morph state retained');
+  const equipment=u.equipment;before=cache.stats();u.setEquipment(equipment.clone({wear:.83}));assert(cache.stats().builds===before.builds+1,'Equipment invalidates key');
+  u.setEquipment(equipment);assert(u.model.surface.geometry===geometry,'Original equipment reuses original geometry');
+  // Two identical live soldiers must never share mutable geometry or animation state.
+  const twin=new R.InfantryUnit({id:'cache-twin',side,seed:97031,detail:'world'});
+  assert(twin.model.surface.geometry!==u.model.surface.geometry,'Active geometry exclusive');assert(twin.rig!==u.rig,'Independent rig');
+  twin.dispose();u.dispose();
+  const oldBuilds=cache.stats().builds,restored=new R.InfantryUnit({id:'cache-restored',side,seed:97031,detail:'world'});
+  assert(cache.stats().builds===oldBuilds,'Regeneration reuses cached appearance');restored.dispose();
+  const different=new R.InfantryUnit({id:'cache-other',side,seed:97032,detail:'world'});assert(cache.stats().builds===oldBuilds+1,'Different genome is generated');different.dispose();
+  const retained=cache.stats();cache.setLimit(1);assert(cache.stats().bytes===0&&cache.stats().entries===0,'Budget eviction');cache.setLimit(64*1024*1024);
+  const afterEviction=new R.InfantryUnit({id:'cache-after-eviction',side,seed:97031,detail:'world'});afterEviction.dispose();
+  const afterEvictionReuse=new R.InfantryUnit({id:'cache-after-eviction-reuse',side,seed:97031,detail:'world'});afterEvictionReuse.dispose();
+  const diagnostics=cache.stats(),worldRecord=diagnostics.keyStats.find(item=>item.detail==='world'&&item.evictions>0&&item.misses>0&&item.hitsAfterEviction>0);
+  assert(worldRecord&&worldRecord.misses>0&&worldRecord.hitsAfterEviction>0,'Per-key eviction and subsequent reuse telemetry');
+  assert(!('key' in worldRecord)&&/^[0-9a-f]{8}$/.test(worldRecord.id),'Telemetry exposes bounded short ids, not genome keys');
+  R.game.units[0].render(1);R.game.renderer.render(R.game.scene,R.game.camera);
+  return {uncachedMs,cachedMs,uncachedBuilds,cachedBuilds,cacheHits:4,retainedGeometryBytes:retained.bytes,keyTelemetry:{id:worldRecord.id,evictions:worldRecord.evictions,hitsAfterEviction:worldRecord.hitsAfterEviction},tests:['four LOD switches without regeneration','identical geometry reused','rig and morph preservation','equipment invalidation','exclusive active geometry','same DNA regeneration','different DNA miss','budget eviction','per-key evictions and subsequent reuse','genome keys omitted from diagnostics']};
+})();

@@ -1,0 +1,369 @@
+RTS v0.10 / KATALOG GENEROWANY Z DANYCH KODU
+=========================================
+
+Wagi są wartościami projektowymi gry, nie specyfikacją rzeczywistego sprzętu.
+
+SLOTY
+head: Nakrycie głowy | GŁOWA | bazowy: brak
+face: Twarz | GŁOWA | bazowy: brak
+neck: Szyja | GŁOWA | bazowy: brak
+torsoBase: Bluza | UBRANIE | bazowy: field_jacket
+legs: Spodnie | UBRANIE | bazowy: field_pants
+feet: Buty | UBRANIE | bazowy: combat_boots
+hands: Rękawiczki | UBRANIE | bazowy: brak
+torsoArmor: Ochrona tułowia | TUŁÓW | bazowy: brak
+chestRig: Oporządzenie | TUŁÓW | bazowy: brak
+back: Plecak | TUŁÓW | bazowy: brak
+belt: Pas | PAS I KIESZENIE | bazowy: brak
+leftHip: Lewe biodro | PAS I KIESZENIE | bazowy: brak
+rightHip: Prawe biodro | PAS I KIESZENIE | bazowy: brak
+leftThigh: Lewe udo | PAS I KIESZENIE | bazowy: brak
+rightThigh: Prawe udo | PAS I KIESZENIE | bazowy: brak
+utility1: Przód pasa | AKCESORIA | bazowy: brak
+utility2: Tył pasa | AKCESORIA | bazowy: brak
+utility3: Klatka / akcesorium | AKCESORIA | bazowy: brak
+primaryWeapon: Broń główna (transport) | REKWIZYTY | bazowy: brak
+secondaryWeapon: Broń boczna (kabura) | REKWIZYTY | bazowy: brak
+
+PRZEDMIOTY (59)
+01. field_cap — Czapka polowa
+    kind=cap | sloty=head | masa=0.16 kg
+    parametry={"style": "cap", "coverage": "cap"}
+02. patrol_cap — Patrolówka
+    kind=cap | sloty=head | masa=0.19 kg
+    parametry={"style": "patrol", "coverage": "cap"}
+03. beanie — Czapka dzianinowa
+    kind=cap | sloty=head | masa=0.12 kg
+    parametry={"style": "beanie", "coverage": "cap"}
+04. beret — Beret
+    kind=cap | sloty=head | masa=0.13 kg
+    parametry={"style": "beret", "coverage": "cap"}
+05. boonie_hat — Kapelusz polowy
+    kind=cap | sloty=head | masa=0.22 kg
+    parametry={"style": "boonie", "coverage": "cap"}
+06. helmet_light — Hełm lekki
+    kind=helmet | sloty=head | masa=0.95 kg
+    parametry={"style": "light", "coverage": "helmet"}
+07. helmet_standard — Hełm standardowy
+    kind=helmet | sloty=head | masa=1.3 kg
+    parametry={"style": "standard", "coverage": "helmet"}
+08. helmet_heavy — Hełm z osłoną boków
+    kind=helmet | sloty=head | masa=1.7 kg
+    parametry={"style": "heavy", "coverage": "helmet"}
+09. helmet_cover — Hełm z pokrowcem
+    kind=helmet | sloty=head | masa=1.4 kg
+    parametry={"style": "cover", "coverage": "helmet"}
+10. glasses — Okulary
+    kind=eyewear | sloty=face | masa=0.06 kg
+    parametry={"style": "glasses"}
+11. goggles — Gogle
+    kind=eyewear | sloty=face | masa=0.18 kg
+    parametry={"style": "goggles"}
+12. balaclava — Kominiarka
+    kind=mask | sloty=face | masa=0.1 kg
+    parametry={"style": "balaclava"}
+13. respirator — Maska ochronna
+    kind=mask | sloty=face | masa=0.36 kg
+    parametry={"style": "respirator"}
+14. scarf — Szalik
+    kind=neckwear | sloty=neck | masa=0.2 kg
+    parametry={"style": "scarf"}
+15. neck_gaiter — Komin
+    kind=neckwear | sloty=neck | masa=0.1 kg
+    parametry={"style": "gaiter"}
+16. field_jacket — Bluza polowa
+    kind=clothing | sloty=torsoBase | masa=0.7 kg
+    parametry={"ease": 1, "style": "field"}
+17. combat_shirt — Bluza lekka
+    kind=clothing | sloty=torsoBase | masa=0.45 kg
+    parametry={"ease": 0.97, "style": "combat"}
+18. winter_jacket — Kurtka ocieplana
+    kind=clothing | sloty=torsoBase | masa=1.35 kg
+    parametry={"ease": 1.08, "style": "winter"}
+19. field_pants — Spodnie polowe
+    kind=clothing | sloty=legs | masa=0.65 kg
+    parametry={"ease": 1}
+20. combat_pants — Spodnie z nakolannikami
+    kind=clothing | sloty=legs | masa=0.8 kg
+    parametry={"ease": 1.025, "pads": true}
+21. winter_pants — Spodnie ocieplane
+    kind=clothing | sloty=legs | masa=1 kg
+    parametry={"ease": 1.07}
+22. combat_boots — Buty standardowe
+    kind=clothing | sloty=feet | masa=1.2 kg
+    parametry={"width": 1, "shaft": 1}
+23. light_boots — Buty lekkie
+    kind=clothing | sloty=feet | masa=0.9 kg
+    parametry={"width": 0.96, "shaft": 0.87}
+24. heavy_boots — Buty wzmocnione
+    kind=clothing | sloty=feet | masa=1.65 kg
+    parametry={"width": 1.07, "shaft": 1.08}
+25. winter_boots — Buty ocieplane
+    kind=clothing | sloty=feet | masa=1.5 kg
+    parametry={"width": 1.1, "shaft": 1.04}
+26. gloves_light — Rękawiczki bez palców
+    kind=clothing | sloty=hands | masa=0.08 kg
+    parametry={"style": "fingerless"}
+27. gloves_full — Rękawiczki pełne
+    kind=clothing | sloty=hands | masa=0.12 kg
+    parametry={"style": "full"}
+28. gloves_winter — Rękawiczki ocieplane
+    kind=clothing | sloty=hands | masa=0.2 kg
+    parametry={"style": "winter"}
+29. light_vest — Kamizelka lekka
+    kind=armor | sloty=torsoArmor | masa=2.5 kg
+    parametry={"style": "light", "thickness": 0.01}
+30. plate_carrier — Kamizelka płytowa
+    kind=armor | sloty=torsoArmor | masa=6 kg
+    parametry={"style": "plate", "thickness": 0.02}
+31. heavy_armor — Kamizelka ciężka
+    kind=armor | sloty=torsoArmor | masa=9.5 kg
+    parametry={"style": "heavy", "thickness": 0.029}
+32. webbing — Szelki i dwie kieszenie
+    kind=rig | sloty=chestRig | masa=0.7 kg
+    parametry={"count": 2, "style": "webbing"}
+33. chest_standard — Oporządzenie standardowe
+    kind=rig | sloty=chestRig | masa=1 kg
+    parametry={"count": 3, "style": "standard"}
+34. chest_assault — Oporządzenie zwarte
+    kind=rig | sloty=chestRig | masa=1.2 kg
+    parametry={"count": 4, "style": "assault"}
+35. chest_ammo — Duże ładownice
+    kind=rig | sloty=chestRig | masa=2 kg
+    parametry={"count": 3, "style": "ammo"}
+36. chest_medical — Kieszenie medyczne
+    kind=rig | sloty=chestRig | masa=1.6 kg
+    parametry={"count": 2, "style": "medical"}
+37. chest_tools — Kieszenie narzędziowe
+    kind=rig | sloty=chestRig | masa=1.9 kg
+    parametry={"count": 3, "style": "tools"}
+38. pack_small — Plecak mały
+    kind=pack | sloty=back | masa=0.7 kg
+    parametry={"size": [0.26, 0.32, 0.13], "style": "small"}
+39. pack_medium — Plecak średni
+    kind=pack | sloty=back | masa=1.2 kg
+    parametry={"size": [0.32, 0.43, 0.19], "style": "medium"}
+40. pack_large — Plecak duży
+    kind=pack | sloty=back | masa=1.8 kg
+    parametry={"size": [0.37, 0.53, 0.22], "style": "large", "roll": true}
+41. pack_medical — Plecak medyczny
+    kind=pack | sloty=back | masa=3.5 kg
+    parametry={"size": [0.35, 0.42, 0.19], "style": "medical"}
+42. pack_radio — Radiostacja plecakowa
+    kind=pack | sloty=back | masa=5.1 kg
+    parametry={"size": [0.31, 0.39, 0.18], "style": "radio"}
+43. pack_engineer — Plecak narzędziowy
+    kind=pack | sloty=back | masa=3.8 kg
+    parametry={"size": [0.33, 0.43, 0.2], "style": "engineer"}
+44. belt_light — Pas lekki
+    kind=belt | sloty=belt | masa=0.24 kg
+    parametry={"style": "light"}
+45. belt_utility — Pas oporządzenia
+    kind=belt | sloty=belt | masa=0.5 kg
+    parametry={"style": "utility"}
+46. canteen — Manierka
+    kind=pouch | sloty=leftHip, rightHip, utility1, utility2 | masa=1 kg
+    parametry={"style": "canteen"}
+47. pouch_utility — Kieszeń ogólna
+    kind=pouch | sloty=leftHip, rightHip, leftThigh, rightThigh, utility1, utility2, utility3 | masa=0.25 kg
+    parametry={"style": "utility"}
+48. pouch_ammo — Ładownica
+    kind=pouch | sloty=leftHip, rightHip, leftThigh, rightThigh, utility1, utility2, utility3 | masa=0.7 kg
+    parametry={"style": "ammo"}
+49. pouch_medical — Apteczka
+    kind=pouch | sloty=leftHip, rightHip, leftThigh, rightThigh, utility1, utility2, utility3 | masa=0.55 kg
+    parametry={"style": "medical"}
+50. pouch_tools — Kieszeń narzędziowa
+    kind=pouch | sloty=leftHip, rightHip, leftThigh, rightThigh, utility1, utility2, utility3 | masa=0.9 kg
+    parametry={"style": "tools"}
+51. radio_handheld — Radio podręczne
+    kind=pouch | sloty=utility3, leftHip, rightHip | masa=0.3 kg
+    parametry={"style": "radio"}
+52. binoculars — Lornetka
+    kind=pouch | sloty=utility3, utility1 | masa=0.5 kg
+    parametry={"style": "binoculars"}
+53. map_case — Mapnik
+    kind=pouch | sloty=leftHip, rightHip, utility1 | masa=0.2 kg
+    parametry={"style": "map"}
+54. rifle — Karabin — rekwizyt
+    kind=weapon | sloty=primaryWeapon | masa=3.1 kg
+    parametry={"style": "rifle"}
+55. carbine — Karabinek — rekwizyt
+    kind=weapon | sloty=primaryWeapon | masa=2.6 kg
+    parametry={"style": "carbine"}
+56. support_gun — Broń wsparcia — rekwizyt
+    kind=weapon | sloty=primaryWeapon | masa=5.2 kg
+    parametry={"style": "support"}
+57. heavy_support_gun — Ciężka broń wsparcia — rekwizyt
+    kind=weapon | sloty=primaryWeapon | masa=7 kg
+    parametry={"style": "heavy"}
+58. marksman_rifle — Karabin wyborowy — rekwizyt
+    kind=weapon | sloty=primaryWeapon | masa=4 kg
+    parametry={"style": "marksman"}
+59. sidearm — Kabura z bronią boczną
+    kind=weapon | sloty=secondaryWeapon | masa=0.85 kg
+    parametry={"style": "sidearm"}
+
+PROFILE (10)
+Lista w slocie oznacza deterministyczny wybór wariantu z puli, null — brak.
+
+RIFLEMAN — Strzelec
+Standardowy hełm, kamizelka i oporządzenie.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = ["helmet_standard", "helmet_cover"]
+  torsoArmor = ["light_vest", "plate_carrier"]
+  chestRig = "chest_standard"
+  back = [null, null, "pack_small"]
+  hands = "gloves_light"
+  primaryWeapon = "rifle"
+
+ASSAULT — Szturmowiec
+Zwarte wyposażenie bez dużego plecaka.
+  torsoBase = "combat_shirt"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = "helmet_light"
+  torsoArmor = "plate_carrier"
+  chestRig = "chest_assault"
+  back = [null, "pack_small"]
+  face = [null, "goggles"]
+  hands = "gloves_full"
+  primaryWeapon = "carbine"
+
+LIGHT_SUPPORT — Lekkie wsparcie
+Duże ładownice i dodatkowe kieszenie.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = ["helmet_standard", "helmet_cover"]
+  torsoArmor = "plate_carrier"
+  chestRig = "chest_ammo"
+  back = "pack_medium"
+  leftThigh = "pouch_ammo"
+  hands = "gloves_full"
+  primaryWeapon = "support_gun"
+
+HEAVY_SUPPORT — Ciężkie wsparcie
+Ciężka kamizelka, hełm i plecak z rolką.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "heavy_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = "helmet_heavy"
+  torsoArmor = "heavy_armor"
+  chestRig = "chest_ammo"
+  back = "pack_large"
+  leftThigh = "pouch_ammo"
+  rightThigh = "pouch_ammo"
+  hands = "gloves_full"
+  primaryWeapon = "heavy_support_gun"
+
+MARKSMAN — Strzelec wyborowy
+Lekki zestaw i przyrząd obserwacyjny.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = ["field_cap", "helmet_light"]
+  torsoArmor = "light_vest"
+  chestRig = "webbing"
+  back = "pack_small"
+  hands = "gloves_light"
+  utility3 = "binoculars"
+  primaryWeapon = "marksman_rifle"
+
+SCOUT — Zwiadowca
+Czapka lub kapelusz, bez ciężkiego pancerza.
+  torsoBase = "combat_shirt"
+  legs = "field_pants"
+  feet = "light_boots"
+  belt = "belt_light"
+  leftHip = "canteen"
+  rightHip = "map_case"
+  head = ["boonie_hat", "field_cap", "patrol_cap", "beanie"]
+  chestRig = "webbing"
+  back = "pack_small"
+  utility3 = "binoculars"
+  primaryWeapon = "carbine"
+
+MEDIC — Medyk
+Plecak medyczny i zestaw apteczek.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_medical"
+  head = "helmet_standard"
+  torsoArmor = "light_vest"
+  chestRig = "chest_medical"
+  back = "pack_medical"
+  leftThigh = "pouch_medical"
+  hands = "gloves_full"
+  primaryWeapon = "carbine"
+
+ENGINEER — Inżynier
+Plecak, kieszenie narzędziowe i gogle.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "heavy_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_tools"
+  head = ["helmet_standard", "helmet_cover"]
+  torsoArmor = "plate_carrier"
+  face = "goggles"
+  chestRig = "chest_tools"
+  back = "pack_engineer"
+  rightThigh = "pouch_tools"
+  hands = "gloves_full"
+  primaryWeapon = "carbine"
+
+RADIO_OPERATOR — Radiooperator
+Radiostacja plecakowa z anteną.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "pouch_utility"
+  head = "helmet_standard"
+  torsoArmor = "light_vest"
+  chestRig = "chest_standard"
+  back = "pack_radio"
+  utility3 = "radio_handheld"
+  hands = "gloves_light"
+  primaryWeapon = "rifle"
+
+SQUAD_LEADER — Dowódca drużyny
+Radio, mapnik i wyposażenie obserwacyjne.
+  torsoBase = "field_jacket"
+  legs = "combat_pants"
+  feet = "combat_boots"
+  belt = "belt_utility"
+  leftHip = "canteen"
+  rightHip = "map_case"
+  head = ["helmet_cover", "beret"]
+  torsoArmor = "plate_carrier"
+  chestRig = "chest_standard"
+  back = "pack_small"
+  utility3 = "radio_handheld"
+  utility1 = "binoculars"
+  hands = "gloves_light"
+  primaryWeapon = "carbine"
+  secondaryWeapon = "sidearm"

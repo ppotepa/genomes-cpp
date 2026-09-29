@@ -1,0 +1,294 @@
+{
+  "version": "0.12.0",
+  "environment": "Browser + actual Three.js 128",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+  "results": [
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 0",
+      "ok": true,
+      "details": {
+        "vertices": 9393,
+        "triangles": 17538,
+        "neckConnectionEdges": 264,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 1001",
+      "ok": true,
+      "details": {
+        "vertices": 9359,
+        "triangles": 17484,
+        "neckConnectionEdges": 264,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 1003",
+      "ok": true,
+      "details": {
+        "vertices": 8959,
+        "triangles": 16740,
+        "neckConnectionEdges": 264,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 2002",
+      "ok": true,
+      "details": {
+        "vertices": 9435,
+        "triangles": 17648,
+        "neckConnectionEdges": 264,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 2003",
+      "ok": true,
+      "details": {
+        "vertices": 9427,
+        "triangles": 17620,
+        "neckConnectionEdges": 270,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Anatomia / oczy / zamknięcie: seed 63",
+      "ok": true,
+      "details": {
+        "vertices": 9437,
+        "triangles": 17642,
+        "neckConnectionEdges": 264,
+        "eyes": [
+          {
+            "side": "L",
+            "open": true,
+            "closed": true
+          },
+          {
+            "side": "R",
+            "open": true,
+            "closed": true
+          }
+        ],
+        "morphTargets": 4
+      }
+    },
+    {
+      "name": "Różnorodność = 0",
+      "ok": true,
+      "details": true
+    },
+    {
+      "name": "Nowe postawy: orientacje i brak rozciągania kości",
+      "ok": true,
+      "details": {
+        "states": [
+          "SITTING",
+          "CROUCH",
+          "CROUCH_WALK",
+          "PRONE",
+          "PRONE_MOVE"
+        ],
+        "note": "Próbki geometryczne, nie ocena płynności."
+      }
+    },
+    {
+      "name": "Ciągła postawa / zachowanie fazy",
+      "ok": true,
+      "details": {
+        "headPivotHeights": [
+          1.5337238401972249,
+          1.4680532897174616,
+          1.3254632237289468,
+          1.136618874831797,
+          0.9149956680697631
+        ]
+      }
+    },
+    {
+      "name": "Sprint: zakres ruchu, przejścia i kontakty w świecie",
+      "ok": true,
+      "details": [
+        {
+          "name": "Continuous sprint intensity and contact trajectory",
+          "ok": true,
+          "details": {
+            "intensities": [
+              0,
+              0,
+              3.6852098765432205e-7,
+              0.20987654320987703,
+              0.7901234567901239,
+              1
+            ],
+            "peakSwing": 0.41
+          }
+        },
+        {
+          "name": "Sprint silhouette, hand relaxation and all loadouts",
+          "ok": true,
+          "details": {
+            "loadouts": 10,
+            "maxIK": 0,
+            "minBoot": 0.001499999955296343,
+            "maxHipExcursion": 0.04876183147511152
+          }
+        },
+        {
+          "name": "Extreme body proportions and isolated hand morph",
+          "ok": true,
+          "details": [
+            {
+              "extreme": 0,
+              "height": 1.6,
+              "changedVertices": 250
+            },
+            {
+              "extreme": 1,
+              "height": 1.95,
+              "changedVertices": 250
+            }
+          ]
+        },
+        {
+          "name": "Arm timing preserved at 30/60/120 Hz",
+          "ok": true,
+          "details": [
+            {
+              "seed": 1003,
+              "hz": 30,
+              "maxAngularError": 5.16191365590357e-8
+            },
+            {
+              "seed": 1003,
+              "hz": 60,
+              "maxAngularError": 5.16191365590357e-8
+            },
+            {
+              "seed": 1003,
+              "hz": 120,
+              "maxAngularError": 7.300048299977715e-8
+            },
+            {
+              "seed": 2003,
+              "hz": 30,
+              "maxAngularError": 0
+            },
+            {
+              "seed": 2003,
+              "hz": 60,
+              "maxAngularError": 4.2146848510894035e-8
+            },
+            {
+              "seed": 2003,
+              "hz": 120,
+              "maxAngularError": 0
+            }
+          ]
+        },
+        {
+          "name": "Acceleration, braking, posture and support transitions",
+          "ok": true,
+          "details": {
+            "maxArmJump": 0.1850402655073335
+          }
+        },
+        {
+          "name": "World sprint contacts and recovery",
+          "ok": true,
+          "details": {
+            "lockedFrames": 167,
+            "maxSlip": 7.709331510952211e-7,
+            "maxIK": 0,
+            "reanchors": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebGL: skinning + morphs + mimika",
+      "ok": true,
+      "details": {
+        "draws": [
+          {
+            "expression": "NEUTRAL",
+            "visiblePixels": 480
+          },
+          {
+            "expression": "FEAR",
+            "visiblePixels": 481
+          },
+          {
+            "expression": "EYES_CLOSED",
+            "visiblePixels": 485
+          }
+        ],
+        "note": "Kontrola wykonania renderu, nie ocena estetyki ani wszystkich kombinacji genów."
+      }
+    }
+  ],
+  "passed": 11,
+  "failed": 0
+}

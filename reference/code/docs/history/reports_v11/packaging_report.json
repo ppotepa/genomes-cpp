@@ -1,0 +1,34 @@
+{
+  "version": "0.11.0",
+  "base": "0.10.0",
+  "date": "2026-09-24",
+  "checks": [
+    {
+      "name": "JavaScript syntax",
+      "ok": true,
+      "files": 41
+    },
+    {
+      "name": "Classical script loader paths",
+      "ok": true,
+      "files": 35
+    },
+    {
+      "name": "HTML script/style paths and unique IDs",
+      "ok": true,
+      "files": 2
+    },
+    {
+      "name": "New states in existing selector; removed upright-prone override",
+      "ok": true
+    }
+  ],
+  "numericalReports": [
+    "v11_postures_numeric.json",
+    "v11_equipment_smoke.json"
+  ],
+  "numericalEnvironment": "Node with bundled numeric_math.cjs, NOT real Three.js/WebGL",
+  "browserExecuted": false,
+  "cdnDependencies": "Three.js r128 + matching OrbitControls via jsDelivr/unpkg; not bundled",
+  "note": "Syntax, paths and isolated math/geometry tests do not certify browser rendering, animation quality, or full physical contact correctness."
+}

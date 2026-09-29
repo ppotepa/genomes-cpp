@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+global.RTS={};for(const file of ['js/ai/aiModelRegistry.js','js/ai/simpleCombatModel.js','js/ai/battlefieldAIManager.js'])vm.runInThisContext(fs.readFileSync(file,'utf8'),{filename:file});
+const weapons=()=>({trigger:false,instances:{primaryWeapon:{}},select(){},setReadiness(){},draw(){this.drawn=true;},holster(){this.holstered=true;},setAimTargetWorld(){},setTrigger(v){this.trigger=v;}});
+const sideA={id:'A'},sideB={id:'B'},unit=(id,side,x,z,heading=0)=>({id,side,seed:1,alive:true,position:{x,y:0,z},facingHeading:heading,heading,rig:{anatomy:{height:1.8}},weapons:weapons(),setLookTarget(){},clearLookTarget(){}});
+const a=unit('a',sideA,0,0),b=unit('b',sideB,0,20),friendly=unit('f',sideA,0,10),dead=unit('d',sideB,0,8);dead.alive=false;
+const battlefield={units:[a,b,friendly,dead],terrain:{getHeightAt(){return 0;}},worldDestruction:{model:{trace(){return null;}}}},manager=new RTS.BattlefieldAIManager(battlefield);
+let disposed=0;RTS.AIModelRegistry.register('probe',()=>({update(){return {movement:'HOLD',weapon:'DRAW',trigger:false};},dispose(){disposed++;}}));
+manager.add(a,'probe');manager.setModel(a,'simple-combat-v1');assert.equal(disposed,1);assert.equal(manager.entries.get('a').observation,null);
+manager.step(.2);const observation=manager.entries.get('a').observation;assert.deepEqual(observation.visibleEnemies.map(x=>x.id),['b']);assert.equal(observation.target.id,'b');assert.equal(a.aiHold,true);
+b.position.x=200;manager.step(.2);assert.equal(manager.entries.get('a').observation.target.id,'b','contact memory');manager.step(2.6);assert.equal(manager.entries.get('a').observation.target,null,'contact expires');
+RTS.AIModelRegistry.register('broken',()=>({update(){throw Error('broken');}}));manager.setModel(a,'broken');manager.step(.2);assert.equal(manager.entries.get('a').modelId,'passive-v1');assert.equal(manager.diagnostics.length,1);assert.equal(a.weapons.trigger,false);
+assert.throws(()=>RTS.AIModelRegistry.create('missing'),/Unknown AI model/);manager.dispose();console.log('PASS combat AI registry, swap, perception, memory and safe fallback');

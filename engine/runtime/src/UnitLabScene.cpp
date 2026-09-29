@@ -85,6 +85,12 @@ struct DebugBoneTransform final {
 
 } // namespace
 
+UnitLabScene::~UnitLabScene() {
+    if (model_job_.valid()) {
+        model_job_.wait();
+    }
+}
+
 
 foundation::SceneId UnitLabScene::id() const noexcept {
     return foundation::scene_id("scene.unit-lab");
@@ -99,25 +105,14 @@ void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
     }
 }
 
-void UnitLabScene::rebuildModel() {
-    infantry::InfantryModelRequest request{};
-    request.seed = preview_seed_;
-    request.variation = variation_;
-    request.detail_level = detail_level_;
-    request.genome_overrides = genome_overrides_;
-    request.uniform_color = infantry::kDefaultUniformColor;
-    const auto loadouts = infantry::infantryLoadouts();
-    if (!loadouts.empty()) {
-        request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
-    }
-    const auto compiled = model_compiler_.compile(request);
+void UnitLabScene::publishModelResult(
+    foundation::Result<infantry::InfantryModelArtifact, foundation::Error>&& compiled) {
     if (!compiled) {
         last_generation_error_ = compiled.error();
         markDirty(UnitLabDirtyFlag::Ui);
         return;
     }
-
-    model_artifact_ = compiled.value();
+    model_artifact_ = std::move(compiled.value());
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
     locomotion_.reset();
@@ -144,6 +139,50 @@ void UnitLabScene::rebuildModel() {
     markDirty(UnitLabDirtyFlag::Ui);
 }
 
+void UnitLabScene::rebuildModel(SceneContext* context) {
+    // A JobHandle is single-owner in the scene.  Before replacing it, finish
+    // the previous task so its lambda cannot outlive this scene and so the
+    // compiler's revision cancellation is observed deterministically.
+    if (model_job_.valid()) {
+        if (model_revision_ != 0U) {
+            model_compiler_.cancelRevision(model_revision_);
+        }
+        model_job_.wait();
+        model_job_ = {};
+        pending_model_result_.reset();
+    }
+    infantry::InfantryModelRequest request{};
+    request.seed = preview_seed_;
+    request.variation = variation_;
+    request.detail_level = static_cast<infantry::InfantryDetail>(detail_level_);
+    request.genome_overrides = genome_overrides_;
+    request.uniform_color = infantry::kDefaultUniformColor;
+    const auto loadouts = infantry::infantryLoadouts();
+    if (!loadouts.empty()) {
+        request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
+    }
+    // Every rebuild owns a revision.  A queued/older job can therefore not
+    // publish a result after the preview has changed underneath it.
+    const auto revision = model_compiler_.beginRevision();
+    model_revision_ = revision;
+    if (context != nullptr && context->jobs != nullptr) {
+        const auto pending = std::make_shared<PendingModelResult>();
+        pending_model_result_ = pending;
+        model_job_ = context->jobs->submit(
+            [this, request, revision, pending](jobs::JobContext&) mutable {
+                auto result = model_compiler_.compile(request, revision);
+                {
+                    std::lock_guard lock(pending->mutex);
+                    pending->revision = revision;
+                    pending->result = std::move(result);
+                }
+            });
+        markDirty(UnitLabDirtyFlag::Ui);
+        return;
+    }
+    publishModelResult(model_compiler_.compile(request, revision));
+}
+
 void UnitLabScene::on_enter(SceneContext& context) {
     elapsed_seconds_ = 0.0;
     fixed_tick_ = 0;
@@ -165,10 +204,21 @@ void UnitLabScene::on_enter(SceneContext& context) {
     ui_dirty_ = true;
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
-    rebuildModel();
+    rebuildModel(&context);
     geometry_dirty_ = false;
     material_dirty_ = false;
     context.ui.clear();
+}
+
+void UnitLabScene::on_exit(SceneContext&) {
+    if (model_revision_ != 0U) {
+        model_compiler_.cancelRevision(model_revision_);
+    }
+    if (model_job_.valid()) {
+        model_job_.wait();
+        model_job_ = {};
+    }
+    pending_model_result_.reset();
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
@@ -182,11 +232,11 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
             switch (control) {
             case 0:
                 ++preview_seed_;
-                rebuildModel();
+                rebuildModel(&context);
                 break;
             case 1:
                 detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U;
-                rebuildModel();
+                rebuildModel(&context);
                 break;
             case 2:
                 camera_mode_ = static_cast<UnitLabCameraMode>(
@@ -223,12 +273,12 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                 break;
             case 11:
                 variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 2.0F : 0.5F;
-                rebuildModel();
+                rebuildModel(&context);
                 break;
             case 12:
                 if (!infantry::infantryLoadouts().empty()) {
                     loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
-                    rebuildModel();
+                    rebuildModel(&context);
                 }
                 break;
             case 13:
@@ -243,7 +293,7 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                     genome_overrides_.shoulder_width = 1.0F;
                     genome_overrides_.hip_width = 0.0F;
                 }
-                rebuildModel();
+                rebuildModel(&context);
                 break;
             case 14:
                 context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
@@ -307,6 +357,7 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
             infantry::AnimationEntity entity{};
             entity.semantic_id = foundation::stable_id("unit-lab.infantry");
             entity.skeleton = &model_artifact_->skeleton;
+            entity.surface = &model_artifact_->appearance.body;
             entity.locomotion = &*locomotion_;
             entity.locomotion_state = &*locomotion_state_;
             entity.face = face_animator_ ? &*face_animator_ : nullptr;
@@ -322,6 +373,25 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
 }
 
 void UnitLabScene::frame_update(SceneContext& context, double) {
+    if (model_job_.valid() && model_job_.isComplete()) {
+        if (pending_model_result_) {
+            std::optional<foundation::Result<infantry::InfantryModelArtifact,
+                                              foundation::Error>> result;
+            infantry::InfantryModelCompiler::CompileRevision revision = 0U;
+            {
+                std::lock_guard lock(pending_model_result_->mutex);
+                if (pending_model_result_->revision && pending_model_result_->result) {
+                    revision = *pending_model_result_->revision;
+                    result = std::move(pending_model_result_->result);
+                }
+            }
+            if (result && revision == model_revision_) {
+                publishModelResult(std::move(*result));
+            }
+        }
+        model_job_ = {};
+        pending_model_result_.reset();
+    }
     ui_dirty_ = false;
     context.ui.clear();
     context.ui.add({foundation::stable_id("unit-lab.panel"), ui::UiWidgetType::Panel,

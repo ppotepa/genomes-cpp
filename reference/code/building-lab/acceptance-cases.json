@@ -1,0 +1,8 @@
+[
+  {"name":"House rectangle","seed":240925,"presetId":"FAMILY_HOUSE","footprintFamily":"RECT","roofFamily":"GABLE","storeyCount":1},
+  {"name":"House L","seed":1337,"presetId":"FAMILY_HOUSE","footprintFamily":"L","roofFamily":"HIP","storeyCount":2},
+  {"name":"Apartment","seed":240925,"presetId":"MULTI_FAMILY","footprintFamily":"RECT","storeyCount":3},
+  {"name":"Office courtyard","seed":101,"presetId":"OFFICE","footprintFamily":"U","roofFamily":"FLAT","storeyCount":2},
+  {"name":"Workshop","seed":240925,"presetId":"WORKSHOP_HALL","footprintFamily":"COMPOSITE","roofFamily":"SHED","storeyCount":1},
+  {"name":"Barn","seed":77,"presetId":"BARN","footprintFamily":"T","roofFamily":"GABLE","storeyCount":1}
+]

@@ -1,0 +1,22 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict'),root=path.resolve(__dirname,'..');
+global.window=global;global.THREE={};for(const f of ['js/vendor/buildings-6.0.0.js','js/buildings/buildingCatalog.js','js/buildings/buildingRandom.js','js/buildings/buildingBackends.js','js/buildings/buildingPolygon.js','js/buildings/buildingSpec.js','js/buildings/buildingFootprints.js','js/buildings/buildingPrograms.js','js/buildings/buildingSolver.js','js/buildings/buildingAssemblies.js','js/buildings/buildingPlan.js','js/buildings/buildingCollisionProxy.js'])vm.runInThisContext(fs.readFileSync(path.join(root,f),'utf8'),{filename:f});
+(async()=>{
+await RTS.Buildings.initializeBuildingBackends();
+const w={id:'angled:wall',edge:{a:[0,0],b:[4,4]},length:Math.sqrt(32),height:3,thickness:.2,floor:1,openings:[{id:'door',kind:'door',center:Math.sqrt(8),width:1,bottom:0,height:2,defaultState:'CLOSED'}]};
+const plan={schema:'rts.building-plan/4',spec:{storeys:{floorHeight:4}},storeys:[{elevation:0},{elevation:5}],walls:[w],roof:{faces:[{id:'slope',points:[[0,8,0],[4,10,0],[4,10,4],[0,8,4]]}]}};
+const proxy=new RTS.BuildingCollisionProxy(plan),G=RTS.Buildings.collisionGeometry,s=proxy.walls[0],cross=(u,y)=>[G.wallPoint(s,u,y,-1),G.wallPoint(s,u,y,1)];
+assert.equal(proxy.querySegment(...cross(Math.sqrt(8),1)).filter(h=>h.wallId).length,1,'closed door blocks');
+proxy.setDoorState('door',true);
+assert.equal(proxy.querySegment(...cross(Math.sqrt(8),1)).length,0,'opening overrides CLOSED default');
+assert(proxy.querySegment(...cross(Math.sqrt(8),2.5)).some(h=>h.wallId),'lintel remains');
+assert(proxy.querySegment(...cross(.5,1)).some(h=>h.wallId),'angled wall blocks');
+assert.equal(proxy.querySegment([.1,6,3],[.3,6,3.2]).length,0,'empty part of wall AABB is clear');
+assert.equal(proxy.querySegment(...cross(.5,-1)).length,0,'actual storey elevation');
+proxy.setDoorState('door',false);assert(proxy.querySegment(...cross(Math.sqrt(8),1)).some(h=>h.wallId));
+const roof=proxy.querySegment([2,12,2],[2,7,2]).find(h=>h.faceId==='slope');assert(roof);assert(Math.abs(roof.point[1]-9)<1e-7,'roof hits slope not maximum Y');
+assert.equal(proxy.querySegment([0,9,2],[1,9,2]).length,0,'space above low roof stays clear');
+const concave={schema:plan.schema,spec:plan.spec,walls:[],roof:{faces:[{id:'L',points:[[0,3,0],[4,3,0],[4,3,1],[1,3,1],[1,3,4],[0,3,4]]}]}};
+const lp=new RTS.BuildingCollisionProxy(concave);assert.equal(lp.querySegment([3,5,3],[3,0,3]).length,0);assert.equal(lp.querySegment([.5,5,3],[.5,0,3]).length,1);
+const generated=RTS.Buildings.createPlan({seed:22,presetId:'FAMILY_HOUSE',storeyCount:1});assert(new RTS.BuildingCollisionProxy(generated).stats().wallSegments>0);
+console.log('PASS collision: angled walls, door state, elevation, sloped and concave roofs');
+})().catch(e=>{console.error(e);process.exit(1);});

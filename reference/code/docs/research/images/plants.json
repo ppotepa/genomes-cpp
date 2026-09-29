@@ -1,0 +1,204 @@
+{
+  "results": [
+    {
+      "species": "oak",
+      "height": 16.788436279050075,
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19190,
+      "drawCalls": 2
+    },
+    {
+      "species": "beech",
+      "height": 18.358734372188337,
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "birch",
+      "height": 18.95604513399303,
+      "branches": 343,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 14206,
+      "drawCalls": 2
+    },
+    {
+      "species": "maple",
+      "height": 14.895925614866428,
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19190,
+      "drawCalls": 2
+    },
+    {
+      "species": "linden",
+      "height": 17.794453260372393,
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "ash",
+      "height": 24.505374222877435,
+      "branches": 260,
+      "leaves": 2155,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 19888,
+      "drawCalls": 2
+    },
+    {
+      "species": "willow",
+      "height": 11.451564279966988,
+      "branches": 323,
+      "leaves": 1326,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 13886,
+      "drawCalls": 2
+    },
+    {
+      "species": "poplar",
+      "height": 24.549855580204166,
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "rowan",
+      "height": 10.187569857924245,
+      "branches": 323,
+      "leaves": 2695,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 24838,
+      "drawCalls": 2
+    },
+    {
+      "species": "apple",
+      "height": 6.470046793518122,
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "pear",
+      "height": 7.842538403288927,
+      "branches": 386,
+      "leaves": 1599,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 16700,
+      "drawCalls": 2
+    },
+    {
+      "species": "cherry",
+      "height": 11.018582288757898,
+      "branches": 418,
+      "leaves": 1326,
+      "fruits": 95,
+      "flowers": 0,
+      "triangles": 19776,
+      "drawCalls": 3
+    },
+    {
+      "species": "pine",
+      "height": 23.787834340822883,
+      "branches": 346,
+      "leaves": 1865,
+      "fruits": 19,
+      "flowers": 0,
+      "triangles": 11980,
+      "drawCalls": 3
+    },
+    {
+      "species": "spruce",
+      "height": 21.11635797668714,
+      "branches": 985,
+      "leaves": 5438,
+      "fruits": 49,
+      "flowers": 0,
+      "triangles": 34222,
+      "drawCalls": 3
+    },
+    {
+      "species": "fir",
+      "height": 23.978559084120207,
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "larch",
+      "height": 22.048088688461576,
+      "branches": 899,
+      "leaves": 4952,
+      "fruits": 47,
+      "flowers": 0,
+      "triangles": 31314,
+      "drawCalls": 3
+    },
+    {
+      "species": "hazel",
+      "height": 4.384949311614037,
+      "branches": 2245,
+      "leaves": 5561,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 67178,
+      "drawCalls": 2
+    },
+    {
+      "species": "hawthorn",
+      "height": 3.81808225158602,
+      "branches": 2245,
+      "leaves": 5561,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 67178,
+      "drawCalls": 2
+    },
+    {
+      "species": "rose",
+      "height": 2.2407758780755103,
+      "branches": 2245,
+      "leaves": 9325,
+      "fruits": 0,
+      "flowers": 0,
+      "triangles": 97290,
+      "drawCalls": 2
+    },
+    {
+      "species": "elder",
+      "height": 4.6059102565050125,
+      "branches": 2800,
+      "leaves": 9325,
+      "fruits": 555,
+      "flowers": 0,
+      "triangles": 131700,
+      "drawCalls": 3
+    }
+  ]
+}

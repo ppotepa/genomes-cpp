@@ -1,0 +1,78 @@
+SPRINT W CIĄGŁYM MODELU LOKOMOCJI
+===============================
+Data: 24.09.2026. Rozwinięcie v0.12.
+
+OBSŁUGA
+W generatorze wybierz RUN albo zwiększ Żądaną prędkość do maksimum przy
+Obniżeniu postawy = 0. Końcowe 30% zakresu płynnie dodaje charakter sprintu.
+Odczyt „Udział sprintu” pokazuje wagę 0..1. Dotychczasowy limit prędkości
+i sterowanie crouchem nadal obowiązują. Nie dodano osobnego stanu SPRINT.
+W API aktualna waga jest dostępna jako unit.locomotion.sprintWeight.
+
+W obecnym modelu karabin znajduje się na plecach, a broń boczna w kaburze.
+Ręce mają swobodny wymach również wtedy, gdy jednostka posiada broń.
+Nie dodano chwytu broni w dłoniach ani celowania.
+
+ANIMACJA
+- Sprint zależy od faktycznej prędkości / indywidualnego runSpeed.
+  Waga i wysokość wymachu stopy są wygładzane; seek rozwiązuje je natychmiast.
+- Ramiona pracują naprzemiennie względem nóg. W sprincie łokcie pozostają
+  mocniej zgięte, a ruch dłoni do przodu jest wyższy i bardziej zdecydowany.
+- Przedramiona obracają dłonie do wewnątrz. Nowy morph handsRelax lekko
+  zgina palce i kciuk, obejmując także rękawice. Po zatrzymaniu i podczas
+  podpór blend wraca do otwartej dłoni; mimika zachowuje własne kanały.
+- Pochylenie tułowia rośnie, barki obracają się przeciwnie do miednicy,
+  a szyja i głowa kompensują również dodatkowe pochylenie biegu.
+- Przed wygładzaniem ramiona otrzymują zmianę wynikającą z aktualnej fazy.
+  Wygładzanie zachowuje przejścia parametrów, nie osłabiając wymachu.
+- Pięta podciąga się wcześniej za tułowiem, następnie stopa przechodzi pod
+  ciałem i wraca do lądowania. Przesunięcie toru oraz jego pochodna zanikają
+  na granicach wymachu. Udział podporu maleje z 0.42 w biegu do 0.38 w sprincie.
+- Miękkie ugięcie nogi podporowej ogranicza nadmierne podskakiwanie bioder.
+  Korekta zasięgu jest ponawiana po wygładzeniu bioder i planowaniu stóp
+  w świecie; cele nie rozciągają kości.
+- Planner świata odmierza czas wymachu od pozycji poprzedniej klatki.
+  Usunięto przedwczesne dochodzenie stopy do celu przy wysokiej prędkości.
+
+PLIKI
+js/animation/postureProfile.js, locomotionController.js: profil sprintu.
+js/animation/infantryAnimator.js: ramiona, tułów, dłonie, faza i zasięg.
+js/animation/gaitProfile.js, bipedFeet.js: powrót stopy i kontakty świata.
+js/rendering/infantrySurface.js, surfaceBuilder.js: zgięcie palców.
+js/ui/debugPanel.js: aktualny udział sprintu.
+
+WERYFIKACJA
+Wykonano testy numeryczne Node oraz tests/index.html na prawdziwym Three.js
+r128 w Chrome z WebGL 2.0 (renderowanie programowe SwiftShader).
+Obejrzano renderowane próbki faz z boku i z 3/4 dla lekkiego/ciężkiego gear.
+
+tests/sprint_smoke.cjs / tests/sprint_checks.js: 6 grup:
+1. ciągłość intensywności i prędkości stopy na granicach podporu;
+2. różnica sylwetki trucht/sprint, wszystkie 10 loadoutów, zmiana LOD/gear;
+3. skrajne proporcje ciała, wzrost 1.60/1.95 m, lokalność morphu dłoni;
+4. synchronizacja ramion przy 30/60/120 Hz;
+5. rozpędzanie, hamowanie, crouch, zatrzymanie, prone i sitting;
+6. sprint w świecie, zakotwiczenie stóp i zasięg nóg.
+
+W badanym odcinku sprintu w świecie: błąd celu IK 0, brak awaryjnych zmian
+kotwicy, pozioma różnica kontaktu od kotwicy poniżej 0.001 mm.
+W porównaniu faz różnica kątowa ramion od celu po ustaleniu była poniżej
+0.000001 rad. Kości zachowały długość. Wyniki odnoszą się do badanych próbek.
+
+Pozostałe kontrole: run_numeric.cjs 10/10; locomotion_smoke.cjs 4/4;
+posture_smoke.cjs 4/4; equipment_smoke.cjs wszystkie loadouty i API.
+tests/index.html: 11/11, w tym te same 6 grup sprintu i kontrola renderu GPU.
+Raporty: docs/reports/sprint_numeric.json oraz sprint_browser.json.
+
+Uruchamianie:
+  rtk proxy node tests/sprint_smoke.cjs
+  rtk proxy node tests/locomotion_smoke.cjs
+  rtk proxy node tests/posture_smoke.cjs
+  rtk proxy node tests/run_numeric.cjs
+  rtk proxy node tests/equipment_smoke.cjs
+Kontrola przeglądarkowa: otwórz tests/index.html.
+
+To proceduralna animacja z ograniczeniami geometrycznymi, bez symulacji sił,
+pełnej samokolizji wyposażenia i motion capture. Parametry sylwetki są strojone
+wizualnie; nie stanowią pomiarów biomechanicznych ani gwarancji każdej
+kombinacji terenu, genomu i wyposażenia.

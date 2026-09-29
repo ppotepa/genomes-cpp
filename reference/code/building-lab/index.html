@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Genomes RTS — Procedural Building Lab</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../css/labUi.css">
+</head>
+<body>
+  <main class="shell">
+    <section id="viewport" aria-label="Podgląd 3D proceduralnego budynku">
+      <div class="hud"><b>LPM</b> obrót · <b>PPM</b> przesunięcie · <b>kółko</b> zoom<br><b>R</b> regeneruj · <b>N</b> nowy seed · <b>C</b> przekrój · <b>B</b> wyłom</div>
+    </section>
+    <aside class="panel">
+      <header class="head"><a class="lab-action" href="../index.html">← Mapa i piechota</a><div class="eyebrow">GENERATORY / OTOCZENIE</div><h1>Procedural Building Lab</h1><p>Budynki rosną z powiązanych reguł: typologii, rzutu, konstrukcji, elewacji i dachu. <a href="RESEARCH.md" target="_blank" rel="noreferrer">Research i atlas</a></p></header>
+      <div class="scroll">
+        <section class="group">
+          <h2>Podstawy budynku</h2>
+          <label class="field"><span>Seed</span><input id="seed" type="number" min="0" max="4294967295" step="1" value="240925"></label>
+          <label class="field"><span>Preset</span><select id="presetId"><option value="AUTO">AUTO — z seeda</option></select></label>
+          <label class="field"><span>Program pomieszczeń</span><select id="roomProgram"><option value="AUTO">AUTO — wg presetu</option></select></label>
+          <label class="field"><span>Kondygnacje</span><select id="floors"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <label class="field"><span>Schody</span><select id="stairType"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <label class="field"><span>Szerokość (m)</span><input id="width" type="number" min="2" max="80" step="any" placeholder="AUTO"></label>
+          <label class="field"><span>Głębokość (m)</span><input id="depth" type="number" min="2" max="80" step="any" placeholder="AUTO"></label>
+          <label class="field"><span>Wysokość piętra (m)</span><input id="floorHeight" type="number" min="2.3" max="6" step="any" placeholder="AUTO"></label>
+          <label class="field"><span>Rzut</span><select id="shape"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <label class="field"><span>Styl elewacji</span><select id="style"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <p id="presetHint" class="note"></p><p id="generationStatus" class="note" role="status" aria-live="polite"></p>
+          <p id="error" class="note" role="alert" hidden></p><div class="actions"><button id="generate">Generuj</button><button id="randomize">Nowy wariant</button></div>
+        </section>
+        <section class="group">
+          <h2>Blokada wariantu</h2>
+          <div class="checks">
+            <label><input id="lockTopology" type="checkbox">Typ i rzut</label>
+            <label><input id="lockEnvelope" type="checkbox">Wymiary i piętra</label>
+            <label><input id="lockFacade" type="checkbox">Elewacja</label>
+            <label><input id="lockConstruction" type="checkbox">Konstrukcja</label>
+            <label><input id="lockRoof" type="checkbox">Dach</label>
+          </div>
+          <p class="note">Nowy wariant zmienia seed i tylko odblokowane, automatyczne grupy. Zablokowane parametry pozostają jawne w manifeście.</p>
+        </section>
+        <section class="group">
+          <h2>Konstrukcja</h2>
+          <label class="field"><span>Ustrój</span><select id="structure"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <p class="note">Mur nośny albo szkielet. Poprawione wzorce mają konstrukcję schowaną pod wykończeniem i osie wspólne z podziałem wnętrz.</p>
+        </section>
+        <section class="group">
+          <h2>Elewacja i stolarka</h2>
+          <label class="field"><span>Warstwa ściany</span><select id="material"><option value="AUTO">AUTO — wg stylu</option></select></label>
+          <label class="field"><span>Okno</span><select id="windowType"><option value="AUTO">AUTO — wg stylu</option></select></label>
+          <label class="field"><span>Drzwi</span><select id="doorType"><option value="AUTO">AUTO — wg stylu</option></select></label>
+        </section>
+        <section class="group">
+          <h2>Dach</h2>
+          <label class="field"><span>Forma</span><select id="roof"><option value="AUTO">AUTO — wg typologii</option></select></label>
+          <label class="field"><span>Pokrycie</span><select id="roofCovering"><option value="AUTO">AUTO — wg świata</option></select></label>
+        </section>
+        <section class="group">
+          <h2>Features</h2>
+          <div class="checks"><label><input id="featureChimney" type="checkbox">Kominek / komin</label><label><input id="featurePorch" type="checkbox">Ganek</label><label><input id="featureBalcony" type="checkbox">Balkon</label><label><input id="featureDormer" type="checkbox">Lukarna</label></div>
+        </section>
+        <section class="group">
+          <h2>Podgląd konstrukcji</h2>
+          <div class="checks">
+            <label><input id="cutaway" type="checkbox">Przekrój</label>
+            <label><input id="showNav" type="checkbox">Trasa schodów</label>
+            <label><input id="showFurniture" type="checkbox" checked>Meble</label><label><input id="isolateFloor" type="checkbox">Do piętra rzutu</label>
+            <label><input id="showRoof" type="checkbox" checked>Dach</label>
+          </div>
+          <p class="note accent">Schody nie są dekoracją: manifest zawiera ich szerokość, wysokość i linię przejścia między kondygnacjami. To jest punkt zaczepienia dla późniejszego navmesha/jednostek.</p>
+        </section>
+        <section class="group">
+          <h2>Destrukcja — makieta</h2>
+          <label class="field"><span>Uszkodzenie początkowe (%)</span><input id="damagePercent" type="number" min="0" max="100" step="1" placeholder="AUTO"></label>
+          <div class="actions"><button id="breach" class="danger">Wybij wyłom</button><button id="resetDamage">Przywróć stan początkowy</button></div>
+          <p class="note">Ściany, szyby, ramy, drzwi, stropy, dach i schody mają osobne identyfikatory, typ materiału, HP i flagę nośności. Tu element jest tylko ukrywany po zniszczeniu; później można podpiąć gruz, fizykę i propagację podpór.</p>
+        </section>
+        <section class="group">
+          <h2>Rzut kondygnacji</h2>
+          <label class="field"><span>Kondygnacja</span><select id="floorPlanFloor"></select></label>
+          <canvas id="floorPlan" class="floor-plan" aria-label="Rzut wybranej kondygnacji"></canvas>
+          <p id="floorPlanSummary" class="note floor-plan-summary"></p>
+        </section>
+        <section class="group">
+          <h2>Wynik</h2>
+          <dl class="readout">
+            <dt>Strefy / przejścia</dt><dd id="spaceReadout">—</dd>
+            <dt>Ściany / otwory logiczne</dt><dd id="wallReadout">—</dd>
+            <dt>Typologia</dt><dd id="buildingReadout">—</dd><dt>Ustrój / warstwa</dt><dd id="structureReadout">—</dd><dt>Styl</dt><dd id="styleReadout">—</dd><dt>Rzut</dt><dd id="sizeReadout">—</dd><dt>Kondygnacje</dt><dd id="floorReadout">—</dd><dt>Dach</dt><dd id="roofReadout">—</dd><dt>Materiał</dt><dd id="materialReadout">—</dd><dt>Okna</dt><dd id="windowReadout">—</dd><dt>Wejścia</dt><dd id="entranceReadout">—</dd><dt>Schody</dt><dd id="stairReadout">—</dd><dt>Szkody początkowe</dt><dd id="damageReadout">—</dd><dt>Komponenty aktywne</dt><dd id="componentReadout">—</dd>
+          </dl>
+        </section>
+        <section class="group">
+          <h2>Manifest do gry</h2>
+          <button id="copyManifest">Kopiuj JSON</button>
+          <p id="copyStatus" class="note" role="status" aria-live="polite"></p>
+          <pre id="manifest" tabindex="0"></pre>
+        </section>
+      </div>
+    </aside>
+  </main>
+  <script src="../tools/destruction/node_modules/three/build/three.min.js"></script>
+  <script src="../tools/destruction/node_modules/three/examples/js/controls/OrbitControls.js"></script>
+  <script src="../js/core/seededRandom.js"></script>
+  <script src="../js/vendor/buildings-6.0.0.js"></script>
+  <script src="../js/buildings/buildingCatalog.js"></script>
+  <script src="../js/buildings/buildingRandom.js"></script>
+  <script src="../js/buildings/buildingBackends.js"></script>
+  <script src="../js/buildings/buildingPolygon.js"></script>
+  <script src="../js/buildings/buildingSpec.js"></script>
+  <script src="../js/buildings/buildingFootprints.js"></script>
+  <script src="../js/buildings/buildingPrograms.js"></script>
+  <script src="../js/buildings/buildingSolver.js"></script>
+  <script src="../js/buildings/buildingAssemblies.js"></script>
+  <script src="../js/buildings/buildingPlan.js"></script>
+  <script src="../js/buildings/buildingInstance.js"></script>
+  <script src="../js/buildings/buildingGeometry.js"></script>
+  <script src="../js/buildings/proceduralBuildingGenerator.js"></script>
+  <script src="view3d.js"></script>
+  <script src="../js/destruction/catalogs.js"></script>
+  <script src="../js/destruction/ammunitionStrategy.js"></script>
+  <script src="../js/destruction/calibers/caliber556.js"></script>
+  <script src="../js/destruction/calibers/caliber762.js"></script>
+  <script src="../js/destruction/calibers/caliber127.js"></script>
+  <script src="../js/destruction/calibers/caliber20.js"></script>
+  <script src="../js/destruction/calibers/caliber30.js"></script>
+  <script src="../js/destruction/calibers/caliber40.js"></script>
+  <script src="../js/destruction/calibers/caliber105.js"></script>
+  <script src="../js/destruction/solid.js"></script>
+  <script src="../js/destruction/impactProfiles.js"></script>
+  <script src="../js/destruction/materialImpact.js"></script>
+  <script src="../js/destruction/rubbleField.js"></script>
+  <script src="../js/destruction/projectileMath.js"></script>
+  <script src="../js/destruction/projectileState.js"></script>
+  <script src="../js/destruction/impactSolver.js"></script>
+  <script src="../js/destruction/surfaceDamage.js"></script>
+  <script src="../js/destruction/materialModel.js"></script>
+  <script src="../js/destruction/projectileTrace.js"></script>
+  <script src="../js/destruction/ballistics.js"></script>
+  <script src="../js/vendor/rapier-0.19.3.js"></script>
+  <script src="../js/vendor/convex-hull-r128.js"></script>
+  <script src="../js/destruction/physics.js"></script>
+  <script src="../js/destruction/adapters.js"></script>
+  <script src="../js/destruction/effects.js"></script>
+  <script src="../js/destruction/demo.js"></script>
+  <script src="forms.js"></script>
+  <script src="floorPlan.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

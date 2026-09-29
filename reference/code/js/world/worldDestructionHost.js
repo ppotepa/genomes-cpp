@@ -1,0 +1,17 @@
+(function(){
+  'use strict';
+  const R=globalThis.RTS;
+  class WorldDestructionHost{
+    constructor(battlefield,options={}){this.battlefield=battlefield;this.options=options;this.runtimes=new Set();this.queue=[];this.budgetMs=options.budgetMs||1.75;this.physics=options.physics||(R.DestructionPhysics?new R.DestructionPhysics():null);this.rubble=options.rubble||null;this.model=options.model||new R.MaterialModel();if(this.rubble){this.model.rubbleField=this.rubble;this.rubble.attachPhysics?.(this.physics?.world,this.physics?.P);}this.metrics={materializations:0,queued:0,evictions:0,physicsSyncs:0};this._onModelEvent=e=>{if(!e?.part)return;const runtime=[...this.runtimes].find(r=>e.part.sourceId&&String(e.part.sourceId).startsWith(String(r.id))||e.part.runtimeId===r.id);if(runtime&&e.type==='impact')runtime.damageState.damagePercent=Math.min(100,(runtime.damageState.damagePercent||0)+Math.max(1,e.part.damage||0)*100);};this.model.listeners.add(this._onModelEvent);}
+    add(runtime){this.runtimes.add(runtime);if(!runtime.damage)runtime.damage=new R.BuildingDamageChunkManager(runtime,{host:this});else runtime.damage.host=this;return runtime;}
+    activateHit(runtime,hit,context={}){this.add(runtime);return this.queueDamage(runtime,{...context,type:context.type==='HE'?'HE':'AP',hit,sphere:context.sphere});}
+    activateBlast(runtime,sphere,context={}){this.add(runtime);return this.queueDamage(runtime,{...context,type:'HE',sphere});}
+    traceSegment(start,end,radius=0){const materialHit=this.model.trace(start,end,radius);if(materialHit)return materialHit;return this.battlefield?.buildingRepresentationManager?.index.querySegment(start,end)?.[0]||null;}
+    queueDamage(runtime,request){this.queue.push({runtime,request});this.metrics.queued=this.queue.length;return this;}
+    update(){const start=performance.now();while(this.queue.length&&performance.now()-start<this.budgetMs){const job=this.queue.shift(),manager=job.runtime.damage||(new R.BuildingDamageChunkManager(job.runtime,{host:this}));if(job.request.type==='HE')manager.activateForHE(job.request.sphere);else manager.activateForAP(job.request.hit);if(manager.flush())this.metrics.materializations++;}if(this.physics){this.physics.sync(this.model);this.physics.step();this.metrics.physicsSyncs++;}this.metrics.queued=this.queue.length;}
+    stats(){return {...this.metrics,activeBuildings:this.runtimes.size,activeDamageChunks:[...this.runtimes].reduce((n,r)=>n+(r.damage?.stats().activeChunks||0),0),materialModelParts:this.model.parts.size,rapierBodies:(this.physics?.static?.size||0)+(this.physics?.debris?.length||0),rubbleTiles:this.rubble?.tiles?.size||this.rubble?.stats?.().tiles||0};}
+    evict(runtime,options={}){if(!this.runtimes.has(runtime))return false;if(runtime.damage?.stats().activeChunks)return false;this.queue=this.queue.filter(job=>job.runtime!==runtime);const owned=[...this.model.parts.values()].filter(part=>part.runtimeId===runtime.id||String(part.sourceId||'').startsWith(String(runtime.id)));if(owned.length)this.model.batch(()=>owned.forEach(part=>this.model.remove(part.id)));this.physics?.sync?.(this.model);this.runtimes.delete(runtime);if(options.dispose!==false)runtime.dispose?.();this.metrics.evictions++;return true;}
+    dispose(){this.runtimes.clear();this.queue.length=0;this.model.listeners.delete(this._onModelEvent);this.model.dispose?.();this.physics?.dispose?.();this.rubble?.dispose?.();}
+  }
+  R.WorldDestructionHost=WorldDestructionHost;
+})();

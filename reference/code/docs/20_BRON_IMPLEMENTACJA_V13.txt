@@ -1,0 +1,129 @@
+GENOMES v0.13 — PROCEDURALNA OBSŁUGA BRONI
+========================================
+Baza: main 36b3808500cd21176decccfcc248f7b54cdfab55, ze zmianami sprintu.
+Data: 24.09.2026. Dokument wdrożenia; parametry są wartościami gry.
+
+OBSŁUGA
+-------
+Otwórz index.html przez file://. Biblioteki Three.js r128 i OrbitControls
+nadal pochodzą z CDN. Nie ma dodatkowego serwera ani nowych zależności.
+DEBUG -> UNITS -> Generator jednostek -> Ekwipunek -> BROŃ:
+wybierz posiadane przedmioty w slotach. Nowe sloty: nóż i granat.
+DEBUG -> UNITS -> Generator jednostek -> Broń:
+wybierz posiadany przedmiot, Wyjmij, ustaw podniesienie i kierunek.
+Pistolet pozwala wybrać 1H/2H; długa broń wymaga 2H. Nóż/granat używają 1H.
+Strzał uruchamia pojedynczą reakcję. Przytrzymaj ogień powtarza zdarzenia
+w wizualnym tempie przedmiotu. Zamknięcie podglądu/pauza puszcza spust.
+Faza akcji w pauzie jest oddzielna od fazy nóg. Cofanie nie emituje zdarzeń.
+Kamera nie steruje celowaniem. Na mapie demo nie rozpoczyna samodzielnie walki.
+
+ARCHITEKTURA I WŁASNOŚĆ
+----------------------
+Equipment przechowuje dane. WeaponCatalog określa rodzinę obsługi i dozwolone
+chwyty; slot nie jest chwytem. WeaponGeometry generuje jeden sztywny przedmiot
+na instancję w ekwipunku. Nie jest częścią skinned gear. Kabura, pochwa, kieszeń
+lub pasek pozostają na ciele. Wyjęcie nie tworzy kopii i nie dodaje masy.
+Modele: pistolet, karabinek, karabin, wyborowy, dwie bronie wsparcia, nóż,
+granat. Granat jest wyłącznie trzymanym rekwizytem: brak rzutu/wybuchu.
+
+primaryGrip i secondaryGrip są pełnymi ramkami chwytu, nie punktami nadgarstka.
+Wymiary broni są metrowe; wzrost zmienia ręce, nie skaluje całego przedmiotu.
+WeaponController wyznacza jeden weaponRig, a następnie obie dłonie przez IK.
+Także po interpolacji renderowania wykonywana jest końcowa korekta chwytu.
+Nie tworzymy cyklu zależności dłoń -> broń -> ta sama dłoń.
+
+HandAnatomy dopisuje 30 kości palców po oryginalnych 39 kościach. Razem 69.
+Dłonie/rękawice mają wagi paliczków; prawa i lewa dostają niezależne profile:
+HANDLE, SPHERE, PISTOL, SUPPORT. Palec wskazujący ma własną reakcję strzału.
+Bez aktywnej broni pozostaje dotychczasowy handsRelax dla sprintu.
+Z aktywną bronią morph jest wyłączany i zastępowany kośćmi, bez podwójnego curl.
+Nie zmieniono losowania genomów ani dotychczasowych indeksów kości.
+
+PRZEBIEG I KOLEJNOŚĆ
+-------------------
+STOWED -> DRAWING -> HELD -> HOLSTERING -> STOWED.
+Wyjmowanie: sięgnięcie -> kontakt -> przejęcie -> odsunięcie/przeniesienie ->
+chwyt wspierający. Chowanie osobno zwalnia drugą rękę i oddaje przedmiot
+mocowaniu przed odsunięciem dłoni. Przedmiot zachowuje stabilnego rodzica.
+Przy zmianie aktywnego slotu najpierw kończy się chowanie poprzedniego.
+Kontakty transportowe wynikają z aktualnych kości i EquipmentFit, nie starej
+pozy referencyjnej świata. Nieosiągalne sięgnięcie daje DRAW_BLOCKED.
+
+Krok symulacji: zegar akcji -> ruch -> poza/ograniczona korekta tułowia ->
+kontakty nóg/dłoni podłoża -> spojrzenie i korekta terenu -> weaponRig ->
+IK zajętych rąk -> palce -> snapshot. Ramiona są nadpisywane świadomie;
+placeHands nie odbiera broni dłoni oznaczonej jako zajęta.
+Lokomocja, faza nóg, mimika i genomy nie są resetowane przez zmianę chwytu.
+Mały ruch oddechu/kroków porusza wspólną bronią, nie rozsuwa jej chwytów.
+
+readiness 0..1 jest utrzymywaną pozycją, a nie czasem wyjmowania. Zmiana 1H/2H
+wygasza/przywraca wpływ lewej ręki. Sprint opuszcza broń i blokuje strzały.
+PRONE ma osobne położenie przedmiotu i korektę prześwitu rękawów.
+PRONE_MOVE -> wyjmowanie: zatrzymanie w PRONE i dopiero wyjęcie.
+Żądanie PRONE_MOVE z bronią w dłoniach: schowanie, potem czołganie.
+Nie próbujemy tymi samymi dłońmi naraz trzymać karabinu i podpierać ziemi.
+REST także wymaga schowania. SITTING pozostaje postawą referencyjną.
+
+STRZAŁ
+------
+Kontroler sprawdza firearm, HELD, faktyczne podniesienie, brak przejścia,
+intensywność sprintu, błąd chwytu i interwał zdarzeń.
+Akceptacja nadaje jedno rosnące ID i czas symulacji. Impuls trafia do dwóch
+analitycznie tłumionych parametrów: obrotu i cofnięcia broni. Następnie IK
+utrzymuje ręce przy przedmiocie. Błysk jest proceduralny przy muzzle.
+Brak balistyki, pocisków, trafień, obrażeń, amunicji, przeładowania i dźwięku.
+Nie ma automatycznego trzęsienia kamery RTS.
+
+API
+---
+unit.equip('primaryWeapon', 'rifle');
+unit.equip('secondaryWeapon', 'sidearm');
+unit.equip('meleeWeapon', 'knife');
+unit.equip('throwable', 'grenade');
+unit.weapons.select('secondaryWeapon');
+unit.weapons.setGrip('2H'); // AUTO / 1H / 2H, z walidacją
+unit.weapons.setReadiness(1);
+unit.weapons.setAim(0.2, 0.1); // radiany względem kierunku ciała
+unit.weapons.setAimTargetWorld({x:2, y:1.5, z:5}); // opcjonalny cel w świecie
+unit.weapons.setAimTargetWorld(null); // powrót do ręcznych kątów
+unit.weapons.draw(); // asynchroniczna sekwencja w istniejącym fixed step
+unit.weapons.fire(); // żądanie, nie gwarancja przyjęcia
+unit.weapons.setTrigger(true);
+unit.weapons.setTrigger(false);
+unit.weapons.holster();
+unit.weapons.onShot = event => { /* id, time, slot, definitionId */ };
+unit.weapons.seekAction('DRAW', 0.5); // narzędzie podglądu; bez zdarzeń
+unit.seek(unit.animator.phase); // przeliczenie pauzy bez przesunięcia fazy nóg
+
+Zmiana gear/LOD zachowuje aktywną instancję, gdy jej definicja i seed są te same.
+Usunięcie lub wymiana aktywnego przedmiotu zatrzymuje akcję i usuwa jego model.
+Zmiana genomu przebudowuje anatomię, zachowuje wybór i etap akcji, ponownie
+rozwiązuje chwyty. Nie zachowuje punktów dłoni w starym, niepasującym ciele.
+
+PLIKI
+-----
+js/weapons/weaponCatalog.js: dane obsługi.
+js/weapons/handRig.js: paliczki, ramki dłoni, pozy palców.
+js/weapons/weaponGeometry.js: niezależne proceduralne obiekty i markery.
+js/weapons/weaponController.js: sekwencje, zajętość rąk, IK, odrzut/snapshoty.
+js/ui/weaponEditor.js: zakładka istniejącego laboratorium.
+Integracja: equipmentCatalog, infantryGear, infantryRig, infantrySurface,
+infantryAnimator, infantryUnit, unitPreview, debugPanel, loader.
+
+WERYFIKACJA I OGRANICZENIA
+-------------------------
+W tej iteracji wykonano składnię JS i izolowany smoke na numeric_math.cjs:
+cztery rodziny przedmiotów, wyjmowanie/chowanie, zdarzenia tylko firearm,
+pistolet 1H/2H, brak rozciągania, skończone macierze, chód obniżony,
+zmiana gear i aktywnej broni, seek bez zdarzeń, przejście do/z czołgania.
+Polecenie: node tests/weapons_smoke.cjs.
+Nie wykonano pełnego testu przeglądarkowego/WebGL tej wersji.
+Numeryczny błąd IK nie jest oceną estetyki palców ani płynności renderu.
+
+To pierwsza proceduralna warstwa obsługi, nie symulacja fizyczna rąk/broni.
+Ścieżki przełożenia są autorskimi punktami pośrednimi, bez pełnego planera
+samokolizji. Kontrole obejmują zasięg i ograniczony prześwit; duży plecak może
+blokować sięgnięcie, a skrajne genomy/sprzęt mogą nadal wymagać strojenia.
+Palce korzystają z profili zgięcia, nie z rozwiązania kontaktu każdej opuszki.
+Ręka główna jest na razie prawa. Czołganie z bronią wymaga osobnego cyklu;
+obecna polityka najpierw chowa broń. Nie dodano systemu walki ani AI.

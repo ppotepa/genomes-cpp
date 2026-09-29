@@ -1,4 +1,5 @@
 #include <genomes/infantry/AppearanceMeshBuilder.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -131,6 +132,19 @@ void AppearanceMeshBuilder::bridge(const Ring& first, const Ring& second,
 
 AppearanceMesh AppearanceMeshBuilder::finalize() && {
     mesh_.indices = topology_.indices();
+    const auto material_slot=[this](std::size_t triangle){const auto region=static_cast<AppearanceMaterialRegion>(
+        mesh_.vertices[mesh_.indices[triangle*3U]].material_region);switch(region){
+        case AppearanceMaterialRegion::Skin:case AppearanceMaterialRegion::Eyelid:
+        case AppearanceMaterialRegion::Mouth:case AppearanceMaterialRegion::EyeSclera:
+        case AppearanceMaterialRegion::Iris:case AppearanceMaterialRegion::Pupil:
+        case AppearanceMaterialRegion::Ear:case AppearanceMaterialRegion::Nose:
+        case AppearanceMaterialRegion::Lip:case AppearanceMaterialRegion::SkinHand:return std::uint16_t{1};
+        case AppearanceMaterialRegion::Hair:return std::uint16_t{2};default:return std::uint16_t{0};}};
+    for(std::size_t triangle=0;triangle<mesh_.indices.size()/3U;++triangle){const auto material=material_slot(triangle);
+        if(mesh_.groups.empty()||mesh_.groups.back().material!=material)mesh_.groups.push_back({static_cast<std::uint32_t>(triangle*3U),3U,material});
+        else mesh_.groups.back().count+=3U;}
+    mesh_.sphere_center={(mesh_.minimum.x+mesh_.maximum.x)*.5F,(mesh_.minimum.y+mesh_.maximum.y)*.5F,(mesh_.minimum.z+mesh_.maximum.z)*.5F};
+    float radius_squared=0;for(const auto& vertex:mesh_.vertices){const float x=vertex.position.x-mesh_.sphere_center.x,y=vertex.position.y-mesh_.sphere_center.y,z=vertex.position.z-mesh_.sphere_center.z;radius_squared=std::max(radius_squared,x*x+y*y+z*z);}mesh_.sphere_radius=std::sqrt(radius_squared);
     return std::move(mesh_);
 }
 

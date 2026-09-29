@@ -32,6 +32,7 @@ struct alignas(16) GpuInstanceRecord final {
     foundation::Vec3 scale{1.0F, 1.0F, 1.0F};
     float rotation_y{0.0F};
     std::uint32_t flags{0};
+    std::uint32_t reserved[2]{};
 
     [[nodiscard]] bool operator==(const GpuInstanceRecord& other) const noexcept {
         return semantic_id == other.semantic_id && mesh_id == other.mesh_id &&
@@ -46,7 +47,7 @@ struct alignas(16) GpuInstanceRecord final {
         const RenderInstance& instance) noexcept {
         return {instance.object_id, instance.mesh_id, instance.material_id,
                 instance.position, instance.scale, instance.rotation_y,
-                ActiveFlag | instance.flags};
+                ActiveFlag | instance.flags, {}};
     }
 };
 

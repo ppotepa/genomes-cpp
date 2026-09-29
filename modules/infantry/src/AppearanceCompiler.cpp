@@ -5,6 +5,7 @@
 #include <genomes/infantry/FaceAnatomy.hpp>
 #include <genomes/infantry/FaceSurfaceGenerator.hpp>
 #include <genomes/infantry/HairGenerator.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 
 #include <genomes/geometry/GeometryConstants.hpp>
 
@@ -115,6 +116,9 @@ bool AppearanceArtifact::valid(const SkeletonData& skeleton) const noexcept {
                 return false;
             }
         }
+        std::size_t grouped=0;for(const auto& group:mesh.groups){if(group.start!=grouped||group.count==0||group.count%3U!=0||group.material>=mesh.materials.size())return false;grouped+=group.count;}
+        if(grouped!=mesh.indices.size()||!finite(mesh.sphere_center)||!std::isfinite(mesh.sphere_radius)||!(mesh.sphere_radius>0))return false;
+        for(const auto& tag:mesh.tags){if(tag.name.empty())return false;for(const auto vertex:tag.vertices)if(vertex>=mesh.vertices.size())return false;}
         for (std::size_t offset = 0U; offset < mesh.indices.size(); offset += 3U) {
             const std::uint32_t i0 = mesh.indices[offset];
             const std::uint32_t i1 = mesh.indices[offset + 1U];
@@ -183,6 +187,21 @@ foundation::Result<AppearanceArtifact, foundation::Error> AppearanceCompiler::bu
 
     const BodyPhenotype& body = phenotype.body;
     const FacePhenotype& face = phenotype.face;
+    // The standalone appearance API retains its semantic face-level view;
+    // production model compilation below uses the pinned reference surface.
+    ResolvedAnatomy surface_anatomy=anatomy;
+    surface_anatomy.reference_profile=false;
+    surface_anatomy.head_sections.clear();
+    const float lower_head_y=face.mouth_y-.09F*face.jaw_length_scale*face.head_length_scale;
+    const std::array<float,7U> semantic_levels{lower_head_y,face.mouth_y,face.nose_y,
+        face.eye_y,face.brow_y,face.hairline_y,
+        face.hairline_y+std::max(.012F,face.hair_volume*4.0F)};
+    for(std::size_t level=0;level+1U<semantic_levels.size();++level)
+        for(const float t:{0.0F,1.0F/3.0F,2.0F/3.0F}){const float y=semantic_levels[level]+
+            (semantic_levels[level+1U]-semantic_levels[level])*t;const auto section=face.section(y);
+            surface_anatomy.head_sections.push_back({y,section.radius_x,section.radius_z,section.center_z});}
+    {const float y=semantic_levels.back();const auto section=face.section(y);
+     surface_anatomy.head_sections.push_back({y,section.radius_x,section.radius_z,section.center_z});}
     const std::size_t segments = detailSegments(options);
     const foundation::Color cloth = options.cloth_color;
     const foundation::Color skin = options.skin_color;
@@ -200,7 +219,7 @@ foundation::Result<AppearanceArtifact, foundation::Error> AppearanceCompiler::bu
     }
 
     const auto face_build = FaceSurfaceGenerator::build(
-        builder, anatomy, face, skeleton, options, neck_ring);
+        builder, surface_anatomy, face, skeleton, options, neck_ring);
     if (!face_build) {
         return foundation::Result<AppearanceArtifact, foundation::Error>::failure(
             face_build.error());
@@ -209,6 +228,13 @@ foundation::Result<AppearanceArtifact, foundation::Error> AppearanceCompiler::bu
     result.version = options.version;
     result.cache_key = cacheKey(phenotype, skeleton, options);
     result.body = std::move(builder).finalize();
+    result.body.materials={{"uniform",options.cloth_color,.95F,0,1,false},
+                           {"skin",options.skin_color,.92F,0,1,false},
+                           {"hair",face.hair_color,.88F,0,1,false}};
+    const auto populate_tags=[](AppearanceMesh& mesh){std::array<std::vector<std::uint32_t>,18U> vertices;
+        for(std::uint32_t index=0;index<mesh.vertices.size();++index){const auto region=mesh.vertices[index].material_region;if(region<vertices.size())vertices[region].push_back(index);}
+        for(std::size_t region=0;region<vertices.size();++region)if(!vertices[region].empty())mesh.tags.push_back({std::string(materialRegionName(static_cast<AppearanceMaterialRegion>(region))),std::move(vertices[region])});};
+    populate_tags(result.body);
     result.has_eye_openings = true;
     result.has_mouth_opening = true;
 
@@ -217,18 +243,25 @@ foundation::Result<AppearanceArtifact, foundation::Error> AppearanceCompiler::bu
     // Hair owns its scalp sampling and semantic style families. Keep the
     // compiler responsible only for orchestration and artifact assembly.
     if (hair_style != HairStyle::Bald) {
-        const auto hair = HairGenerator::build(anatomy, face, skeleton, options);
+        const auto hair = HairGenerator::build(surface_anatomy, face, skeleton, options);
         if (!hair) {
             return foundation::Result<AppearanceArtifact, foundation::Error>::failure(
                 hair.error());
         }
         result.hair = hair.value();
+        result.hair.materials=result.body.materials;
+        populate_tags(result.hair);
     }
 
     AppearanceMorphBuilder::initialize(result);
     AppearanceMorphBuilder::build(result, face);
     result.minimum = result.body.minimum;
     result.maximum = result.body.maximum;
+    result.face_metadata.eyes[0].center=anatomy.face.left_eye;
+    result.face_metadata.eyes[1].center=anatomy.face.right_eye;
+    for(auto& eye:result.face_metadata.eyes){eye.radius=face.eye_radius;eye.neutral_open=face.neutral_eye_open;}
+    result.face_metadata.neck_connected=true;
+    result.face_metadata.mouth_opening=true;
     if (!result.hair.vertices.empty()) {
         result.minimum.x = std::min(result.minimum.x, result.hair.minimum.x);
         result.minimum.y = std::min(result.minimum.y, result.hair.minimum.y);
@@ -302,11 +335,4 @@ AppearanceCache::Artifact AppearanceCache::acquire(const PhenotypeArtifact& phen
 }
 
 } // namespace genomes::infantry
-
-
-
-
-
-
-
 

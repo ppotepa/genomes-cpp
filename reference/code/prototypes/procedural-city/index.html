@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Procedural City — Hydrology + Recursive Road Regions</title>
+<style>
+:root{--bg:#090b0e;--panel:#11151a;--panel2:#181e25;--line:#29313a;--text:#edf2f6;--muted:#96a3ae;--accent:#54c395;--accent2:#287e61;--warn:#d5a95e}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:14px/1.35 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}body{display:flex;height:100vh;overflow:hidden}
+aside{width:356px;max-width:44vw;background:var(--panel);border-right:1px solid var(--line);padding:17px 18px 24px;overflow:auto;z-index:2}main{position:relative;flex:1;min-width:0;background:#080a0d}h1{font-size:17px;margin:0 0 4px;font-weight:750}.sub{color:var(--muted);font-size:11px;margin-bottom:13px}.statusLine{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px}.status{font-size:11px;color:#8f9ca7}.quality{font-size:10px;font-weight:800;letter-spacing:.07em;padding:3px 7px;border-radius:999px;border:1px solid #33414a}.quality.good{color:#75d4ad;border-color:#356d59;background:#143226}.quality.warn{color:#e3bd73;border-color:#6b5732;background:#332915}
+.section{padding:13px 0;border-top:1px solid var(--line)}.section:first-of-type{border-top:0;padding-top:0}.section h2{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#b8c2cb;margin:0 0 9px}label{display:block;margin:8px 0 4px;color:#cbd3da;font-size:11px}input[type="number"],select{width:100%;height:35px;background:var(--panel2);border:1px solid #303944;color:var(--text);border-radius:7px;padding:0 9px;outline:none}input:focus,select:focus{border-color:var(--accent2)}input[type="range"]{width:100%;accent-color:var(--accent)}.rangeRow{display:grid;grid-template-columns:1fr 52px;gap:8px;align-items:center}.rangeVal{text-align:right;font-variant-numeric:tabular-nums;color:#d7dfe5;font-size:11px}.btnRow{display:grid;grid-template-columns:1fr 94px;gap:8px;margin-top:12px}button{height:38px;border:1px solid #39434d;background:#20272e;color:#edf2f5;border-radius:7px;font-weight:700;cursor:pointer}button.primary{background:var(--accent2);border-color:var(--accent2)}button:disabled{opacity:.55;cursor:default}.checks{display:grid;grid-template-columns:1fr 1fr;gap:7px 9px}.check{display:flex;align-items:center;gap:7px;color:#cbd3da;font-size:11px;margin:0}.check input{accent-color:var(--accent)}.stats{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;font-size:11px}.stats div:nth-child(odd){color:#95a2ad}.stats div:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}.pipeline{font-size:10px;line-height:1.55;color:#8795a0;margin-top:9px;padding:8px;background:#0d1115;border:1px solid #252d35;border-radius:7px}.pipeline b{color:#b8c3cb;font-weight:650}
+#canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}.hud{position:absolute;left:14px;top:14px;background:rgba(9,12,15,.80);border:1px solid rgba(95,108,120,.35);backdrop-filter:blur(8px);border-radius:9px;padding:9px 11px;pointer-events:none;min-width:235px}.hud b{display:block;font-size:12px;margin-bottom:4px}.hud span{color:#aeb9c3;font-size:10px;display:block}.legend{position:absolute;right:14px;top:14px;background:rgba(9,12,15,.80);border:1px solid rgba(95,108,120,.35);backdrop-filter:blur(8px);border-radius:9px;padding:9px 10px;font-size:10px;pointer-events:none;max-width:190px}.li{display:flex;align-items:center;gap:7px;margin:4px 0;color:#c7d0d7}.sw{width:12px;height:6px;border-radius:2px;display:inline-block}.help{position:absolute;left:14px;bottom:14px;color:#9eabb5;background:rgba(9,12,15,.72);padding:7px 9px;border-radius:7px;font-size:10px;pointer-events:none}.roadKey{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-top:7px;padding-top:6px;border-top:1px solid rgba(120,130,140,.25)}
+@media(max-width:820px){body{display:block;height:auto;overflow:auto}aside{width:100%;max-width:none;border-right:0;border-bottom:1px solid var(--line);max-height:none}main{height:72vh;min-height:520px}.legend{display:none}}
+</style>
+</head>
+<body>
+<aside>
+  <h1>Procedural City — Hydrology + Road Regions</h1>
+  <div class="sub">hydrology-first • road-driven recursive regions • jeden statyczny plik • WebGL bez bibliotek</div>
+  <div class="statusLine"><span id="status" class="status">gotowe</span><span id="quality" class="quality good">VALIDATED</span></div>
+
+  <div class="section">
+    <h2>Parametry osady</h2>
+    <label for="seed">Seed</label><input id="seed" type="number" min="1" max="2147483646" value="33331" />
+    <label for="area">Powierzchnia miasta [km²]</label><input id="area" type="number" min="0.05" max="100" step="0.05" value="4.0" />
+    <label for="preset">Skala osady</label><select id="preset"><option value="hamlet">Hamlet</option><option value="village">Village</option><option value="town" selected>Town</option><option value="city">City</option><option value="metropolis">Metropolis</option></select>
+    <label for="morph">Morfologia bazowa</label><select id="morph"><option value="mixed" selected>Mixed</option><option value="organic">Organic</option><option value="grid">Grid / planned</option><option value="radial">Radial</option><option value="ribbon">Ribbon / linear</option></select>
+
+    <label>Gęstość</label><div class="rangeRow"><input id="density" type="range" min="0.25" max="1.40" step="0.05" value="0.82"><div id="densityVal" class="rangeVal">0.82</div></div>
+    <label>Wpływ terenu</label><div class="rangeRow"><input id="terrain" type="range" min="0" max="1" step="0.05" value="0.35"><div id="terrainVal" class="rangeVal">0.35</div></div>
+    <label>Rural fringe</label><div class="rangeRow"><input id="rural" type="range" min="0" max="1" step="0.05" value="0.45"><div id="ruralVal" class="rangeVal">0.45</div></div>
+    <label>Policentryczność</label><div class="rangeRow"><input id="polycentricity" type="range" min="0" max="1" step="0.05" value="0.45"><div id="polyVal" class="rangeVal">0.45</div></div>
+    <label>Planowość / regularność</label><div class="rangeRow"><input id="plannedness" type="range" min="0" max="1" step="0.05" value="0.50"><div id="plannedVal" class="rangeVal">0.50</div></div>
+    <label for="hydrology">Hydrologia</label><select id="hydrology"><option value="seeded" selected>Seeded — czasem brak / obok / przez miasto</option><option value="off">Wyłączona</option><option value="force">Wymuś rzekę</option></select>
+
+    <div class="btnRow"><button class="primary" id="generate">Generuj całość</button><button id="randomize">Losowy seed</button></div>
+  </div>
+
+  <div class="section">
+    <h2>Warstwy diagnostyczne</h2>
+    <div class="checks">
+      <label class="check"><input id="showTerrain" type="checkbox" checked> teren</label>
+      <label class="check"><input id="showBoundary" type="checkbox" checked> granica Ω</label>
+      <label class="check"><input id="showWater" type="checkbox" checked> rzeka / floodplain</label>
+      <label class="check"><input id="showRegions" type="checkbox"> district/hood</label>
+      <label class="check"><input id="showZones" type="checkbox"> zoning</label>
+      <label class="check"><input id="showROW" type="checkbox"> road ROW</label>
+      <label class="check"><input id="showRoads" type="checkbox" checked> drogi</label>
+      <label class="check"><input id="showBlocks" type="checkbox"> bloki</label>
+      <label class="check"><input id="showParcels" type="checkbox"> parcele</label>
+      <label class="check"><input id="showBuildable" type="checkbox"> buildable</label>
+      <label class="check"><input id="showBuildings" type="checkbox" checked> budynki</label>
+      <label class="check"><input id="showCentres" type="checkbox" checked> centra</label>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Walidacja modelu</h2>
+    <div id="stats" class="stats"></div>
+    <div class="pipeline"><b>Pipeline:</b> terrain → seeded hydrology → boundary Ω → centres + external gateways → Delaunay/kNN → MST + bridge-aware transport → curved cost-routed regional roads split RegionNode recursively → region road-deficit growth → planar graph → zoning → road-ROW blocks → frontage parcels → buildable polygons → OBB/SAT buildings → topology/hydrology/geometry validator.</div>
+  </div>
+</aside>
+
+<main id="viewport">
+  <canvas id="canvas" tabindex="0" aria-label="Interaktywna trójwymiarowa makieta pełnego proceduralnego modelu miasta"></canvas>
+  <div class="hud"><b id="hudTitle">Town / Mixed</b><span id="hudSub">seed 33331</span></div>
+  <div class="legend">
+    <div class="li"><span class="sw" style="background:#c7ad50"></span> centre</div>
+    <div class="li"><span class="sw" style="background:#a66d47"></span> urban</div>
+    <div class="li"><span class="sw" style="background:#648e57"></span> suburb</div>
+    <div class="li"><span class="sw" style="background:#4d6645"></span> rural</div>
+    <div class="li"><span class="sw" style="background:#315c73"></span> river</div>
+    <div class="roadKey">
+      <div>trunk</div><div>12.5 m</div><div>arterial</div><div>9 m</div><div>collector</div><div>6.8 m</div><div>local</div><div>4.8 m</div><div>alley</div><div>3.2 m</div>
+    </div>
+  </div>
+  <div class="help">LPM: obrót • Shift+LPM: pan • kółko: zoom • dwuklik: reset</div>
+</main>
+<script>
+(() => {
+'use strict';
+
+// ================================================================
+//  Procedural City Model — deterministic mathematical prototype
+//  Pipeline:
+//  seed/profile -> fields -> boundary -> hierarchy -> Delaunay/MST
+//  -> cost-aware arterial paths -> planar road graph -> recursive
+//  local growth -> accessibility/zoning -> faces/blocks -> parcels
+//  -> rural frontage -> placeholder buildings -> validator
+// ================================================================
+
+// ---------- math / deterministic randomness ----------
+const TAU = Math.PI * 2;
+const EPS = 1e-6;
+function clamp(x,a,b){ return Math.max(a,Math.min(b,x)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function invLerp(a,b,x){ return (x-a)/(b-a); }
+function smoothstep(a,b,x){ const t=clamp(invLerp(a,b,x),0,1); return t*t*(3-2*t); }
+function angleWrap(a){ while(a>Math.PI)a-=TAU; while(a<-Math.PI)a+=TAU; return a; }
+function angleDiff(a,b){ return Math.abs(angleWrap(a-b)); }
+function angleLerp(a,b,t){ return a+angleWrap(b-a)*t; }
+function hypot2(x,z){ return Math.hypot(x,z); }
+function dist(a,b){ return Math.hypot(a.x-b.x,a.z-b.z); }
+function dist2(a,b){ const dx=a.x-b.x,dz=a.z-b.z; return dx*dx+dz*dz; }
+function dot(ax,az,bx,bz){ return ax*bx+az*bz; }
+function cross(ax,az,bx,bz){ return ax*bz-az*bx; }
+function normalize2(x,z){ const l=Math.hypot(x,z)||1; return {x:x/l,z:z/l}; }
+function quant(x,q=100){ return Math.round(x*q)/q; }
+function median(a){ if(!a.length)return 0; const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2); return b.length%2?b[m]:(b[m-1]+b[m])*.5; }
+function mean(a){ return a.length?a.reduce((s,x)=>s+x,0)/a.length:0; }
+function hash32(x){ x|=0; x=(x+0x7ed55d16)+(x<<12); x=(x^0xc761c23c)^(x>>>19); x=(x+0x165667b1)+(x<<5); x=(x+0xd3a2646c)^(x<<9); x=(x+0xfd7046c5)+(x<<3); x=(x^0xb55a4f09)^(x>>>16); return x>>>0; }
+function hashString(s,seed=2166136261){ let h=seed>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return hash32(h); }
+function mulberry32(seed){ let a=seed>>>0; return function(){ a|=0; a=(a+0x6D2B79F5)|0; let t=Math.imul(a^(a>>>15),1|a); t=(t+Math.imul(t^(t>>>7),61|t))^t; return ((t^(t>>>14))>>>0)/4294967296; }; }
+function gaussian(rng){ let u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*v); }
+function randRange(r,a,b){ return a+(b-a)*r(); }
+function randInt(r,a,b){ return Math.floor(randRange(r,a,b+1)); }
+class SeedTree{
+  constructor(seed,path='city'){ this.seed=seed>>>0; this.path=path; }
+  child(label,index=0){ return new SeedTree(hashString(`${this.seed}|${this.path}|${label}|${index}`),`${this.path}/${label}/${index}`); }
+  rng(label='rng',index=0){ return mulberry32(hashString(`${this.seed}|${this.path}|${label}|${index}`)); }
+  value(label='value',index=0){ return this.rng(label,index)(); }
+}
+
+// ---------- geometry ----------
+function polygonArea(poly){ let a=0; for(let i=0,j=poly.length-1;i<poly.length;j=i++) a+=poly[j].x*poly[i].z-poly[i].x*poly[j].z; return a*.5; }
+function polygonCentroid(poly){
+  let a=0,cx=0,cz=0;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const q=poly[j].x*poly[i].z-poly[i].x*poly[j].z; a+=q; cx+=(poly[j].x+poly[i].x)*q; cz+=(poly[j].z+poly[i].z)*q;
+  }
+  if(Math.abs(a)<EPS){ return {x:mean(poly.map(p=>p.x)),z:mean(poly.map(p=>p.z))}; }
+  a*=.5; return {x:cx/(6*a),z:cz/(6*a)};
+}
+function pointInPoly(p,poly){ let inside=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j]; const intersect=((a.z>p.z)!==(b.z>p.z))&&(p.x<(b.x-a.x)*(p.z-a.z)/(b.z-a.z+1e-12)+a.x); if(intersect)inside=!inside;} return inside; }
+function bboxOf(poly){ let minX=Infinity,minZ=Infinity,maxX=-Infinity,maxZ=-Infinity; for(const p of poly){minX=Math.min(minX,p.x);minZ=Math.min(minZ,p.z);maxX=Math.max(maxX,p.x);maxZ=Math.max(maxZ,p.z);} return {minX,minZ,maxX,maxZ,w:maxX-minX,h:maxZ-minZ}; }
+function segPointDist2(px,pz,a,b){ const vx=b.x-a.x,vz=b.z-a.z,wx=px-a.x,wz=pz-a.z,c2=vx*vx+vz*vz; if(c2<EPS)return (px-a.x)**2+(pz-a.z)**2; const t=clamp((wx*vx+wz*vz)/c2,0,1),qx=a.x+t*vx,qz=a.z+t*vz; return {d2:(px-qx)**2+(pz-qz)**2,t,x:qx,z:qz}; }
+function segmentIntersection(a,b,c,d){
+  const r={x:b.x-a.x,z:b.z-a.z}, s={x:d.x-c.x,z:d.z-c.z}; const den=cross(r.x,r.z,s.x,s.z); if(Math.abs(den)<1e-9)return null;
+  const q={x:c.x-a.x,z:c.z-a.z}; const t=cross(q.x,q.z,s.x,s.z)/den, u=cross(q.x,q.z,r.x,r.z)/den;
+  if(t>1e-5&&t<1-1e-5&&u>1e-5&&u<1-1e-5) return {x:a.x+t*r.x,z:a.z+t*r.z,t,u};
+  return null;
+}
+function projectToSegment(p,a,b){ const r=segPointDist2(p.x,p.z,a,b); return {x:r.x,z:r.z,t:r.t,d:Math.sqrt(r.d2)}; }
+function clipPolyHalfPlane(poly,nx,nz,c,keepLess=true){
+  if(poly.length<3)return [];
+  const out=[]; const inside=(p)=>keepLess?(p.x*nx+p.z*nz<=c+1e-7):(p.x*nx+p.z*nz>=c-1e-7);
+  const intersect=(a,b)=>{const da=a.x*nx+a.z*nz-c, db=b.x*nx+b.z*nz-c, t=da/(da-db+1e-12); return {x:lerp(a.x,b.x,t),z:lerp(a.z,b.z,t)};};
+  for(let i=0;i<poly.length;i++){
+    const cur=poly[i],prev=poly[(i+poly.length-1)%poly.length],ic=inside(cur),ip=inside(prev);
+    if(ic){ if(!ip)out.push(intersect(prev,cur)); out.push(cur); }
+    else if(ip) out.push(intersect(prev,cur));
+  }
+  return dedupePoly(out);
+}
+function dedupePoly(poly){ const out=[]; for(const p of poly){ if(!out.length||dist2(p,out[out.length-1])>.01)out.push({x:p.x,z:p.z}); } if(out.length>2&&dist2(out[0],out[out.length-1])<.01)out.pop(); return out; }
+function splitPolygonByAxis(poly,axisAngle,offset){
+  const nx=Math.cos(axisAngle),nz=Math.sin(axisAngle), c=offset;
+  return [clipPolyHalfPlane(poly,nx,nz,c,true),clipPolyHalfPlane(poly,nx,nz,c,false)];
+}
+function principalAxis(poly){
+  const c=polygonCentroid(poly); let xx=0,zz=0,xz=0; for(const p of poly){const x=p.x-c.x,z=p.z-c.z;xx+=x*x;zz+=z*z;xz+=x*z;} const ang=.5*Math.atan2(2*xz,xx-zz); return {angle:ang,center:c};
+}
+function projectedExtents(poly,angle,center=polygonCentroid(poly)){ const ca=Math.cos(angle),sa=Math.sin(angle); let minU=Infinity,maxU=-Infinity,minV=Infinity,maxV=-Infinity; for(const p of poly){const dx=p.x-center.x,dz=p.z-center.z,u=dx*ca+dz*sa,v=-dx*sa+dz*ca;minU=Math.min(minU,u);maxU=Math.max(maxU,u);minV=Math.min(minV,v);maxV=Math.max(maxV,v);} return {minU,maxU,minV,maxV,w:maxU-minU,d:maxV-minV}; }
+function insetPolyApprox(poly,margin){ const c=polygonCentroid(poly); const radii=poly.map(p=>dist(p,c)); const mr=mean(radii)||1; const f=clamp(1-margin/mr,.55,.96); return poly.map(p=>({x:lerp(c.x,p.x,f),z:lerp(c.z,p.z,f)})); }
+function polyEdgeLength(poly){ let s=0; for(let i=0;i<poly.length;i++)s+=dist(poly[i],poly[(i+1)%poly.length]); return s; }
+function isSimplePolygon(poly){
+  if(!poly||poly.length<3)return false;
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i],b=poly[(i+1)%poly.length];
+    if(dist(a,b)<.05)return false;
+    for(let j=i+1;j<poly.length;j++){
+      const c=poly[j],d=poly[(j+1)%poly.length];
+      if(i===j||(i+1)%poly.length===j||i===(j+1)%poly.length)continue;
+      if(segmentIntersection(a,b,c,d))return false;
+    }
+  }
+  return Math.abs(polygonArea(poly))>.5;
+}
+function lineIntersectionInfinite(a1,a2,b1,b2){
+  const r={x:a2.x-a1.x,z:a2.z-a1.z},s={x:b2.x-b1.x,z:b2.z-b1.z},den=cross(r.x,r.z,s.x,s.z);
+  if(Math.abs(den)<1e-9)return null;
+  const q={x:b1.x-a1.x,z:b1.z-a1.z},t=cross(q.x,q.z,s.x,s.z)/den;
+  return {x:a1.x+t*r.x,z:a1.z+t*r.z};
+}
+function offsetPolygonSimple(poly,margin){
+  if(!poly||poly.length<3||margin<=0)return poly?poly.map(p=>({...p})):[];
+  const src=polygonArea(poly)>0?poly:[...poly].reverse(),n=src.length,lines=[];
+  for(let i=0;i<n;i++){
+    const a=src[i],b=src[(i+1)%n],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1;
+    const nx=-dz/l,nz=dx/l; // left normal = inward for CCW polygon
+    lines.push({a:{x:a.x+nx*margin,z:a.z+nz*margin},b:{x:b.x+nx*margin,z:b.z+nz*margin}});
+  }
+  const out=[];
+  for(let i=0;i<n;i++){
+    const prev=lines[(i+n-1)%n],cur=lines[i],p=lineIntersectionInfinite(prev.a,prev.b,cur.a,cur.b);
+    if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.z))return [];
+    out.push(p);
+  }
+  const clean=dedupePoly(out);
+  if(clean.length<3||Math.abs(polygonArea(clean))<4||!isSimplePolygon(clean))return [];
+  return polygonArea(poly)>0?clean:[...clean].reverse();
+}
+function linePolygonIntersections(poly,p,angle){
+  const dx=Math.cos(angle),dz=Math.sin(angle),hits=[];
+  for(let i=0;i<poly.length;i++){
+    const a=poly[i],b=poly[(i+1)%poly.length],ex=b.x-a.x,ez=b.z-a.z,den=cross(dx,dz,ex,ez);
+    if(Math.abs(den)<1e-9)continue;
+    const qx=a.x-p.x,qz=a.z-p.z,t=cross(qx,qz,ex,ez)/den,u=cross(qx,qz,dx,dz)/den;
+    if(u>=-1e-7&&u<=1+1e-7)hits.push({x:p.x+dx*t,z:p.z+dz*t,t});
+  }
+  hits.sort((a,b)=>a.t-b.t);
+  const unique=[];for(const h of hits){if(!unique.length||dist2(h,unique[unique.length-1])>.25)unique.push(h);}return unique;
+}
+function pointInPolyInclusive(p,poly,eps=.08){for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],q=segPointDist2(p.x,p.z,a,b);if(q.d2<=eps*eps)return true;}return pointInPoly(p,poly);}
+function polygonContainsPolygon(outer,inner){
+  if(!outer||!inner||outer.length<3||inner.length<3)return false;
+  for(const p of inner)if(!pointInPolyInclusive(p,outer))return false;
+  for(let i=0;i<inner.length;i++){
+    const a=inner[i],b=inner[(i+1)%inner.length],m={x:(a.x+b.x)/2,z:(a.z+b.z)/2};
+    if(!pointInPolyInclusive(m,outer))return false;
+    for(let j=0;j<outer.length;j++){
+      const c=outer[j],d=outer[(j+1)%outer.length];
+      const hit=segmentIntersection(a,b,c,d);if(hit)return false;
+    }
+  }
+  return true;
+}
+function polygonOverlap(a,b){
+  const ba=bboxOf(a),bb=bboxOf(b);if(ba.maxX<=bb.minX||bb.maxX<=ba.minX||ba.maxZ<=bb.minZ||bb.maxZ<=ba.minZ)return false;
+  for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++)if(segmentIntersection(a[i],a[(i+1)%a.length],b[j],b[(j+1)%b.length]))return true;
+  return pointInPoly(a[0],b)||pointInPoly(b[0],a);
+}
+function randomPointInPoly(poly,rng,tries=64){const b=bboxOf(poly);for(let i=0;i<tries;i++){const p={x:randRange(rng,b.minX,b.maxX),z:randRange(rng,b.minZ,b.maxZ)};if(pointInPoly(p,poly))return p;}return polygonCentroid(poly);}
+function obbCorners(o){
+  const ca=Math.cos(o.rot),sa=Math.sin(o.rot),hw=o.w/2,hd=o.d/2,P=(u,v)=>({x:o.x+u*ca-v*sa,z:o.z+u*sa+v*ca});
+  return [P(-hw,-hd),P(hw,-hd),P(hw,hd),P(-hw,hd)];
+}
+function obbAABB(o,extra=0){
+  const c=obbCorners({...o,w:o.w+2*extra,d:o.d+2*extra});return bboxOf(c);
+}
+function obbOverlap(a,b,margin=0){
+  const ca=obbCorners(a),cb=obbCorners(b),axes=[];
+  for(const p of [[ca[1].x-ca[0].x,ca[1].z-ca[0].z],[ca[3].x-ca[0].x,ca[3].z-ca[0].z],[cb[1].x-cb[0].x,cb[1].z-cb[0].z],[cb[3].x-cb[0].x,cb[3].z-cb[0].z]]){
+    const l=Math.hypot(p[0],p[1])||1;axes.push([p[0]/l,p[1]/l]);
+  }
+  for(const [ax,az] of axes){
+    let amin=Infinity,amax=-Infinity,bmin=Infinity,bmax=-Infinity;
+    for(const p of ca){const v=p.x*ax+p.z*az;amin=Math.min(amin,v);amax=Math.max(amax,v);}for(const p of cb){const v=p.x*ax+p.z*az;bmin=Math.min(bmin,v);bmax=Math.max(bmax,v);}
+    if(amax+margin<=bmin||bmax+margin<=amin)return false;
+  }
+  return true;
+}
+function rectInsidePoly(o,poly){return polygonContainsPolygon(poly,obbCorners(o));}
+function segmentIntersectsExpandedOBB(a,b,o,extra){
+  const ca=Math.cos(o.rot),sa=Math.sin(o.rot),toLocal=p=>{const dx=p.x-o.x,dz=p.z-o.z;return{x:dx*ca+dz*sa,z:-dx*sa+dz*ca};};
+  const A=toLocal(a),B=toLocal(b),hw=o.w/2+extra,hd=o.d/2+extra,dx=B.x-A.x,dz=B.z-A.z;
+  let t0=0,t1=1;const clip=(p,q)=>{if(Math.abs(p)<1e-12)return q>=0;const r=q/p;if(p<0){if(r>t1)return false;if(r>t0)t0=r;}else{if(r<t0)return false;if(r<t1)t1=r;}return true;};
+  return clip(-dx,A.x+hw)&&clip(dx,hw-A.x)&&clip(-dz,A.z+hd)&&clip(dz,hd-A.z)&&t0<=t1;
+}
+class SpatialHash2D{
+  constructor(cell=64){this.cell=Math.max(4,cell);this.map=new Map();}
+  clear(){this.map.clear();}
+  key(ix,iz){return `${ix}:${iz}`;}
+  cellsFor(bb){const c=this.cell;return {x0:Math.floor(bb.minX/c),x1:Math.floor(bb.maxX/c),z0:Math.floor(bb.minZ/c),z1:Math.floor(bb.maxZ/c)};}
+  insert(id,bb,obj){const r=this.cellsFor(bb);for(let z=r.z0;z<=r.z1;z++)for(let x=r.x0;x<=r.x1;x++){const k=this.key(x,z),arr=this.map.get(k)||[];arr.push({id,obj});this.map.set(k,arr);}}
+  query(bb){const r=this.cellsFor(bb),out=[],seen=new Set();for(let z=r.z0;z<=r.z1;z++)for(let x=r.x0;x<=r.x1;x++){const arr=this.map.get(this.key(x,z));if(!arr)continue;for(const it of arr)if(!seen.has(it.id)){seen.add(it.id);out.push(it.obj);}}return out;}
+}
+
+// Ear clipping for render meshes; falls back to fan if polygon is pathological.
+function triangulatePoly(poly){
+  if(poly.length<3)return [];
+  const pts=polygonArea(poly)>0?poly:[...poly].reverse(); const idx=pts.map((_,i)=>i),tris=[];
+  function pointInTri(p,a,b,c){ const v0x=c.x-a.x,v0z=c.z-a.z,v1x=b.x-a.x,v1z=b.z-a.z,v2x=p.x-a.x,v2z=p.z-a.z; const den=v0x*v1z-v1x*v0z; if(Math.abs(den)<EPS)return false; const u=(v2x*v1z-v1x*v2z)/den,v=(v0x*v2z-v2x*v0z)/den; return u>=-1e-7&&v>=-1e-7&&u+v<=1+1e-7; }
+  let guard=0;
+  while(idx.length>3&&guard++<10000){ let cut=false; for(let k=0;k<idx.length;k++){const ia=idx[(k+idx.length-1)%idx.length],ib=idx[k],ic=idx[(k+1)%idx.length],a=pts[ia],b=pts[ib],c=pts[ic]; if(cross(b.x-a.x,b.z-a.z,c.x-b.x,c.z-b.z)<=1e-8)continue; let contains=false; for(const j of idx){if(j===ia||j===ib||j===ic)continue;if(pointInTri(pts[j],a,b,c)){contains=true;break;}} if(!contains){tris.push([a,b,c]);idx.splice(k,1);cut=true;break;}} if(!cut)break; }
+  if(idx.length===3)tris.push([pts[idx[0]],pts[idx[1]],pts[idx[2]]]);
+  if(!tris.length){ for(let i=1;i<pts.length-1;i++)tris.push([pts[0],pts[i],pts[i+1]]); }
+  return tris;
+}
+
+// ---------- coherent fields ----------
+function valueNoise(x,z,seed){
+  const xi=Math.floor(x),zi=Math.floor(z),xf=x-xi,zf=z-zi,s=seed|0;
+  const v=(ix,iz)=>((hash32((ix*374761393)^(iz*668265263)^s)/4294967295)*2-1);
+  const u=xf*xf*(3-2*xf),w=zf*zf*(3-2*zf); return lerp(lerp(v(xi,zi),v(xi+1,zi),u),lerp(v(xi,zi+1),v(xi+1,zi+1),u),w);
+}
+function fbm(x,z,seed,oct=4){ let f=1,a=.55,sum=0,norm=0; for(let i=0;i<oct;i++){sum+=valueNoise(x*f,z*f,seed+i*977)*a;norm+=a;f*=2.03;a*=.5;}return sum/norm; }
+
+function closestPolylineInfo(p,path){
+  if(!path||path.length<2)return null;let best=null,bd=Infinity;
+  for(let i=0;i<path.length-1;i++){const q=segPointDist2(p.x,p.z,path[i],path[i+1]);if(q.d2<bd){bd=q.d2;best={d:Math.sqrt(q.d2),x:q.x,z:q.z,t:q.t,seg:i,A:path[i],B:path[i+1]};}}
+  return best;
+}
+function segmentPolylineIntersection(a,b,path){
+  if(!path||path.length<2)return null;let best=null;
+  for(let i=0;i<path.length-1;i++){const h=segmentIntersection(a,b,path[i],path[i+1]);if(h&&(!best||h.t<best.t))best={...h,seg:i};}
+  return best;
+}
+function polylineIntersectsPolygon(path,poly){
+  if(!path||path.length<2||!poly||poly.length<3)return false;
+  for(const p of path)if(pointInPolyInclusive(p,poly,.15))return true;
+  for(let i=0;i<path.length-1;i++)for(let j=0;j<poly.length;j++)if(segmentIntersection(path[i],path[i+1],poly[j],poly[(j+1)%poly.length]))return true;
+  return false;
+}
+function chaikinPolyline(path,passes=1,insidePoly=null){
+  let out=path.map(p=>({x:p.x,z:p.z}));
+  for(let pass=0;pass<passes;pass++){
+    if(out.length<3)break;const n=[out[0]];
+    for(let i=0;i<out.length-1;i++){const a=out[i],b=out[i+1],q={x:lerp(a.x,b.x,.25),z:lerp(a.z,b.z,.25)},r={x:lerp(a.x,b.x,.75),z:lerp(a.z,b.z,.75)};if(!insidePoly||pointInPolyInclusive(q,insidePoly,.4))n.push(q);if(!insidePoly||pointInPolyInclusive(r,insidePoly,.4))n.push(r);}
+    n.push(out[out.length-1]);out=n;
+  }
+  return out;
+}
+function splitPolygonByPolyline(poly,path){
+  if(!poly||poly.length<3||!path||path.length<2)return null;
+  const ends=[path[0],path[path.length-1]].map(p=>{let best=null,bd=Infinity;for(let i=0;i<poly.length;i++){const q=projectToSegment(p,poly[i],poly[(i+1)%poly.length]);if(q.d<bd){bd=q.d;best={edge:i,t:q.t,p:{x:q.x,z:q.z}};}}return best;});
+  if(!ends[0]||!ends[1]||ends[0].edge===ends[1].edge&&Math.abs(ends[0].t-ends[1].t)<.02)return null;
+  const aug=[];for(let i=0;i<poly.length;i++){aug.push({x:poly[i].x,z:poly[i].z});const ins=[];for(let k=0;k<2;k++)if(ends[k].edge===i&&ends[k].t>1e-5&&ends[k].t<1-1e-5)ins.push({k,t:ends[k].t,p:ends[k].p});ins.sort((a,b)=>a.t-b.t);for(const q of ins)aug.push({...q.p});}
+  const e0=ends[0].p,e1=ends[1].p;let i0=0,i1=0,d0=Infinity,d1=Infinity;for(let i=0;i<aug.length;i++){const a=dist2(aug[i],e0),b=dist2(aug[i],e1);if(a<d0){d0=a;i0=i;}if(b<d1){d1=b;i1=i;}}
+  if(i0===i1)return null;
+  const arc=(from,to)=>{const out=[];let i=from,guard=0;while(guard++<=aug.length+2){out.push(aug[i]);if(i===to)break;i=(i+1)%aug.length;}return out;};
+  const road=path.map(p=>({x:p.x,z:p.z}));road[0]=e0;road[road.length-1]=e1;
+  const arc01=arc(i0,i1),arc10=arc(i1,i0),A=dedupePoly([...arc01,...road.slice(1,-1).reverse()]),B=dedupePoly([...arc10,...road.slice(1,-1)]);
+  if(A.length<3||B.length<3||!isSimplePolygon(A)||!isSimplePolygon(B))return null;
+  const aa=Math.abs(polygonArea(A)),ab=Math.abs(polygonArea(B)),pa=Math.abs(polygonArea(poly));if(aa<80||ab<80||Math.abs((aa+ab)-pa)>pa*.08)return null;
+  return {A,B,path:road};
+}
+
+// ---------- settlement profiles ----------
+const PROFILES={
+  hamlet:{centres:[1,1],districtArea:260000,roadDensity:.48,arterial:.14,collector:.24,branch:.28,loops:.015,paved:.16,coverage:[.04,.12],heights:[3.5,8],parcel:[1100,4800],roadTarget:34,poly:.00,planned:.16,maxRegionDepth:1,gateways:[2,2],regionArea:[260000,130000,80000,50000,30000]},
+  village:{centres:[1,2],districtArea:320000,roadDensity:.68,arterial:.30,collector:.42,branch:.42,loops:.05,paved:.36,coverage:[.08,.22],heights:[4,11],parcel:[750,3400],roadTarget:76,poly:.08,planned:.24,maxRegionDepth:2,gateways:[2,4],regionArea:[340000,150000,70000,42000,26000]},
+  town:{centres:[2,4],districtArea:430000,roadDensity:1.00,arterial:.60,collector:.74,branch:.58,loops:.15,paved:.68,coverage:[.18,.48],heights:[5,20],parcel:[450,2200],roadTarget:240,poly:.28,planned:.42,maxRegionDepth:3,gateways:[3,5],regionArea:[520000,220000,95000,42000,26000]},
+  city:{centres:[4,8],districtArea:560000,roadDensity:1.30,arterial:.80,collector:.94,branch:.68,loops:.22,paved:.92,coverage:[.25,.68],heights:[6,34],parcel:[320,1500],roadTarget:380,poly:.58,planned:.56,maxRegionDepth:3,gateways:[5,8],regionArea:[720000,300000,125000,52000,25000]},
+  metropolis:{centres:[7,12],districtArea:720000,roadDensity:1.55,arterial:.96,collector:1.10,branch:.74,loops:.28,paved:.98,coverage:[.30,.78],heights:[7,52],parcel:[260,1200],roadTarget:500,poly:.82,planned:.66,maxRegionDepth:4,gateways:[7,11],regionArea:[900000,380000,150000,62000,28000,15000]}
+};
+function morphology(name){
+  if(name==='grid')return {grid:.92,radial:.04,organic:.08,ribbon:.04};
+  if(name==='radial')return {grid:.08,radial:.92,organic:.12,ribbon:.02};
+  if(name==='organic')return {grid:.05,radial:.10,organic:.95,ribbon:.08};
+  if(name==='ribbon')return {grid:.05,radial:.06,organic:.28,ribbon:.98};
+  return {grid:.40,radial:.30,organic:.46,ribbon:.14};
+}
+
+// ---------- Delaunay + MST ----------
+function circumcircle(a,b,c){
+  const d=2*(a.x*(b.z-c.z)+b.x*(c.z-a.z)+c.x*(a.z-b.z)); if(Math.abs(d)<1e-9)return {x:0,z:0,r2:Infinity};
+  const aa=a.x*a.x+a.z*a.z,bb=b.x*b.x+b.z*b.z,cc=c.x*c.x+c.z*c.z;
+  const x=(aa*(b.z-c.z)+bb*(c.z-a.z)+cc*(a.z-b.z))/d;
+  const z=(aa*(c.x-b.x)+bb*(a.x-c.x)+cc*(b.x-a.x))/d; return {x,z,r2:(x-a.x)**2+(z-a.z)**2};
+}
+function delaunayEdges(points){
+  if(points.length<2)return [];
+  if(points.length===2)return [{i:0,j:1,d:dist(points[0],points[1])}];
+  const bb=bboxOf(points),delta=Math.max(bb.w,bb.h)||1,mx=(bb.minX+bb.maxX)/2,mz=(bb.minZ+bb.maxZ)/2;
+  const pts=[...points,{x:mx-20*delta,z:mz-10*delta},{x:mx,z:mz+20*delta},{x:mx+20*delta,z:mz-10*delta}];
+  const s0=points.length,s1=s0+1,s2=s0+2; let tris=[{a:s0,b:s1,c:s2,circ:circumcircle(pts[s0],pts[s1],pts[s2])}];
+  for(let pi=0;pi<points.length;pi++){
+    const p=pts[pi],bad=[]; for(const t of tris){const q=(p.x-t.circ.x)**2+(p.z-t.circ.z)**2;if(q<=t.circ.r2+1e-6)bad.push(t);} const edgeMap=new Map();
+    function put(a,b){const lo=Math.min(a,b),hi=Math.max(a,b),k=`${lo}:${hi}`;edgeMap.set(k,(edgeMap.get(k)||0)+1);}
+    for(const t of bad){put(t.a,t.b);put(t.b,t.c);put(t.c,t.a);} const badSet=new Set(bad); tris=tris.filter(t=>!badSet.has(t));
+    for(const [k,count] of edgeMap){if(count!==1)continue;const [a,b]=k.split(':').map(Number);tris.push({a,b,c:pi,circ:circumcircle(pts[a],pts[b],pts[pi])});}
+  }
+  tris=tris.filter(t=>t.a<points.length&&t.b<points.length&&t.c<points.length); const em=new Map();
+  for(const t of tris)for(const [a,b] of [[t.a,t.b],[t.b,t.c],[t.c,t.a]]){const i=Math.min(a,b),j=Math.max(a,b),k=`${i}:${j}`;if(!em.has(k))em.set(k,{i,j,d:dist(points[i],points[j])});}
+  return [...em.values()];
+}
+function minimumSpanningTree(n,edges){
+  if(n<=1)return []; const parent=Array.from({length:n},(_,i)=>i),rank=Array(n).fill(0); const find=(x)=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  const union=(a,b)=>{a=find(a);b=find(b);if(a===b)return false;if(rank[a]<rank[b])[a,b]=[b,a];parent[b]=a;if(rank[a]===rank[b])rank[a]++;return true;};
+  const out=[]; for(const e of [...edges].sort((a,b)=>a.d-b.d)){if(union(e.i,e.j))out.push(e);if(out.length===n-1)break;} return out;
+}
+
+function ensureConnectedCandidateEdges(points,baseEdges,k=3){
+  const em=new Map();const add=e=>{if(e.i===e.j)return;const i=Math.min(e.i,e.j),j=Math.max(e.i,e.j),key=`${i}:${j}`;if(!em.has(key))em.set(key,{i,j,d:dist(points[i],points[j])});};
+  for(const e of baseEdges||[])add(e);
+  let mst=minimumSpanningTree(points.length,[...em.values()]);
+  if(mst.length===Math.max(0,points.length-1))return {edges:[...em.values()],fallback:0};
+  for(let i=0;i<points.length;i++){
+    const near=[];for(let j=0;j<points.length;j++)if(i!==j)near.push({j,d:dist(points[i],points[j])});near.sort((a,b)=>a.d-b.d);for(const q of near.slice(0,Math.min(k,near.length)))add({i,j:q.j});
+  }
+  mst=minimumSpanningTree(points.length,[...em.values()]);
+  if(mst.length===Math.max(0,points.length-1))return {edges:[...em.values()],fallback:1};
+  for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++)add({i,j});
+  return {edges:[...em.values()],fallback:2};
+}
+
+// ---------- Voronoi hierarchy ----------
+function voronoiCells(seeds,clipPoly){
+  const cells=[];
+  for(let i=0;i<seeds.length;i++){
+    let poly=clipPoly.map(p=>({x:p.x,z:p.z})); const a=seeds[i];
+    for(let j=0;j<seeds.length&&poly.length>=3;j++)if(i!==j){const b=seeds[j],nx=b.x-a.x,nz=b.z-a.z,c=(b.x*b.x+b.z*b.z-a.x*a.x-a.z*a.z)/2;poly=clipPolyHalfPlane(poly,nx,nz,c,true);}
+    if(poly.length>=3&&Math.abs(polygonArea(poly))>10)cells.push({seed:a,poly});
+  }
+  return cells;
+}
+
+// ---------- planar road graph ----------
+class RoadGraph{
+  constructor(city){this.city=city;this.nodes=new Map();this.edges=new Map();this.nextNode=1;this.nextEdge=1;this.serviceRoads=[];}
+  node(id){return this.nodes.get(id);} edge(id){return this.edges.get(id);}
+  addNode(p){const id=this.nextNode++;this.nodes.set(id,{id,x:p.x,z:p.z,edges:new Set()});return id;}
+  rawAddEdge(a,b,attrs){
+    if(a===b)return null;const na=this.node(a),nb=this.node(b);if(!na||!nb||dist(na,nb)<1.5)return null;
+    for(const eid of na.edges){const e=this.edge(eid);if(e&&(e.a===b||e.b===b))return eid;}
+    const id=this.nextEdge++,e={id,a,b,...attrs};this.edges.set(id,e);na.edges.add(id);nb.edges.add(id);return id;
+  }
+  removeEdge(id){const e=this.edge(id);if(!e)return;this.node(e.a)?.edges.delete(id);this.node(e.b)?.edges.delete(id);this.edges.delete(id);}
+  splitEdge(id,p){
+    const e=this.edge(id);if(!e)return null;const a=this.node(e.a),b=this.node(e.b);if(dist(a,p)<1.8)return e.a;if(dist(b,p)<1.8)return e.b;
+    const attrs={cls:e.cls,surface:e.surface,width:e.width,rowWidth:e.rowWidth,source:e.source,phase:e.phase,regionId:e.regionId??null,bridge:!!e.bridge,bridgePoint:e.bridgePoint??null};
+    this.removeEdge(id);const n=this.addNode(p);this.rawAddEdge(a.id,n,attrs);this.rawAddEdge(n,b.id,attrs);return n;
+  }
+  nearestNode(p,radius){let best=null,bd=radius*radius;for(const n of this.nodes.values()){const d=(n.x-p.x)**2+(n.z-p.z)**2;if(d<bd){bd=d;best=n;}}return best;}
+  nearestEdgeProjection(p,radius=Infinity,filter=null){let best=null,bd=radius;for(const e of this.edges.values()){if(filter&&!filter(e))continue;const a=this.node(e.a),b=this.node(e.b),q=projectToSegment(p,a,b);if(q.d<bd){bd=q.d;best={edge:e,...q};}}return best;}
+  minAngleOK(nodeId,dir,minAngle=.28){const n=this.node(nodeId);if(!n)return true;for(const eid of n.edges){const e=this.edge(eid),o=this.node(e.a===nodeId?e.b:e.a),a=Math.atan2(o.z-n.z,o.x-n.x),d=angleDiff(a,dir);if(d<minAngle)return false;}return true;}
+  attrsFor(cls,source,x,z,phase=0){return this.city.resolveRoadAttrs(cls,source,x,z,phase);}
+  endpointNode(p,snap){
+    const n=this.nearestNode(p,snap);if(n)return n.id;
+    const near=this.nearestEdgeProjection(p,snap);if(near&&near.t>.025&&near.t<.975){const id=this.splitEdge(near.edge.id,{x:near.x,z:near.z});if(id)return id;}
+    return this.addNode(p);
+  }
+  addSegment(start,end,attrs,opts={}){
+    const snap=opts.snap??Math.max(7,this.city.R*.006),minLen=opts.minLen??8,minAngle=opts.minAngle??.26;
+    let s=this.nearestNode(start,snap);if(!s)s=this.node(this.addNode(start));let target={x:end.x,z:end.z};if(dist(s,target)<minLen)return {ok:false,reason:'short',node:s.id};
+    const dir=Math.atan2(target.z-s.z,target.x-s.x);if(!this.minAngleOK(s.id,dir,minAngle))return {ok:false,reason:'angle',node:s.id};
+    let first=null;for(const e of this.edges.values()){if(e.a===s.id||e.b===s.id)continue;const a=this.node(e.a),b=this.node(e.b),hit=segmentIntersection(s,target,a,b);if(hit&&(!first||hit.t<first.hit.t))first={edge:e,hit};}
+    if(first){const nId=this.splitEdge(first.edge.id,first.hit),n=this.node(nId);if(n&&dist(s,n)>=minLen&&this.minAngleOK(nId,Math.atan2(s.z-n.z,s.x-n.x),minAngle*.72)){const eid=this.rawAddEdge(s.id,nId,attrs);return {ok:!!eid,node:nId,edge:eid,intersected:true};}return {ok:false,reason:'cross-angle',node:s.id};}
+    const nSnap=this.nearestNode(target,snap);if(nSnap&&nSnap.id!==s.id){const arrive=Math.atan2(s.z-nSnap.z,s.x-nSnap.x);if(this.minAngleOK(nSnap.id,arrive,minAngle*.72)){const eid=this.rawAddEdge(s.id,nSnap.id,attrs);return {ok:!!eid,node:nSnap.id,edge:eid,snapped:true};}}
+    const near=this.nearestEdgeProjection(target,snap,e=>e.a!==s.id&&e.b!==s.id);if(near&&near.t>.035&&near.t<.965){const nId=this.splitEdge(near.edge.id,{x:near.x,z:near.z}),n=this.node(nId),arrive=Math.atan2(s.z-n.z,s.x-n.x);if(n&&this.minAngleOK(nId,arrive,minAngle*.72)){const eid=this.rawAddEdge(s.id,nId,attrs);return {ok:!!eid,node:nId,edge:eid,snapped:true};}}
+    const nId=this.addNode(target),eid=this.rawAddEdge(s.id,nId,attrs);if(!eid){this.nodes.delete(nId);return {ok:false,reason:'duplicate',node:s.id};}return {ok:true,node:nId,edge:eid};
+  }
+  addThroughSegment(start,end,attrs,opts={}){
+    const snap=opts.snap??Math.max(7,this.city.R*.005),minLen=opts.minLen??3;
+    if(dist(start,end)<minLen)return {ok:false,edges:[]};
+    const sId=this.endpointNode(start,snap),tId=this.endpointNode(end,snap),s=this.node(sId),t=this.node(tId);if(!s||!t||sId===tId)return {ok:false,edges:[]};
+    const hits=[];const snapshot=[...this.edges.values()];
+    for(const e of snapshot){if(!this.edge(e.id)||e.a===sId||e.b===sId||e.a===tId||e.b===tId)continue;const a=this.node(e.a),b=this.node(e.b),hit=segmentIntersection(s,t,a,b);if(hit)hits.push({edgeId:e.id,hit});}
+    hits.sort((a,b)=>a.hit.t-b.hit.t);const cuts=[{t:0,node:sId}];
+    for(const h of hits){if(!this.edge(h.edgeId))continue;const nId=this.splitEdge(h.edgeId,h.hit);if(!nId)continue;if(cuts.length&&Math.abs(h.hit.t-cuts[cuts.length-1].t)<1e-4)continue;cuts.push({t:h.hit.t,node:nId});}
+    cuts.push({t:1,node:tId});const made=[];
+    for(let i=1;i<cuts.length;i++){const aId=cuts[i-1].node,bId=cuts[i].node;if(aId===bId)continue;const A=this.node(aId),B=this.node(bId);if(!A||!B||dist(A,B)<minLen)continue;const eid=this.rawAddEdge(aId,bId,{...attrs});if(eid)made.push(eid);}
+    return {ok:made.length>0,edges:made,node:tId};
+  }
+  addPolyline(points,attrsFactory){
+    const made=[];for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i],attrs=typeof attrsFactory==='function'?attrsFactory(a,b,i):attrsFactory,res=this.addThroughSegment(a,b,attrs,{snap:Math.max(7,this.city.R*.0045),minLen:3});if(res.ok)made.push(...res.edges);}return made;
+  }
+  mergeNearNodes(radius=.65){const ids=[...this.nodes.keys()];for(let i=0;i<ids.length;i++){const a=this.node(ids[i]);if(!a)continue;for(let j=i+1;j<ids.length;j++){const b=this.node(ids[j]);if(!b||dist2(a,b)>radius*radius)continue;for(const eid of [...b.edges]){const e=this.edge(eid);if(!e)continue;const other=e.a===b.id?e.b:e.a,attrs={cls:e.cls,surface:e.surface,width:e.width,rowWidth:e.rowWidth,source:e.source,phase:e.phase,regionId:e.regionId??null};this.removeEdge(eid);if(other!==a.id)this.rawAddEdge(a.id,other,attrs);}this.nodes.delete(b.id);}}}
+  edgeList(){return [...this.edges.values()].map(e=>({...e,A:this.node(e.a),B:this.node(e.b)}));}
+  length(){let s=0;for(const e of this.edges.values())s+=dist(this.node(e.a),this.node(e.b));return s;}
+}
+
+// ---------- city model ----------
+class ProceduralCity{
+  constructor(cfg){
+    this.cfg=cfg;this.seedTree=new SeedTree(cfg.seed);this.profile=PROFILES[cfg.preset];this.morph=morphology(cfg.morph);this.areaTarget=cfg.area*1e6;this.R=Math.sqrt(this.areaTarget/Math.PI);this.span=this.R*3.25;
+    const rr=this.seedTree.rng('macro');this.axis=randRange(rr,0,Math.PI);this.stretch=cfg.morph==='ribbon'?2.15:randRange(rr,1.0,1.34);this.terrainAmp=this.R*.020*cfg.terrain;
+    this.river={enabled:false,path:[],widths:[],widthBase:0,floodWidth:0,relation:'none'};this.bridgeCandidates=[];
+    this.centres=[];this.gateways=[];this.boundaryThreshold=0;this.boundaryPoly=[];this.boundaryAreaEstimate=0;this.hierarchy=null;this.regionNodes=[];this.leafRegions=[];this.regions=[];this.neighborhoods=[];this.graph=new RoadGraph(this);this.blocks=[];this.parcels=[];this.ruralParcels=[];this.buildings=[];this.zoneCells=[];this.validation={};this.transportEdges=[];this.skeletonFallback=0;this.residualParcels=0;this.roadIndex=null;this.buildingIndex=null;this.parcelById=new Map();this.blockById=new Map();
+  }
+  terrainBaseHeight(x,z){return this.terrainAmp*(.66*fbm(x/(this.R*.36),z/(this.R*.36),this.cfg.seed+4103)+.24*fbm(x/(this.R*.12),z/(this.R*.12),this.cfg.seed+9917)+.10*fbm(x/(this.R*.045),z/(this.R*.045),this.cfg.seed+3331));}
+  terrainHeight(x,z){let h=this.terrainBaseHeight(x,z);if(this.river?.enabled){const q=this.riverInfo(x,z);if(q){const bank=Math.max(q.width*.85,6),t=clamp(1-q.d/bank,0,1),depth=clamp(this.R*.0032,1.2,4.5);h-=depth*t*t;}}return h;}
+  terrainSlope(x,z){const h=this.terrainHeight(x,z),d=Math.max(8,this.R*.008);return Math.hypot(this.terrainHeight(x+d,z)-h,this.terrainHeight(x,z+d)-h)/d;}
+  buildHydrology(){
+    const r=this.seedTree.rng('hydrology'),mode=this.cfg.hydrology||'seeded',prob={hamlet:.30,village:.40,town:.48,city:.55,metropolis:.60}[this.cfg.preset]??.45;
+    const enabled=mode==='force'||(mode==='seeded'&&r()<prob);if(!enabled){this.river={enabled:false,path:[],widths:[],widthBase:0,floodWidth:0,relation:'none'};return;}
+    const angle=randRange(r,0,Math.PI),dx=Math.cos(angle),dz=Math.sin(angle),nx=-dz,nz=dx,relationRoll=r();let offMag;
+    if(relationRoll<.32)offMag=randRange(r,0,.26)*this.R;else if(relationRoll<.76)offMag=randRange(r,.34,.78)*this.R;else offMag=randRange(r,.86,1.26)*this.R;
+    const offset=offMag*(r()<.5?-1:1),relation=offMag<this.R*.30?'crossing':offMag<this.R*.82?'edge':'nearby',L=this.span*.72,controls=[],steps=25,phase=randRange(r,0,TAU),meander=this.R*randRange(r,.035,.095);
+    for(let i=0;i<steps;i++){
+      const t=i/(steps-1),baseAlong=lerp(-L,L,t),wave=Math.sin(t*TAU*randRange(r,.72,1.18)+phase)*meander*.55+fbm(t*2.7,0,this.cfg.seed+8841,3)*meander;
+      let lateral=offset+wave,best=null;
+      for(const dOff of[-meander*.35,-meander*.18,0,meander*.18,meander*.35]){const lat=lateral+dOff,x=dx*baseAlong+nx*lat,z=dz*baseAlong+nz*lat,h=this.terrainBaseHeight(x,z),deviation=Math.abs(dOff)/Math.max(1,meander),score=h*.20+deviation*.30+fbm(t*5,dOff/Math.max(1,meander),this.cfg.seed+2297,2)*.05;if(!best||score<best.score)best={x,z,score};}
+      controls.push({x:best.x,z:best.z});
+    }
+    const path=chaikinPolyline(controls,2,null),widthBase=clamp(this.R*randRange(r,.010,.022),10,34),widths=path.map((_,i)=>widthBase*clamp(.78+.30*(i/(path.length-1))+.10*valueNoise(i*.23,0,this.cfg.seed+5561),.68,1.22));
+    this.river={enabled:true,path,widths,widthBase,floodWidth:widthBase*randRange(r,2.5,4.0),relation,angle,offset};
+  }
+  riverInfo(x,z){if(!this.river.enabled)return null;const q=closestPolylineInfo({x,z},this.river.path);if(!q)return null;const w=lerp(this.river.widths[q.seg]??this.river.widthBase,this.river.widths[q.seg+1]??this.river.widthBase,q.t);return{...q,width:w,water:q.d<w*.5,flood:q.d<this.river.floodWidth};}
+  riverSegmentCrossing(a,b){if(!this.river.enabled)return null;const h=segmentPolylineIntersection(a,b,this.river.path);if(!h)return null;const A=this.river.path[h.seg],B=this.river.path[h.seg+1],p={x:h.x,z:h.z},q=this.riverInfo(p.x,p.z);return{...h,point:p,width:q?.width??this.river.widthBase,A,B};}
+  nearestBridgeCandidate(p,max=Infinity){let best=null,bd=max;for(const b of this.bridgeCandidates){const d=dist(p,b);if(d<bd){bd=d;best=b;}}return best?{candidate:best,d:bd}:null;}
+  buildBridgeCandidates(){
+    this.bridgeCandidates=[];if(!this.river.enabled)return;const r=this.seedTree.rng('bridges'),path=this.river.path,minSep=clamp(this.R*.11,70,190),candidates=[];
+    for(let i=2;i<path.length-2;i+=3){const p=path[i];if(!this.insideCity(p.x,p.z,-.10))continue;const q=this.riverInfo(p.x,p.z),slope=this.terrainSlope(p.x,p.z),u=this.urbanity(p.x,p.z),score=u*.85-slope*7+r()*.24;candidates.push({...p,seg:i,width:q?.width??this.river.widthBase,score});}
+    candidates.sort((a,b)=>b.score-a.score);const cap=this.cfg.preset==='metropolis'?7:this.cfg.preset==='city'?5:this.cfg.preset==='town'?4:3;for(const c of candidates){if(this.bridgeCandidates.every(b=>dist(b,c)>minSep)){this.bridgeCandidates.push(c);if(this.bridgeCandidates.length>=cap)break;}}
+  }
+  riverRoadAllowed(x,z){const q=this.riverInfo(x,z);if(!q||!q.water)return true;const b=this.nearestBridgeCandidate({x,z},Math.max(26,q.width*2.7));return !!b;}
+  polyWaterConflict(poly,bank=1.5){if(!this.river.enabled)return false;for(const p of poly){const q=this.riverInfo(p.x,p.z);if(q&&q.d<q.width*.5+bank)return true;}if(polylineIntersectsPolygon(this.river.path,poly))return true;return false;}
+  anisDist(x,z,c){const ca=Math.cos(this.axis),sa=Math.sin(this.axis),dx=x-c.x,dz=z-c.z,u=dx*ca+dz*sa,v=-dx*sa+dz*ca;return Math.sqrt((u/this.stretch)**2+(v*this.stretch)**2);}
+  centrality(x,z){let sum=0,mx=0;for(const c of this.centres){const v=c.weight*Math.exp(-this.anisDist(x,z,c)/c.lambda);sum+=v;mx=Math.max(mx,v);}return clamp(mx+(sum-mx)*.22,0,1.35);}
+  macroNoise(x,z){return .70*fbm(x/(this.R*.70),z/(this.R*.70),this.cfg.seed+12011)+.30*fbm(x/(this.R*.25),z/(this.R*.25),this.cfg.seed+7331);}
+  urbanPotentialRaw(x,z){const c=this.centrality(x,z),n=this.macroNoise(x,z),rad=Math.hypot(x,z)/(this.R*1.25),terrain=this.terrainSlope(x,z),corridor=this.morph.ribbon*Math.exp(-Math.abs((-Math.sin(this.axis))*x+Math.cos(this.axis)*z)/(this.R*.17)),rq=this.riverInfo(x,z),hydro=rq?(rq.water?.55:rq.flood?.10:0):0;return c*.92+n*.14+corridor*.28-rad*.20-terrain*this.cfg.terrain*1.7-this.cfg.rural*.06-hydro;}
+  insideCity(x,z,margin=0){return this.urbanPotentialRaw(x,z)>=this.boundaryThreshold+margin;}
+  urbanity(x,z){const raw=this.urbanPotentialRaw(x,z)-this.boundaryThreshold;return clamp(.25+raw*1.35+this.centrality(x,z)*.32,0,1.35);}
+  regionAt(x,z){for(let i=this.leafRegions.length-1;i>=0;i--){const r=this.leafRegions[i];if(pointInPoly({x,z},r.polygon))return r;}for(let i=this.regionNodes.length-1;i>=0;i--){const r=this.regionNodes[i];if(pointInPoly({x,z},r.polygon))return r;}return this.hierarchy;}
+  regionParamsAt(x,z){const r=this.regionAt(x,z);return r?.params||{plannedness:this.profile.planned,developmentAge:.5,density:1,grid:this.morph.grid,radial:this.morph.radial,organic:this.morph.organic,ribbon:this.morph.ribbon};}
+  roadROWExtra(cls){return [3.8,3.0,2.3,1.5,1.0][cls]??1.4;}
+  resolveRoadAttrs(cls,source,x,z,phase=0,regionId=null){
+    const u=this.urbanity(x,z),rp=this.regionParamsAt(x,z),classBoost=[.34,.28,.15,.04,-.10][cls]??0,pavedProb=clamp(this.profile.paved*.52+u*.43+classBoost-this.cfg.rural*.24+rp.plannedness*.10,0,1),rv=this.seedTree.value(`surface:${quant(x,10)}:${quant(z,10)}:${cls}`);let surface=rv<pavedProb?'asphalt':(rv<pavedProb+(1-pavedProb)*.58?'gravel':'dirt');
+    const width=[12.5,9.0,6.8,4.8,3.2][cls]??4,rowWidth=width+2*this.roadROWExtra(cls);return {cls,surface,width,rowWidth,source,phase,regionId,bridge:false,bridgePoint:null};
+  }
+  buildCentres(){
+    const p=this.profile,r=this.seedTree.rng('centres'),poly=clamp(p.poly+this.cfg.polycentricity*.35,0,1),count=Math.max(1,Math.round(lerp(p.centres[0],p.centres[1],clamp(poly*.75+this.cfg.density*.18,0,1))));let primary={x:0,z:0};
+    const rq=this.riverInfo(0,0);if(rq&&rq.d<this.river.floodWidth*.78){let vx=-rq.A.z+rq.B.z,vz=rq.A.x-rq.B.x,l=Math.hypot(vx,vz)||1;vx/=l;vz/=l;const sign=this.seedTree.value('centre-bank')<.5?-1:1,shift=this.river.floodWidth*.72+rq.width*.45;primary={x:rq.x+vx*shift*sign,z:rq.z+vz*shift*sign};}
+    this.centres=[{id:0,x:primary.x,z:primary.z,weight:1,lambda:this.R*lerp(.30,.43,this.cfg.density/1.4),role:'primary'}];
+    let attempts=0;while(this.centres.length<count&&attempts++<1100){let rr=this.R*randRange(r,.24,.83),a=randRange(r,0,TAU);if(this.morph.ribbon>.8)a=this.axis+(r()<.5?0:Math.PI)+randRange(r,-.30,.30);const x=primary.x+Math.cos(a)*rr*(this.morph.ribbon>.8?1.25:1),z=primary.z+Math.sin(a)*rr/(this.morph.ribbon>.8?1.35:1),sep=this.R*lerp(.18,.28,1-poly),water=this.riverInfo(x,z);if(water&&water.d<water.width*.7)continue;if(this.centres.every(c=>dist2(c,{x,z})>sep*sep))this.centres.push({id:this.centres.length,x,z,weight:randRange(r,.34,.72),lambda:this.R*randRange(r,.18,.32),role:'secondary'});}
+  }
+  solveBoundary(){
+    const N=150,half=this.span/2,step=this.span/N,samples=new Float32Array(N*N);let lo=Infinity,hi=-Infinity,k=0;for(let iz=0;iz<N;iz++)for(let ix=0;ix<N;ix++){const x=-half+(ix+.5)*step,z=-half+(iz+.5)*step,v=this.urbanPotentialRaw(x,z);samples[k++]=v;lo=Math.min(lo,v);hi=Math.max(hi,v);}let best=0,bestArea=0;for(let it=0;it<28;it++){const t=(lo+hi)/2;let count=0;for(const v of samples)if(v>=t)count++;const area=count*step*step;if(area>this.areaTarget)lo=t;else hi=t;best=t;bestArea=area;}this.boundaryThreshold=best;this.boundaryAreaEstimate=bestArea;
+    const rays=160,poly=[];for(let i=0;i<rays;i++){const a=i/rays*TAU,dx=Math.cos(a),dz=Math.sin(a);let r0=0,r1=this.R*1.85;for(let j=0;j<25;j++){const m=(r0+r1)/2;if(this.urbanPotentialRaw(dx*m,dz*m)>=this.boundaryThreshold)r0=m;else r1=m;}poly.push({x:dx*r0,z:dz*r0});}const A=Math.abs(polygonArea(poly))||1,f=Math.sqrt(this.areaTarget/A);this.boundaryPoly=poly.map(p=>({x:p.x*f,z:p.z*f}));
+  }
+  boundaryPointAtAngle(a,scale=1){a=(a%TAU+TAU)%TAU;const idx=Math.round(a/TAU*this.boundaryPoly.length)%this.boundaryPoly.length,p=this.boundaryPoly[idx];return{x:p.x*scale,z:p.z*scale};}
+  buildGateways(){
+    const r=this.seedTree.rng('gateways'),[g0,g1]=this.profile.gateways,count=randInt(r,g0,g1),angles=[];
+    if(this.cfg.preset==='hamlet'||this.morph.ribbon>.82){angles.push(this.axis,this.axis+Math.PI);for(let i=2;i<count;i++)angles.push(this.axis+(i%2?Math.PI:0)+randRange(r,-.62,.62));}
+    else{
+      const candidates=[];for(let i=0;i<56;i++){const a=(i+r()*.45)/56*TAU,p=this.boundaryPointAtAngle(a,.985),slope=this.terrainSlope(p.x,p.z),rq=this.riverInfo(p.x,p.z),waterPenalty=rq&&rq.water?4:0,axisAffinity=Math.max(Math.abs(Math.cos(a-this.axis)),Math.abs(Math.sin(a-this.axis))),score=-slope*8-waterPenalty+axisAffinity*this.profile.planned*.22+r()*.48;candidates.push({a,score});}
+      candidates.sort((a,b)=>b.score-a.score);for(const c of candidates){if(angles.every(a=>angleDiff(a,c.a)>.42)){angles.push(c.a);if(angles.length>=count)break;}}while(angles.length<count)angles.push(randRange(r,0,TAU));
+    }
+    this.gateways=angles.slice(0,count).map((a,i)=>{const p=this.boundaryPointAtAngle(a,.985);return{id:i,x:p.x,z:p.z,angle:a,role:'gateway'};});
+  }
+  pathSegmentAllowed(a,b,regionPoly=null,cls=1){
+    for(let i=1;i<=6;i++){const t=i/6,p={x:lerp(a.x,b.x,t),z:lerp(a.z,b.z,t)};if(regionPoly&&!pointInPolyInclusive(p,regionPoly,1.0))return false;if(!regionPoly&&!this.insideCity(p.x,p.z,-.09)&&Math.min(dist(p,a),dist(p,b))>this.R*.04)return false;const rq=this.riverInfo(p.x,p.z);if(rq&&rq.water&&!this.riverRoadAllowed(p.x,p.z))return false;}return true;
+  }
+  simplifyRoadPath(path,regionPoly=null,cls=1){
+    if(!path||path.length<3)return path;const out=[path[0]];let i=0;while(i<path.length-1){let best=i+1;for(let j=Math.min(path.length-1,i+7);j>i+1;j--){if(this.pathSegmentAllowed(path[i],path[j],regionPoly,cls)){best=j;break;}}out.push(path[best]);i=best;}const smooth=chaikinPolyline(out,1,regionPoly);for(let k=1;k<smooth.length;k++)if(!this.pathSegmentAllowed(smooth[k-1],smooth[k],regionPoly,cls))return out;return smooth;
+  }
+  findCostPath(a,b,cls=1,regionPoly=null,label='global'){
+    const rb=regionPoly?bboxOf(regionPoly):null,pad=regionPoly?Math.max(8,this.R*.008):0,minX=regionPoly?rb.minX-pad:-this.span/2,maxX=regionPoly?rb.maxX+pad:this.span/2,minZ=regionPoly?rb.minZ-pad:-this.span/2,maxZ=regionPoly?rb.maxZ+pad:this.span/2,N=regionPoly?30:56,stepX=(maxX-minX)/(N-1),stepZ=(maxZ-minZ)/(N-1),step=(stepX+stepZ)*.5,toGrid=p=>({x:clamp(Math.round((p.x-minX)/stepX),0,N-1),z:clamp(Math.round((p.z-minZ)/stepZ),0,N-1)}),toWorld=g=>({x:minX+g.x*stepX,z:minZ+g.z*stepZ}),s=toGrid(a),goal=toGrid(b),key=(x,z)=>z*N+x,open=[{x:s.x,z:s.z,f:0}],gScore=new Float64Array(N*N),came=new Int32Array(N*N),inOpen=new Uint8Array(N*N);gScore.fill(Infinity);came.fill(-1);gScore[key(s.x,s.z)]=0;inOpen[key(s.x,s.z)]=1;const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];let found=false,guard=0;
+    while(open.length&&guard++<N*N*11){let bi=0;for(let i=1;i<open.length;i++)if(open[i].f<open[bi].f)bi=i;const cur=open.splice(bi,1)[0],ck=key(cur.x,cur.z);inOpen[ck]=0;if(cur.x===goal.x&&cur.z===goal.z){found=true;break;}const wp=toWorld(cur);for(const [dx,dz] of dirs){const nx=cur.x+dx,nz=cur.z+dz;if(nx<0||nz<0||nx>=N||nz>=N)continue;const q=toWorld({x:nx,z:nz});if(regionPoly){if(!pointInPolyInclusive(q,regionPoly,step*.55)&&Math.hypot(q.x-b.x,q.z-b.z)>step*1.6)continue;}else if(!this.insideCity(q.x,q.z,-.08)&&Math.hypot(q.x-b.x,q.z-b.z)>step*2.2)continue;const rq=this.riverInfo(q.x,q.z);if(rq&&rq.water&&!this.riverRoadAllowed(q.x,q.z))continue;const slope=Math.abs(this.terrainHeight(q.x,q.z)-this.terrainHeight(wp.x,wp.z))/Math.max(1,step),urb=this.urbanity(q.x,q.z),move=Math.hypot(dx*stepX,dz*stepZ)/Math.max(1,step),ang=Math.atan2(dz*stepZ,dx*stepX),rp=regionPoly?(this.regionParamsAt(q.x,q.z)||this.hierarchy?.params):this.regionParamsAt(q.x,q.z),pref=this.tensorDirectionForParams(q.x,q.z,ang,rp||{plannedness:this.profile.planned,grid:this.morph.grid,radial:this.morph.radial,organic:this.morph.organic,ribbon:this.morph.ribbon}),alignment=Math.abs(Math.cos(angleWrap(ang-pref))),flood=rq&&rq.flood?clamp(1-rq.d/Math.max(1,this.river.floodWidth),0,1):0,waterCost=rq&&rq.water?2.8:0,edgeBias=cls===0?.05:.13,cost=move*(1+slope*this.cfg.terrain*7+(1-urb)*edgeBias+(1-alignment)*(regionPoly?.42:.18)+flood*.40+waterCost);const nk=key(nx,nz),tent=gScore[ck]+cost;if(tent<gScore[nk]){gScore[nk]=tent;came[nk]=ck;const h=Math.hypot((nx-goal.x)*stepX,(nz-goal.z)*stepZ)/Math.max(1,step);if(!inOpen[nk]){open.push({x:nx,z:nz,f:tent+h});inOpen[nk]=1;}else{const o=open.find(v=>v.x===nx&&v.z===nz);if(o)o.f=tent+h;}}}}
+    if(!found)return regionPoly?null:[a,b];let kk=key(goal.x,goal.z),rev=[];while(kk>=0){const z=Math.floor(kk/N),x=kk-z*N;rev.push(toWorld({x,z}));if(kk===key(s.x,s.z))break;kk=came[kk];if(kk<0)break;}rev.reverse();if(rev.length<2)return regionPoly?null:[a,b];rev[0]={x:a.x,z:a.z};rev[rev.length-1]={x:b.x,z:b.z};return this.simplifyRoadPath(rev,regionPoly,cls);
+  }
+  roadAttrsForSegment(cls,source,p0,p1,phase=0,regionId=null){const attrs=this.resolveRoadAttrs(cls,source,(p0.x+p1.x)/2,(p0.z+p1.z)/2,phase,regionId),crossing=this.riverSegmentCrossing(p0,p1);if(crossing){let near=this.nearestBridgeCandidate(crossing.point,Math.max(30,crossing.width*3.2));if(!near){const dynamic={x:crossing.point.x,z:crossing.point.z,seg:crossing.seg,width:crossing.width,score:0,dynamic:true};this.bridgeCandidates.push(dynamic);near={candidate:dynamic,d:0};}attrs.bridge=true;attrs.bridgePoint=crossing.point;}return attrs;}
+  buildTransportSkeleton(){
+    const terminals=[...this.centres.map(c=>({...c,kind:'centre'})),...this.gateways.map(g=>({...g,kind:'gateway'}))],base=delaunayEdges(terminals),connected=ensureConnectedCandidateEdges(terminals,base,3);this.skeletonFallback=connected.fallback;const mst=minimumSpanningTree(terminals.length,connected.edges),r=this.seedTree.rng('skeletonLoops'),chosen=[...mst],keys=new Set(mst.map(e=>`${e.i}:${e.j}`));
+    for(const e of connected.edges){const k=`${e.i}:${e.j}`;if(keys.has(k))continue;const A=terminals[e.i],B=terminals[e.j],gatewayPair=A.kind==='gateway'&&B.kind==='gateway',loopP=this.profile.loops*(.55+this.cfg.polycentricity*.65)*Math.exp(-e.d/(this.R*.78))*(gatewayPair?.35:1);if(r()<loopP){chosen.push(e);keys.add(k);}}
+    this.transportEdges=chosen;for(const e of chosen){const a=terminals[e.i],b=terminals[e.j],cls=(a.kind==='gateway'||b.kind==='gateway')?0:1,source=cls===0?'regional':'arterial',path=this.findCostPath(a,b,cls);this.graph.addPolyline(path,(p0,p1)=>this.roadAttrsForSegment(cls,source,p0,p1,0,null));}
+    this.buildBypass();
+  }
+  buildBypass(){
+    if(!['city','metropolis'].includes(this.cfg.preset)||this.gateways.length<4)return;const r=this.seedTree.rng('bypass'),p=this.cfg.preset==='metropolis'?.72:.36;if(r()>p)return;const gs=[...this.gateways].sort((a,b)=>a.angle-b.angle),step=this.cfg.preset==='metropolis'?1:2;for(let i=0;i<gs.length;i+=step){const a=gs[i],b=gs[(i+1)%gs.length];if(r()>.72)continue;let da=angleWrap(b.angle-a.angle);if(da<=0)da+=TAU;const midA=a.angle+da/2,mid=this.boundaryPointAtAngle(midA,.82),pts=[{x:a.x*.93,z:a.z*.93},mid,{x:b.x*.93,z:b.z*.93}],p1=this.findCostPath(pts[0],pts[1],0,null,'bypass-a'),p2=this.findCostPath(pts[1],pts[2],0,null,'bypass-b'),path=[...p1,...p2.slice(1)];this.graph.addPolyline(path,(p0,p1)=>this.roadAttrsForSegment(0,'bypass',p0,p1,0,null));}
+  }
+  tensorDirectionForParams(x,z,prev,rp){
+    rp=rp||{plannedness:this.profile.planned,grid:this.morph.grid,radial:this.morph.radial,organic:this.morph.organic,ribbon:this.morph.ribbon};let near=this.centres[0]||{x:0,z:0},bd=Infinity;for(const c of this.centres){const d=dist2(c,{x,z});if(d<bd){bd=d;near=c;}}
+    const gridA=this.axis+(rp.plannedness-.5)*.28,radialA=Math.atan2(z-near.z,x-near.x),ribbonA=this.axis,d=Math.max(6,this.R*.006),gx=this.terrainHeight(x+d,z)-this.terrainHeight(x-d,z),gz=this.terrainHeight(x,z+d)-this.terrainHeight(x,z-d),terrainA=Math.atan2(gz,gx)+Math.PI/2,components=[[gridA,rp.grid*(.45+.55*rp.plannedness)],[radialA,rp.radial*.72],[ribbonA,rp.ribbon*.82],[terrainA,this.cfg.terrain*.24]];let X=0,Y=0,W=0;for(const[a,w]of components){X+=Math.cos(2*a)*w;Y+=Math.sin(2*a)*w;W+=w;}let major=W>.001?.5*Math.atan2(Y,X):prev;major+=fbm(x/(this.R*.16),z/(this.R*.16),this.cfg.seed+6601)*rp.organic*.72;const minor=major+Math.PI/2;return angleDiff(prev,major)<angleDiff(prev,minor)?major:minor;
+  }
+  tensorDirection(x,z,prev){return this.tensorDirectionForParams(x,z,prev,this.regionParamsAt(x,z));}
+  inheritRegionParams(parent,tree,childIndex,level,centroid){
+    const r=tree.rng('params',childIndex),cen=this.centrality(centroid.x,centroid.z),p=parent.params,mut=Math.max(.035,.13-level*.012);return{plannedness:clamp(p.plannedness+gaussian(r)*mut,0,1),developmentAge:clamp(p.developmentAge+gaussian(r)*mut*.85,0,1),density:clamp(p.density*(.92+.18*cen+gaussian(r)*.06),.18,1.8),grid:clamp(p.grid+gaussian(r)*mut,0,1),radial:clamp(p.radial+gaussian(r)*mut*.8,0,1),organic:clamp(p.organic+gaussian(r)*mut,0,1),ribbon:clamp(p.ribbon+gaussian(r)*mut*.45,0,1)};
+  }
+  chooseRegionSplit(node,tree){
+    const poly=node.polygon,c=polygonCentroid(poly),pa=principalAxis(poly),base=this.tensorDirectionForParams(c.x,c.z,pa.angle,node.params),angles=[base,base+Math.PI/2,pa.angle,pa.angle+Math.PI/2],bb=bboxOf(poly),scale=Math.max(bb.w,bb.h),rng=tree.rng('splitChoice'),candidates=[];
+    for(const a0 of angles){const a=a0+gaussian(rng)*node.params.organic*.15,nx=Math.cos(a+Math.PI/2),nz=Math.sin(a+Math.PI/2),baseC=c.x*nx+c.z*nz;for(const f of [randRange(rng,-.16,.16),0,-.24,.24]){const cc=baseC+f*scale,[A,B]=splitPolygonByAxis(poly,a+Math.PI/2,cc);if(A.length<3||B.length<3||!isSimplePolygon(A)||!isSimplePolygon(B))continue;const aa=Math.abs(polygonArea(A)),ab=Math.abs(polygonArea(B)),tot=aa+ab;if(Math.min(aa,ab)<tot*.15)continue;const lp={x:c.x+nx*(cc-baseC),z:c.z+nz*(cc-baseC)},hits=linePolygonIntersections(poly,lp,a);if(hits.length<2)continue;const p0=hits[0],p1=hits[hits.length-1],len=dist(p0,p1);if(len<Math.sqrt(tot)*.20)continue;const balance=Math.min(aa,ab)/Math.max(aa,ab),mid={x:(p0.x+p1.x)/2,z:(p0.z+p1.z)/2},access0=this.graph.nearestEdgeProjection(p0,Math.max(25,this.R*.035))?1:0,access1=this.graph.nearestEdgeProjection(p1,Math.max(25,this.R*.035))?1:0,demand=this.urbanity(mid.x,mid.z),score=balance*.28+(access0+access1)*.17+demand*.24-node.params.plannedness*Math.abs(f)*.12+tree.value(`jitter:${a.toFixed(3)}:${f.toFixed(3)}`)*.18;candidates.push({a,cc,A,B,p0,p1,score});}}
+    candidates.sort((x,y)=>y.score-x.score);return candidates[0]||null;
+  }
+  splitRegionRecursive(node,tree){
+    const level=node.level,A=Math.abs(polygonArea(node.polygon)),bb=bboxOf(node.polygon),target=(this.profile.regionArea[Math.min(level,this.profile.regionArea.length-1)]||this.profile.regionArea.at(-1))/Math.max(.72,this.cfg.density),maxDepth=this.profile.maxRegionDepth;if(level>=maxDepth||A<target*(.78+tree.value('stop')*.42)||Math.min(bb.w,bb.h)<Math.max(36,this.R*.035)){this.leafRegions.push(node);return;}
+    const split=this.chooseRegionSplit(node,tree);if(!split){this.leafRegions.push(node);return;}const cls=Math.min(4,1+level),phase=clamp(Math.floor((1-node.params.developmentAge)*4),0,3),path=this.findCostPath(split.p0,split.p1,cls,node.polygon,`region:${node.id}`);if(!path||path.length<2){this.leafRegions.push(node);return;}const actual=splitPolygonByPolyline(node.polygon,path);if(!actual){this.leafRegions.push(node);return;}const aa=Math.abs(polygonArea(actual.A)),ab=Math.abs(polygonArea(actual.B));if(Math.min(aa,ab)<A*.12){this.leafRegions.push(node);return;}
+    const made=this.graph.addPolyline(path,(p0,p1)=>this.roadAttrsForSegment(cls,'region-corridor',p0,p1,phase,node.id));if(!made.length){this.leafRegions.push(node);return;}const polys=[actual.A,actual.B];for(let i=0;i<2;i++){const poly=polys[i],centroid=polygonCentroid(poly),child={id:`${node.id}.${i}`,level:level+1,parent:node,children:[],polygon:poly,centroid,area:Math.abs(polygonArea(poly)),params:this.inheritRegionParams(node,tree.child('child',i),i,level+1,centroid),primaryZone:null};node.children.push(child);this.regionNodes.push(child);this.splitRegionRecursive(child,tree.child('child',i));}
+  }
+  buildHierarchy(){
+    const root={id:'city',level:0,parent:null,children:[],polygon:this.boundaryPoly,centroid:polygonCentroid(this.boundaryPoly),area:Math.abs(polygonArea(this.boundaryPoly)),params:{plannedness:this.profile.planned,developmentAge:1,density:this.cfg.density,grid:this.morph.grid,radial:this.morph.radial,organic:this.morph.organic,ribbon:this.morph.ribbon},primaryZone:null,kind:'city'};this.hierarchy=root;this.regionNodes=[root];this.leafRegions=[];
+    let seeds=this.centres.map(c=>({x:c.x,z:c.z,id:c.id}));if(seeds.length===1&&this.profile.maxRegionDepth>=2){const r=this.seedTree.rng('macroCatchments'),a=this.axis+Math.PI/2,d=this.R*randRange(r,.24,.38);seeds=[{x:this.centres[0].x+Math.cos(a)*d,z:this.centres[0].z+Math.sin(a)*d,id:0},{x:this.centres[0].x-Math.cos(a)*d,z:this.centres[0].z-Math.sin(a)*d,id:1}];}
+    const cells=voronoiCells(seeds,this.boundaryPoly);if(!cells.length){this.splitRegionRecursive(root,this.seedTree.child('regionRoot'));}else{for(let i=0;i<cells.length;i++){const poly=cells[i].poly,centroid=polygonCentroid(poly),child={id:`city.${i}`,level:1,parent:root,children:[],polygon:poly,centroid,area:Math.abs(polygonArea(poly)),params:this.inheritRegionParams(root,this.seedTree.child('macroRegion',i),i,1,centroid),primaryZone:null,kind:'district-catchment'};root.children.push(child);this.regionNodes.push(child);this.splitRegionRecursive(child,this.seedTree.child('macroRegion',i));}}
+    this.regions=this.regionNodes.filter(r=>r.level===1);this.neighborhoods=this.leafRegions.filter(r=>r.level>=2);
+  }
+  localRoadDensity(x,z,radius){let len=0,rr=radius*radius;for(const e of this.graph.edges.values()){const a=this.graph.node(e.a),b=this.graph.node(e.b),mx=(a.x+b.x)/2,mz=(a.z+b.z)/2;if((mx-x)**2+(mz-z)**2<rr)len+=dist(a,b);}return len/(Math.PI*radius*radius);}
+  regionRoadLength(region){let len=0;for(const e of this.graph.edges.values()){const a=this.graph.node(e.a),b=this.graph.node(e.b),m={x:(a.x+b.x)/2,z:(a.z+b.z)/2};if(!pointInPolyInclusive(m,region.polygon,1.0))continue;let w=[.08,.16,.48,1.0,1.0][e.cls]??1;if(e.source==='region-corridor')w*=.62;len+=dist(a,b)*w;}return len;}
+  candidateConstraint(a,b,cls,region=null){
+    const len=dist(a,b);if(len<7)return{ok:false,score:-99};const riverCross=this.riverSegmentCrossing(a,b);if(riverCross&&cls>=2)return{ok:false,score:-99};let minU=10,maxSlope=0;for(let i=1;i<=5;i++){const t=i/5,x=lerp(a.x,b.x,t),z=lerp(a.z,b.z,t);if(region&&!pointInPolyInclusive({x,z},region.polygon,1.0))return{ok:false,score:-99};if(!region&&!this.insideCity(x,z,-.025)&&cls>1)return{ok:false,score:-99};const rq=this.riverInfo(x,z);if(rq&&rq.water&&cls>=2)return{ok:false,score:-99};minU=Math.min(minU,this.urbanity(x,z));const pt=(i-1)/5,px=lerp(a.x,b.x,pt),pz=lerp(a.z,b.z,pt);maxSlope=Math.max(maxSlope,Math.abs(this.terrainHeight(x,z)-this.terrainHeight(px,pz))/(len/5));}if(maxSlope>.34)return{ok:false,score:-99};const mx=(a.x+b.x)/2,mz=(a.z+b.z)/2,near=this.graph.nearestEdgeProjection({x:mx,z:mz},Math.max(15,this.R*.009));if(near){const e=near.edge,A=this.graph.node(e.a),B=this.graph.node(e.b),ang1=Math.atan2(b.z-a.z,b.x-a.x),ang2=Math.atan2(B.z-A.z,B.x-A.x);if(Math.min(angleDiff(ang1,ang2),Math.abs(Math.PI-angleDiff(ang1,ang2)))<.18)return{ok:false,score:-99};}return{ok:true,score:minU*1.35-maxSlope*this.cfg.terrain*5};
+  }
+  growLocalRoads(){
+    const globalR=this.seedTree.rng('roadGrowth'),globalTarget=Math.round(this.profile.roadTarget*this.cfg.density*Math.sqrt(Math.max(.18,this.cfg.area/4))),maxEdges=Math.max(globalTarget,this.graph.edges.size+16),regions=[...this.leafRegions].sort((a,b)=>b.area-a.area);
+    for(const region of regions){if(this.graph.edges.size>=maxEdges)break;const rr=this.seedTree.child('regionGrowth',region.id).rng('grow'),u=this.urbanity(region.centroid.x,region.centroid.z),rp=region.params,current=this.regionRoadLength(region),targetDensity=(.00075+u*.00215)*this.profile.roadDensity*this.cfg.density*clamp(rp.density,.45,1.45),desired=targetDensity*region.area,deficitLen=Math.max(0,desired-current);if(deficitLen<30)continue;const avgLen=clamp(this.R*.047,34,78),shareBudget=Math.ceil(globalTarget*(region.area/Math.max(1,this.areaTarget))*(.52+u*.68)*clamp(rp.density,.55,1.35)),budget=Math.min(46,Math.max(1,Math.ceil(deficitLen/avgLen),shareBudget)),nodes=[...this.graph.nodes.values()].filter(n=>n.edges.size>0&&pointInPolyInclusive(n,region.polygon,1.5));if(!nodes.length)continue;nodes.sort((a,b)=>dist2(a,region.centroid)-dist2(b,region.centroid));const seedCount=Math.min(8,Math.max(1,Math.ceil(budget/5))),tips=[];for(let si=0;si<seedCount;si++){const targetPoint=randomPointInPoly(region.polygon,rr),near=[...nodes].sort((a,b)=>dist2(a,targetPoint)-dist2(b,targetPoint)).slice(0,Math.min(8,nodes.length)),n=near[Math.floor(rr()*near.length)]||nodes[si%nodes.length],toward=Math.atan2(targetPoint.z-n.z,targetPoint.x-n.x),base=this.tensorDirectionForParams(n.x,n.z,toward,rp);tips.push({node:n.id,dir:angleLerp(toward,base,.58),depth:0,energy:randRange(rr,.78,1),phase:clamp(Math.floor((1-rp.developmentAge)*4),0,3)});}
+      let made=0,guard=0,restarts=0;while((tips.length||restarts<10)&&made<budget&&this.graph.edges.size<maxEdges&&guard++<budget*95){if(!tips.length){const fresh=[...this.graph.nodes.values()].filter(n=>n.edges.size>0&&pointInPolyInclusive(n,region.polygon,2));if(!fresh.length)break;const targetPoint=randomPointInPoly(region.polygon,rr),near=[...fresh].sort((a,b)=>dist2(a,targetPoint)-dist2(b,targetPoint)).slice(0,Math.min(10,fresh.length)),n=near[Math.floor(rr()*near.length)]||fresh[Math.floor(rr()*fresh.length)],toward=Math.atan2(targetPoint.z-n.z,targetPoint.x-n.x),base=this.tensorDirectionForParams(n.x,n.z,toward,rp);tips.push({node:n.id,dir:angleLerp(toward,base,.55),depth:0,energy:randRange(rr,.82,1),phase:clamp(Math.floor((1-rp.developmentAge)*4),0,3)});restarts++;}const ti=Math.floor(rr()*tips.length),tip=tips.splice(ti,1)[0],n=this.graph.node(tip.node);if(!n||tip.energy<.11||!this.insideCity(n.x,n.z,-.04))continue;const localRp=this.regionParamsAt(n.x,n.z)||rp,cls=region.level<=1&&tip.depth<2?2:(tip.depth<9?3:4),scale=Math.sqrt(this.R/1120),baseLen=clamp(randRange(rr,cls===2?42:cls===3?26:16,cls===2?82:cls===3?54:34)*scale,12,105),pref=this.tensorDirectionForParams(n.x,n.z,tip.dir,localRp);let best=null,bestScore=-1e9;
+        for(let j=-3;j<=3;j++){const ang=pref+j*.14+randRange(rr,-.055,.055)*localRp.organic,len=baseLen*randRange(rr,.84,1.14),q={x:n.x+Math.cos(ang)*len,z:n.z+Math.sin(ang)*len},cons=this.candidateConstraint(n,q,cls,null);if(!cons.ok)continue;const uq=this.urbanity(q.x,q.z),align=Math.cos(angleWrap(ang-pref)),density=this.localRoadDensity(q.x,q.z,this.R*.068),localTarget=(.00082+uq*.00235)*this.profile.roadDensity*this.cfg.density,deficit=clamp(1-density/Math.max(.0001,localTarget),-1,1),centrePull=1-clamp(dist(q,region.centroid)/Math.max(20,Math.sqrt(region.area)),0,1),home=pointInPolyInclusive(q,region.polygon,1)?1:0,score=cons.score+align*.58+uq*.86+deficit*.92+centrePull*.08+home*.10+randRange(rr,-.06,.06);if(score>bestScore){bestScore=score;best={q,ang,deficit};}}
+        if(!best)continue;const res=this.graph.addSegment(n,best.q,this.resolveRoadAttrs(cls,'region-growth',(n.x+best.q.x)/2,(n.z+best.q.z)/2,tip.phase,region.id),{snap:Math.max(7,this.R*.0052),minLen:8,minAngle:.25});if(!res.ok)continue;made++;const nextEnergy=tip.energy*randRange(rr,.84,.95);if(!res.intersected&&nextEnergy>.13)tips.push({node:res.node,dir:best.ang,depth:tip.depth+1,energy:nextEnergy,phase:tip.phase});const branchP=this.profile.branch*this.cfg.density*u*clamp(best.deficit,0,1)*(.86-tip.depth*.030)*(cls<4?1:.48);if(tip.depth<12&&rr()<branchP){const turn=(rr()<.5?-1:1)*(Math.PI/2+randRange(rr,-.26,.26));tips.push({node:res.node,dir:best.ang+turn,depth:tip.depth+1,energy:nextEnergy*.84,phase:tip.phase});}
+      }
+    }
+  }
+  closeRoadLoops(){
+    const r=this.seedTree.rng('loopClosure'),seeds=[...this.graph.nodes.values()].filter(n=>n.edges.size>0&&n.edges.size<=2),loopDrive=clamp(this.profile.loops*1.85+this.profile.planned*.48+this.cfg.density*.10,.09,.78),maxDist=clamp(this.R*.14,82,225),minDist=24,maxAdds=Math.round(this.profile.roadTarget*this.cfg.density*.14)+4;let added=0;
+    for(const n of seeds){if(added>=maxAdds||r()>loopDrive*(n.edges.size===1?1:.48))continue;const reg=this.regionAt(n.x,n.z);if(!reg)continue;const candidates=[];for(const o of this.graph.nodes.values()){if(o.id===n.id||o.edges.size===0||this.regionAt(o.x,o.z)?.id!==reg.id)continue;const d=dist(n,o);if(d<minDist||d>maxDist)continue;let already=false;for(const eid of n.edges){const e=this.graph.edge(eid);if(e.a===o.id||e.b===o.id){already=true;break;}}if(!already)candidates.push({o,d,score:d*(.85+r()*.3)});}candidates.sort((a,b)=>a.score-b.score);for(const cand of candidates.slice(0,12)){const cons=this.candidateConstraint(n,cand.o,3,reg);if(!cons.ok)continue;const res=this.graph.addSegment(n,cand.o,this.resolveRoadAttrs(3,'loop',(n.x+cand.o.x)/2,(n.z+cand.o.z)/2,2,reg.id),{snap:Math.max(7,this.R*.005),minLen:10,minAngle:.27});if(res.ok){added++;break;}}}
+  }
+  connectedComponents(){const unseen=new Set(this.graph.nodes.keys()),out=[];while(unseen.size){const start=unseen.values().next().value,q=[start],comp=[],seen=new Set([start]);unseen.delete(start);while(q.length){const id=q.pop();comp.push(id);const n=this.graph.node(id);for(const eid of n.edges){const e=this.graph.edge(eid),o=e.a===id?e.b:e.a;if(!seen.has(o)){seen.add(o);unseen.delete(o);q.push(o);}}}out.push(comp);}return out;}
+  ensureConnectivity(){const comps=this.connectedComponents();if(comps.length<=1)return;const sorted=[...comps].sort((a,b)=>b.length-a.length),mainSet=new Set(sorted[0]);for(const comp of sorted.slice(1)){let best=null,bd=Infinity;for(const aId of comp)for(const bId of mainSet){const a=this.graph.node(aId),b=this.graph.node(bId),d=dist2(a,b);if(d<bd){bd=d;best=[a,b];}}if(best){const path=this.findCostPath(best[0],best[1],2);this.graph.addPolyline(path,(a,b)=>this.roadAttrsForSegment(2,'repair',a,b,1,null));for(const id of comp)mainSet.add(id);}}
+  }
+  accessibility(x,z){let s=0,lambda=this.R*.055;for(const e of this.graph.edges.values()){const a=this.graph.node(e.a),b=this.graph.node(e.b),q=segPointDist2(x,z,a,b),d=Math.sqrt(q.d2),w=[1.20,1.0,.72,.48,.25][e.cls]??.25;if(d<lambda*4)s+=w*Math.exp(-d/lambda);}return clamp(s/2.4,0,1.35);}
+  zoneScores(x,z){const C=clamp(this.centrality(x,z),0,1),U=clamp(this.urbanity(x,z),0,1),A=clamp(this.accessibility(x,z),0,1),N=this.macroNoise(x,z),r=this.cfg.rural;return{centre:3.20*C+.40*U+.90*A+.08*N-r*.15-1.10,urban:.50*C+1.40*U+.80*A+.06*N-.55,suburb:-.45*C+1.00*U+.35*A+.04*N+r*.10+.25,rural:.90*(1-U)+.20*(1-A)+r*.25-.25};}
+  rawZoneAt(x,z){const s=this.zoneScores(x,z);let k='rural',v=-Infinity;for(const [name,val] of Object.entries(s))if(val>v){v=val;k=name;}return k;}
+  classifyRegions(){for(const r of this.leafRegions){const pts=[r.centroid,...r.polygon.filter((_,i)=>i%Math.max(1,Math.floor(r.polygon.length/4))===0)],sum={centre:0,urban:0,suburb:0,rural:0};for(const p of pts){const s=this.zoneScores(p.x,p.z);for(const k in sum)sum[k]+=s[k];}r.primaryZone=Object.entries(sum).sort((a,b)=>b[1]-a[1])[0][0];}}
+  zoneAt(x,z){const s=this.zoneScores(x,z),r=this.regionAt(x,z);if(r?.primaryZone)s[r.primaryZone]+=.16;let k='rural',v=-Infinity;for(const [name,val] of Object.entries(s))if(val>v){v=val;k=name;}return k;}
+  buildZoneGrid(){const N=46,half=this.R*1.42,step=half*2/N;this.zoneCells=[];for(let iz=0;iz<N;iz++)for(let ix=0;ix<N;ix++){const x=-half+(ix+.5)*step,z=-half+(iz+.5)*step;if(!this.insideCity(x,z,-.02))continue;this.zoneCells.push({x,z,s:step*.94,zone:this.zoneAt(x,z),u:this.urbanity(x,z)});}}
+  extractFaces(){
+    const adjacency=new Map();for(const n of this.graph.nodes.values()){const arr=[];for(const eid of n.edges){const e=this.graph.edge(eid),o=this.graph.node(e.a===n.id?e.b:e.a);arr.push({id:o.id,angle:Math.atan2(o.z-n.z,o.x-n.x)});}arr.sort((a,b)=>a.angle-b.angle);adjacency.set(n.id,arr);}const used=new Set(),faces=[],directedKey=(a,b)=>`${a}>${b}`;
+    for(const e of this.graph.edges.values())for(const [sa,sb] of [[e.a,e.b],[e.b,e.a]]){const startKey=directedKey(sa,sb);if(used.has(startKey))continue;let u=sa,v=sb,poly=[],guard=0,closed=false;while(guard++<this.graph.edges.size*3+30){const k=directedKey(u,v);if(used.has(k)&&!(u===sa&&v===sb))break;used.add(k);const un=this.graph.node(u);poly.push({x:un.x,z:un.z});const arr=adjacency.get(v);if(!arr||!arr.length)break;const idx=arr.findIndex(q=>q.id===u);if(idx<0)break;const next=arr[(idx-1+arr.length)%arr.length].id;u=v;v=next;if(u===sa&&v===sb){closed=true;break;}}if(closed&&poly.length>=3){poly=dedupePoly(poly);const A=polygonArea(poly),abs=Math.abs(A),c=polygonCentroid(poly);if(A>0&&abs>180&&abs<this.areaTarget*.14&&this.insideCity(c.x,c.z,-.05)&&isSimplePolygon(poly))faces.push({polygon:poly,area:abs,centroid:c});}}
+    const seen=new Set();return faces.filter(f=>{const k=`${Math.round(f.centroid.x/6)}:${Math.round(f.centroid.z/6)}:${Math.round(f.area/80)}`;if(seen.has(k))return false;seen.add(k);return true;});
+  }
+  nearestRoadInfo(p,max=Infinity){const hit=this.graph.nearestEdgeProjection(p,max);if(!hit)return null;const e=hit.edge,a=this.graph.node(e.a),b=this.graph.node(e.b);return{distance:hit.d,point:{x:hit.x,z:hit.z},edge:e,angle:Math.atan2(b.z-a.z,b.x-a.x),rowHalf:(e.rowWidth??e.width)/2};}
+  minRoadClearancePoly(poly){let min=Infinity;for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],pts=[a,{x:(a.x+b.x)/2,z:(a.z+b.z)/2}];for(const p of pts){const h=this.nearestRoadInfo(p,80);if(h)min=Math.min(min,h.distance-h.rowHalf);}}return min;}
+  buildBlocks(){
+    const faces=this.extractFaces();this.blocks=[];this.blockById.clear();for(let i=0;i<faces.length;i++){const f=faces[i],zone=this.zoneAt(f.centroid.x,f.centroid.z);if(zone==='rural'&&this.urbanity(f.centroid.x,f.centroid.z)<.24)continue;const margins=[];for(let j=0;j<f.polygon.length;j++){const a=f.polygon[j],b=f.polygon[(j+1)%f.polygon.length],m={x:(a.x+b.x)/2,z:(a.z+b.z)/2},h=this.nearestRoadInfo(m,35);if(h)margins.push(h.rowHalf+1.5);}let margin=clamp(median(margins.length?margins:[6]),3.5,14),poly=[];for(let tries=0;tries<4;tries++){poly=offsetPolygonSimple(f.polygon,margin);if(poly.length>=3&&isSimplePolygon(poly)&&this.minRoadClearancePoly(poly)>.25)break;margin+=1.5;}const area=Math.abs(polygonArea(poly));if(poly.length<3||area<160||area>120000||!isSimplePolygon(poly)||this.minRoadClearancePoly(poly)<-.05||this.polyWaterConflict(poly,2.5))continue;const b={id:i,polygon:poly,sourcePolygon:f.polygon,centroid:polygonCentroid(poly),area,zone,roadMargin:margin};this.blocks.push(b);this.blockById.set(i,b);}
+  }
+  frontageEdges(poly){
+    const out=[];for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length],len=dist(a,b);if(len<3)continue;const m={x:(a.x+b.x)/2,z:(a.z+b.z)/2},hit=this.nearestRoadInfo(m,40);if(!hit)continue;const ang=Math.atan2(b.z-a.z,b.x-a.x),diff=Math.min(angleDiff(ang,hit.angle),Math.abs(Math.PI-angleDiff(ang,hit.angle)));if(diff<.34&&hit.distance<=hit.rowHalf+9)out.push({index:i,a,b,len,angle:ang,hit});}out.sort((a,b)=>b.len-a.len);return out;
+  }
+  parcelFrontage(poly){const f=this.frontageEdges(poly),frontage=f.reduce((s,e)=>s+e.len,0),primary=f[0]||null;return{frontage,nearest:primary?.hit??null,distance:primary?.hit?.distance??Infinity,edge:primary};}
+  addParcel(poly,zone,path,blockId){const A=Math.abs(polygonArea(poly)),fr=this.parcelFrontage(poly),minFront=zone==='centre'?6:zone==='urban'?8:zone==='suburb'?10:12,block=this.blockById.get(blockId);if(!block||!polygonContainsPolygon(block.polygon,poly)||A<75||fr.frontage<minFront||!fr.nearest||this.polyWaterConflict(poly,2.0)){this.residualParcels++;return false;}const p={id:path,blockId,polygon:poly,centroid:polygonCentroid(poly),area:A,zone,frontage:fr.frontage,roadAccess:true,roadInfo:fr.nearest,frontageEdge:fr.edge};this.parcels.push(p);this.parcelById.set(p.id,p);return true;}
+  recursiveParcel(poly,zone,tree,path,blockId,depth=0){
+    const A=Math.abs(polygonArea(poly));if(A<75||poly.length<3)return;const fronts=this.frontageEdges(poly),targetRange=zone==='centre'?[220,620]:zone==='urban'?[300,900]:zone==='suburb'?[520,1550]:[850,2600],target=lerp(targetRange[0],targetRange[1],tree.value('target',depth)),targetFront=zone==='centre'?11:zone==='urban'?15:zone==='suburb'?20:25,maxFront=fronts[0]?.len??0,pa=principalAxis(poly),ext=projectedExtents(poly,pa.angle,pa.center),aspect=Math.max(ext.w,ext.d)/Math.max(1,Math.min(ext.w,ext.d));
+    if(!fronts.length){this.residualParcels++;return;}if(depth>=9||A<target*1.42||maxFront<targetFront*1.65||Math.min(ext.w,ext.d)<8||aspect>8){this.addParcel(poly,zone,path,blockId);return;}
+    let best=null;for(const f of fronts.slice(0,Math.min(3,fronts.length))){const ux=Math.cos(f.angle),uz=Math.sin(f.angle),p1=f.a.x*ux+f.a.z*uz,p2=f.b.x*ux+f.b.z*uz,mid=(p1+p2)/2,span=Math.abs(p2-p1);for(const jf of [0,tree.value(`j${f.index}`)-.5,.18,-.18]){const c=mid+jf*span*.22,[a,b]=splitPolygonByAxis(poly,f.angle,c);if(a.length<3||b.length<3||!isSimplePolygon(a)||!isSimplePolygon(b)||!polygonContainsPolygon(poly,a)||!polygonContainsPolygon(poly,b))continue;const aa=Math.abs(polygonArea(a)),ab=Math.abs(polygonArea(b));if(Math.min(aa,ab)<70)continue;const fa=this.frontageEdges(a).reduce((s,e)=>s+e.len,0),fb=this.frontageEdges(b).reduce((s,e)=>s+e.len,0);if(fa<5||fb<5)continue;const score=Math.min(fa,fb)*.15+Math.min(aa,ab)/Math.max(aa,ab)*10;if(!best||score>best.score)best={a,b,score};}}
+    if(!best){this.addParcel(poly,zone,path,blockId);return;}this.recursiveParcel(best.a,zone,tree.child('a',depth),`${path}a`,blockId,depth+1);this.recursiveParcel(best.b,zone,tree.child('b',depth),`${path}b`,blockId,depth+1);
+  }
+  buildUrbanParcels(){this.parcels=[];this.parcelById.clear();this.residualParcels=0;const maxBlocks=this.cfg.preset==='metropolis'?650:480;for(let i=0;i<Math.min(this.blocks.length,maxBlocks);i++){const b=this.blocks[i];this.recursiveParcel(b.polygon,b.zone,this.seedTree.child('block',b.id),`b${b.id}/`,b.id,0);}}
+  rebuildRoadIndex(){this.roadIndex=new SpatialHash2D(clamp(this.R*.045,28,80));for(const e of this.graph.edges.values()){const A=this.graph.node(e.a),B=this.graph.node(e.b),r=(e.rowWidth??e.width)/2+12,bb={minX:Math.min(A.x,B.x)-r,minZ:Math.min(A.z,B.z)-r,maxX:Math.max(A.x,B.x)+r,maxZ:Math.max(A.z,B.z)+r};this.roadIndex.insert(e.id,bb,e);}}
+  roadConflictOBB(o,extra=0,ignoreEdgeId=null){const candidates=this.roadIndex?this.roadIndex.query(obbAABB(o,20+extra)):[...this.graph.edges.values()];for(const e of candidates){if(e.id===ignoreEdgeId)continue;const A=this.graph.node(e.a),B=this.graph.node(e.b),clear=(e.rowWidth??e.width)/2+extra;if(segmentIntersectsExpandedOBB(A,B,o,clear))return e;}return null;}
+  buildRuralParcels(){
+    this.ruralParcels=[];const tree=this.seedTree.child('ruralParcels'),hash=new SpatialHash2D(clamp(this.R*.05,35,90));for(const p of this.parcels)hash.insert(p.id,bboxOf(p.polygon),p);
+    for(const e of this.graph.edges.values()){if(e.cls>3||(e.cls===0&&['city','metropolis'].includes(this.cfg.preset)))continue;const A=this.graph.node(e.a),B=this.graph.node(e.b),len=dist(A,B);if(len<25)continue;const mx=(A.x+B.x)/2,mz=(A.z+B.z)/2,zone=this.zoneAt(mx,mz);if(zone!=='rural'&&zone!=='suburb')continue;const ux=(B.x-A.x)/len,uz=(B.z-A.z)/len,nx=-uz,nz=ux,rr=tree.rng('road',e.id),spacing=zone==='rural'?randRange(rr,40,68):randRange(rr,28,48),rowHalf=(e.rowWidth??e.width)/2;
+      for(let s=spacing*.55;s<len-spacing*.3;s+=spacing*randRange(rr,.86,1.26)){for(const side of[-1,1]){if(rr()>(zone==='rural'?.54:.70)*this.cfg.density)continue;const cx=A.x+ux*s,cz=A.z+uz*s,depth=zone==='rural'?randRange(rr,34,68):randRange(rr,26,48),front=zone==='rural'?randRange(rr,22,40):randRange(rr,17,30),gap=2.5,pcx=cx+nx*side*(rowHalf+gap+depth/2),pcz=cz+nz*side*(rowHalf+gap+depth/2),o={x:pcx,z:pcz,w:front,d:depth,rot:Math.atan2(uz,ux)};const poly=obbCorners(o);if(poly.some(p=>!this.insideCity(p.x,p.z,-.05)))continue;if(this.polyWaterConflict(poly,3.0))continue;if(this.roadConflictOBB(o,.2,null))continue;const bb=bboxOf(poly),near=hash.query(bb);if(near.some(p=>polygonOverlap(poly,p.polygon)))continue;const p={id:`r${e.id}-${Math.round(s)}-${side}`,blockId:null,polygon:poly,centroid:{x:pcx,z:pcz},area:front*depth,zone,frontage:front,roadAccess:true,roadInfo:{edge:e,angle:o.rot,distance:rowHalf+gap,point:{x:cx,z:cz}},frontageEdge:null,rural:true};this.ruralParcels.push(p);this.parcelById.set(p.id,p);hash.insert(p.id,bb,p);}}
+    }
+  }
+  buildingSetback(zone){return zone==='centre'?1.4:zone==='urban'?2.2:zone==='suburb'?3.4:4.2;}
+  candidateBuilding(p,index,isRural=false){
+    const tree=this.seedTree.child(isRural?'ruralBuilding':'building',index),r=tree.rng('shape'),zone=p.zone,setback=this.buildingSetback(zone),buildable=offsetPolygonSimple(p.polygon,setback);if(buildable.length<3||Math.abs(polygonArea(buildable))<28||!polygonContainsPolygon(p.polygon,buildable))return null;p.buildablePolygon=buildable;const c=polygonCentroid(buildable),roadA=p.roadInfo?.angle??principalAxis(buildable).angle,ext=projectedExtents(buildable,roadA,c),coverage=zone==='centre'?randRange(r,.50,.78):zone==='urban'?randRange(r,.36,.62):zone==='suburb'?randRange(r,.20,.40):randRange(r,.10,.27),targetArea=Math.min(Math.abs(polygonArea(buildable))*.82,p.area*coverage),ratio=randRange(r,.72,1.55),baseW=Math.sqrt(Math.max(20,targetArea)*ratio),baseD=Math.max(4,targetArea/Math.max(4,baseW)),maxW=Math.max(4,ext.w*.94),maxD=Math.max(4,ext.d*.94);let w=Math.min(baseW,maxW),d=Math.min(baseD,maxD);if(w<4||d<4)return null;
+    const near=p.roadInfo?.point??c,vx=near.x-c.x,vz=near.z-c.z,vl=Math.hypot(vx,vz)||1,dir={x:vx/vl,z:vz/vl},shiftBase=Math.min(10,Math.max(2,Math.min(ext.w,ext.d)*.18)),rotations=[roadA];if(Math.abs(ext.w-ext.d)<Math.min(ext.w,ext.d)*.20)rotations.push(roadA+Math.PI/2);let best=null;
+    for(const rot of rotations)for(const scale of[1,.90,.80,.70,.60,.50,.42])for(const sf of[.70,.38,.12,0,-.18]){const o={x:c.x+dir.x*shiftBase*sf,z:c.z+dir.z*shiftBase*sf,w:w*scale,d:d*scale,rot};if(o.w<4||o.d<4||!rectInsidePoly(o,buildable)||!rectInsidePoly(o,p.polygon))continue;const corners=obbCorners(o);if(this.river.enabled&&corners.some(p=>{const q=this.riverInfo(p.x,p.z);return q&&q.d<q.width*.5+3;}))continue;if(this.roadConflictOBB(o,zone==='centre'?.4:zone==='urban'?.8:1.2,null))continue;const nearby=this.buildingIndex.query(obbAABB(o,2));if(nearby.some(b=>obbOverlap(o,b,.8)))continue;const score=o.w*o.d+sf*2;if(!best||score>best.score)best={...o,score};}
+    if(!best)return null;const u=this.urbanity(best.x,best.z),hp=this.profile.heights;let h;if(zone==='centre')h=randRange(r,Math.max(8,hp[1]*.42),hp[1]*1.45)*(0.8+u*.35);else if(zone==='urban')h=randRange(r,hp[0],hp[1])*(.85+u*.25);else if(zone==='suburb')h=randRange(r,4.5,10);else h=randRange(r,3.5,8.5);return{x:best.x,z:best.z,w:best.w,d:best.d,h,rot:best.rot,zone,parcelId:p.id,phase:clamp(Math.floor((1-(this.regionParamsAt(best.x,best.z).developmentAge||.5))*4),0,3)};
+  }
+  buildBuildings(){
+    this.buildings=[];this.buildingIndex=new SpatialHash2D(clamp(this.R*.035,24,64));const all=[...this.parcels.map(p=>[p,false]),...this.ruralParcels.map(p=>[p,true])],max=Math.round(2800*this.profile.roadDensity*this.cfg.density*Math.sqrt(Math.max(.2,this.cfg.area/4)));for(let i=0;i<all.length&&this.buildings.length<max;i++){const[p,rural]=all[i],b=this.candidateBuilding(p,i,rural);if(!b)continue;b.id=this.buildings.length;this.buildings.push(b);this.buildingIndex.insert(b.id,obbAABB(b,1),b);}
+  }
+  validate(){
+    const comps=this.connectedComponents(),degrees=[...this.graph.nodes.values()].map(n=>n.edges.size),dead=degrees.filter(d=>d===1).length,ints=degrees.filter(d=>d>=3).length,roadLen=this.graph.length(),surf=[...this.graph.edges.values()],asphalt=surf.filter(e=>e.surface==='asphalt').length,blockAreas=this.blocks.map(b=>b.area),parcelAreas=[...this.parcels,...this.ruralParcels].map(p=>p.area),zones={centre:0,urban:0,suburb:0,rural:0};for(const c of this.zoneCells)zones[c.zone]++;
+    let buildingOverlaps=0,buildingRoad=0,buildingOutside=0,buildingWater=0;for(const b of this.buildings){const near=this.buildingIndex.query(obbAABB(b,1));for(const o of near)if(o.id>b.id&&obbOverlap(b,o,.01))buildingOverlaps++;if(this.roadConflictOBB(b,.01,null))buildingRoad++;if(this.river.enabled&&obbCorners(b).some(p=>{const q=this.riverInfo(p.x,p.z);return q&&q.d<q.width*.5+1;}))buildingWater++;const p=this.parcelById.get(b.parcelId);if(!p||!rectInsidePoly(b,p.polygon))buildingOutside++;}
+    let parcelOutside=0;for(const p of this.parcels){const b=this.blockById.get(p.blockId);if(!b||!polygonContainsPolygon(b.polygon,p.polygon))parcelOutside++;}
+    let roadCrossings=0,invalidRiverCrossings=0,bridgeEdges=0;const edges=[...this.graph.edges.values()];for(const e of edges){const A=this.graph.node(e.a),B=this.graph.node(e.b),bb={minX:Math.min(A.x,B.x)-1,minZ:Math.min(A.z,B.z)-1,maxX:Math.max(A.x,B.x)+1,maxZ:Math.max(A.z,B.z)+1},near=this.roadIndex?this.roadIndex.query(bb):edges;for(const f of near){if(f.id<=e.id||e.a===f.a||e.a===f.b||e.b===f.a||e.b===f.b)continue;const C=this.graph.node(f.a),D=this.graph.node(f.b);if(segmentIntersection(A,B,C,D))roadCrossings++;}}
+    for(const e of edges){const A=this.graph.node(e.a),B=this.graph.node(e.b),crossing=this.riverSegmentCrossing(A,B);if(crossing){if(e.bridge)bridgeEdges++;else invalidRiverCrossings++;}}const areaError=Math.abs(this.boundaryAreaEstimate-this.areaTarget)/this.areaTarget,maxDepth=this.regionNodes.reduce((m,r)=>Math.max(m,r.level),0);this.validation={components:comps.length,nodes:this.graph.nodes.size,edges:this.graph.edges.size,intersections:ints,deadEndPct:degrees.length?dead/degrees.length*100:0,avgDegree:mean(degrees),roadKm:roadLen/1000,roadDensity:roadLen/this.areaTarget*1000,asphaltPct:surf.length?asphalt/surf.length*100:0,blocks:this.blocks.length,medianBlock:median(blockAreas),parcels:this.parcels.length+this.ruralParcels.length,medianParcel:median(parcelAreas),buildings:this.buildings.length,areaErrorPct:areaError*100,zones,regions:this.regionNodes.length,leafRegions:this.leafRegions.length,maxRegionDepth:maxDepth,gateways:this.gateways.length,skeletonFallback:this.skeletonFallback,residualParcels:this.residualParcels,buildingOverlaps,buildingRoadCollisions:buildingRoad,buildingWaterCollisions:buildingWater,buildingOutsideParcel:buildingOutside,parcelOutsideBlock:parcelOutside,unregisteredRoadCrossings:roadCrossings,riverEnabled:this.river.enabled,riverRelation:this.river.relation,bridgeEdges,invalidRiverCrossings};return this.validation;
+  }
+  generate(){
+    this.buildHydrology();this.buildCentres();this.solveBoundary();this.buildBridgeCandidates();this.buildGateways();this.buildTransportSkeleton();this.buildHierarchy();this.growLocalRoads();this.closeRoadLoops();this.ensureConnectivity();this.graph.mergeNearNodes(.75);this.rebuildRoadIndex();this.classifyRegions();this.buildZoneGrid();this.buildBlocks();this.buildUrbanParcels();this.buildRuralParcels();this.buildBuildings();this.validate();return this;
+  }
+}
+
+window.__ProceduralCity=ProceduralCity;
+if(new URLSearchParams(location.search).get('headless')==='1'){
+  window.__generateHeadless=(cfg)=>{const c=new ProceduralCity(cfg);c.profile={...c.profile,planned:clamp(c.profile.planned+(c.cfg.plannedness-.5)*.55,0,1)};return c.generate();};
+  return;
+}
+
+// ---------- WebGL mesh renderer ----------
+const canvas=document.getElementById('canvas'),gl=canvas.getContext('webgl',{antialias:true,alpha:false});
+if(!gl){alert('Ta przeglądarka nie udostępnia WebGL.');return;}
+const VS=`attribute vec3 aPos;attribute vec3 aNor;attribute vec3 aCol;uniform mat4 uMVP;uniform mat4 uModel;varying vec3 vN;varying vec3 vC;void main(){gl_Position=uMVP*vec4(aPos,1.0);vN=mat3(uModel)*aNor;vC=aCol;}`;
+const FS=`precision mediump float;varying vec3 vN;varying vec3 vC;uniform float uAlpha;void main(){vec3 n=normalize(vN);vec3 l=normalize(vec3(.42,.88,.26));float d=.42+.58*max(dot(n,l),0.0);gl_FragColor=vec4(vC*d,uAlpha);}`;
+function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
+const prog=gl.createProgram();gl.attachShader(prog,compile(gl.VERTEX_SHADER,VS));gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));gl.useProgram(prog);
+const loc={pos:gl.getAttribLocation(prog,'aPos'),nor:gl.getAttribLocation(prog,'aNor'),col:gl.getAttribLocation(prog,'aCol'),mvp:gl.getUniformLocation(prog,'uMVP'),model:gl.getUniformLocation(prog,'uModel'),alpha:gl.getUniformLocation(prog,'uAlpha')};
+function mat4Identity(){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);}
+function mat4Mul(a,b){const o=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)o[c*4+r]=a[r]*b[c*4]+a[4+r]*b[c*4+1]+a[8+r]*b[c*4+2]+a[12+r]*b[c*4+3];return o;}
+function perspective(fovy,aspect,near,far){const f=1/Math.tan(fovy/2),nf=1/(near-far),o=new Float32Array(16);o[0]=f/aspect;o[5]=f;o[10]=(far+near)*nf;o[11]=-1;o[14]=2*far*near*nf;return o;}
+function lookAt(e,t,up){let zx=e[0]-t[0],zy=e[1]-t[1],zz=e[2]-t[2],l=Math.hypot(zx,zy,zz);zx/=l;zy/=l;zz/=l;let xx=up[1]*zz-up[2]*zy,xy=up[2]*zx-up[0]*zz,xz=up[0]*zy-up[1]*zx;l=Math.hypot(xx,xy,xz);xx/=l;xy/=l;xz/=l;let yx=zy*xz-zz*xy,yy=zz*xx-zx*xz,yz=zx*xy-zy*xx;const o=mat4Identity();o[0]=xx;o[1]=yx;o[2]=zx;o[4]=xy;o[5]=yy;o[6]=zy;o[8]=xz;o[9]=yz;o[10]=zz;o[12]=-(xx*e[0]+xy*e[1]+xz*e[2]);o[13]=-(yx*e[0]+yy*e[1]+yz*e[2]);o[14]=-(zx*e[0]+zy*e[1]+zz*e[2]);return o;}
+const COLORS={terrain:[.20,.27,.20],terrain2:[.23,.31,.22],centre:[.78,.68,.31],urban:[.65,.43,.28],suburb:[.39,.56,.34],rural:[.30,.40,.27],row:[.13,.15,.17],asphalt:[.24,.27,.29],gravel:[.43,.38,.32],dirt:[.35,.27,.19],sidewalk:[.50,.50,.48],line:[.85,.78,.48],boundary:[.85,.87,.88],district:[.45,.64,.79],neighborhood:[.48,.52,.56],block:[.24,.42,.52],parcel:[.58,.61,.64],bCentre:[.80,.69,.42],bUrban:[.69,.55,.44],bSuburb:[.58,.63,.53],bRural:[.50,.52,.40],marker:[.92,.27,.20],service:[.45,.39,.31],water:[.18,.34,.45],flood:[.24,.36,.38],bridge:[.58,.56,.50]};
+function addTri(arr,p1,p2,p3,n,c){for(const p of [p1,p2,p3])arr.push(p[0],p[1],p[2],n[0],n[1],n[2],c[0],c[1],c[2]);}
+function addQuad(arr,a,b,c,d,n,col){addTri(arr,a,b,c,n,col);addTri(arr,a,c,d,n,col);}
+function addBox(arr,x,y,z,w,h,d,rot,col){const cs=Math.cos(rot),sn=Math.sin(rot),hw=w/2,hd=d/2,P=(lx,ly,lz)=>[x+lx*cs-lz*sn,y+ly,z+lx*sn+lz*cs],p=[P(-hw,0,-hd),P(hw,0,-hd),P(hw,0,hd),P(-hw,0,hd),P(-hw,h,-hd),P(hw,h,-hd),P(hw,h,hd),P(-hw,h,hd)];addQuad(arr,p[4],p[7],p[6],p[5],[0,1,0],col);const normals=[[0,0,-1],[1,0,0],[0,0,1],[-1,0,0]],faces=[[0,4,5,1],[1,5,6,2],[2,6,7,3],[3,7,4,0]];for(let i=0;i<4;i++){const n=normals[i],nn=[n[0]*cs-n[2]*sn,0,n[0]*sn+n[2]*cs],f=faces[i];addQuad(arr,p[f[0]],p[f[1]],p[f[2]],p[f[3]],nn,col);}}
+function addRibbon(arr,a,b,width,yOffset,col,hfn){const dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz);if(l<.01)return;const nx=-dz/l,nz=dx/l,w=width/2,y1=hfn(a.x,a.z)+yOffset,y2=hfn(b.x,b.z)+yOffset;addQuad(arr,[a.x+nx*w,y1,a.z+nz*w],[b.x+nx*w,y2,b.z+nz*w],[b.x-nx*w,y2,b.z-nz*w],[a.x-nx*w,y1,a.z-nz*w],[0,1,0],col);}
+function addFlatPoly(arr,poly,yOffset,col,hfn){for(const tri of triangulatePoly(poly)){const p=tri.map(q=>[q.x,hfn(q.x,q.z)+yOffset,q.z]);addTri(arr,p[0],p[1],p[2],[0,1,0],col);}}
+function addOutline(arr,poly,width,yOffset,col,hfn){for(let i=0;i<poly.length;i++)addRibbon(arr,poly[i],poly[(i+1)%poly.length],width,yOffset,col,hfn);}
+
+let city=null,meshBuf=null,vertexCount=0;
+function buildMesh(){
+  if(!city)return;const arr=[],h=city.terrainHeight.bind(city),R=city.R;
+  if(ui.showTerrain.checked){const N=44,span=R*2.95,st=span/N;for(let iz=0;iz<N;iz++)for(let ix=0;ix<N;ix++){const x=-span/2+ix*st,z=-span/2+iz*st,p1=[x,h(x,z)-.30,z],p2=[x,h(x,z+st)-.30,z+st],p3=[x+st,h(x+st,z+st)-.30,z+st],p4=[x+st,h(x+st,z)-.30,z],c=((ix+iz)&1)?COLORS.terrain:COLORS.terrain2;addQuad(arr,p1,p2,p3,p4,[0,1,0],c);}}
+  if(ui.showWater.checked&&city.river.enabled){for(let i=0;i<city.river.path.length-1;i++){const a=city.river.path[i],b=city.river.path[i+1],w=(city.river.widths[i]+city.river.widths[i+1])*.5;addRibbon(arr,a,b,city.river.floodWidth,.02,COLORS.flood,h);addRibbon(arr,a,b,w,.11,COLORS.water,h);}}
+  if(ui.showZones.checked){for(const q of city.zoneCells){const c=COLORS[q.zone],s=q.s/2,y=.05;addQuad(arr,[q.x-s,h(q.x-s,q.z-s)+y,q.z-s],[q.x-s,h(q.x-s,q.z+s)+y,q.z+s],[q.x+s,h(q.x+s,q.z+s)+y,q.z+s],[q.x+s,h(q.x+s,q.z-s)+y,q.z-s],[0,1,0],[c[0]*.55,c[1]*.55,c[2]*.55]);}}
+  if(ui.showRegions.checked){for(const r of city.regionNodes){if(r.level===0)continue;const w=Math.max(.65,2.5-r.level*.35),col=r.level===1?COLORS.district:COLORS.neighborhood;addOutline(arr,r.polygon,w,.16+r.level*.012,col,h);}}
+  if(ui.showBoundary.checked)addOutline(arr,city.boundaryPoly,4.0,.23,COLORS.boundary,h);
+  if(ui.showBlocks.checked){for(const b of city.blocks)addOutline(arr,b.polygon,1.8,.24,COLORS.block,h);}
+  if(ui.showParcels.checked){for(const p of city.parcels)addOutline(arr,p.polygon,.85,.28,COLORS.parcel,h);for(const p of city.ruralParcels)addOutline(arr,p.polygon,.85,.28,COLORS.parcel,h);}
+  if(ui.showBuildable.checked){for(const p of [...city.parcels,...city.ruralParcels])if(p.buildablePolygon)addOutline(arr,p.buildablePolygon,.55,.31,COLORS.line,h);}
+  if(ui.showROW.checked){for(const e of city.graph.edgeList())addRibbon(arr,e.A,e.B,e.rowWidth||e.width,.29,COLORS.row,h);}
+  if(ui.showRoads.checked){
+    const edges=city.graph.edgeList();for(const e of edges){const col=COLORS[e.surface]||COLORS.asphalt;const y=e.bridge?.92:.38;if(e.surface==='asphalt'&&e.cls<=1){addRibbon(arr,e.A,e.B,e.width+2.0,e.bridge?.82:.31,COLORS.sidewalk,h);}addRibbon(arr,e.A,e.B,e.width,y,e.bridge?COLORS.bridge:col,h);if(e.cls===0&&e.surface==='asphalt')addRibbon(arr,e.A,e.B,.45,.43,COLORS.line,h);}
+  }
+  if(ui.showBuildings.checked){for(const b of city.buildings){const y=h(b.x,b.z)+.42,col=COLORS['b'+b.zone[0].toUpperCase()+b.zone.slice(1)]||COLORS.bUrban;addBox(arr,b.x,y,b.z,b.w,b.h,b.d,b.rot,col);}}
+  if(ui.showCentres.checked){for(let i=0;i<city.centres.length;i++){const c=city.centres[i],y=h(c.x,c.z)+.5;addBox(arr,c.x,y,c.z,i?10:14,i?28:44,i?10:14,0,COLORS.marker);}for(const g of city.gateways){const y=h(g.x,g.z)+.4;addBox(arr,g.x,y,g.z,8,14,8,0,COLORS.line);}}
+  const data=new Float32Array(arr);if(meshBuf)gl.deleteBuffer(meshBuf);meshBuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,meshBuf);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);vertexCount=data.length/9;
+}
+const camera={yaw:.78,pitch:.72,dist:1800,target:[0,0,0]};
+function resetCamera(){if(!city)return;camera.yaw=.78;camera.pitch=.72;camera.dist=city.R*2.35;camera.target=[0,0,0];}
+function resize(){const dpr=Math.min(devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth),hh=Math.max(1,canvas.clientHeight),rw=Math.floor(w*dpr),rh=Math.floor(hh*dpr);if(canvas.width!==rw||canvas.height!==rh){canvas.width=rw;canvas.height=rh;}gl.viewport(0,0,canvas.width,canvas.height);}
+function render(){resize();gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.clearColor(.032,.039,.046,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);if(meshBuf){gl.bindBuffer(gl.ARRAY_BUFFER,meshBuf);const stride=9*4;gl.enableVertexAttribArray(loc.pos);gl.vertexAttribPointer(loc.pos,3,gl.FLOAT,false,stride,0);gl.enableVertexAttribArray(loc.nor);gl.vertexAttribPointer(loc.nor,3,gl.FLOAT,false,stride,12);gl.enableVertexAttribArray(loc.col);gl.vertexAttribPointer(loc.col,3,gl.FLOAT,false,stride,24);const cp=Math.cos(camera.pitch),sp=Math.sin(camera.pitch),cy=Math.cos(camera.yaw),sy=Math.sin(camera.yaw),e=[camera.target[0]+camera.dist*cp*cy,camera.target[1]+camera.dist*sp,camera.target[2]+camera.dist*cp*sy],view=lookAt(e,camera.target,[0,1,0]),proj=perspective(Math.PI/4,canvas.width/canvas.height,1,city?city.R*14:10000),m=mat4Identity(),mvp=mat4Mul(proj,view);gl.uniformMatrix4fv(loc.mvp,false,mvp);gl.uniformMatrix4fv(loc.model,false,m);gl.uniform1f(loc.alpha,1);gl.drawArrays(gl.TRIANGLES,0,vertexCount);}requestAnimationFrame(render);}
+
+// ---------- UI / diagnostics ----------
+const ids=['seed','area','preset','morph','hydrology','density','terrain','rural','polycentricity','plannedness','densityVal','terrainVal','ruralVal','polyVal','plannedVal','showTerrain','showBoundary','showWater','showRegions','showZones','showROW','showRoads','showBlocks','showParcels','showBuildable','showBuildings','showCentres'];const ui={};for(const id of ids)ui[id]=document.getElementById(id);
+function readCfg(){return {seed:clamp(parseInt(ui.seed.value)||1,1,2147483646),area:clamp(parseFloat(ui.area.value)||1,.05,100),preset:ui.preset.value,morph:ui.morph.value,density:+ui.density.value,terrain:+ui.terrain.value,rural:+ui.rural.value,polycentricity:+ui.polycentricity.value,plannedness:+ui.plannedness.value,hydrology:ui.hydrology.value};}
+function updateSliderLabels(){ui.densityVal.textContent=(+ui.density.value).toFixed(2);ui.terrainVal.textContent=(+ui.terrain.value).toFixed(2);ui.ruralVal.textContent=(+ui.rural.value).toFixed(2);ui.polyVal.textContent=(+ui.polycentricity.value).toFixed(2);ui.plannedVal.textContent=(+ui.plannedness.value).toFixed(2);}
+function applyOverrides(c){ // plannedness is an explicit user modifier; alter profile clone per city without mutating presets.
+  c.profile={...c.profile,planned:clamp(c.profile.planned+(c.cfg.plannedness-.5)*.55,0,1)}; return c;
+}
+function refreshStats(){
+  const v=city.validation,c=city.cfg,z=v.zones,total=Math.max(1,Object.values(z).reduce((a,b)=>a+b,0)),f=n=>Number.isFinite(n)?n:0;
+  document.getElementById('stats').innerHTML=`
+  <div>Boundary area error</div><div>${f(v.areaErrorPct).toFixed(2)}%</div>
+  <div>Centres / gateways</div><div>${city.centres.length} / ${v.gateways}</div>
+  <div>River / relation</div><div>${v.riverEnabled?'yes / '+v.riverRelation:'none'}</div>
+  <div>Bridge edges / invalid crossings</div><div>${v.bridgeEdges} / ${v.invalidRiverCrossings}</div>
+  <div>Region nodes / leaves</div><div>${v.regions} / ${v.leafRegions}</div>
+  <div>Region recursion depth</div><div>${v.maxRegionDepth}</div>
+  <div>Skeleton fallback</div><div>${['Delaunay','k-NN','complete'][v.skeletonFallback]||v.skeletonFallback}</div>
+  <div>Road nodes / edges</div><div>${v.nodes} / ${v.edges}</div>
+  <div>Intersections</div><div>${v.intersections}</div>
+  <div>Avg node degree</div><div>${f(v.avgDegree).toFixed(2)}</div>
+  <div>Dead ends</div><div>${f(v.deadEndPct).toFixed(1)}%</div>
+  <div>Road length</div><div>${f(v.roadKm).toFixed(1)} km</div>
+  <div>Road density</div><div>${f(v.roadDensity).toFixed(2)} km/km²</div>
+  <div>Asphalt</div><div>${f(v.asphaltPct).toFixed(0)}%</div>
+  <div>Blocks / parcels</div><div>${v.blocks} / ${v.parcels}</div>
+  <div>Residual / empty lots</div><div>${v.residualParcels}</div>
+  <div>Median block</div><div>${Math.round(f(v.medianBlock))} m²</div>
+  <div>Median parcel</div><div>${Math.round(f(v.medianParcel))} m²</div>
+  <div>Buildings</div><div>${v.buildings}</div>
+  <div>Bldg overlap / road</div><div>${v.buildingOverlaps} / ${v.buildingRoadCollisions}</div>
+  <div>Bldg / water collision</div><div>${v.buildingWaterCollisions}</div>
+  <div>Bldg outside parcel</div><div>${v.buildingOutsideParcel}</div>
+  <div>Parcel outside block</div><div>${v.parcelOutsideBlock}</div>
+  <div>Unregistered crossings</div><div>${v.unregisteredRoadCrossings}</div>
+  <div>Zone C/U/S/R</div><div>${(100*z.centre/total).toFixed(0)}/${(100*z.urban/total).toFixed(0)}/${(100*z.suburb/total).toFixed(0)}/${(100*z.rural/total).toFixed(0)}%</div>`;
+  document.getElementById('hudTitle').textContent=`${c.preset[0].toUpperCase()+c.preset.slice(1)} / ${c.morph[0].toUpperCase()+c.morph.slice(1)}`;
+  document.getElementById('hudSub').textContent=`seed ${c.seed} • ${c.area.toFixed(2)} km² • ${v.edges} roads • ${v.leafRegions} regions • ${v.parcels} parcels • ${v.buildings} buildings`;
+  const q=document.getElementById('quality'),geometryOK=v.buildingOverlaps===0&&v.buildingRoadCollisions===0&&v.buildingOutsideParcel===0&&v.parcelOutsideBlock===0&&v.unregisteredRoadCrossings===0&&v.buildingWaterCollisions===0&&v.invalidRiverCrossings===0,ok=v.components===1&&v.areaErrorPct<2&&v.edges>2&&geometryOK;
+  q.textContent=ok?'VALIDATED':geometryOK?'VALIDATED / sparse':'GEOMETRY ISSUE';q.className=ok?'quality good':'quality warn';
+}
+function setBusy(b){document.getElementById('generate').disabled=b;document.getElementById('randomize').disabled=b;const st=document.getElementById('status');if(b)st.textContent='generowanie modelu…';else if(st.textContent==='generowanie modelu…')st.textContent='gotowe';}
+function regenerate(){setBusy(true);try{const cfg=readCfg();ui.seed.value=cfg.seed;ui.area.value=cfg.area;city=applyOverrides(new ProceduralCity(cfg)).generate();window.__cityModel=city;buildMesh();resetCamera();refreshStats();}catch(err){console.error(err);document.getElementById('status').textContent='błąd: '+err.message;}finally{setBusy(false);}}
+for(const el of [ui.density,ui.terrain,ui.rural,ui.polycentricity,ui.plannedness])el.addEventListener('input',updateSliderLabels);
+document.getElementById('generate').addEventListener('click',regenerate);document.getElementById('randomize').addEventListener('click',()=>{ui.seed.value=1+Math.floor(Math.random()*2147483645);regenerate();});
+for(const id of ['showTerrain','showBoundary','showWater','showRegions','showZones','showROW','showRoads','showBlocks','showParcels','showBuildable','showBuildings','showCentres'])ui[id].addEventListener('change',buildMesh);
+let dragging=false,lastX=0,lastY=0,mode='orbit';canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;mode=e.shiftKey?'pan':'orbit';canvas.setPointerCapture(e.pointerId);});canvas.addEventListener('pointerup',()=>dragging=false);canvas.addEventListener('pointercancel',()=>dragging=false);canvas.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;if(mode==='orbit'){camera.yaw-=dx*.008;camera.pitch=clamp(camera.pitch+dy*.006,.12,1.48);}else{const scale=camera.dist*.0012,cy=Math.cos(camera.yaw),sy=Math.sin(camera.yaw);camera.target[0]+=(-dx*sy-dy*cy)*scale;camera.target[2]+=(dx*cy-dy*sy)*scale;}});canvas.addEventListener('wheel',e=>{e.preventDefault();camera.dist*=Math.exp(e.deltaY*.001);camera.dist=clamp(camera.dist,city.R*.20,city.R*7);},{passive:false});canvas.addEventListener('dblclick',resetCamera);
+
+updateSliderLabels();regenerate();requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>

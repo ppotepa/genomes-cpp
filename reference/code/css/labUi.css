@@ -1,0 +1,31 @@
+/* Shared category hierarchy and controls for the map and environment inspector. */
+:root{--lab-bg:#17252b;--lab-panel:#101b20;--lab-control:#203136;--lab-border:#415458;--lab-text:#dde6e5;--lab-muted:#93a8ad;--lab-accent:#91ae9b}
+.lab-section{border-top:1px solid var(--lab-border);padding:10px 0;margin:6px 0}
+.lab-section>summary{cursor:pointer;color:var(--lab-muted);font-size:11px;font-weight:650;letter-spacing:.04em;padding:3px 0}
+.lab-section[open]>summary{margin-bottom:9px}
+.lab-action,.debug-panel .lab-action{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 10px;margin:6px 0;border:1px solid var(--lab-border);border-radius:4px;background:var(--lab-control);color:var(--lab-text);font:inherit;font-size:11px;text-align:left;text-decoration:none;cursor:pointer}
+.lab-action:hover:not(:disabled){background:#2b4246}.lab-action:disabled{opacity:.45;cursor:not-allowed}
+.lab-count{font-size:10px;color:var(--lab-muted);white-space:nowrap}
+.lab-action:focus-visible,.lab-section>summary:focus-visible{outline:2px solid var(--lab-accent);outline-offset:2px}
+.debug-panel{max-height:calc(100dvh - 28px);overflow:auto;width:250px}
+.debug-panel .lab-section:first-of-type{border-top:0}
+.debug-panel .start-new{justify-content:center;background:#354f40;border-color:#78977e;font-weight:700;letter-spacing:.08em;padding:12px}
+.environment-lab{background:var(--lab-bg);color:var(--lab-text)}
+.environment-lab>header{background:var(--lab-panel);border-color:var(--lab-border);height:76px;padding:12px 20px}
+.environment-lab>header .lab-action{width:auto;margin:0}
+.environment-lab h1{font-size:19px}.environment-lab small{color:var(--lab-muted);font-size:10px}
+.environment-lab main{grid-template-columns:minmax(0,1fr) 300px;height:calc(100dvh - 76px)}
+.environment-lab aside{background:var(--lab-panel);border-left:1px solid var(--lab-border);border-right:0;padding:12px 18px}
+.environment-lab aside>.lab-section:first-child{border-top:0;margin-top:0}
+.environment-lab label{color:var(--lab-muted);font-size:11px}
+.environment-lab select,.environment-lab input[type=number]{background:#132127;border-color:var(--lab-border);color:var(--lab-text);font:inherit;font-size:12px}
+.environment-lab button,.environment-lab .import{background:var(--lab-control);border-color:var(--lab-border);color:var(--lab-text);font-size:11px}
+.environment-lab button:hover:not(:disabled){background:#2b4246}.environment-lab button:disabled{cursor:not-allowed}
+.environment-lab nav button[aria-current]{background:#314940;border-color:var(--lab-accent)}
+.environment-lab input[type=range]{accent-color:var(--lab-accent)}
+.environment-lab .toolbar{background:var(--lab-bg);border-bottom:1px solid var(--lab-border);padding:10px 18px;justify-content:space-between;color:var(--lab-muted);font-size:11px}
+.environment-lab footer{color:var(--lab-muted);flex-wrap:wrap;gap:5px;background:var(--lab-bg)}
+.environment-lab #latin{color:var(--lab-muted);font-size:11px}
+.environment-lab :focus-visible{outline:2px solid var(--lab-accent);outline-offset:2px}
+@media(max-width:760px){.environment-lab main{grid-template-columns:minmax(0,1fr) 240px}.environment-lab aside{padding:10px 12px}.environment-lab>header{gap:12px}.environment-lab h1{font-size:16px}}
+@media(max-width:560px){.environment-lab main{display:flex;flex-direction:column;height:calc(100dvh - 76px);overflow:auto}.environment-lab .stage{height:55dvh;min-height:300px;flex-shrink:0}.environment-lab aside{overflow:visible;border-left:0;border-top:1px solid var(--lab-border)}.environment-lab>header .lab-action{font-size:10px;padding:8px}}
