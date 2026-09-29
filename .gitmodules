@@ -16,3 +16,6 @@
 [submodule "external/threepp"]
 	path = external/threepp
 	url = https://github.com/markaren/threepp.git
+[submodule "external/meshoptimizer"]
+	path = external/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer.git

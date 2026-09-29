@@ -2,7 +2,8 @@ add_library(genomes_render_core STATIC
     core/src/RenderExtraction.cpp
     core/src/ProceduralMeshes.cpp
     core/src/PresentationPipeline.cpp
-    core/src/SkinnedDeformer.cpp)
+    core/src/SkinnedDeformer.cpp
+    core/src/SkinnedMeshOptimizer.cpp)
 target_include_directories(genomes_render_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/core/include")

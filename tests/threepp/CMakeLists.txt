@@ -27,3 +27,9 @@ if(TARGET genomes_render_threepp)
     add_test(NAME threepp.input_adapter COMMAND genomes_threepp_input_adapter_tests)
     set_tests_properties(threepp.input_adapter PROPERTIES LABELS "threepp;cpu;input")
 endif()
+
+# The root already visits this migration test registry unconditionally when
+# GENOMES_BUILD_TESTS is ON. Keep the new neutral checks in a separate directory;
+# they link neither GL nor threepp and are also exercised by headless builds.
+add_subdirectory("${CMAKE_SOURCE_DIR}/tests/infantry_upgrade"
+    "${CMAKE_CURRENT_BINARY_DIR}/infantry_upgrade")

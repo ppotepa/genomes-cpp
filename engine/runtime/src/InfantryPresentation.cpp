@@ -2,11 +2,13 @@
 
 #include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
+#include <genomes/render/SkinnedMeshOptimizer.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cmath>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -154,21 +156,24 @@ void buildMaterialGroups(render::SkinnedMeshPrototype& mesh) {
 } // namespace
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
-    const infantry::InfantryModelArtifact& model) {
-    // Geometry is a model prototype: poses, morph weights and chunk transforms
-    // live in the per-instance palette records.  Keep one immutable owner per
-    // complete compiler key so Unit Lab and Battlefield share the same buffers.
-    std::scoped_lock cache_lock(prototype_cache_mutex);
-    if (const auto found = prototype_cache.find(model.cache_key);
-        found != prototype_cache.end()) {
-        if (auto existing = found->second.lock()) {
-            return existing;
+    const infantry::InfantryModelArtifact& model, PrototypePreparation preparation) {
+    const std::uint64_t optimizer_fingerprint =
+        preparation == PrototypePreparation::OptimizeDrawOrder
+            ? geometry::indexOptimizerFingerprint() : 0U;
+    const auto cache_key = optimizer_fingerprint == 0U ? model.cache_key :
+        foundation::stableHashCombine(model.cache_key, optimizer_fingerprint);
+    {
+        std::scoped_lock cache_lock(prototype_cache_mutex);
+        if (const auto found = prototype_cache.find(cache_key); found != prototype_cache.end()) {
+            if (auto existing = found->second.lock()) return existing;
+            prototype_cache.erase(found);
         }
-        prototype_cache.erase(found);
     }
+    // Expensive generation/preparation never holds the shared cache lock.
+    // Concurrent equivalent candidates are reconciled at publication below.
     auto mesh = std::make_shared<render::SkinnedMeshPrototype>();
     mesh->mesh_id = foundation::stableHashCombine(
-        foundation::stable_id("mesh.infantry.prototype"), model.cache_key);
+        foundation::stable_id("mesh.infantry.prototype"), cache_key);
     mesh->revision = model.cache_key;
     const auto skeleton_bones = model.skeleton.bones();
     mesh->bones.reserve(skeleton_bones.size());
@@ -204,14 +209,11 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
             }
             mesh->vertices.push_back(vertex);
         }
-        for (const auto index : source.indices) {
-            mesh->indices.push_back(base + index);
-        }
+        for (const auto index : source.indices) mesh->indices.push_back(base + index);
     };
     append(model.appearance.body);
     append(model.appearance.hair);
-    if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear);
-        gear_surface) {
+    if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
         append(gear_surface.value());
     }
 
@@ -238,19 +240,37 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
         for (std::size_t morph = 0U; morph < mesh->morph_target_count; ++morph) {
             if (vertex >= mesh->morphs[morph].position_deltas.size()) continue;
             const auto& delta = mesh->morphs[morph].position_deltas[vertex];
-            morph_budget += std::sqrt(delta.x * delta.x + delta.y * delta.y +
-                                      delta.z * delta.z);
+            morph_budget += std::sqrt(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z);
         }
         conservative_radius = std::max(conservative_radius, base + morph_budget);
     }
-    // Rotations around articulated joints preserve segment length; this margin
-    // covers root/contact offsets and procedural IK excursions without doing a
-    // full CPU skin solely to cull each unit.
     conservative_radius += std::max(0.15F, model.phenotype.body.height * 0.12F);
     mesh->conservative_bounds_center = {};
     mesh->conservative_bounds_radius = conservative_radius;
 
-    prototype_cache.emplace(model.cache_key, mesh);
+    if (optimizer_fingerprint != 0U) {
+        const auto optimized = render::optimizeSkinnedDrawOrder(*mesh);
+        if (!optimized) {
+            // Optional performance preparation may fall back to the CURRENT
+            // unmodified mesh, never to an old model or partially written IB.
+            // Do not cache a rejected preparation under the optimized identity.
+            std::clog << "Infantry index optimization skipped for model " << model.cache_key
+                      << ": " << optimized.error().message << '\n';
+            return makePrototype(model, PrototypePreparation::ReferenceOrder);
+        }
+    }
+    {
+        std::scoped_lock cache_lock(prototype_cache_mutex);
+        auto& entry = prototype_cache[cache_key];
+        if (auto existing = entry.lock()) return existing;
+        entry = mesh;
+        if (prototype_cache.size() > 512U) {
+            for (auto it = prototype_cache.begin(); it != prototype_cache.end();) {
+                if (it->second.expired()) it = prototype_cache.erase(it);
+                else ++it;
+            }
+        }
+    }
     return mesh;
 }
 

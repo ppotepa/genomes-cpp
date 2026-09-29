@@ -1,0 +1,47 @@
+UPG-01 / USER ACCEPTANCE / CODE PREPARATION ONLY
+================================================
+Agent did not configure, compile, execute CTest or render the application.
+Use two separate build directories for ON/OFF. Do not clean/reset user changes.
+This slice intentionally leaves the existing runtime presets unchanged.
+
+1. Record baseline and initialize the new source dependency:
+   git status --short
+   git pull --ff-only
+   git rev-parse HEAD
+   git submodule update --init external/meshoptimizer
+   git -C external/meshoptimizer rev-parse HEAD
+   Expected: 9e1f07b159d3cb777f1c67ed31fc11fd117986f4
+   Existing project dependencies must already be initialized as before.
+
+2. Configure independent CPU test builds (no SDL/GL/Diligent/FXC required here):
+   cmake -S . -B build/infantry-upgrade-off -G Ninja -DCMAKE_BUILD_TYPE=Debug -DGENOMES_RENDER_BACKEND=HEADLESS -DGENOMES_ENABLE_SDL=OFF -DGENOMES_ENABLE_DILIGENT=OFF -DGENOMES_ENABLE_THREEPP=OFF -DGENOMES_ENABLE_THREEPP_RENDERER=OFF -DGENOMES_ENABLE_RMLUI=OFF -DGENOMES_ENABLE_CUDA=OFF -DGENOMES_ENABLE_INFANTRY=ON -DGENOMES_ENABLE_MESHOPTIMIZER=OFF -DGENOMES_BUILD_TESTS=ON -DGENOMES_BUILD_BENCHMARKS=OFF
+   cmake -S . -B build/infantry-upgrade-on -G Ninja -DCMAKE_BUILD_TYPE=Release -DGENOMES_RENDER_BACKEND=HEADLESS -DGENOMES_ENABLE_SDL=OFF -DGENOMES_ENABLE_DILIGENT=OFF -DGENOMES_ENABLE_THREEPP=OFF -DGENOMES_ENABLE_THREEPP_RENDERER=OFF -DGENOMES_ENABLE_RMLUI=OFF -DGENOMES_ENABLE_CUDA=OFF -DGENOMES_ENABLE_INFANTRY=ON -DGENOMES_ENABLE_MESHOPTIMIZER=ON -DGENOMES_BUILD_TESTS=ON -DGENOMES_BUILD_BENCHMARKS=OFF
+
+3. Build only the registered targets for these checks:
+   cmake --build build/infantry-upgrade-off --target genomes_test_index_order genomes_test_infantry_draw_order
+   cmake --build build/infantry-upgrade-on --target genomes_test_index_order genomes_test_infantry_draw_order
+
+4. Run matching CTest entries; checks remain active in Release (not assert-only):
+   ctest --test-dir build/infantry-upgrade-off -R "^(geometry[.]index_order|infantry[.]draw_order|infantry_upgrade[.]config_boundaries)$" --output-on-failure
+   ctest --test-dir build/infantry-upgrade-on -R "^(geometry[.]index_order|infantry[.]draw_order|infantry_upgrade[.]config_boundaries)$" --output-on-failure
+
+5. Expected contracts (not claimed as passed):
+   OFF: exact input triangle order, optimizer_available=false, no new dependency needed.
+   ON: eligible opaque ranges processed by meshoptimizer; no promise of gain on every mesh.
+   All paths: same vertices/UV/colors/weights/morph deltas and same triangle membership/winding.
+   Blend/partial opacity/vertex alpha/per-instance tint: unchanged triangle order in protected ranges.
+   Invalid indices/groups/materials: explicit failure, input is not partially rewritten.
+   Raw domain arrays and semantic tags: unchanged by presentation preparation.
+   Concurrent same-key prototype requests: one published shared owner.
+   threepp geometry dependency alone: no implicit Genomes GL renderer selection.
+
+6. Optional comparison after the relevant runtime is working:
+   Enable GENOMES_ENABLE_MESHOPTIMIZER=ON in that build configuration.
+   makePrototype(model, PrototypePreparation::ReferenceOrder) is the raw comparison.
+   makePrototype(model) uses the cached preparation when the option is enabled.
+   Domain seed, camera, pose, materials and morph weights must match for comparisons.
+   GPU time/FPS and generation time must be measured separately; no speedup was measured here.
+
+7. Do not claim Diligent is restored from these CPU tests. Its source still needs
+   reconciliation/durable-buffer checks and a complete renderer acceptance slice.
+   Do not remove Diligent or change backend through GENOMES_ENABLE_THREEPP alone.
