@@ -688,6 +688,8 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 context.presentation.skinned_prototypes.push_back(infantry_skinned_prototype_);
                 const auto bind_palette = infantry_presentation::makeBindPalette(
                     infantry_model_artifact_->skeleton);
+                const auto bind_local_poses = infantry_presentation::makeLocalPoses(
+                    infantry_model_artifact_->skeleton, {});
                 if (!context.render_capabilities.gpu_skinning && !render_infantry_mesh_) {
                     render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
                         render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
@@ -722,15 +724,19 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     render::SkinnedBonePalette palette{};
                     palette.instance_id = object_id;
                     if (pose_iterator != animation_poses_.end()) {
+                        const auto pose_span =
+                            std::span<const infantry::RigTransform>(pose_iterator->bones);
                         palette.matrices = infantry_presentation::makePalette(
-                            infantry_model_artifact_->skeleton,
-                            std::span<const infantry::RigTransform>(pose_iterator->bones));
+                            infantry_model_artifact_->skeleton, pose_span);
+                        palette.local_poses = infantry_presentation::makeLocalPoses(
+                            infantry_model_artifact_->skeleton, pose_span);
                         palette.morph_weights[0] = pose_iterator->face.eyelids_close;
                         palette.morph_weights[1] = pose_iterator->face.eyelids_arc;
                         palette.morph_weights[2] = pose_iterator->face.neck_flex;
                         palette.morph_weights[3] = pose_iterator->face.hands_relax;
                     } else {
                         palette.matrices = bind_palette;
+                        palette.local_poses = bind_local_poses;
                     }
                     context.presentation.skinned_palettes.push_back(std::move(palette));
                     const std::uint32_t instance_flags =
