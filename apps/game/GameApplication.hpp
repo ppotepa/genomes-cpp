@@ -16,12 +16,10 @@
 #include <memory>
 #include <string>
 
-namespace genomes::platform {
-class SdlPlatform;
-}
+namespace genomes::platform { class SdlPlatform; }
 namespace genomes::render {
-class DiligentBackend;
-class DiligentSceneRenderer;
+class IRenderer;
+class RenderBackend;
 }
 
 namespace genomes::game {
@@ -45,11 +43,16 @@ public:
 
 private:
     GameApplication(std::unique_ptr<platform::SdlPlatform> platform,
-                    std::unique_ptr<render::DiligentBackend> backend);
+                    std::unique_ptr<render::IRenderer> renderer,
+                    std::unique_ptr<render::RenderBackend> backend_owner = {});
+
+    [[nodiscard]] foundation::Result<void, foundation::Error> resize_renderer(
+        std::uint32_t width, std::uint32_t height);
 
     std::unique_ptr<platform::SdlPlatform> platform_;
-    std::unique_ptr<render::DiligentBackend> backend_;
-    std::unique_ptr<render::DiligentSceneRenderer> renderer_;
+    // Legacy Diligent renderer keeps a reference to this object; threepp leaves it null.
+    std::unique_ptr<render::RenderBackend> backend_owner_;
+    std::unique_ptr<render::IRenderer> renderer_;
     jobs::JobSystem jobs_;
     ui::UiRuntime ui_;
     ui::UiContentRegistry content_;

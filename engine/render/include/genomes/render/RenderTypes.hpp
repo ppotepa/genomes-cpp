@@ -187,6 +187,8 @@ public:
     virtual void end_frame() = 0;
     [[nodiscard]] virtual RenderCapabilities capabilities() const noexcept { return {}; }
     [[nodiscard]] virtual RenderUploadTelemetry uploadTelemetry() const noexcept { return {}; }
+    [[nodiscard]] virtual bool healthy() const noexcept { return true; }
+    [[nodiscard]] virtual foundation::Error last_error() const noexcept { return {}; }
 };
 
 } // namespace genomes::render

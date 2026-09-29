@@ -29,8 +29,8 @@ public:
 
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override;
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override;
-    [[nodiscard]] bool healthy() const noexcept;
-    [[nodiscard]] foundation::Error last_error() const noexcept;
+    [[nodiscard]] bool healthy() const noexcept override;
+    [[nodiscard]] foundation::Error last_error() const noexcept override;
 
     [[nodiscard]] foundation::Result<void, foundation::Error> resize(
         std::uint32_t width, std::uint32_t height) noexcept;

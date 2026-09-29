@@ -23,7 +23,10 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -444,8 +447,8 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
             impl_->renderer->setViewport(vx, vy, vw, vh);
             impl_->camera->fov = camera.vertical_fov * 57.29577951308232F;
             impl_->camera->aspect = static_cast<float>(vw) / static_cast<float>(vh);
-            impl_->camera->near = camera.near_plane;
-            impl_->camera->far = camera.far_plane;
+            impl_->camera->nearPlane = camera.near_plane;
+            impl_->camera->farPlane = camera.far_plane;
             impl_->camera->updateProjectionMatrix();
             impl_->camera->position.set(camera.position.x, camera.position.y, camera.position.z);
             impl_->camera->up.set(camera.up.x, camera.up.y, camera.up.z);

@@ -24,8 +24,8 @@ public:
         return backend_.capabilities();
     }
 
-    [[nodiscard]] bool healthy() const noexcept { return healthy_; }
-    [[nodiscard]] foundation::Error last_error() const noexcept { return last_error_; }
+    [[nodiscard]] bool healthy() const noexcept override { return healthy_; }
+    [[nodiscard]] foundation::Error last_error() const noexcept override { return last_error_; }
     [[nodiscard]] std::size_t submitted_instances() const noexcept {
         return submitted_instances_;
     }
