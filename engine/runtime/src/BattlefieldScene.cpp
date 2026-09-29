@@ -723,6 +723,9 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                         });
                     render::SkinnedBonePalette palette{};
                     palette.instance_id = object_id;
+                    palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
+                    palette.pose_revision = pose_iterator != animation_poses_.end()
+                        ? pose_iterator->revision : 0U;
                     if (pose_iterator != animation_poses_.end()) {
                         const auto pose_span =
                             std::span<const infantry::RigTransform>(pose_iterator->bones);
@@ -753,7 +756,10 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                           state.height / model_height},
                          state.heading,
                          simulation_tick_.value,
-                         instance_flags});
+                         instance_flags,
+                         state.team == infantry::Team::Red
+                             ? foundation::Color{1.0F, 0.78F, 0.72F, 1.0F}
+                             : foundation::Color{0.78F, 0.87F, 1.0F, 1.0F}});
                 }
                 return;
             }

@@ -507,6 +507,8 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         context.presentation.skinned_prototypes.push_back(skinned_prototype_);
         render::SkinnedBonePalette palette{};
         palette.instance_id = foundation::stable_id("unit-lab.infantry.instance");
+        palette.skeleton_id = model_artifact_->skeleton.cacheKey();
+        palette.pose_revision = animation_pose_ ? animation_pose_->revision : fixed_tick_;
         if (face_animator_) {
             palette.morph_weights[0] = face_animator_->output().eyelids_close;
             palette.morph_weights[1] = face_animator_->output().eyelids_arc;

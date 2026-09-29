@@ -2,6 +2,8 @@
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/render/RenderCapabilities.hpp>
+#include <genomes/render/MaterialDescriptor.hpp>
+#include <genomes/render/SkeletonPrototype.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <array>
@@ -42,6 +44,7 @@ struct RenderInstance {
     float rotation_y{0.0F};
     std::uint64_t revision{0};
     std::uint32_t flags{0};
+    foundation::Color tint{1.0F, 1.0F, 1.0F, 1.0F};
 
     [[nodiscard]] bool operator==(const RenderInstance& other) const noexcept {
         return object_id == other.object_id && mesh_id == other.mesh_id &&
@@ -49,7 +52,9 @@ struct RenderInstance {
                position.y == other.position.y && position.z == other.position.z &&
                scale.x == other.scale.x && scale.y == other.scale.y &&
                scale.z == other.scale.z && rotation_y == other.rotation_y &&
-               revision == other.revision && flags == other.flags;
+               revision == other.revision && flags == other.flags &&
+               tint.r == other.tint.r && tint.g == other.tint.g &&
+               tint.b == other.tint.b && tint.a == other.tint.a;
     }
 };
 
@@ -68,6 +73,8 @@ struct RenderMesh {
     std::uint64_t revision{0};
     std::vector<RenderMeshVertex> vertices;
     std::vector<std::uint32_t> indices;
+    std::vector<MaterialDescriptor> materials;
+    std::vector<MeshMaterialGroup> material_groups;
 };
 struct SkinnedMeshVertex final {
     foundation::Vec3 position{};
@@ -109,11 +116,16 @@ struct SkinnedMeshPrototype final {
     // Default weights are retained for CPU tools; live state belongs to palette.
     std::array<float, 4U> morph_weights{};
     std::array<SkinnedMorphTarget, 4U> morphs{};
-    // Canonical bone order. Geometry bone indices address this array directly.
+    // Transitional compatibility for the legacy Diligent path.
     std::vector<SkinnedBonePrototype> bones;
+    std::vector<MaterialDescriptor> materials;
+    std::vector<MeshMaterialGroup> material_groups;
+    std::shared_ptr<const RenderSkeletonPrototype> skeleton;
 };
 struct SkinnedBonePalette final {
     foundation::StableId instance_id{0};
+    foundation::StableId skeleton_id{0};
+    std::uint64_t pose_revision{0};
     std::vector<std::array<float, 16U>> matrices;
     // Same canonical order as SkinnedMeshPrototype::bones. Threepp and other
     // scene-graph renderers consume these directly; Diligent keeps using the
