@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/input/InputFrame.hpp>
 #include <genomes/render/RenderCapabilities.hpp>
 #include <genomes/render/MaterialDescriptor.hpp>
 #include <genomes/render/SkeletonPrototype.hpp>
@@ -149,6 +150,10 @@ struct RenderCamera final {
     float viewport_top{0.0F};
     float viewport_width{1.0F};
     float viewport_height{1.0F};
+    // Interactive cameras are owned by the presentation backend between
+    // explicit preset revisions. Domain scenes publish reset state only.
+    bool interactive_orbit{false};
+    std::uint64_t revision{0U};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto finite = [](foundation::Vec3 v) noexcept {
@@ -201,6 +206,7 @@ public:
     virtual void begin_frame() = 0;
     virtual void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) = 0;
     virtual void end_frame() = 0;
+    virtual void handle_input(const input::InputFrame&) {}
     [[nodiscard]] virtual RenderCapabilities capabilities() const noexcept { return {}; }
     [[nodiscard]] virtual RenderUploadTelemetry uploadTelemetry() const noexcept { return {}; }
     [[nodiscard]] virtual bool healthy() const noexcept { return true; }

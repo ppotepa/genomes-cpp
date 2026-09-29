@@ -64,9 +64,6 @@ private:
     std::uint8_t genome_override_mode_{0U};
     infantry::GenomeOverrides genome_overrides_{};
     UnitLabCameraMode camera_mode_{UnitLabCameraMode::ThreeQuarter};
-    float camera_orbit_yaw_{0.0F};
-    float camera_orbit_pitch_{0.0F};
-    float camera_distance_scale_{1.0F};
     infantry::FaceExpression expression_{infantry::FaceExpression::Neutral};
     float expression_intensity_{0.0F};
     bool show_surface_{true};

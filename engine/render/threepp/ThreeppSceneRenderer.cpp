@@ -1,11 +1,13 @@
 #include "ThreeppSceneRenderer.hpp"
 #include "ThreeppGlBootstrap.hpp"
+#include "ThreeppInputAdapter.hpp"
 #include "ThreeppUiPass.hpp"
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/platform/Platform.hpp>
 
 #include <threepp/cameras/PerspectiveCamera.hpp>
+#include <threepp/controls/OrbitControls.hpp>
 #include <threepp/core/BufferAttribute.hpp>
 #include <threepp/core/BufferGeometry.hpp>
 #include <threepp/lights/DirectionalLight.hpp>
@@ -249,6 +251,8 @@ struct ThreeppSceneRenderer::Impl final {
     std::unique_ptr<threepp::GLRenderer> renderer;
     std::shared_ptr<threepp::Scene> scene;
     std::shared_ptr<threepp::PerspectiveCamera> camera;
+    ThreeppInputAdapter input;
+    std::unique_ptr<threepp::OrbitControls> orbit;
     std::shared_ptr<threepp::HemisphereLight> hemisphere;
     std::shared_ptr<threepp::DirectionalLight> key;
     std::shared_ptr<threepp::DirectionalLight> fill;
@@ -267,6 +271,8 @@ struct ThreeppSceneRenderer::Impl final {
     foundation::Error error{};
     bool healthy{true};
     bool frame_open{false};
+    bool orbit_active{false};
+    std::uint64_t camera_revision{~std::uint64_t{0}};
     std::uint32_t width{1U};
     std::uint32_t height{1U};
 
@@ -402,6 +408,14 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
         impl->scene = threepp::Scene::create();
         impl->camera = threepp::PerspectiveCamera::create(60.0F,
             static_cast<float>(impl->width) / static_cast<float>(impl->height), 0.05F, 10'000.0F);
+        impl->input.setViewport(0, 0, static_cast<int>(impl->width),
+                                static_cast<int>(impl->height));
+        impl->orbit = std::make_unique<threepp::OrbitControls>(*impl->camera, impl->input);
+        impl->orbit->enabled = false;
+        impl->orbit->enableDamping = false;
+        impl->orbit->enableKeys = false;
+        impl->orbit->minPolarAngle = 0.05F;
+        impl->orbit->maxPolarAngle = 3.09159265F;
         impl->hemisphere = threepp::HemisphereLight::create(0xffffff, 0x201812, 0.8F);
         impl->key = threepp::DirectionalLight::create(0xffe0b8, 2.0F);
         impl->fill = threepp::DirectionalLight::create(0x8fb8ff, 0.55F);
@@ -474,17 +488,48 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
                                           0, static_cast<int>(impl_->height) - 1);
             const int vy = std::max(0, static_cast<int>(impl_->height) - vy_top - vh);
             impl_->renderer->setViewport(vx, vy, vw, vh);
+            impl_->input.setViewport(vx, vy_top, vw, vh);
             impl_->camera->fov = camera.vertical_fov * 57.29577951308232F;
             impl_->camera->aspect = static_cast<float>(vw) / static_cast<float>(vh);
             impl_->camera->nearPlane = camera.near_plane;
             impl_->camera->farPlane = camera.far_plane;
             impl_->camera->updateProjectionMatrix();
-            impl_->camera->position.set(camera.position.x, camera.position.y, camera.position.z);
-            impl_->camera->up.set(camera.up.x, camera.up.y, camera.up.z);
-            impl_->camera->lookAt(camera.target.x, camera.target.y, camera.target.z);
+
+            if (camera.interactive_orbit && impl_->orbit) {
+                const bool reset = !impl_->orbit_active ||
+                                   impl_->camera_revision != camera.revision;
+                impl_->orbit->enabled = true;
+                impl_->orbit->minDistance = std::max(0.05F, camera.near_plane * 2.0F);
+                impl_->orbit->maxDistance = std::max(
+                    impl_->orbit->minDistance + 0.01F,
+                    std::min(camera.far_plane * 0.5F, 1000.0F));
+                if (reset) {
+                    impl_->camera->position.set(camera.position.x, camera.position.y,
+                                                camera.position.z);
+                    impl_->camera->up.set(camera.up.x, camera.up.y, camera.up.z);
+                    impl_->orbit->target.set(camera.target.x, camera.target.y,
+                                             camera.target.z);
+                    impl_->camera->lookAt(camera.target.x, camera.target.y, camera.target.z);
+                    impl_->camera_revision = camera.revision;
+                    (void)impl_->orbit->update();
+                }
+                impl_->orbit_active = true;
+            } else {
+                if (impl_->orbit) impl_->orbit->enabled = false;
+                impl_->orbit_active = false;
+                impl_->camera_revision = camera.revision;
+                impl_->camera->position.set(camera.position.x, camera.position.y,
+                                            camera.position.z);
+                impl_->camera->up.set(camera.up.x, camera.up.y, camera.up.z);
+                impl_->camera->lookAt(camera.target.x, camera.target.y, camera.target.z);
+            }
         } else {
             impl_->renderer->setViewport(0, 0, static_cast<int>(impl_->width),
                                          static_cast<int>(impl_->height));
+            impl_->input.setViewport(0, 0, static_cast<int>(impl_->width),
+                                     static_cast<int>(impl_->height));
+            if (impl_->orbit) impl_->orbit->enabled = false;
+            impl_->orbit_active = false;
             impl_->camera->position.set(3.0F, 2.2F, 3.0F);
             impl_->camera->lookAt(0.0F, 1.0F, 0.0F);
             impl_->camera->aspect = static_cast<float>(impl_->width) /
@@ -681,6 +726,14 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
     }
 }
 
+void ThreeppSceneRenderer::handle_input(const input::InputFrame& frame) {
+    if (!impl_ || !impl_->healthy || !impl_->orbit) return;
+    impl_->input.feed(frame);
+    if (impl_->orbit_active && impl_->orbit->enableDamping) {
+        (void)impl_->orbit->update();
+    }
+}
+
 void ThreeppSceneRenderer::end_frame() {
     if (!impl_ || !impl_->frame_open) return;
     if (impl_->healthy) {
@@ -743,6 +796,7 @@ void ThreeppSceneRenderer::shutdown() noexcept {
         impl_->skinned_geometry.clear();
         impl_->ordinary_geometry.clear();
         impl_->scene.reset();
+        impl_->orbit.reset();
         impl_->camera.reset();
         impl_->hemisphere.reset();
         impl_->key.reset();

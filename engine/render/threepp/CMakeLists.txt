@@ -1,5 +1,6 @@
 add_library(genomes_render_threepp STATIC
     ThreeppGlBootstrap.cpp
+    ThreeppInputAdapter.cpp
     ThreeppSceneRenderer.cpp
     ThreeppUiPass.cpp)
 target_link_libraries(genomes_render_threepp

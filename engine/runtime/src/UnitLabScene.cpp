@@ -111,7 +111,6 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
     case 1: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
     case 2:
         camera_mode_ = static_cast<UnitLabCameraMode>((static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U);
-        camera_orbit_yaw_ = 0.0F; camera_orbit_pitch_ = 0.0F; camera_distance_scale_ = 1.0F;
         markDirty(UnitLabDirtyFlag::Ui); break;
     case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
     case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
@@ -253,9 +252,6 @@ void UnitLabScene::on_enter(SceneContext& context) {
     elapsed_seconds_ = 0.0;
     fixed_tick_ = 0;
     fixed_accumulator_ = 0.0F;
-    camera_orbit_yaw_ = 0.0F;
-    camera_orbit_pitch_ = 0.0F;
-    camera_distance_scale_ = 1.0F;
     unit_prototype_.reset();
     model_artifact_.reset();
     locomotion_.reset();
@@ -299,17 +295,6 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
         }
     }
 
-    if (input.mouse_left_down && input.mouse_x > 570.0F) {
-        camera_orbit_yaw_ += input.mouse_delta_x * 0.008F;
-        camera_orbit_pitch_ = std::clamp(
-            camera_orbit_pitch_ - input.mouse_delta_y * 0.006F, -0.75F, 0.75F);
-        markDirty(UnitLabDirtyFlag::Ui);
-    }
-    if (std::abs(input.mouse_wheel_y) > 0.001F) {
-        camera_distance_scale_ = std::clamp(
-            camera_distance_scale_ * std::exp(-input.mouse_wheel_y * 0.10F), 0.55F, 1.80F);
-        markDirty(UnitLabDirtyFlag::Ui);
-    }
     if (locomotion_ && locomotion_state_) {
         if (input.right_pressed) {
             const auto current = locomotion_state_->preset;
@@ -576,16 +561,6 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         }
         }
 
-        const float horizontal = std::sqrt(camera_offset.x * camera_offset.x +
-                                           camera_offset.z * camera_offset.z);
-        const float base_angle = std::atan2(camera_offset.x, camera_offset.z);
-        const float orbit_angle = base_angle + camera_orbit_yaw_;
-        const float pitched_horizontal = horizontal * std::cos(camera_orbit_pitch_);
-        camera_offset.x = pitched_horizontal * std::sin(orbit_angle);
-        camera_offset.z = pitched_horizontal * std::cos(orbit_angle);
-        camera_offset.y += horizontal * std::sin(camera_orbit_pitch_);
-        camera_offset = multiply(camera_offset, camera_distance_scale_);
-
         context.presentation.camera = {
             true,
             add(camera_target, camera_offset),
@@ -594,6 +569,15 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             camera_mode_ == UnitLabCameraMode::Face ? 0.62F : 0.72F,
             0.025F,
             100.0F};
+        // The left side belongs to the RmlUi inspector. Threepp owns orbit,
+        // pan and zoom inside the remaining presentation viewport until this
+        // explicit preset/model revision changes.
+        context.presentation.camera.viewport_left = 0.40F;
+        context.presentation.camera.viewport_width = 0.60F;
+        context.presentation.camera.interactive_orbit = true;
+        context.presentation.camera.revision = foundation::stableHashCombine(
+            model_artifact_->cache_key,
+            static_cast<std::uint64_t>(camera_mode_));
         const float model_rotation =
             std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
         std::optional<render::RenderMesh> debug_deformed;

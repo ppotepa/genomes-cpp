@@ -26,6 +26,7 @@ public:
     void begin_frame() override;
     void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) override;
     void end_frame() override;
+    void handle_input(const input::InputFrame&) override;
 
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override;
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override;

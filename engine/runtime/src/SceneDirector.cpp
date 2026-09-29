@@ -65,6 +65,7 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
     if (ui_.process_input(input)) {
         return;
     }
+    renderer_.handle_input(input);
     SceneContext context = make_context();
     current_->handle_input(context, input);
     process_commands();
