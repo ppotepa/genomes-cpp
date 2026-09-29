@@ -13,3 +13,6 @@
 [submodule "external/json"]
 	path = external/json
 	url = https://github.com/nlohmann/json.git
+[submodule "external/threepp"]
+	path = external/threepp
+	url = https://github.com/markaren/threepp.git

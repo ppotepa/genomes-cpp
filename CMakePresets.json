@@ -1,54 +1,59 @@
 {
-  "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 20,
-    "patch": 0
-  },
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
   "configurePresets": [
     {
-      "name": "dev-debug",
-      "displayName": "Native staging Debug",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/dev-debug",
+      "name": "dev-debug", "displayName": "Native staging Debug",
+      "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_RC_COMPILER": "llvm-rc",
-        "GENOMES_BUILD_TESTS": "ON",
-        "GENOMES_BUILD_BENCHMARKS": "ON"
+        "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_RC_COMPILER": "llvm-rc", "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
     },
     {
-      "name": "dev-release",
-      "displayName": "Native staging Release",
-      "inherits": "dev-debug",
+      "name": "dev-release", "displayName": "Native staging Release", "inherits": "dev-debug",
       "binaryDir": "${sourceDir}/build/dev-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_RC_COMPILER": "llvm-rc",
-        "GENOMES_BUILD_TESTS": "ON",
-        "GENOMES_BUILD_BENCHMARKS": "ON"
+        "CMAKE_BUILD_TYPE": "Release", "CMAKE_RC_COMPILER": "llvm-rc",
+        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
+    },
+    {
+      "name": "headless-threepp-migration", "displayName": "Migration CPU contracts - no graphics dependency",
+      "generator": "Ninja", "binaryDir": "${sourceDir}/build/headless-threepp-migration",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug", "GENOMES_RENDER_BACKEND": "HEADLESS",
+        "GENOMES_ENABLE_THREEPP": "OFF", "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_SDL": "OFF",
+        "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
+        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "dev-threepp", "displayName": "threepp GL bootstrap Debug - no Diligent/FXC",
+      "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-threepp",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "GENOMES_RENDER_BACKEND": "THREEPP_GL", "GENOMES_ENABLE_THREEPP": "ON", "GENOMES_ENABLE_SDL": "ON",
+        "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
+        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "release-threepp", "displayName": "threepp GL bootstrap Release", "inherits": "dev-threepp",
+      "binaryDir": "${sourceDir}/build/release-threepp", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     }
   ],
   "buildPresets": [
-    {
-      "name": "dev-debug",
-      "configurePreset": "dev-debug"
-    },
-    {
-      "name": "dev-release",
-      "configurePreset": "dev-release"
-    }
+    { "name": "dev-debug", "configurePreset": "dev-debug" },
+    { "name": "dev-release", "configurePreset": "dev-release" },
+    { "name": "headless-threepp-migration", "configurePreset": "headless-threepp-migration" },
+    { "name": "dev-threepp", "configurePreset": "dev-threepp" },
+    { "name": "release-threepp", "configurePreset": "release-threepp" }
   ],
   "testPresets": [
-    {
-      "name": "dev-debug",
-      "configurePreset": "dev-debug",
-      "output": {
-        "outputOnFailure": true
-      }
-    }
+    { "name": "dev-debug", "configurePreset": "dev-debug", "output": { "outputOnFailure": true } },
+    { "name": "headless-threepp-migration", "configurePreset": "headless-threepp-migration", "output": { "outputOnFailure": true } },
+    { "name": "dev-threepp", "configurePreset": "dev-threepp", "output": { "outputOnFailure": true } },
+    { "name": "release-threepp", "configurePreset": "release-threepp", "output": { "outputOnFailure": true } }
   ]
 }

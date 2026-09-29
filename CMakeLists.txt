@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 project(Genomes VERSION 0.1.0 LANGUAGES CXX)
 
@@ -9,6 +9,7 @@ include(GenomesWarnings)
 include(GenomesDependencies)
 include(GenomesPlatform)
 include(GenomesCuda)
+include(GenomesThreepp)
 
 if(GENOMES_ENABLE_JS_REFERENCE_PARITY)
     find_program(GENOMES_NODE_EXECUTABLE NAMES node nodejs REQUIRED)
@@ -20,6 +21,7 @@ genomes_configure_cuda()
 genomes_configure_diligent()
 genomes_configure_rmlui()
 genomes_configure_sdl()
+genomes_configure_threepp()
 
 add_subdirectory(engine)
 add_subdirectory(modules)
@@ -140,6 +142,7 @@ endif()
 if(GENOMES_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/native)
+    add_subdirectory(tests/threepp)
 endif()
 
 if(GENOMES_BUILD_BENCHMARKS)
