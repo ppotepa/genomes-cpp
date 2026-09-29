@@ -37,8 +37,8 @@ public:
             if(y0>.947)y=.999-(.999-y0)*face.head_length_scale;
             double scale=mix(1,face.jaw_width_scale,low)*mix(1,face.jaw_angle,low*low*.40);
             scale=mix(scale,face.temple_width_scale,temple*.55);scale=mix(scale,face.forehead_width_scale,forehead*.65);
-            shaped[i]={y,base[i].rx*scale*face.head_width_scale*mix(1,body.reference_head_scale,.4),
-                base[i].rz*face.head_depth_scale*mix(1,body.reference_head_scale,.4),base[i].z};}
+            shaped[i]={y,base[i].rx*scale*face.reference_head_width_scale*mix(1,body.reference_head_scale,.4),
+                base[i].rz*face.reference_head_depth_scale*mix(1,body.reference_head_scale,.4),base[i].z};}
         shaped[0].y=std::clamp(shaped[0].y,.8755,.8855);
         for(std::size_t i=1;i<shaped.size();++i)shaped[i].y=std::max(shaped[i].y,shaped[i-1].y+.003);
         levels.reserve(19U);levels.push_back({.828,neck_x*1.14,neck_z*1.12,-.002});

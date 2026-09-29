@@ -54,6 +54,8 @@ struct FacePhenotype final {
     float hairline_y{1.68};
     float head_width{0.18};
     float head_depth{0.16};
+    double reference_head_width_scale{1.0};
+    double reference_head_depth_scale{1.0};
     float head_length_scale{1.};
     float forehead_width_scale{1.};
     float forehead_slope{0.};

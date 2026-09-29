@@ -329,6 +329,9 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     body.right_foot = {-body.left_foot.x, body.left_foot.y, body.left_foot.z};
 
     FacePhenotype face{};
+    face.reference_head_width_scale=(.86+.30*static_cast<double>(requested.face.head_width)) *
+        (.97+.06*static_cast<double>(requested.body.head_scale));
+    face.reference_head_depth_scale=.88+.26*static_cast<double>(requested.face.head_depth);
     face.head_width_scale = (0.86F + requested.face.head_width * 0.30F) *
                             (0.97F + requested.body.head_scale * 0.06F);
     face.head_depth_scale = 0.88F + requested.face.head_depth * 0.26F;
