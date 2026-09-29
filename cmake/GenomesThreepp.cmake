@@ -51,7 +51,7 @@ function(genomes_configure_threepp)
     set(THREEPP_BUILD_TESTS OFF)
     set(THREEPP_BUILD_EDITOR OFF)
     set(THREEPP_WITH_AUDIO OFF)
-    set(THREEPP_WITH_GLFW OFF)
+    set(THREEPP_WITH_GLFW ON)
     set(THREEPP_USE_EXTERNAL_GLFW OFF)
     set(THREEPP_WITH_VULKAN OFF)
     set(THREEPP_WITH_PYTHON OFF)
@@ -67,9 +67,19 @@ function(genomes_configure_threepp)
     if(NOT TARGET threepp::threepp)
         message(FATAL_ERROR "Pinned threepp did not provide threepp::threepp")
     endif()
+    # The vendored libwebp SIMD C sources are compiled as part of threepp and
+    # intentionally listed unconditionally. Their intrinsic guards select
+    # the kernels at runtime, but Clang still requires the corresponding ISA
+    # switches while compiling those translation units.
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND TARGET threepp)
+        get_target_property(_genomes_threepp_real_target threepp::threepp ALIASED_TARGET)
+        target_compile_options(${_genomes_threepp_real_target} PRIVATE -mssse3 -msse4.1 -mavx2)
+        target_compile_options(${_genomes_threepp_real_target} INTERFACE
+            -Wno-error=reorder-ctor -Wno-error=unused-parameter -Wno-error=deprecated-copy)
+    endif()
     genomes_mark_third_party(threepp)
     # Headers are third-party too; keep Werror on Genomes, not upstream headers.
     set_property(TARGET threepp APPEND PROPERTY INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
         "$<BUILD_INTERFACE:${GENOMES_THREEPP_SOURCE_DIR}/include>")
-    message(STATUS "Genomes threepp: ${GENOMES_THREEPP_PIN}; static, SDL host, OpenGL, no GLFW/editor/Vulkan")
+    message(STATUS "Genomes threepp: ${GENOMES_THREEPP_PIN}; static, SDL host, OpenGL, GLFW, no editor/Vulkan")
 endfunction()

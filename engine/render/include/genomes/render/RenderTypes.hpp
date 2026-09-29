@@ -1,6 +1,8 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 #include <genomes/input/InputFrame.hpp>
 #include <genomes/render/RenderCapabilities.hpp>
 #include <genomes/render/MaterialDescriptor.hpp>
