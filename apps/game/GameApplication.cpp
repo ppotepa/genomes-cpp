@@ -11,14 +11,67 @@
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/runtime/BuiltinScenes.hpp>
 
+#include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
 
 namespace genomes::game {
+
+namespace {
+
+struct RunOptions final {
+    foundation::SceneId initial_scene{foundation::scene_id("scene.main-menu")};
+    std::optional<std::filesystem::path> capture_path;
+    std::uint64_t capture_frame{180U};
+    std::uint64_t max_frames{0U};
+    bool deterministic{false};
+};
+
+bool parse_u64(std::string_view text, std::uint64_t& value) {
+    if (text.empty()) return false;
+    const char* begin=text.data();
+    const char* end=begin+text.size();
+    const auto result=std::from_chars(begin,end,value);
+    return result.ec==std::errc{} && result.ptr==end;
+}
+
+std::optional<RunOptions> parse_options(int argc, char** argv) {
+    RunOptions options{};
+    for (int index=1; index<argc; ++index) {
+        const std::string_view argument =
+            argv != nullptr && argv[index] != nullptr ? std::string_view{argv[index]} : "";
+        if (argument=="--battlefield") options.initial_scene=foundation::scene_id("scene.battlefield");
+        else if (argument=="--unit-lab") options.initial_scene=foundation::scene_id("scene.unit-lab");
+        else if (argument=="--building-lab") options.initial_scene=foundation::scene_id("scene.building-lab");
+        else if (argument=="--deterministic") options.deterministic=true;
+        else if (argument=="--capture" && index+1<argc && argv[index+1]!=nullptr) {
+            options.capture_path=std::filesystem::path{argv[++index]};
+            options.deterministic=true;
+        } else if (argument=="--capture-frame" && index+1<argc && argv[index+1]!=nullptr) {
+            if (!parse_u64(argv[++index], options.capture_frame) || options.capture_frame==0U)
+                return std::nullopt;
+        } else if (argument=="--frames" && index+1<argc && argv[index+1]!=nullptr) {
+            if (!parse_u64(argv[++index], options.max_frames)) return std::nullopt;
+        } else {
+            std::cerr << "Unknown or incomplete argument: " << argument << '\n';
+            return std::nullopt;
+        }
+    }
+    if (options.capture_path) {
+        if (options.max_frames==0U) options.max_frames=options.capture_frame;
+        if (options.max_frames<options.capture_frame) return std::nullopt;
+    }
+    return options;
+}
+
+} // namespace
 
 GameApplication::~GameApplication() = default;
 
@@ -154,21 +207,29 @@ foundation::Result<void, foundation::Error> GameApplication::resize_renderer(
 }
 
 int GameApplication::run(int argc, char** argv) {
-    const std::string_view start_argument =
-        argc > 1 && argv != nullptr && argv[1] != nullptr ? std::string_view{argv[1]} : "";
-    const auto initial_scene = foundation::scene_id(
-        start_argument == "--battlefield"
-            ? "scene.battlefield"
-            : (start_argument == "--unit-lab"
-                   ? "scene.unit-lab"
-                   : (start_argument == "--building-lab" ? "scene.building-lab"
-                                                            : "scene.main-menu")));
-    if (!director_.start(initial_scene)) {
+    const auto parsed=parse_options(argc,argv);
+    if (!parsed) {
+        std::cerr << "Usage: genomes_game [--battlefield|--unit-lab|--building-lab] "
+                     "[--frames N] [--deterministic] [--capture FILE --capture-frame N]\n";
+        return 2;
+    }
+    const RunOptions options=*parsed;
+    director_.set_deterministic_capture(options.deterministic);
+    if (!director_.start(options.initial_scene)) {
         std::cerr << "Could not start initial scene\n";
         return 1;
     }
+    if (options.capture_path && options.capture_path->has_parent_path()) {
+        std::error_code error;
+        std::filesystem::create_directories(options.capture_path->parent_path(), error);
+        if (error) {
+            std::cerr << "Could not create capture directory: " << error.message() << '\n';
+            return 1;
+        }
+    }
 
     auto previous = std::chrono::steady_clock::now();
+    std::uint64_t presented_frames=0U;
     while (!director_.quit_requested()) {
         const platform::PlatformFrame platform_frame = platform_->poll_events();
         if (platform_frame.error.code != foundation::ErrorCode::None) {
@@ -201,7 +262,9 @@ int GameApplication::run(int argc, char** argv) {
         }
 
         const auto now = std::chrono::steady_clock::now();
-        const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - previous);
+        const auto elapsed = options.deterministic
+            ? std::chrono::nanoseconds{16'666'667}
+            : std::chrono::duration_cast<std::chrono::nanoseconds>(now - previous);
         previous = now;
 #if defined(GENOMES_HAS_RMLUI)
         if (rml_ui_ && rml_ui_->valid()) {
@@ -233,12 +296,28 @@ int GameApplication::run(int argc, char** argv) {
             ui_.replace_frame(rml_ui_->update(std::chrono::duration<double>(elapsed).count()));
         }
 #endif
+        const std::uint64_t next_presented_frame = presented_frames + 1U;
+        const bool capture_this_frame =
+            options.capture_path && next_presented_frame == options.capture_frame;
+        if (capture_this_frame) {
+            const auto requested=renderer_->capture(*options.capture_path);
+            if (!requested) {
+                std::cerr << "Capture request failed: " << requested.error().message << '\n';
+                return 1;
+            }
+        }
         director_.present();
+        ++presented_frames;
         if (!renderer_->healthy()) {
             std::cerr << "Renderer frame failed: " << renderer_->last_error().message << '\n';
             return 1;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds{1});
+        if (capture_this_frame) {
+            std::cout << "Capture complete frame=" << presented_frames
+                      << " path=" << options.capture_path->string() << '\n';
+        }
+        if (options.max_frames != 0U && presented_frames >= options.max_frames) break;
+        if (!options.deterministic) std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
 
     if (backend_owner_) {

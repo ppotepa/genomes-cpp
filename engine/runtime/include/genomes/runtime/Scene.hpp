@@ -43,6 +43,9 @@ struct SceneContext {
     // Previous completed renderer frame. This is diagnostic/presentation data,
     // never a simulation input.
     render::RenderUploadTelemetry render_telemetry{};
+    // Evidence/capture mode disables worker timing as an input to generated
+    // presentation state. Simulation still advances through fixed_update.
+    bool deterministic_capture{false};
 };
 
 class Scene {

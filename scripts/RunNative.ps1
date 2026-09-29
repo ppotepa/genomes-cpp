@@ -71,29 +71,12 @@ if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
     throw 'ninja was not found in PATH. These scripts use the Ninja generator.'
 }
 
-# Diligent's Windows D3D12 backend compiles its bundled GenerateMips shaders
-# with fxc during the build.  A normal PowerShell/WezTerm session does not
-# necessarily inherit the Visual Studio developer PATH, so locate the SDK
-# compiler explicitly instead of making run-release.cmd depend on shell setup.
-if ($env:OS -eq 'Windows_NT' -and -not (Get-Command fxc.exe -ErrorAction SilentlyContinue)) {
-    $windowsKitsRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-    $fxc = Get-ChildItem -Path $windowsKitsRoot -Filter 'fxc.exe' -File -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -match '\\x64\\fxc\.exe$' } |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1
-    if ($null -ne $fxc) {
-        $env:Path = $fxc.DirectoryName + ';' + $env:Path
-        Write-Host "Using Windows SDK shader compiler: $($fxc.FullName)"
-    } else {
-        throw "fxc.exe was not found under '$windowsKitsRoot'. Install the Windows SDK or start a Visual Studio developer shell."
-    }
-}
-
 $requiredDependencies = @(
-    (Join-Path $repoRoot 'external/DiligentEngine/CMakeLists.txt'),
-    (Join-Path $repoRoot 'external/DiligentEngine/DiligentCore/CMakeLists.txt'),
+    (Join-Path $repoRoot 'external/threepp/CMakeLists.txt'),
     (Join-Path $repoRoot 'external/SDL/CMakeLists.txt'),
-    (Join-Path $repoRoot 'external/RmlUi/CMakeLists.txt')
+    (Join-Path $repoRoot 'external/RmlUi/CMakeLists.txt'),
+    (Join-Path $repoRoot 'external/freetype/CMakeLists.txt'),
+    (Join-Path $repoRoot 'external/json/single_include/nlohmann/json.hpp')
 )
 
 $missingDependency = $requiredDependencies | Where-Object { -not (Test-Path $_) } | Select-Object -First 1
@@ -107,9 +90,12 @@ $configureArguments = @(
     '-G', 'Ninja',
     ('-DCMAKE_BUILD_TYPE=' + $Configuration),
     '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON',
+    '-DGENOMES_RENDER_BACKEND=THREEPP_GL',
+    '-DGENOMES_ENABLE_THREEPP=ON',
     '-DGENOMES_ENABLE_SDL=ON',
-    '-DGENOMES_ENABLE_DILIGENT=ON',
+    '-DGENOMES_ENABLE_DILIGENT=OFF',
     '-DGENOMES_ENABLE_RMLUI=ON',
+    '-DGENOMES_ENABLE_CUDA=OFF',
     '-DGENOMES_BUILD_TESTS=OFF',
     '-DGENOMES_BUILD_BENCHMARKS=OFF',
     '-DGENOMES_WARNINGS_AS_ERRORS=ON'
@@ -124,25 +110,14 @@ function Get-ToolIdentity {
     return "$Name=$($command.Source)|$version"
 }
 
-function Get-WindowsSdkIdentity {
-    $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
-    if (-not (Test-Path $sdkRoot)) { return 'windows-sdk=<missing>' }
-    $sdk = Get-ChildItem -Path $sdkRoot -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^10\.' } |
-        Sort-Object Name -Descending | Select-Object -First 1
-    if ($null -eq $sdk) { return 'windows-sdk=<missing>' }
-    $fxcPath = Join-Path $sdk.FullName 'x64\fxc.exe'
-    $fxcVersion = if (Test-Path $fxcPath) { (Get-Item $fxcPath).VersionInfo.FileVersion } else { '<missing>' }
-    return "windows-sdk=$($sdk.Name)|fxc=$fxcVersion"
-}
-
 $fingerprintInputs = @(
     (Join-Path $repoRoot 'CMakeLists.txt'),
     (Join-Path $repoRoot 'CMakePresets.json'),
     (Join-Path $repoRoot 'cmake'),
     (Join-Path $repoRoot 'config'),
-    (Join-Path $repoRoot 'external/DiligentEngine'),
-    (Join-Path $repoRoot 'external/SDL')
+    (Join-Path $repoRoot 'external/threepp'),
+    (Join-Path $repoRoot 'external/SDL'),
+    (Join-Path $repoRoot 'external/RmlUi')
 )
 function Get-Sha256Hex {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -162,9 +137,12 @@ $fingerprintPayload = @(
     'generator=Ninja'
     "cmake=$((Get-Command cmake).Source)"
     "ninja=$((Get-Command ninja).Source)"
+    'GENOMES_RENDER_BACKEND=THREEPP_GL'
+    'GENOMES_ENABLE_THREEPP=ON'
     'GENOMES_ENABLE_SDL=ON'
-    'GENOMES_ENABLE_DILIGENT=ON'
+    'GENOMES_ENABLE_DILIGENT=OFF'
     'GENOMES_ENABLE_RMLUI=ON'
+    'GENOMES_ENABLE_CUDA=OFF'
     'GENOMES_BUILD_TESTS=OFF'
     'GENOMES_BUILD_BENCHMARKS=OFF'
     'GENOMES_WARNINGS_AS_ERRORS=ON'
@@ -172,7 +150,6 @@ $fingerprintPayload = @(
     (Get-ToolIdentity 'ninja')
     (Get-ToolIdentity 'clang')
     (Get-ToolIdentity 'clang++')
-    (Get-WindowsSdkIdentity)
 )
 foreach ($file in ($fingerprintFiles | Sort-Object FullName -Unique)) {
     $digest = Get-Sha256Hex -Path $file.FullName
@@ -188,7 +165,7 @@ $cacheExists = (Test-Path (Join-Path $buildDirectory 'CMakeCache.txt')) -and
 $storedFingerprint = if (Test-Path $fingerprintPath) { (Get-Content -Raw $fingerprintPath).Trim() } else { '' }
 $needsConfigure = $Reconfigure -or -not $cacheExists -or $storedFingerprint -ne $currentFingerprint
 if ($needsConfigure) {
-    Write-Host "Configuring Genomes ($Configuration): $buildDirectory"
+    Write-Host "Configuring Genomes THREEPP_GL ($Configuration): $buildDirectory"
     Invoke-NativeCommand -FilePath 'cmake' -Arguments $configureArguments
     New-Item -ItemType Directory -Force -Path $buildDirectory | Out-Null
     Set-Content -LiteralPath $fingerprintPath -Value $currentFingerprint -NoNewline

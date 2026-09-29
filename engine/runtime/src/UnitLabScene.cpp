@@ -230,7 +230,8 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
     // publish a result after the preview has changed underneath it.
     const auto revision = model_compiler_.beginRevision();
     model_revision_ = revision;
-    if (context != nullptr && context->jobs != nullptr) {
+    if (context != nullptr && context->jobs != nullptr &&
+        !context->deterministic_capture) {
         const auto pending = std::make_shared<PendingModelResult>();
         pending_model_result_ = pending;
         model_job_ = context->jobs->submit(

@@ -7,14 +7,18 @@
       "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_RC_COMPILER": "llvm-rc", "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
+        "GENOMES_RENDER_BACKEND": "THREEPP_GL",
+        "GENOMES_ENABLE_THREEPP": "ON", "GENOMES_ENABLE_SDL": "ON",
+        "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_RMLUI": "ON",
+        "GENOMES_ENABLE_CUDA": "OFF",
+        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
     },
     {
       "name": "dev-release", "displayName": "Native staging Release", "inherits": "dev-debug",
       "binaryDir": "${sourceDir}/build/dev-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release", "CMAKE_RC_COMPILER": "llvm-rc",
+        "CMAKE_BUILD_TYPE": "Release",
         "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
     },

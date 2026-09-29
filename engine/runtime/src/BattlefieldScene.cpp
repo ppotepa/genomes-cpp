@@ -72,7 +72,7 @@ foundation::SceneId BattlefieldScene::id() const noexcept {
 }
 
 void BattlefieldScene::on_enter(SceneContext& context) {
-    jobs_ = context.jobs;
+    jobs_ = context.deterministic_capture ? nullptr : context.jobs;
     if (context.world_config != nullptr) {
         config_ = *context.world_config;
     }
@@ -126,8 +126,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     simulation_tick_ = {};
     configure_simulation_graph();
 
-    if (context.jobs != nullptr) {
-        scenario_ = std::make_unique<gameplay::WorldScenario>(*context.jobs);
+    if (jobs_ != nullptr) {
+        scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_);
         const auto requested = scenario_->requestNew(config_);
         if (!requested) {
             generation_error_ = std::string(requested.error().message);

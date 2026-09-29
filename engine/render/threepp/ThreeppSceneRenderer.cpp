@@ -29,7 +29,9 @@
 #include <cmath>
 #include <cstdint>
 #include <iterator>
+#include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -284,6 +286,7 @@ struct ThreeppSceneRenderer::Impl final {
     std::uint64_t camera_revision{~std::uint64_t{0}};
     std::uint32_t width{1U};
     std::uint32_t height{1U};
+    std::optional<std::filesystem::path> pending_capture;
 
     explicit Impl(platform::SdlPlatform& host) : platform(host) {}
 
@@ -400,6 +403,14 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
     }
     auto gl_info = initializeThreeppGl(platform);
     if (!gl_info) return Result::failure(gl_info.error());
+    std::cout << "threepp GL vendor=" << gl_info.value().vendor
+              << " renderer=" << gl_info.value().renderer
+              << " version=" << gl_info.value().version
+              << " GLSL=" << gl_info.value().shading_language
+              << " maxTexture=" << gl_info.value().max_texture_size
+              << " vertexTextures=" << gl_info.value().vertex_texture_units
+              << " depth=" << gl_info.value().default_depth_bits
+              << " stencil=" << gl_info.value().default_stencil_bits << '\n';
     try {
         auto impl = std::make_unique<Impl>(platform);
         impl->width = static_cast<std::uint32_t>(std::max(1, platform.width()));
@@ -745,6 +756,16 @@ void ThreeppSceneRenderer::handle_input(const input::InputFrame& frame) {
 
 void ThreeppSceneRenderer::end_frame() {
     if (!impl_ || !impl_->frame_open) return;
+    if (impl_->healthy && impl_->pending_capture) {
+        try {
+            impl_->renderer->writeFramebuffer(*impl_->pending_capture);
+            impl_->pending_capture.reset();
+        } catch (...) {
+            impl_->pending_capture.reset();
+            impl_->fail(foundation::ErrorCode::Internal,
+                        "threepp framebuffer capture failed");
+        }
+    }
     if (impl_->healthy) {
         if (auto swapped = impl_->platform.swap_gl_window(); !swapped)
             impl_->fail(swapped.error().code, swapped.error().message);
@@ -788,12 +809,11 @@ foundation::Result<void, foundation::Error> ThreeppSceneRenderer::capture(
     if (!impl_ || path.empty())
         return Result::failure({foundation::ErrorCode::InvalidArgument,
                                 "invalid threepp capture path"});
-    try {
-        impl_->renderer->writeFramebuffer(path);
-        return Result::success();
-    } catch (...) {
-        return Result::failure({foundation::ErrorCode::Internal, "threepp capture failed"});
-    }
+    if (impl_->pending_capture)
+        return Result::failure({foundation::ErrorCode::InvalidState,
+                                "a threepp capture is already pending"});
+    impl_->pending_capture = path;
+    return Result::success();
 }
 
 void ThreeppSceneRenderer::shutdown() noexcept {

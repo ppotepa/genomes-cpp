@@ -47,7 +47,8 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
 
 SceneContext SceneDirector::make_context() noexcept {
     return {commands_, ui_, presentation_, active_world_config_ ? &*active_world_config_ : nullptr,
-            jobs_, renderer_.capabilities(), renderer_.uploadTelemetry()};
+            jobs_, renderer_.capabilities(), renderer_.uploadTelemetry(),
+            deterministic_capture_};
 }
 
 void SceneDirector::register_scene(foundation::SceneId id, Factory factory) {

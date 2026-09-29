@@ -8,6 +8,7 @@
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <array>
+#include <filesystem>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -212,6 +213,11 @@ public:
     virtual void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) = 0;
     virtual void end_frame() = 0;
     virtual void handle_input(const input::InputFrame&) {}
+    [[nodiscard]] virtual foundation::Result<void, foundation::Error> capture(
+        const std::filesystem::path&) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::Unsupported, "renderer capture is unsupported"});
+    }
     [[nodiscard]] virtual RenderCapabilities capabilities() const noexcept { return {}; }
     [[nodiscard]] virtual RenderUploadTelemetry uploadTelemetry() const noexcept { return {}; }
     [[nodiscard]] virtual bool healthy() const noexcept { return true; }

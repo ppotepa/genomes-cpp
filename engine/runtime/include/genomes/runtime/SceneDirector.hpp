@@ -30,6 +30,10 @@ public:
     void frame_update(double dt);
     void present();
 
+    void set_deterministic_capture(bool enabled) noexcept {
+        deterministic_capture_ = enabled;
+    }
+
     void set_presentation_timing(foundation::SimulationTick previous_tick,
                                  foundation::SimulationTick next_tick,
                                  double interpolation_alpha) noexcept;
@@ -60,6 +64,7 @@ private:
     std::optional<WorldGenerationConfig> active_world_config_;
     jobs::JobSystem* jobs_{nullptr};
     bool quit_requested_{false};
+    bool deterministic_capture_{false};
     std::uint64_t frame_number_{0};
     foundation::SimulationTick previous_presentation_tick_{};
     foundation::SimulationTick next_presentation_tick_{};

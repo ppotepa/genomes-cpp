@@ -36,7 +36,7 @@ public:
     [[nodiscard]] foundation::Result<void, foundation::Error> resize(
         std::uint32_t width, std::uint32_t height) noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> capture(
-        const std::filesystem::path& path) noexcept;
+        const std::filesystem::path& path) noexcept override;
     void shutdown() noexcept;
 
 private:
