@@ -15,6 +15,9 @@ public:
     [[nodiscard]] static HeadCrossSection sectionAt(const ResolvedAnatomy& anatomy,
                                                     float y) noexcept;
 
+    [[nodiscard]] static float hairlineY(const ResolvedAnatomy& anatomy,
+                                         float azimuth) noexcept;
+
     [[nodiscard]] static foundation::Vec3 scalpPoint(const ResolvedAnatomy& anatomy,
                                                      float normalized_height,
                                                      float azimuth) noexcept;

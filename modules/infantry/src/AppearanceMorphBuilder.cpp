@@ -39,8 +39,22 @@ void AppearanceMorphBuilder::build(AppearanceArtifact& artifact, const FacePheno
         const float eyelid = eyelid_surface
             ? std::clamp((eye_left + eye_right) * eye_y, 0.0F, 1.0F)
             : 0.0F;
-        close.position_deltas[index] = {0.0F, -0.006F * eyelid, -0.002F * eyelid};
-        arc.position_deltas[index] = {0.0F, 0.003F * eyelid, 0.001F * eyelid};
+        const float nearest_eye_x = position.x < 0.0F ? -face.eye_spacing : face.eye_spacing;
+        const float local_x = std::clamp(
+            (position.x - nearest_eye_x) / std::max(face.eye_radius, 1.0e-4F), -1.0F, 1.0F);
+        // Upper and lower lid converge on the same slightly arced seal. This
+        // preserves topology while giving opposite Y deltas on opposite sides.
+        const float closure_y = face.eye_y +
+            face.eye_radius * 0.035F * (1.0F - local_x * local_x);
+        close.position_deltas[index] = {
+            0.0F, (closure_y - position.y) * eyelid, 0.00010F * eyelid};
+        // Arc is a secondary curvature delta around the half-closed position,
+        // not another global upward translation.
+        const float lid_side = position.y >= face.eye_y ? 1.0F : -1.0F;
+        arc.position_deltas[index] = {
+            0.0F, lid_side * face.eye_radius * 0.08F *
+                (1.0F - local_x * local_x) * eyelid,
+            0.00005F * eyelid};
         const float neck_factor = vertex.material_region == static_cast<std::uint16_t>(
             AppearanceMaterialRegion::Skin)
             ? std::clamp((face.mouth_y - position.y) / 0.14F, 0.0F, 1.0F)

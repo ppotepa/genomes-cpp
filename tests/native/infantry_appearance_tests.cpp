@@ -1,5 +1,6 @@
 #include <genomes/infantry/AppearanceArtifact.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/infantry/PhenotypeResolver.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
 
@@ -52,6 +53,21 @@ int main() {
         }
         assert(has_delta);
     }
+    bool upper_lid_closes_down = false;
+    bool lower_lid_closes_up = false;
+    const auto eyelid_region = static_cast<std::uint16_t>(
+        genomes::infantry::AppearanceMaterialRegion::Eyelid);
+    for (std::size_t index = 0U; index < artifact.value().body.vertices.size(); ++index) {
+        const auto& vertex = artifact.value().body.vertices[index];
+        if (vertex.material_region != eyelid_region) continue;
+        const float dy = artifact.value().morphs[0].position_deltas[index].y;
+        if (vertex.position.y > phenotype.value().face.eye_y + 1.0e-5F && dy < -1.0e-7F)
+            upper_lid_closes_down = true;
+        if (vertex.position.y < phenotype.value().face.eye_y - 1.0e-5F && dy > 1.0e-7F)
+            lower_lid_closes_up = true;
+    }
+    assert(upper_lid_closes_down);
+    assert(lower_lid_closes_up);
 
     genomes::infantry::AppearanceOptions short_hair = options;
     short_hair.hair_style = genomes::infantry::HairStyle::Short;

@@ -109,8 +109,10 @@ FaceAnatomyEvaluator::resolve(const PhenotypeArtifact& phenotype) {
     result.face.right_ear = {ear_x,
                              face.eye_y - face.eye_radius * 0.25F + face.ear_asymmetry * 0.5F,
                              face.section(face.eye_y).center_z};
+    // Scalp is anatomy, not hairstyle. Hair volume is an outward/lift
+    // property and must never move the skull crown itself.
     result.scalp = {lower_head_y, face.hairline_y,
-                    face.hairline_y + std::max(0.012F, face.hair_volume * 4.0F),
+                    result.head_sections.back().y,
                     face.temple_recession, face.widow_peak};
     return foundation::Result<ResolvedAnatomy, foundation::Error>::success(std::move(result));
 }
@@ -150,12 +152,28 @@ HeadCrossSection FaceAnatomyEvaluator::sectionAt(const ResolvedAnatomy& anatomy,
     return {y,std::max(0.0F,hermite(1)),std::max(0.0F,hermite(2)),hermite(3)};
 }
 
+float FaceAnatomyEvaluator::hairlineY(const ResolvedAnatomy& anatomy,
+                                          float azimuth) noexcept {
+    // HairGenerator uses +Z as front, i.e. sin(azimuth) is frontal. Recession
+    // raises the lower boundary at the temples; a widow peak lowers its centre.
+    const float front = std::max(0.0F, std::sin(azimuth));
+    const float side = std::abs(std::cos(azimuth));
+    const float temple = front * std::pow(side, 1.8F);
+    const float center_front = front * std::pow(std::max(0.0F, 1.0F - side), 1.5F);
+    const float resolved = anatomy.scalp.hairline_y +
+        anatomy.scalp.temple_recession * temple -
+        anatomy.scalp.widow_peak * center_front;
+    return std::clamp(resolved, anatomy.scalp.lower_y,
+                      std::max(anatomy.scalp.lower_y, anatomy.scalp.crown_y - 1.0e-4F));
+}
+
 foundation::Vec3 FaceAnatomyEvaluator::scalpPoint(const ResolvedAnatomy& anatomy,
                                                   float normalized_height,
                                                   float azimuth) noexcept {
     const float t = std::clamp(normalized_height, 0.0F, 1.0F);
-    const float y = anatomy.scalp.hairline_y +
-                    (anatomy.scalp.crown_y - anatomy.scalp.hairline_y) * t;
+    const float hairline = hairlineY(anatomy, azimuth);
+    const float y = hairline +
+                    (anatomy.scalp.crown_y - hairline) * t;
     const HeadCrossSection section = sectionAt(anatomy, y);
     const float c = std::cos(azimuth);
     const float s = std::sin(azimuth);

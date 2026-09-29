@@ -308,25 +308,32 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
             {AnatomyParameter::ShoulderWidth, requested_shoulder_width, body.shoulder_width,
              AnatomyAdjustmentReason::ClampedToDomain});
     }
+    // Keep semantic phenotype landmarks on the same normalized-space equations
+    // as reference/js/rendering/infantryRig.js, then convert to metres once.
+    // Mixing shoulder_y (ratio) with metre arm lengths used to scale hand Y by
+    // height twice and made standalone surfaces disagree with the canonical rig.
     const float hip_y = body.hip_y;
-    const float neck_y = 0.838F + (body.neck_scale - 1.0F) * 0.010F;
+    const float neck_y = 0.837F + (0.843F - 0.837F) *
+        std::clamp((body.neck_scale - 0.76F) / 0.56F, 0.0F, 1.0F);
     const float chest_y = hip_y + (neck_y - hip_y) * 0.76F;
     const float shoulder_y = chest_y + (neck_y - chest_y) * 0.34F;
     const float arm_angle = 22.0F * 3.14159265358979323846F / 180.0F;
-    const float upper_arm_length = body.arm_length * (0.18F / 0.335F);
-    const float forearm_length = body.arm_length * (0.155F / 0.335F);
-    const float hand_x = body.shoulder_width * 0.5F +
+    const float upper_arm_length = 0.18F * body.arm_length_scale * body.height;
+    const float forearm_length = 0.155F * body.arm_length_scale * body.height;
+    const float shoulder_half = 0.128F * body.shoulder_width_scale * body.height;
+    const float hand_x = shoulder_half +
                          std::sin(arm_angle) * (upper_arm_length + forearm_length);
-    const float hand_y = shoulder_y -
+    const float hand_y = body.height * shoulder_y -
                          std::cos(arm_angle) * (upper_arm_length + forearm_length);
     body.pelvis = {0.0F, body.height * hip_y, 0.0F};
     body.chest = {0.0F, body.height * chest_y, 0.0F};
     body.head = {0.0F, body.height * (0.90F + (body.head_scale - 1.0F) * 0.008F), 0.015F};
-    body.left_hand = {-hand_x, body.height * hand_y, 0.0F};
-    body.right_hand = {-body.left_hand.x, body.left_hand.y, body.left_hand.z};
-    const float foot_y = std::max(0.025F, body.pelvis.y - body.leg_length);
-    body.left_foot = {-body.hip_width * 0.30F, foot_y, 0.02F};
-    body.right_foot = {-body.left_foot.x, body.left_foot.y, body.left_foot.z};
+    body.left_hand = {hand_x, hand_y, 0.0F};
+    body.right_hand = {-hand_x, hand_y, 0.0F};
+    const float foot_x = 0.052F * body.hip_width_scale * body.height;
+    const float foot_y = 0.045F * body.height;
+    body.left_foot = {foot_x, foot_y, 0.0F};
+    body.right_foot = {-foot_x, foot_y, 0.0F};
 
     FacePhenotype face{};
     face.reference_head_width_scale=(.86+.30*static_cast<double>(requested.face.head_width)) *

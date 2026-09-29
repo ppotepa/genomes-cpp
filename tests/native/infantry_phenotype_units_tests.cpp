@@ -1,4 +1,5 @@
 #include <genomes/infantry/PhenotypeResolver.hpp>
+#include <genomes/infantry/RigBuilder.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -25,6 +26,25 @@ int main() {
         assert(face.brow_y > face.eye_y && face.eye_y > face.nose_y &&
                face.nose_y > face.mouth_y && face.hairline_y > face.brow_y);
         assert(std::isfinite(body.shoulder_width) && std::isfinite(face.eye_y));
+        const auto rig = genomes::infantry::RigBuilder::build(body, face);
+        assert(rig);
+        const auto* left_hand = rig.value().findAttachment(
+            genomes::infantry::AttachmentPointId::LeftHand);
+        const auto* right_hand = rig.value().findAttachment(
+            genomes::infantry::AttachmentPointId::RightHand);
+        const auto* left_foot = rig.value().findAttachment(
+            genomes::infantry::AttachmentPointId::LeftFoot);
+        const auto* right_foot = rig.value().findAttachment(
+            genomes::infantry::AttachmentPointId::RightFoot);
+        assert(left_hand && right_hand && left_foot && right_foot);
+        assert(std::abs(body.left_hand.x - left_hand->world.x) < 1.0e-4F);
+        assert(std::abs(body.left_hand.y - left_hand->world.y) < 1.0e-4F);
+        assert(std::abs(body.right_hand.x - right_hand->world.x) < 1.0e-4F);
+        assert(std::abs(body.right_hand.y - right_hand->world.y) < 1.0e-4F);
+        assert(std::abs(body.left_foot.x - left_foot->world.x) < 1.0e-4F);
+        assert(std::abs(body.left_foot.y - left_foot->world.y) < 1.0e-4F);
+        assert(std::abs(body.right_foot.x - right_foot->world.x) < 1.0e-4F);
+        assert(std::abs(body.right_foot.y - right_foot->world.y) < 1.0e-4F);
     }
     return 0;
 }

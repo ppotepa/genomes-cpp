@@ -1,10 +1,12 @@
 #include <genomes/infantry/AppearanceArtifact.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
+#include <genomes/infantry/FaceAnatomy.hpp>
 #include <genomes/infantry/PhenotypeResolver.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
 
 #include <array>
 #include <cassert>
+#include <cmath>
 
 int main() {
     using namespace genomes::infantry;
@@ -34,6 +36,32 @@ int main() {
     for (const bool present : names) {
         assert(present);
     }
+    const auto anatomy = FaceAnatomyEvaluator::resolve(phenotype.value());
+    assert(anatomy);
+    auto more_volume = phenotype.value();
+    more_volume.face.hair_volume *= 1.8F;
+    const auto volume_anatomy = FaceAnatomyEvaluator::resolve(more_volume);
+    assert(volume_anatomy);
+    assert(std::abs(anatomy.value().scalp.crown_y -
+                    volume_anatomy.value().scalp.crown_y) < 1.0e-6F);
+    assert(std::abs(anatomy.value().scalp.crown_y -
+                    anatomy.value().head_sections.back().y) < 1.0e-6F);
+
+    auto no_shape = anatomy.value();
+    no_shape.scalp.temple_recession = 0.0F;
+    no_shape.scalp.widow_peak = 0.0F;
+    auto recession = no_shape;
+    recession.scalp.temple_recession = 0.012F;
+    auto widow = no_shape;
+    widow.scalp.widow_peak = 0.009F;
+    constexpr float pi = 3.14159265358979323846F;
+    const float temple_angle = pi * 0.25F;
+    const float front_angle = pi * 0.5F;
+    assert(FaceAnatomyEvaluator::hairlineY(recession, temple_angle) >
+           FaceAnatomyEvaluator::hairlineY(no_shape, temple_angle));
+    assert(FaceAnatomyEvaluator::hairlineY(widow, front_angle) <
+           FaceAnatomyEvaluator::hairlineY(no_shape, front_angle));
+
     AppearanceOptions volume_options{};
     volume_options.seed = 0x5EED2026U;
     volume_options.hair_style = HairStyle::Crew;
@@ -44,7 +72,7 @@ int main() {
     assert(base_hair && full_hair);
     assert(full_hair.value().maximum.y > base_hair.value().maximum.y);
     auto receding = phenotype.value();
-    receding.face.temple_recession = 1.0F;
+    receding.face.temple_recession = 0.012F;
     const auto receded = AppearanceCompiler::build(receding, rig.value(), volume_options);
     assert(receded && receded.value().hair.vertices.size() == base_hair.value().hair.vertices.size());
     AppearanceOptions covered_options = volume_options;
