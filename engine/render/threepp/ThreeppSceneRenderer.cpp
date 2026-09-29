@@ -14,6 +14,7 @@
 #include <threepp/lights/HemisphereLight.hpp>
 #include <threepp/materials/LineBasicMaterial.hpp>
 #include <threepp/materials/MeshStandardMaterial.hpp>
+#include <threepp/math/Sphere.hpp>
 #include <threepp/objects/Bone.hpp>
 #include <threepp/objects/LineSegments.hpp>
 #include <threepp/objects/Mesh.hpp>
@@ -151,6 +152,14 @@ GeometryPtr skinnedGeometry(const SkinnedMeshPrototype& source) {
     }
     geometry->computeBoundingBox();
     geometry->computeBoundingSphere();
+    if (source.conservative_bounds_radius > 0.0F &&
+        std::isfinite(source.conservative_bounds_radius)) {
+        geometry->boundingSphere = threepp::Sphere(
+            {source.conservative_bounds_center.x,
+             source.conservative_bounds_center.y,
+             source.conservative_bounds_center.z},
+            source.conservative_bounds_radius);
+    }
     return geometry;
 }
 

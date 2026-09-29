@@ -64,6 +64,22 @@ int main() {
     assert(first->skeleton->valid());
     assert(first->skeleton->skeleton_id == model.value().skeleton.cacheKey());
     assert(first->skeleton->bones.size() == infantry::kRigBoneCount);
+    assert(first->conservative_bounds_radius > model.value().phenotype.body.height);
+    const auto inside_bound = [&](foundation::Vec3 point) {
+        const auto center = first->conservative_bounds_center;
+        const float x=point.x-center.x,y=point.y-center.y,z=point.z-center.z;
+        return x*x+y*y+z*z <=
+            first->conservative_bounds_radius*first->conservative_bounds_radius + 1.0e-4F;
+    };
+    for (const auto& vertex : first->vertices) assert(inside_bound(vertex.position));
+    for (std::size_t vertex=0; vertex<first->vertices.size(); ++vertex) {
+        foundation::Vec3 combined=first->vertices[vertex].position;
+        for (std::size_t morph=0; morph<first->morph_target_count; ++morph) {
+            const auto& delta=first->morphs[morph].position_deltas[vertex];
+            combined.x+=delta.x;combined.y+=delta.y;combined.z+=delta.z;
+        }
+        assert(inside_bound(combined));
+    }
 
     std::array<Matrix, infantry::kRigBoneCount> world{};
     for (std::size_t index=0; index<first->skeleton->bones.size(); ++index) {

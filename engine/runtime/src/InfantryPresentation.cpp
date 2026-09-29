@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -226,6 +227,29 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
         }
     }
     buildMaterialGroups(*mesh);
+
+    float conservative_radius = 0.0F;
+    for (std::size_t vertex = 0U; vertex < mesh->vertices.size(); ++vertex) {
+        const auto& position = mesh->vertices[vertex].position;
+        const float base = std::sqrt(position.x * position.x +
+                                     position.y * position.y +
+                                     position.z * position.z);
+        float morph_budget = 0.0F;
+        for (std::size_t morph = 0U; morph < mesh->morph_target_count; ++morph) {
+            if (vertex >= mesh->morphs[morph].position_deltas.size()) continue;
+            const auto& delta = mesh->morphs[morph].position_deltas[vertex];
+            morph_budget += std::sqrt(delta.x * delta.x + delta.y * delta.y +
+                                      delta.z * delta.z);
+        }
+        conservative_radius = std::max(conservative_radius, base + morph_budget);
+    }
+    // Rotations around articulated joints preserve segment length; this margin
+    // covers root/contact offsets and procedural IK excursions without doing a
+    // full CPU skin solely to cull each unit.
+    conservative_radius += std::max(0.15F, model.phenotype.body.height * 0.12F);
+    mesh->conservative_bounds_center = {};
+    mesh->conservative_bounds_radius = conservative_radius;
+
     prototype_cache.emplace(model.cache_key, mesh);
     return mesh;
 }

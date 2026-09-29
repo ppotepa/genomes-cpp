@@ -16,6 +16,7 @@
 #include <span>
 #include <string>
 #include <utility>
+#include <unordered_map>
 
 namespace genomes::runtime {
 
@@ -214,20 +215,39 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
         animation_agents_.empty()) {
         return;
     }
+    std::unordered_map<std::uint64_t, const infantry::InfantryRenderState*> states;
+    states.reserve(infantry_->renderStates().size());
+    for (const auto& state : infantry_->renderStates()) {
+        states.emplace(state.entity.packed(), &state);
+    }
+
+    const float map_size = std::max(1.0F, static_cast<float>(config_.map_size_m));
+    const float near_distance = std::max(60.0F, map_size * 0.16F);
+    const float mid_distance = std::max(near_distance * 2.0F, map_size * 0.42F);
+    const float near2 = near_distance * near_distance;
+    const float mid2 = mid_distance * mid_distance;
+
     std::vector<infantry::AnimationEntity> entities;
     entities.reserve(animation_agents_.size());
     for (InfantryAnimationAgent& agent : animation_agents_) {
-        const auto state_iterator = std::find_if(
-            infantry_->renderStates().begin(), infantry_->renderStates().end(),
-            [&agent](const infantry::InfantryRenderState& state) {
-                return state.entity == agent.entity;
-            });
-        if (state_iterator == infantry_->renderStates().end() || !agent.locomotion ||
+        const auto state_found = states.find(agent.entity.packed());
+        if (state_found == states.end() || !agent.locomotion ||
             !agent.locomotion_state || !agent.face) {
             continue;
         }
+        const auto* state = state_found->second;
+        const float dx = state->position.x - render_camera_.position.x;
+        const float dy = state->position.y - render_camera_.position.y;
+        const float dz = state->position.z - render_camera_.position.z;
+        const float distance2 = dx * dx + dy * dy + dz * dz;
+        const infantry::AnimationLOD desired_lod =
+            distance2 <= near2 ? infantry::AnimationLOD::Near :
+            distance2 <= mid2 ? infantry::AnimationLOD::Mid :
+                                infantry::AnimationLOD::Far;
+        if (agent.lod.tier() != desired_lod) agent.lod.setTier(desired_lod);
+
         infantry::BipedPreset preset = infantry::BipedPreset::Idle;
-        switch (state_iterator->state) {
+        switch (state->state) {
         case infantry::AgentState::Advance:
             preset = infantry::BipedPreset::Run;
             break;
@@ -249,13 +269,13 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
             &*agent.locomotion,
             &*agent.locomotion_state,
             &*agent.face,
-            state_iterator->position,
-            foundation::Vec3{state_iterator->position.x +
-                                 std::sin(state_iterator->heading) * 6.0F,
-                             state_iterator->position.y +
+            state->position,
+            foundation::Vec3{state->position.x +
+                                 std::sin(state->heading) * 6.0F,
+                             state->position.y +
                                  infantry_model_artifact_->phenotype.body.height * 0.62F,
-                             state_iterator->position.z +
-                                 std::cos(state_iterator->heading) * 6.0F},
+                             state->position.z +
+                                 std::cos(state->heading) * 6.0F},
             agent.lod,
             &infantry_model_artifact_->appearance.body});
     }
@@ -711,32 +731,33 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 context.presentation.skinned_palettes.reserve(
                     context.presentation.skinned_palettes.size() +
                     infantry_->renderStates().size());
+                std::unordered_map<foundation::StableId, const infantry::AnimationPose*> poses;
+                poses.reserve(animation_poses_.size());
+                for (const auto& pose : animation_poses_) poses.emplace(pose.semantic_id, &pose);
+
                 for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
                     const foundation::StableId object_id =
                         foundation::stable_id("entity.infantry") ^ state.entity.packed();
                     const foundation::StableId pose_id =
                         foundation::stable_id("battlefield.infantry") ^ state.entity.packed();
-                    const auto pose_iterator = std::find_if(
-                        animation_poses_.begin(), animation_poses_.end(),
-                        [pose_id](const infantry::AnimationPose& pose) {
-                            return pose.semantic_id == pose_id;
-                        });
+                    const auto pose_found = poses.find(pose_id);
+                    const infantry::AnimationPose* pose =
+                        pose_found != poses.end() ? pose_found->second : nullptr;
                     render::SkinnedBonePalette palette{};
                     palette.instance_id = object_id;
                     palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
-                    palette.pose_revision = pose_iterator != animation_poses_.end()
-                        ? pose_iterator->revision : 0U;
-                    if (pose_iterator != animation_poses_.end()) {
+                    palette.pose_revision = pose != nullptr ? pose->revision : 0U;
+                    if (pose != nullptr) {
                         const auto pose_span =
-                            std::span<const infantry::RigTransform>(pose_iterator->bones);
+                            std::span<const infantry::RigTransform>(pose->bones);
                         palette.matrices = infantry_presentation::makePalette(
                             infantry_model_artifact_->skeleton, pose_span);
                         palette.local_poses = infantry_presentation::makeLocalPoses(
                             infantry_model_artifact_->skeleton, pose_span);
-                        palette.morph_weights[0] = pose_iterator->face.eyelids_close;
-                        palette.morph_weights[1] = pose_iterator->face.eyelids_arc;
-                        palette.morph_weights[2] = pose_iterator->face.neck_flex;
-                        palette.morph_weights[3] = pose_iterator->face.hands_relax;
+                        palette.morph_weights[0] = pose->face.eyelids_close;
+                        palette.morph_weights[1] = pose->face.eyelids_arc;
+                        palette.morph_weights[2] = pose->face.neck_flex;
+                        palette.morph_weights[3] = pose->face.hands_relax;
                     } else {
                         palette.matrices = bind_palette;
                         palette.local_poses = bind_local_poses;

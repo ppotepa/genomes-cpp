@@ -122,6 +122,11 @@ struct SkinnedMeshPrototype final {
     std::vector<MaterialDescriptor> materials;
     std::vector<MeshMaterialGroup> material_groups;
     std::shared_ptr<const RenderSkeletonPrototype> skeleton;
+    // Shared local-space sphere large enough for bind geometry, all published
+    // morph deltas and the procedural animation excursion budget. Backends may
+    // use it for cheap per-instance frustum culling without CPU skinning.
+    foundation::Vec3 conservative_bounds_center{};
+    float conservative_bounds_radius{0.0F};
 };
 struct SkinnedBonePalette final {
     foundation::StableId instance_id{0};
