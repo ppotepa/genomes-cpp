@@ -214,6 +214,10 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
         }
     }
 
+    // The 3D camera may use a sub-viewport (UnitLab leaves room for panels).
+    // UI coordinates are always framebuffer pixels and must cover the complete
+    // window independently of the last 3D viewport.
+    glViewport(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height));
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glDisable(GL_CULL_FACE);
