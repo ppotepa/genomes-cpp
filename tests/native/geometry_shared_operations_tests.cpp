@@ -15,8 +15,8 @@ int main() {
     assert(transformed.valid());
     assert(transformed.vertices.size()==box.vertices.size());
 
-    const foundation::Vec3 positions[]={{0,0,0},{1,0,0},{0,1,0},{0,0,0}};
-    const foundation::Vec3 normals[]={{0,0,1},{0,0,1},{0,0,1},{0,0,0}};
+    const genomes::foundation::Vec3 positions[]={{0,0,0},{1,0,0},{0,1,0},{0,0,0}};
+    const genomes::foundation::Vec3 normals[]={{0,0,1},{0,0,1},{0,0,1},{0,0,0}};
     const std::uint32_t indices[]={0,1,2,0,3,1};
     const TriangleGroup groups[]={{0U,6U,0U}};
     const auto repaired=repairTriangleMesh(positions,normals,indices,groups);

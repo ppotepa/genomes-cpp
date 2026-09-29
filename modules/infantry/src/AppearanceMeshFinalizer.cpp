@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <utility>
 
 namespace genomes::infantry {
 
