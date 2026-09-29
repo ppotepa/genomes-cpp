@@ -1,27 +1,116 @@
 #include "DiligentBackend.hpp"
-#include "DiligentBackendImpl.hpp"
-#include "DiligentScenePasses.hpp"
 
+#include <genomes/render/gpu_scene/GpuScene.hpp>
+#include <ShaderSources.hpp>
+
+#include <DiligentCore/Common/interface/RefCntAutoPtr.hpp>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/Buffer.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/DeviceContext.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/PipelineState.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/Shader.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/Texture.h>
 #if defined(_WIN32)
 #include <DiligentCore/Graphics/GraphicsEngineD3D12/interface/EngineFactoryD3D12.h>
 #else
 #include <DiligentCore/Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
 #endif
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <exception>
+#include <cmath>
+#include <iterator>
+#include <limits>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 namespace genomes::render {
+
 namespace {
-using BackendResult=foundation::Result<std::unique_ptr<DiligentBackend>,foundation::Error>;
-BackendResult createError(const char* message,foundation::ErrorCode code=foundation::ErrorCode::Internal) {
-    return BackendResult::failure({code,message});
-}
+
+constexpr std::size_t kMaxUiVertices = 65'536;
+constexpr std::size_t kMaxDebugVertices = 65'536;
+
+struct CameraConstants final {
+    float view_projection[16]{};
+};
+
+struct InstancePassConstants final {
+    std::uint32_t required_flags{0};
+    std::uint32_t match_material{0};
+    std::uint32_t options_padding[2]{};
+    std::uint32_t required_mesh_low{0};
+    std::uint32_t required_mesh_high{0};
+    std::uint32_t mesh_padding[2]{};
+    std::uint32_t required_material_low{0};
+    std::uint32_t required_material_high{0};
+    std::uint32_t material_padding[2]{};
+};
+
+static_assert(sizeof(InstancePassConstants) == 48);
+
+constexpr std::size_t kInfantryBonePaletteSize = 69U;
+
+struct SkinnedPassConstants final {
+    float view_projection[16]{};
+    float object_position_scale[4]{};
+    float object_scale_rotation[4]{};
+    float character_key_direction_intensity[4]{};
+    float character_key_color[4]{};
+    float character_fill_direction_intensity[4]{};
+    float character_fill_color[4]{};
+    float character_hemisphere_sky[4]{};
+    float character_hemisphere_ground[4]{};
+    float morph_weights[4]{};
+    float bone_palette[kInfantryBonePaletteSize][16]{};
+};
+
+static_assert(sizeof(SkinnedPassConstants) % 16U == 0U);
+
+struct SkinnedGpuVertex final {
+    float position[3]{};
+    float normal[3]{0.0F, 1.0F, 0.0F};
+    float uv[2]{};
+    float color[4]{1.0F, 1.0F, 1.0F, 1.0F};
+    float bone_indices[4]{};
+    float bone_weights[4]{};
+    float morph_position[4][3]{};
+    float morph_normal[4][3]{};
+    std::uint32_t material_region{0};
+};
+
+static_assert(sizeof(SkinnedGpuVertex) == 180U);
+static_assert(offsetof(SkinnedGpuVertex, material_region) == 176U);
+
+struct Mat4 final {
+    float values[16]{};
+};
+
+[[nodiscard]] Mat4 multiply(const Mat4& left, const Mat4& right) noexcept {
+    Mat4 result{};
+    for (std::size_t column = 0; column < 4; ++column) {
+        for (std::size_t row = 0; row < 4; ++row) {
+            float value = 0.0F;
+            for (std::size_t k = 0; k < 4; ++k) {
+                value += left.values[k * 4 + row] * right.values[column * 4 + k];
+            }
+            result.values[column * 4 + row] = value;
+        }
+    }
+    return result;
 }
 
-BackendResult DiligentBackend::create(RenderConfig config) { return create(config,{}); }
+[[nodiscard]] float dot(const foundation::Vec3& left,
+                        const foundation::Vec3& right) noexcept {
+    return left.x * right.x + left.y * right.y + left.z * right.z;
+}
 
-<<<<<<< HEAD
-BackendResult DiligentBackend::create(RenderConfig config,foundation::NativeWindowHandle native_window) {
-    if (!config.valid()) return createError("invalid render configuration",foundation::ErrorCode::InvalidArgument);
-=======
 [[nodiscard]] foundation::Vec3 subtract(const foundation::Vec3& left,
                                         const foundation::Vec3& right) noexcept {
     return {left.x - right.x, left.y - right.y, left.z - right.z};
@@ -846,68 +935,112 @@ DiligentBackend::create(RenderConfig config,
             {foundation::ErrorCode::InvalidArgument, "invalid render configuration"});
     }
     const bool backend_supported =
->>>>>>> 13868ba (update mesh rendering)
 #if defined(_WIN32)
-    if (config.backend!=RenderBackendKind::D3D12)
+        config.backend == RenderBackendKind::D3D12;
 #else
-    if (config.backend!=RenderBackendKind::Vulkan)
+        config.backend == RenderBackendKind::Vulkan;
 #endif
-        return createError("render backend not supported on this platform",foundation::ErrorCode::Unsupported);
-    if (!config.headless&&!native_window.valid()) return createError("windowed renderer requires a native window");
-    try {
-        auto impl=std::make_unique<Impl>(config);
+    if (!backend_supported) {
+        return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+            {foundation::ErrorCode::Unsupported,
+             "the selected Diligent backend is not supported on this platform"});
+    }
+    if (!config.headless && !native_window.valid()) {
+        return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+            {foundation::ErrorCode::Unsupported,
+             "windowed Diligent backend requires a valid native window"});
+    }
+
+    auto impl = std::make_unique<Impl>(config);
 #if defined(_WIN32)
-        auto* factory=Diligent::GetEngineFactoryD3D12();
-        Diligent::EngineD3D12CreateInfo device_info{};
+    auto* factory = Diligent::GetEngineFactoryD3D12();
 #else
-        auto* factory=Diligent::GetEngineFactoryVk();
-        Diligent::EngineVkCreateInfo device_info{};
+    auto* factory = Diligent::GetEngineFactoryVk();
 #endif
-        if (!factory) return createError("Diligent factory unavailable");
-        factory->SetBreakOnError(false);device_info.EnableValidation=config.validation;
-        Diligent::IRenderDevice* device=nullptr;Diligent::IDeviceContext* context=nullptr;
+    if (factory == nullptr) {
+        return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+            {foundation::ErrorCode::Internal, "Diligent graphics factory is unavailable"});
+    }
+    // A windowed application must surface backend failures through the
+    // Result contract. Diligent's debug default is to break into a debugger
+    // (and show a modal dialog) on an assertion, which otherwise turns a
+    // recoverable swap-chain/device error into an unexplained process exit.
+    factory->SetBreakOnError(false);
+
 #if defined(_WIN32)
-        factory->CreateDeviceAndContextsD3D12(device_info,&device,&context);
+    Diligent::EngineD3D12CreateInfo create_info{};
 #else
-        factory->CreateDeviceAndContextsVk(device_info,&device,&context);
+    Diligent::EngineVkCreateInfo create_info{};
 #endif
-        impl->device.Attach(device);impl->context.Attach(context);
-        if (!device||!context) return createError("Diligent device/context creation failed");
-        if (!config.headless) {
-            Diligent::NativeWindow window{};
-#if PLATFORM_WIN32
-            if (native_window.system!=foundation::NativeWindowSystem::Win32)
-                return createError("Win32 native window required",foundation::ErrorCode::Unsupported);
-            window.hWnd=native_window.window;
-#elif PLATFORM_LINUX
-            if (native_window.system!=foundation::NativeWindowSystem::X11)
-                return createError("X11 native window required",foundation::ErrorCode::Unsupported);
-            window.pDisplay=native_window.display;
-            window.WindowId=static_cast<Diligent::Uint32>(native_window.window_id);
-#else
-            return createError("unsupported native window platform",foundation::ErrorCode::Unsupported);
-#endif
-            Diligent::SwapChainDesc desc{};
-            desc.Width=config.width;desc.Height=config.height;desc.BufferCount=config.frames_in_flight;
-            desc.ColorBufferFormat=Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB;
-            Diligent::ISwapChain* chain=nullptr;
+    create_info.EnableValidation = config.validation;
+
+    Diligent::IRenderDevice* device = nullptr;
+    Diligent::IDeviceContext* context = nullptr;
 #if defined(_WIN32)
-            Diligent::FullScreenModeDesc fullscreen{};
-            factory->CreateSwapChainD3D12(device,context,desc,fullscreen,window,&chain);
+    factory->CreateDeviceAndContextsD3D12(create_info, &device, &context);
 #else
-            factory->CreateSwapChainVk(device,context,desc,window,&chain);
+    factory->CreateDeviceAndContextsVk(create_info, &device, &context);
 #endif
-            impl->swap_chain.Attach(chain);
-            if (!chain) return createError("Diligent swap-chain creation failed");
-            if (!impl->initializePipelines()) return createError("Diligent shader/pipeline/binding creation failed");
+    if (device == nullptr || context == nullptr) {
+        if (device != nullptr) {
+            device->Release();
         }
-<<<<<<< HEAD
-        impl->capabilities.initialized=true;
-        auto backend=std::unique_ptr<DiligentBackend>(new DiligentBackend(std::move(impl)));
-        if (const auto result=backend->recreate_depth_buffer();!result) return BackendResult::failure(result.error());
-        return BackendResult::success(std::move(backend));
-    } catch (const std::exception&) { return createError("exception while creating Diligent renderer"); }
-=======
+        if (context != nullptr) {
+            context->Release();
+        }
+        return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+            {foundation::ErrorCode::Internal,
+             "Diligent could not create a device and immediate context"});
+    }
+
+    if (!config.headless) {
+        Diligent::NativeWindow window{};
+#if PLATFORM_WIN32
+        if (native_window.system != foundation::NativeWindowSystem::Win32) {
+            device->Release();
+            context->Release();
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Unsupported,
+                 "this Windows Diligent build requires a Win32 native window"});
+        }
+        window.hWnd = native_window.window;
+#elif PLATFORM_LINUX
+        if (native_window.system != foundation::NativeWindowSystem::X11) {
+            device->Release();
+            context->Release();
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Unsupported,
+                 "this Linux Diligent build currently requires an X11 native window"});
+        }
+        window.pDisplay = native_window.display;
+        window.WindowId = static_cast<Diligent::Uint32>(native_window.window_id);
+#else
+        device->Release();
+        context->Release();
+        return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+            {foundation::ErrorCode::Unsupported,
+             "windowed Vulkan bootstrap is not implemented for this platform"});
+#endif
+
+        Diligent::SwapChainDesc swap_chain_desc{};
+        swap_chain_desc.Width = config.width;
+        swap_chain_desc.Height = config.height;
+        swap_chain_desc.BufferCount = config.frames_in_flight;
+        Diligent::ISwapChain* swap_chain = nullptr;
+#if defined(_WIN32)
+        Diligent::FullScreenModeDesc fullscreen_desc{};
+        factory->CreateSwapChainD3D12(device, context, swap_chain_desc, fullscreen_desc, window,
+                                      &swap_chain);
+#else
+        factory->CreateSwapChainVk(device, context, swap_chain_desc, window, &swap_chain);
+#endif
+        if (swap_chain == nullptr) {
+            device->Release();
+            context->Release();
+            return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create a swap chain"});
+        }
         impl->swap_chain.Attach(swap_chain);
     }
 
@@ -1390,70 +1523,422 @@ DiligentBackend::create(RenderConfig config,
     }
     return foundation::Result<std::unique_ptr<DiligentBackend>, foundation::Error>::success(
         std::move(backend));
->>>>>>> 13868ba (update mesh rendering)
 }
 
-DiligentBackend::DiligentBackend(std::unique_ptr<Impl> impl) noexcept:impl_(std::move(impl)) {}
-DiligentBackend::~DiligentBackend() { shutdown(); }
-RenderCapabilities DiligentBackend::capabilities() const noexcept { return impl_?impl_->capabilities:RenderCapabilities{}; }
-RenderUploadTelemetry DiligentBackend::uploadTelemetry() const noexcept { return impl_?impl_->telemetry:RenderUploadTelemetry{}; }
+DiligentBackend::DiligentBackend(std::unique_ptr<Impl> impl) noexcept
+    : impl_{std::move(impl)} {}
+
+DiligentBackend::~DiligentBackend() {
+    shutdown();
+}
 
 RenderResult DiligentBackend::recreate_depth_buffer() noexcept {
-    if (!impl_||!impl_->swap_chain) return RenderResult::success();
-    try {
-        const auto swap=impl_->swap_chain->GetDesc();
-        if (swap.Width==0||swap.Height==0) return diligent_detail::error("invalid depth target dimensions");
-        Diligent::TextureDesc desc{};desc.Name="Genomes depth";desc.Type=Diligent::RESOURCE_DIM_TEX_2D;
-        desc.Width=swap.Width;desc.Height=swap.Height;desc.MipLevels=1;desc.SampleCount=1;
-        desc.Format=Diligent::TEX_FORMAT_D32_FLOAT;desc.BindFlags=Diligent::BIND_DEPTH_STENCIL;
-        Diligent::ITexture* raw=nullptr;impl_->device->CreateTexture(desc,nullptr,&raw);
-        diligent_detail::Ptr<Diligent::ITexture> candidate;candidate.Attach(raw);
-        if (!candidate) return diligent_detail::error("depth allocation failed",foundation::ErrorCode::Internal);
-        diligent_detail::Ptr<Diligent::ITextureView> view=candidate->GetDefaultView(Diligent::TEXTURE_VIEW_DEPTH_STENCIL);
-        if (!view) return diligent_detail::error("depth view creation failed",foundation::ErrorCode::Internal);
-        impl_->depth_view=std::move(view);impl_->depth=std::move(candidate);
+    if (impl_ == nullptr || !impl_->swap_chain || !impl_->device) {
         return RenderResult::success();
-    } catch (const std::exception&) { return diligent_detail::error("depth creation exception",foundation::ErrorCode::Internal); }
+    }
+
+    const Diligent::SwapChainDesc swap_chain_desc = impl_->swap_chain->GetDesc();
+    if (swap_chain_desc.Width == 0 || swap_chain_desc.Height == 0) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidArgument, "Diligent depth buffer has invalid size"});
+    }
+
+    impl_->depth_view.Release();
+    impl_->depth_texture.Release();
+    Diligent::TextureDesc depth_desc{};
+    depth_desc.Name = "Genomes depth buffer";
+    depth_desc.Type = Diligent::RESOURCE_DIM_TEX_2D;
+    depth_desc.Width = swap_chain_desc.Width;
+    depth_desc.Height = swap_chain_desc.Height;
+    depth_desc.MipLevels = 1;
+    depth_desc.SampleCount = 1;
+    depth_desc.Format = Diligent::TEX_FORMAT_D32_FLOAT;
+    depth_desc.BindFlags = Diligent::BIND_DEPTH_STENCIL;
+
+    Diligent::ITexture* depth_texture = nullptr;
+    impl_->device->CreateTexture(depth_desc, nullptr, &depth_texture);
+    if (depth_texture == nullptr) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::Internal, "Diligent could not create the depth buffer"});
+    }
+    impl_->depth_texture.Attach(depth_texture);
+    impl_->depth_view = impl_->depth_texture->GetDefaultView(
+        Diligent::TEXTURE_VIEW_DEPTH_STENCIL);
+    if (!impl_->depth_view) {
+        impl_->depth_texture.Release();
+        return RenderResult::failure(
+            {foundation::ErrorCode::Internal, "Diligent depth buffer has no depth view"});
+    }
+    return RenderResult::success();
+}
+
+RenderCapabilities DiligentBackend::capabilities() const noexcept {
+    return impl_ != nullptr ? impl_->capabilities : RenderCapabilities{};
 }
 
 RenderResult DiligentBackend::begin_frame() noexcept {
-    if (!impl_||!impl_->capabilities.initialized) return diligent_detail::error("renderer is shut down");
-    if (impl_->frame_open) return diligent_detail::error("frame already open");
-    try {
-        auto& t=impl_->telemetry;++t.frame;t.mesh_uploads=0;t.mesh_upload_bytes=0;t.palette_updates=0;t.draw_calls=0;
-        if (impl_->swap_chain) {
-            auto* target=impl_->swap_chain->GetCurrentBackBufferRTV();
-            if (!target) return diligent_detail::error("no current back buffer");
-            Diligent::ITextureView* targets[]{target};
-            impl_->context->SetRenderTargets(1,targets,impl_->depth_view,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-            constexpr float clear[]{0.035F,0.055F,0.085F,1.0F};
-            impl_->context->ClearRenderTarget(target,clear,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-            impl_->context->ClearDepthStencil(impl_->depth_view,Diligent::CLEAR_DEPTH_FLAG,1.0F,0,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-            impl_->viewport(RenderCamera{});
+    if (impl_ == nullptr || !impl_->capabilities.initialized) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
+    }
+    if (impl_->frame_open) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent frame is already open"});
+    }
+
+    if (impl_->swap_chain) {
+        auto* render_target = impl_->swap_chain->GetCurrentBackBufferRTV();
+        if (render_target == nullptr) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent swap chain has no current back buffer"});
         }
-        impl_->frame_open=true;return RenderResult::success();
-    } catch (const std::exception&) { return diligent_detail::error("begin frame exception",foundation::ErrorCode::Internal); }
+        Diligent::ITextureView* render_targets[] = {render_target};
+        impl_->context->SetRenderTargets(
+            1, render_targets, impl_->depth_view,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        constexpr float clear_color[] = {0.035F, 0.055F, 0.085F, 1.0F};
+        impl_->context->ClearRenderTarget(
+            render_target, clear_color, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl_->context->ClearDepthStencil(
+            impl_->depth_view, Diligent::CLEAR_DEPTH_FLAG, 1.0F, 0,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    }
+    impl_->frame_open = true;
+    return RenderResult::success();
 }
 
 RenderResult DiligentBackend::draw_meshes(const PresentationSnapshot& snapshot) noexcept {
-    if (!impl_||!impl_->frame_open) return diligent_detail::error("no open renderer frame");
-    if (!impl_->swap_chain) return RenderResult::success();
-    try { return impl_->drawMeshes(snapshot); }
-    catch (const std::exception&) { return diligent_detail::error("mesh submission exception",foundation::ErrorCode::Internal); }
+    if (impl_ == nullptr || !impl_->capabilities.initialized) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
+    }
+    if (!impl_->frame_open) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent frame is not open"});
+    }
+    // D3D12 drivers can reject the dynamic terrain/index submission while the
+    // scene is still being populated. Keep the frame alive and let the
+    // instance/UI passes present the deterministic battlefield immediately.
+    // The terrain buffers remain available for the dedicated terrain pass.
+    void* mapped_data = nullptr;
+    const Diligent::Uint64 offsets[] = {0};
+
+    if (!impl_->swap_chain || !impl_->terrain_pipeline || !impl_->terrain_camera_buffer ||
+        !snapshot.terrain_mesh || snapshot.terrain_mesh->vertices.empty() ||
+        snapshot.terrain_mesh->indices.empty()) {
+        // Terrain is optional; the other presentation passes remain active.
+    } else {
+
+    const RenderMesh& mesh = *snapshot.terrain_mesh;
+    if (mesh.vertices.size() > std::numeric_limits<std::uint32_t>::max() ||
+        mesh.indices.size() > std::numeric_limits<std::uint32_t>::max() ||
+        mesh.indices.size() % 3 != 0) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidArgument, "terrain mesh exceeds GPU draw limits"});
+    }
+
+    const std::size_t vertex_bytes = mesh.vertices.size() * sizeof(RenderMeshVertex);
+    const std::size_t index_bytes = mesh.indices.size() * sizeof(std::uint32_t);
+    bool buffers_recreated = false;
+    if (vertex_bytes > impl_->terrain_vertex_capacity) {
+        const std::size_t capacity = std::max<std::size_t>(vertex_bytes, 64U * 1024U);
+        Diligent::BufferDesc desc{"Genomes terrain vertex buffer",
+                                  static_cast<Diligent::Uint64>(capacity),
+                                  Diligent::BIND_VERTEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                  Diligent::CPU_ACCESS_WRITE};
+        Diligent::IBuffer* buffer = nullptr;
+        impl_->device->CreateBuffer(desc, nullptr, &buffer);
+        if (buffer == nullptr) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create the terrain vertex buffer"});
+        }
+        impl_->terrain_vertex_buffer.Attach(buffer);
+        impl_->terrain_vertex_capacity = capacity;
+        buffers_recreated = true;
+    }
+    if (index_bytes > impl_->terrain_index_capacity) {
+        const std::size_t capacity = std::max<std::size_t>(index_bytes, 64U * 1024U);
+        Diligent::BufferDesc desc{"Genomes terrain index buffer",
+                                  static_cast<Diligent::Uint64>(capacity),
+                                  Diligent::BIND_INDEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                  Diligent::CPU_ACCESS_WRITE};
+        Diligent::IBuffer* buffer = nullptr;
+        impl_->device->CreateBuffer(desc, nullptr, &buffer);
+        if (buffer == nullptr) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not create the terrain index buffer"});
+        }
+        impl_->terrain_index_buffer.Attach(buffer);
+        impl_->terrain_index_capacity = capacity;
+        buffers_recreated = true;
+    }
+
+    if (buffers_recreated || impl_->uploaded_terrain_revision != mesh.revision) {
+        impl_->context->MapBuffer(impl_->terrain_vertex_buffer, Diligent::MAP_WRITE,
+                                  Diligent::MAP_FLAG_DISCARD, mapped_data);
+        if (mapped_data == nullptr) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not map the terrain vertex buffer"});
+        }
+        std::memcpy(mapped_data, mesh.vertices.data(), vertex_bytes);
+        impl_->context->UnmapBuffer(impl_->terrain_vertex_buffer, Diligent::MAP_WRITE);
+
+        mapped_data = nullptr;
+        impl_->context->MapBuffer(impl_->terrain_index_buffer, Diligent::MAP_WRITE,
+                                  Diligent::MAP_FLAG_DISCARD, mapped_data);
+        if (mapped_data == nullptr) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::Internal,
+                 "Diligent could not map the terrain index buffer"});
+        }
+        std::memcpy(mapped_data, mesh.indices.data(), index_bytes);
+        impl_->context->UnmapBuffer(impl_->terrain_index_buffer, Diligent::MAP_WRITE);
+        impl_->uploaded_terrain_owner = snapshot.terrain_mesh;
+        impl_->uploaded_terrain_revision = mesh.revision;
+    }
+
+    float min_x = std::numeric_limits<float>::max();
+    float min_y = std::numeric_limits<float>::max();
+    float min_z = std::numeric_limits<float>::max();
+    float max_x = std::numeric_limits<float>::lowest();
+    float max_y = std::numeric_limits<float>::lowest();
+    float max_z = std::numeric_limits<float>::lowest();
+    for (const RenderMeshVertex& vertex : mesh.vertices) {
+        min_x = std::min(min_x, vertex.position.x);
+        min_y = std::min(min_y, vertex.position.y);
+        min_z = std::min(min_z, vertex.position.z);
+        max_x = std::max(max_x, vertex.position.x);
+        max_y = std::max(max_y, vertex.position.y);
+        max_z = std::max(max_z, vertex.position.z);
+    }
+    const foundation::Vec3 auto_center{(min_x + max_x) * 0.5F, (min_y + max_y) * 0.5F,
+                                       (min_z + max_z) * 0.5F};
+    const float extent = std::max({max_x - min_x, max_y - min_y, max_z - min_z, 1.0F});
+    const foundation::Vec3 auto_eye{auto_center.x + extent * 0.78F,
+                                    auto_center.y + extent * 0.92F,
+                                    auto_center.z + extent * 0.82F};
+    const bool use_scene_camera = snapshot.camera.enabled && snapshot.camera.valid();
+    const foundation::Vec3 eye = use_scene_camera ? snapshot.camera.position : auto_eye;
+    const foundation::Vec3 center = use_scene_camera ? snapshot.camera.target : auto_center;
+    const foundation::Vec3 up = use_scene_camera ? snapshot.camera.up
+                                                  : foundation::Vec3{0.0F, 1.0F, 0.0F};
+    const float vertical_fov = use_scene_camera ? snapshot.camera.vertical_fov : 0.9F;
+    const float near_plane = use_scene_camera
+                                 ? snapshot.camera.near_plane
+                                 : std::max(0.1F, extent * 0.002F);
+    const float far_plane = use_scene_camera ? snapshot.camera.far_plane : extent * 12.0F;
+    const Diligent::SwapChainDesc swap_chain_desc = impl_->swap_chain->GetDesc();
+    const float aspect = static_cast<float>(swap_chain_desc.Width) /
+                         static_cast<float>(std::max(1U, swap_chain_desc.Height));
+    const Mat4 view_projection = multiply(
+        perspective(vertical_fov, aspect, near_plane, far_plane), look_at(eye, center, up));
+
+    CameraConstants camera{};
+    std::memcpy(camera.view_projection, view_projection.values, sizeof(camera.view_projection));
+    impl_->context->UpdateBuffer(
+        impl_->terrain_camera_buffer, 0, sizeof(camera), &camera,
+        Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    impl_->context->SetPipelineState(impl_->terrain_pipeline);
+    impl_->context->CommitShaderResources(
+        impl_->terrain_srb, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    Diligent::IBuffer* vertex_buffers[] = {impl_->terrain_vertex_buffer};
+    impl_->context->SetVertexBuffers(
+        0, 1, vertex_buffers, offsets, Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+        Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+    impl_->context->SetIndexBuffer(impl_->terrain_index_buffer, 0,
+                                   Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    impl_->context->DrawIndexed(Diligent::DrawIndexedAttribs{
+        static_cast<Diligent::Uint32>(mesh.indices.size()), Diligent::VT_UINT32,
+        Diligent::DRAW_FLAG_NONE});
+    }
+
+    if (snapshot.world_mesh && !snapshot.world_mesh->vertices.empty() &&
+        !snapshot.world_mesh->indices.empty()) {
+        const RenderMesh& world_mesh = *snapshot.world_mesh;
+        if (world_mesh.vertices.size() > std::numeric_limits<std::uint32_t>::max() ||
+            world_mesh.indices.size() > std::numeric_limits<std::uint32_t>::max() ||
+            world_mesh.indices.size() % 3 != 0) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::InvalidArgument, "world mesh exceeds GPU draw limits"});
+        }
+        const std::size_t world_vertex_bytes =
+            world_mesh.vertices.size() * sizeof(RenderMeshVertex);
+        const std::size_t world_index_bytes = world_mesh.indices.size() * sizeof(std::uint32_t);
+        bool world_buffers_recreated = false;
+        if (world_vertex_bytes > impl_->world_vertex_capacity) {
+            const std::size_t capacity = std::max<std::size_t>(world_vertex_bytes, 64U * 1024U);
+            Diligent::BufferDesc desc{"Genomes world vertex buffer",
+                                      static_cast<Diligent::Uint64>(capacity),
+                                      Diligent::BIND_VERTEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                      Diligent::CPU_ACCESS_WRITE};
+            Diligent::IBuffer* buffer = nullptr;
+            impl_->device->CreateBuffer(desc, nullptr, &buffer);
+            if (buffer == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not create the world vertex buffer"});
+            }
+            impl_->world_vertex_buffer.Attach(buffer);
+            impl_->world_vertex_capacity = capacity;
+            world_buffers_recreated = true;
+        }
+        if (world_index_bytes > impl_->world_index_capacity) {
+            const std::size_t capacity = std::max<std::size_t>(world_index_bytes, 64U * 1024U);
+            Diligent::BufferDesc desc{"Genomes world index buffer",
+                                      static_cast<Diligent::Uint64>(capacity),
+                                      Diligent::BIND_INDEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                      Diligent::CPU_ACCESS_WRITE};
+            Diligent::IBuffer* buffer = nullptr;
+            impl_->device->CreateBuffer(desc, nullptr, &buffer);
+            if (buffer == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not create the world index buffer"});
+            }
+            impl_->world_index_buffer.Attach(buffer);
+            impl_->world_index_capacity = capacity;
+            world_buffers_recreated = true;
+        }
+    if (world_buffers_recreated || impl_->uploaded_world_revision != world_mesh.revision) {
+            mapped_data = nullptr;
+            impl_->context->MapBuffer(impl_->world_vertex_buffer, Diligent::MAP_WRITE,
+                                      Diligent::MAP_FLAG_DISCARD, mapped_data);
+            if (mapped_data == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not map the world vertex buffer"});
+            }
+            std::memcpy(mapped_data, world_mesh.vertices.data(), world_vertex_bytes);
+            impl_->context->UnmapBuffer(impl_->world_vertex_buffer, Diligent::MAP_WRITE);
+            mapped_data = nullptr;
+            impl_->context->MapBuffer(impl_->world_index_buffer, Diligent::MAP_WRITE,
+                                      Diligent::MAP_FLAG_DISCARD, mapped_data);
+            if (mapped_data == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not map the world index buffer"});
+            }
+            std::memcpy(mapped_data, world_mesh.indices.data(), world_index_bytes);
+            impl_->context->UnmapBuffer(impl_->world_index_buffer, Diligent::MAP_WRITE);
+            impl_->uploaded_world_owner = snapshot.world_mesh;
+        impl_->uploaded_world_revision = world_mesh.revision;
+        }
+        impl_->context->SetPipelineState(impl_->terrain_pipeline);
+        Diligent::IBuffer* world_vertex_buffers[] = {impl_->world_vertex_buffer};
+        impl_->context->SetVertexBuffers(
+            0, 1, world_vertex_buffers, offsets,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+            Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+        impl_->context->SetIndexBuffer(impl_->world_index_buffer, 0,
+                                       Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl_->context->DrawIndexed(Diligent::DrawIndexedAttribs{
+            static_cast<Diligent::Uint32>(world_mesh.indices.size()), Diligent::VT_UINT32,
+            Diligent::DRAW_FLAG_NONE});
+    }
+
+    const bool has_dynamic_instances = std::any_of(
+        snapshot.instances.begin(), snapshot.instances.end(), [](const RenderInstance& instance) {
+            return (instance.flags & RenderInstanceFlagDynamic) != 0;
+        });
+    if (snapshot.infantry_mesh && !has_dynamic_instances &&
+        !snapshot.infantry_mesh->vertices.empty() &&
+        !snapshot.infantry_mesh->indices.empty()) {
+        const RenderMesh& infantry_mesh = *snapshot.infantry_mesh;
+        if (infantry_mesh.vertices.size() > std::numeric_limits<std::uint32_t>::max() ||
+            infantry_mesh.indices.size() > std::numeric_limits<std::uint32_t>::max() ||
+            infantry_mesh.indices.size() % 3 != 0) {
+            return RenderResult::failure(
+                {foundation::ErrorCode::InvalidArgument,
+                 "infantry mesh exceeds GPU draw limits"});
+        }
+        const std::size_t infantry_vertex_bytes =
+            infantry_mesh.vertices.size() * sizeof(RenderMeshVertex);
+        const std::size_t infantry_index_bytes =
+            infantry_mesh.indices.size() * sizeof(std::uint32_t);
+        bool infantry_buffers_recreated = false;
+        if (infantry_vertex_bytes > impl_->infantry_vertex_capacity) {
+            const std::size_t capacity =
+                std::max<std::size_t>(infantry_vertex_bytes, 16U * 1024U);
+            Diligent::BufferDesc desc{"Genomes infantry vertex buffer",
+                                      static_cast<Diligent::Uint64>(capacity),
+                                      Diligent::BIND_VERTEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                      Diligent::CPU_ACCESS_WRITE};
+            Diligent::IBuffer* buffer = nullptr;
+            impl_->device->CreateBuffer(desc, nullptr, &buffer);
+            if (buffer == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not create the infantry vertex buffer"});
+            }
+            impl_->infantry_vertex_buffer.Attach(buffer);
+            impl_->infantry_vertex_capacity = capacity;
+            infantry_buffers_recreated = true;
+        }
+        if (infantry_index_bytes > impl_->infantry_index_capacity) {
+            const std::size_t capacity =
+                std::max<std::size_t>(infantry_index_bytes, 16U * 1024U);
+            Diligent::BufferDesc desc{"Genomes infantry index buffer",
+                                      static_cast<Diligent::Uint64>(capacity),
+                                      Diligent::BIND_INDEX_BUFFER, Diligent::USAGE_DYNAMIC,
+                                      Diligent::CPU_ACCESS_WRITE};
+            Diligent::IBuffer* buffer = nullptr;
+            impl_->device->CreateBuffer(desc, nullptr, &buffer);
+            if (buffer == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not create the infantry index buffer"});
+            }
+            impl_->infantry_index_buffer.Attach(buffer);
+            impl_->infantry_index_capacity = capacity;
+            infantry_buffers_recreated = true;
+        }
+        if (infantry_buffers_recreated ||
+            impl_->uploaded_infantry_revision != infantry_mesh.revision) {
+            mapped_data = nullptr;
+            impl_->context->MapBuffer(impl_->infantry_vertex_buffer, Diligent::MAP_WRITE,
+                                      Diligent::MAP_FLAG_DISCARD, mapped_data);
+            if (mapped_data == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not map the infantry vertex buffer"});
+            }
+            std::memcpy(mapped_data, infantry_mesh.vertices.data(), infantry_vertex_bytes);
+            impl_->context->UnmapBuffer(impl_->infantry_vertex_buffer, Diligent::MAP_WRITE);
+
+            mapped_data = nullptr;
+            impl_->context->MapBuffer(impl_->infantry_index_buffer, Diligent::MAP_WRITE,
+                                      Diligent::MAP_FLAG_DISCARD, mapped_data);
+            if (mapped_data == nullptr) {
+                return RenderResult::failure(
+                    {foundation::ErrorCode::Internal,
+                     "Diligent could not map the infantry index buffer"});
+            }
+            std::memcpy(mapped_data, infantry_mesh.indices.data(), infantry_index_bytes);
+            impl_->context->UnmapBuffer(impl_->infantry_index_buffer, Diligent::MAP_WRITE);
+            impl_->uploaded_infantry_owner = snapshot.infantry_mesh;
+            impl_->uploaded_infantry_revision = infantry_mesh.revision;
+        }
+        impl_->context->SetPipelineState(impl_->terrain_pipeline);
+        Diligent::IBuffer* infantry_vertex_buffers[] = {impl_->infantry_vertex_buffer};
+        impl_->context->SetVertexBuffers(
+            0, 1, infantry_vertex_buffers, offsets,
+            Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,
+            Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
+        impl_->context->SetIndexBuffer(impl_->infantry_index_buffer, 0,
+                                       Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        impl_->context->DrawIndexed(Diligent::DrawIndexedAttribs{
+            static_cast<Diligent::Uint32>(infantry_mesh.indices.size()), Diligent::VT_UINT32,
+            Diligent::DRAW_FLAG_NONE});
+    }
+    return RenderResult::success();
 }
+
 RenderResult DiligentBackend::draw_instances(const PresentationSnapshot& snapshot) noexcept {
-<<<<<<< HEAD
-    if (!impl_||!impl_->frame_open) return diligent_detail::error("no open renderer frame");
-    if (!impl_->swap_chain) return RenderResult::success();
-    try { return impl_->drawInstances(snapshot); }
-    catch (const std::exception&) { return diligent_detail::error("instance submission exception",foundation::ErrorCode::Internal); }
-}
-RenderResult DiligentBackend::draw_ui(const ui::UiDocument& document) noexcept {
-    if (!impl_||!impl_->frame_open) return diligent_detail::error("no open renderer frame");
-    if (!impl_->swap_chain) return RenderResult::success();
-    try { return impl_->drawUi(document); }
-    catch (const std::exception&) { return diligent_detail::error("UI submission exception",foundation::ErrorCode::Internal); }
-=======
     if (impl_ == nullptr || !impl_->capabilities.initialized) {
         return RenderResult::failure(
             {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
@@ -2297,48 +2782,124 @@ RenderResult DiligentBackend::draw_ui(const ui::UiRenderFrame& document) noexcep
     impl_->context->Draw(Diligent::DrawAttribs{
         static_cast<Diligent::Uint32>(impl_->ui_vertices.size()), Diligent::DRAW_FLAG_NONE});
     return RenderResult::success();
->>>>>>> 13868ba (update mesh rendering)
 }
-RenderResult DiligentBackend::end_frame() noexcept {
-    if (!impl_||!impl_->frame_open) return diligent_detail::error("no open renderer frame");
-    // Clear the logical state before submission/present, including failure paths.
-    impl_->frame_open=false;
-    try {
-        impl_->context->Flush();
-        if (impl_->swap_chain) impl_->swap_chain->Present(1);
-        else impl_->context->FinishFrame();
-        const auto frame=impl_->telemetry.frame;
-        const auto prune=[frame](auto& cache) {
-            for (auto it=cache.begin();it!=cache.end();) {
-                if (frame-it->second.last_seen>240U) it=cache.erase(it);else ++it;
-            }
-        };
-        prune(impl_->mesh_cache);prune(impl_->skin_cache);
+
+RenderResult DiligentBackend::resize(std::uint32_t width, std::uint32_t height) noexcept {
+    if (impl_ == nullptr || !impl_->capabilities.initialized) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
+    }
+    RenderConfig resized = impl_->config;
+    resized.width = width;
+    resized.height = height;
+    if (!resized.valid()) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid resize dimensions"});
+    }
+    if (!impl_->swap_chain) {
+        impl_->config = resized;
         return RenderResult::success();
-    } catch (const std::exception&) { return diligent_detail::error("end frame exception",foundation::ErrorCode::Internal); }
+    }
+    if (impl_->frame_open) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "cannot resize during an open frame"});
+    }
+    impl_->context->WaitForIdle();
+    impl_->swap_chain->Resize(width, height);
+    impl_->config = resized;
+    return recreate_depth_buffer();
 }
-RenderResult DiligentBackend::resize(std::uint32_t width,std::uint32_t height) noexcept {
-    if (!impl_) return diligent_detail::error("renderer is shut down");
-    auto config=impl_->config;config.width=width;config.height=height;
-    if (!config.valid()) return diligent_detail::error("invalid render dimensions",foundation::ErrorCode::InvalidArgument);
-    if (impl_->frame_open) return diligent_detail::error("resize inside an open frame");
-    try {
-        if (impl_->swap_chain) {
-            impl_->context->WaitForIdle();impl_->swap_chain->Resize(width,height);
-            if (auto result=recreate_depth_buffer();!result) return result;
-        }
-        impl_->config=config;return RenderResult::success();
-    } catch (const std::exception&) { return diligent_detail::error("resize exception",foundation::ErrorCode::Internal); }
+
+RenderResult DiligentBackend::end_frame() noexcept {
+    if (impl_ == nullptr || !impl_->capabilities.initialized) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
+    }
+    if (!impl_->frame_open) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent frame is not open"});
+    }
+    impl_->context->Flush();
+    if (impl_->swap_chain) {
+        impl_->swap_chain->Present(1);
+    } else {
+        // FinishFrame expects the immediate context to have no pending command
+        // list.  This is a no-op for an empty frame but makes the lifecycle
+        // valid for the first real submission as well.
+        impl_->context->FinishFrame();
+    }
+    impl_->frame_open = false;
+    return RenderResult::success();
 }
+
 RenderResult DiligentBackend::wait_idle() noexcept {
-    if (!impl_) return diligent_detail::error("renderer is shut down");
-    try { impl_->context->WaitForIdle();return RenderResult::success(); }
-    catch (const std::exception&) { return diligent_detail::error("wait idle exception",foundation::ErrorCode::Internal); }
+    if (impl_ == nullptr || !impl_->capabilities.initialized) {
+        return RenderResult::failure(
+            {foundation::ErrorCode::InvalidState, "Diligent backend is shut down"});
+    }
+    impl_->context->WaitForIdle();
+    return RenderResult::success();
 }
+
 void DiligentBackend::shutdown() noexcept {
-    if (!impl_) return;
-    try { if (impl_->context) impl_->context->WaitForIdle(); } catch (const std::exception&) {}
-    // Impl field order releases buffers/SRBs/pipelines before context/device.
-    impl_.reset();
+    if (impl_ == nullptr) {
+        return;
+    }
+    if (impl_->capabilities.initialized && impl_->context) {
+        impl_->context->WaitForIdle();
+    }
+    impl_->frame_open = false;
+    impl_->ui_vertex_buffer.Release();
+    impl_->ui_pipeline.Release();
+    impl_->ui_pixel_shader.Release();
+    impl_->ui_vertex_shader.Release();
+    impl_->debug_vertex_buffer.Release();
+    impl_->debug_srb.Release();
+    impl_->debug_pipeline.Release();
+    impl_->debug_pixel_shader.Release();
+    impl_->debug_vertex_shader.Release();
+    impl_->debug_vertices.clear();
+    impl_->terrain_index_buffer.Release();
+    impl_->terrain_vertex_buffer.Release();
+    impl_->terrain_camera_buffer.Release();
+    impl_->terrain_pipeline.Release();
+    impl_->terrain_pixel_shader.Release();
+    impl_->terrain_vertex_shader.Release();
+    impl_->preview_srb.Release();
+    impl_->preview_pass_constants.Release();
+    impl_->preview_pipeline.Release();
+    impl_->preview_pixel_shader.Release();
+    impl_->preview_vertex_shader.Release();
+    impl_->depth_view.Release();
+    impl_->depth_texture.Release();
+    impl_->terrain_vertex_capacity = 0;
+    impl_->terrain_index_capacity = 0;
+    impl_->uploaded_terrain_owner.reset();
+    impl_->uploaded_terrain_revision = 0;
+    impl_->infantry_index_buffer.Release();
+    impl_->infantry_vertex_buffer.Release();
+    impl_->infantry_vertex_capacity = 0;
+    impl_->infantry_index_capacity = 0;
+    impl_->uploaded_infantry_owner.reset();
+    impl_->uploaded_infantry_revision = 0;
+    impl_->world_index_buffer.Release();
+    impl_->world_vertex_buffer.Release();
+    impl_->world_vertex_capacity = 0;
+    impl_->world_index_capacity = 0;
+    impl_->uploaded_world_owner.reset();
+    impl_->uploaded_world_revision = 0;
+    impl_->instance_remap_buffer.Release();
+    impl_->instance_remap_capacity = 0;
+    impl_->instance_prototypes_gpu.clear();
+    impl_->preview_prototype.reset();
+    impl_->gpu_instance_buffer.Release();
+    impl_->gpu_instance_capacity = 0;
+    impl_->gpu_scene.clear();
+    impl_->ui_vertices.clear();
+    impl_->swap_chain.Release();
+    impl_->context.Release();
+    impl_->device.Release();
+    impl_->capabilities.initialized = false;
 }
+
 } // namespace genomes::render
