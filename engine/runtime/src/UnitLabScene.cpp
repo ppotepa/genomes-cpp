@@ -12,6 +12,8 @@
 #include <array>
 #include <string>
 #include <span>
+#include <iterator>
+#include <vector>
 
 namespace genomes::runtime {
 

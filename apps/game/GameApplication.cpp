@@ -32,6 +32,7 @@ struct RunOptions final {
     std::uint64_t capture_frame{180U};
     std::uint64_t max_frames{0U};
     bool deterministic{false};
+    std::uint8_t unitlab_camera_steps{0U};
 };
 
 bool parse_u64(std::string_view text, std::uint64_t& value) {
@@ -51,6 +52,16 @@ std::optional<RunOptions> parse_options(int argc, char** argv) {
         else if (argument=="--unit-lab") options.initial_scene=foundation::scene_id("scene.unit-lab");
         else if (argument=="--building-lab") options.initial_scene=foundation::scene_id("scene.building-lab");
         else if (argument=="--deterministic") options.deterministic=true;
+        else if (argument=="--unitlab-camera" && index+1<argc && argv[index+1]!=nullptr) {
+            const std::string_view camera=argv[++index];
+            if (camera=="3q" || camera=="three-quarter") options.unitlab_camera_steps=0U;
+            else if (camera=="front") options.unitlab_camera_steps=1U;
+            else if (camera=="side") options.unitlab_camera_steps=2U;
+            else if (camera=="back") options.unitlab_camera_steps=3U;
+            else if (camera=="face") options.unitlab_camera_steps=4U;
+            else if (camera=="hands") options.unitlab_camera_steps=5U;
+            else return std::nullopt;
+        }
         else if (argument=="--capture" && index+1<argc && argv[index+1]!=nullptr) {
             options.capture_path=std::filesystem::path{argv[++index]};
             options.deterministic=true;
@@ -210,6 +221,7 @@ int GameApplication::run(int argc, char** argv) {
     const auto parsed=parse_options(argc,argv);
     if (!parsed) {
         std::cerr << "Usage: genomes_game [--battlefield|--unit-lab|--building-lab] "
+                     "[--unitlab-camera 3q|front|side|back|face|hands] "
                      "[--frames N] [--deterministic] [--capture FILE --capture-frame N]\n";
         return 2;
     }
@@ -218,6 +230,16 @@ int GameApplication::run(int argc, char** argv) {
     if (!director_.start(options.initial_scene)) {
         std::cerr << "Could not start initial scene\n";
         return 1;
+    }
+    if (options.initial_scene == foundation::scene_id("scene.unit-lab")) {
+        for (std::uint8_t step=0U; step<options.unitlab_camera_steps; ++step) {
+            const auto result=director_.dispatch_ui_action(
+                foundation::stable_id("unit.camera"), {});
+            if (result != ui::UiActionResult::Handled) {
+                std::cerr << "Could not select UnitLab camera preset\n";
+                return 1;
+            }
+        }
     }
     if (options.capture_path && options.capture_path->has_parent_path()) {
         std::error_code error;
