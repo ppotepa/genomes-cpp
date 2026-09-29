@@ -1,0 +1,47 @@
+THREEPP — PIERWSZY PAKIET IMPLEMENTACYJNY
+======================================
+Data: 2026-09-29
+Kod: 25a661f343509f676e60d67be69846b40e3cc339
+Baseline: 188dc2aac34821f2a21cec3eb66ac5049f3ccf60
+
+1. ZACZNIJ TUTAJ
+   ADR: docs/decisions/ADR_THREEPP_PRESENTATION.md
+   Progres: POSTEP.txt (wszystkie 88 ID, osobne CODE i VERIFIED)
+   Odbiór: KOMENDY.txt
+   Ryzyka: RYZYKA.txt
+   Źródła/API: UPSTREAM_API.txt
+
+2. CO DOSTARCZONO
+   Pin threepp jako gitlink, profile CMake, kontekst SDL/OpenGL,
+   fizyczne piksele i DPI, jeden loader GLAD, kontrola bieżącego
+   kontekstu, RAII oraz aplikacja genomes_threepp_bootstrap.
+   Test CPU kontraktów napisany; wykonuje go użytkownik.
+   Aplikacja otwiera jednolite tło. NIE RYSUJE JESZCZE POSTACI.
+
+3. CZEGO NIE PRZEŁĄCZONO
+   GameApplication, IRenderer, UI/RmlUi, materiały postaci, skeleton,
+   morphy, światy i generatory. Nie zmieniono oczekiwanych fixture JS.
+   rundev.ps1 i run-release.ps1 zachowują stary przepływ.
+   Nowy skrypt: run-threepp.ps1 / run-threepp.cmd.
+
+4. KOLEJNY KROK
+   Użytkownik wykonuje KOMENDY.txt dla nowego SHA main.
+   Najpierw rozwiązać ewentualne błędy bootstrapu i zebrać dowód.
+   Następnie TP-03-01..06: neutralne kontrakty renderer/material/rig/pose.
+   TP-01-04/05 oraz TP-02-04/05 są częściowe: pozostała integracja
+   właściwej aplikacji, scen, UI i zamykania podczas aktywnych zadań.
+   Nie oznaczać tych zadań jako ukończonych po samym otwarciu okna.
+
+5. ŹRÓDŁOWY PEŁNY PLAN
+   Dostarczony plik: GENOMES_CPP_THREEPP_PLAN_WDROZENIA.txt, wersja 1.0.
+   SHA256: 0fb7a8a7d66a287fc82d0bcbf3a775c1ca72d4277379a5d40a009fc50c1bbc0f
+   Pełny TXT pozostaje załącznikiem rozmowy; ta paczka nie zastępuje
+   go skróconym planem ani nie zmienia kryteriów 88 zadań.
+   Tracker przenosi wszystkie oryginalne ID i tytuły. W lokalnym repo
+   pełny oryginał można zachować jako PLAN_WDROZENIA.txt.
+
+6. ZMIANA KOLEJNOŚCI W RAMACH PAKIETU
+   Kontekst sprawdzamy osobnym executable zanim istnieje pełny
+   IRenderer i fabryka GameApplication. To staging, nie druga gra.
+   G01/G02-bootstrap można odebrać osobno; pełne G02 nadal obejmuje
+   późniejsze sceny/zadania/zasoby. Nie zamieniamy tego w pozorny PASS.

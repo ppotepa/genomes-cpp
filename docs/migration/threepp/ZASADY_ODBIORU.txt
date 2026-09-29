@@ -1,0 +1,25 @@
+ODBIÓR I DOWODY
+==============
+1. Agent przygotowuje kod, testy oraz komendy. Użytkownik wykonuje
+   configure/build/testy/GPU i ocenę obrazu. Samo dodanie testu nie
+   oznacza przejścia testu; praca nad kodem nie jest pomiarem FPS.
+2. CODE_READY/WAIT_USER oznaczają gotowość do odbioru konkretnego
+   zadania. DOING ma jawną listę braków. VERIFIED wymaga dowodu.
+3. Dowód zawiera: SHA testowanej wersji, git status, preset, komendę,
+   system/toolchain, GPU/driver, datę, exit code, log/capture.
+   CODE_SHA może być przodkiem doc-only commit odbioru; zapisać oba.
+4. G01/G02-bootstrap: dependency, okno, loader, minimalizacja/DPI,
+   resize, shutdown/reopen. Nie obejmuje pełnego IRenderer ani postaci.
+5. G02 pełne: także właściwa aplikacja, zamknięcie podczas zadań,
+   cache/sceny/UI i zwolnienia. Nie zaliczać go probe bez tych danych.
+6. Adapter postaci w etapie A zachowuje wejściowe pozycje, indeksy,
+   wagi i morphy. Zmierzyć dane faktycznie kierowane do renderera,
+   nie tylko jeden helper używany przez historyczny test.
+7. Etap B zmiany generatora: wersjonowana decyzja, nie podmiana goldena.
+   Exact: serializacja/ID/kontrakt wejściowy oraz zamrożone fixture tam,
+   gdzie obowiązuje zgodność. Numeric: macierze/deformacja/landmarki
+   z uzasadnioną tolerancją. Visual: ręczne capture’y w stałym kadrze.
+8. Brak kompilacji nie jest wynikiem negatywnym ani pozytywnym.
+   Stary crash lub brak fxc nie jest dowodem o nowej ścieżce.
+9. Tracker obejmuje 88 zadań. Ułamki task-count nie są estymacją
+   roboczogodzin ani procentem jakości gotowej gry.

@@ -1,0 +1,44 @@
+MAPA KONSUMENTÓW — INWENTARYZACJA CZĘŚCIOWA
+=========================================
+TP-00-04: DOING. Nie jest to raport pełnego przeszukania repo.
+
+MIEJSCE / DECYZJA / ZADANIE
+CMakeLists.txt, cmake/GenomesOptions.cmake, CMakePresets.json
+ profile izolowane i threepp bootstrap teraz; TP-01.
+cmake/GenomesDependencies.cmake, cmake/GenomesPlatform.cmake
+ zachować istniejące konfiguracje Diligent/RmlUi/SDL. threepp ma
+ osobny moduł cmake/GenomesThreepp.cmake; brak globalnego shared switch.
+apps/CMakeLists.txt
+ właściwa gra pozostaje w DILIGENT_LEGACY; bootstrap w THREEPP_GL.
+apps/game/GameApplication.cpp/.hpp, apps/game/CMakeLists.txt
+ docelowa fabryka/resize/UI/lifetime później; TP-01-04, TP-15-01.
+apps/render_smoke
+ zachowany stary probe, tylko po włączeniu Diligent.
+engine/platform/include/genomes/platform/Platform.hpp
+engine/platform/src/SdlPlatform.cpp
+ nowy enum, fizyczne piksele, GL lifecycle; TP-02.
+engine/render/include/genomes/render/RenderTypes.hpp
+engine/render/core/include/genomes/render/PresentationSnapshot.hpp
+ zachować neutralne granice; dodać materiały/rig/pozy w TP-03.
+engine/render/diligent
+ pozostawić w osobnej konfiguracji, nie budować nowej gry wokół niego.
+engine/render/core, engine/render/graph, engine/render/gpu_scene
+ nie usuwać zbiorczo: review neutralnych kontraktów i ekstrakcji TP-15.
+engine/runtime/src/UnitLabScene.cpp, InfantryPresentation.cpp
+ produkcyjny adapter dopiero po neutralnym rig/pose; TP-03/08.
+engine/runtime/src/BattlefieldScene.cpp, BuildingLabScene.cpp
+ zachować generatory, przenieść konsumpcję snapshotów w TP-12.
+engine/ui, engine/ui/rml, mods/core/scenes
+ zachować RmlUi oraz route/action model; nowy renderer UiRenderFrame
+ w TP-07. Nie zastępować wszystkiego ręcznie rysowanymi przyciskami.
+engine/compute, cmake/GenomesCuda.cmake
+ dalszy audyt konkretnych zależności GPU/interop; TP-15-03.
+modules/*
+ symulacja/anatomia/AI/fizyka/nawigacja bez zmian tego pakietu.
+rundev.ps1, run-release.ps1 i ich CMD
+ zachowane. Nowy bootstrap run-threepp.ps1/cmd. Przełączenie po odbiorze.
+
+DO UZUPEŁNIENIA PRZED ZAMKNIĘCIEM TP-00-04
+ Pełny grep konsumentów Diligent/RenderConfig/IRenderer/NativeWindow;
+ CI, wszystkie narzędzia, benchmarki, shader asset contracts, compute.
+ Każdy wpis: właściciel, zastępstwo i bramka, nie tylko nazwa katalogu.

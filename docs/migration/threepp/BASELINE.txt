@@ -1,0 +1,31 @@
+BASELINE / WŁASNOŚĆ ZMIAN
+========================
+TARGET: ppotepa/genomes-cpp / main
+Odczytany HEAD: 188dc2aac34821f2a21cec3eb66ac5049f3ccf60
+Drzewo wejściowe: 7931b1c9624da209c46d0a62be3a7d15093d9b7a
+Pierwszy commit kodu: 25a661f343509f676e60d67be69846b40e3cc339
+THREEPP: markaren/threepp / ad9571cbcbb5e27c4dd582d4810fb0b235534f60
+
+JS — sprawdzona metryka pochodzenia:
+ reference/fixtures/infantry/full-avatar/avatar-0-high-neutral.gnif.json
+ sourceCommit: da885ca68b2ae63154a004574fed00eb9dfeb458
+ sourceTree: 50e15a425f00611df1900b3d56c1d382978ec19e
+ generatorVersion: genomes-infantry-exporter-v10
+ schemaVersion: 1
+Nie zmieniono fixture. Weryfikacja tego manifestu nie oznacza audytu
+pochodzenia każdego pozostałego pliku w reference/code.
+
+WŁAŚCICIELE BIEŻĄCEJ PORCJI
+ CMake, SDL, bootstrap GL, dokumentacja: agent tej migracji.
+ Konfiguracja/build/testy/GPU/capture: użytkownik.
+ Inne niezacommitowane prace lokalne: NIEZNANE Z KONEKTORA.
+ Stan git status na komputerze użytkownika: NIEODCZYTANY.
+ Konektor pokazuje zatwierdzony main, nie prywatne zmiany robocze.
+ Nie deklarować lokalnej kopii użytkownika jako czystej.
+
+Przed wdrożeniem użytkownik sprawdza git status i git rev-parse HEAD.
+Nie stosować reset --hard ani force push. Aktualizacja main jest
+fast-forward z ponownym odczytem main przed publikacją.
+
+Brak wykonanej konfiguracji, kompilacji, testów, pomiarów FPS i GPU.
+Przegląd źródeł i listy zmienionych plików nie zastępuje tych dowodów.

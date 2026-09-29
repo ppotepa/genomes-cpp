@@ -1,0 +1,106 @@
+THREEPP — ODBIÓR PAKIETU BOOTSTRAP (G01 / CZĘŚĆ G02)
+===================================================
+Pierwszy kod: 25a661f343509f676e60d67be69846b40e3cc339
+Wszystkie poniższe komendy wykonuje UŻYTKOWNIK.
+Agent nie wykonał konfiguracji, kompilacji, CTest ani GPU.
+
+A. PRZYGOTOWANIE
+Użyć istniejącego środowiska C++20/Ninja (np. odpowiedniej powłoki
+kompilatora na Windows). Nowe presety nie wymuszają llvm-rc ani FXC.
+CMake >=3.21. Nie używać build/diligent-config dla nowego backendu.
+
+  git status --short
+  git pull --ff-only
+  git rev-parse HEAD
+  git submodule update --init --recursive external/threepp external/SDL external/json
+  git -C external/threepp rev-parse HEAD
+
+Ostatni SHA ma wynosić ad9571cbcbb5e27c4dd582d4810fb0b235534f60.
+Zachować swoje zmiany; nie stosować reset --hard. Przy brudnym drzewie
+najpierw uzgodnić/scommitować właściwe pliki, nie nadpisywać ich skryptem.
+
+B. KONFIGURACJA — NOWY DEBUG
+  cmake --preset dev-threepp
+
+Sprawdzić w logu:
+  presentation profile: THREEPP_GL
+  pin threepp i profil static / SDL host / bez GLFW/editor/Vulkan
+  brak konfiguracji Diligent/FXC/RmlUi w tym presecie.
+
+C. BUILD KONKRETNYCH CELÓW
+  cmake --build --preset dev-threepp --target genomes_threepp_bootstrap genomes_threepp_window_contract_tests
+
+D. TEST KONTRAKTÓW CPU
+  ctest --preset dev-threepp -R "^threepp[.]window_contracts$" --output-on-failure
+
+Test jest aktywny również w Release (nie opiera się na assert).
+Nie jest dowodem poprawności GPU. Nie uruchamia okna.
+
+E. PIERWSZE GPU — WINDOWS
+  .\build\dev-threepp\bin\genomes_threepp_bootstrap.exe --frames 180 --cycles 3
+
+LINUX
+  ./build/dev-threepp/bin/genomes_threepp_bootstrap --frames 180 --cycles 3
+
+Oczekiwane do sprawdzenia, nie zgłoszone jako wykonane:
+  trzy kolejne konteksty/okna, po 180 wyrenderowanych klatek;
+  brak crash przy zwalnianiu/powtórnym ładowaniu GLAD;
+  jedno okno w danym momencie, jednolite tło — brak postaci jest celowy;
+  log GL/GPU/GLSL/limits, code SHA, trzy "cycle-complete".
+
+F. RĘCZNE RESIZE / DPI / MINIMALIZACJA
+  .\build\dev-threepp\bin\genomes_threepp_bootstrap.exe --frames 0
+
+Zmieniać rozmiar, minimalizować/przywracać, zmienić monitor/skale
+100/150/200% tam, gdzie dostępne; klikać w narożnikach. Log ma rozróżniać
+window i pixels. Sprawdzić, czy pointer-pixels odpowiada fizycznym pikselom.
+ESC lub zamknięcie kończy próbę. Podczas minimalizacji brak rysowania/swap;
+pętla zdarzeń nadal żyje. --no-vsync służy tylko diagnostyce prezentacji.
+
+G. RELEASE
+  cmake --preset release-threepp
+  cmake --build --preset release-threepp --target genomes_threepp_bootstrap genomes_threepp_window_contract_tests
+  ctest --preset release-threepp -R "^threepp[.]window_contracts$" --output-on-failure
+  .\build\release-threepp\bin\genomes_threepp_bootstrap.exe --frames 180 --cycles 3
+
+H. HEADLESS BEZ SDL / THREEPP
+  cmake --preset headless-threepp-migration
+  cmake --build --preset headless-threepp-migration --target genomes_threepp_window_contract_tests
+  ctest --preset headless-threepp-migration -R "^threepp[.]window_contracts$" --output-on-failure
+
+Ten profil nie ma pobierać threepp ani wymagać okna, OpenGL czy FXC.
+Pozostałe headless testy projektu można wykonać osobno; nie są zaliczone
+przez powyższy jeden cel. Nie uruchamiać CTest dla niezbudowanych celów
+bez filtra i nie przedstawiać tego jako awarii bootstrapu.
+
+I. SKRÓT POWERSHELL (OPCJONALNIE)
+  .\run-threepp.ps1 -BuildOnly
+  .\run-threepp.ps1
+  .\run-threepp.ps1 -Preset release-threepp
+
+-NoBuild uruchamia istniejący executable i ostrzega o możliwej starej
+wersji. Argumenty bezpośredniego executable z E/F są podstawowym
+sposobem próby. Skrypty nie uruchamiają za użytkownika CTest.
+
+J. DOWODY DO TRACKERA
+  SHA main testowanego checkoutu:
+  tracked state / git status:
+  preset i toolchain:
+  system/GPU/driver/GL:
+  command + exit code:
+  log konfiguracji i buildu:
+  log CPU:
+  log --cycles 3:
+  resize/DPI/minimalizacja/reopen:
+  wynik: PASS / FAIL / NOT RUN, oddzielnie dla każdej próby.
+
+Log buildidentity wskazuje SHA z konfiguracji; zmiana lokalnych plików
+po configure nie aktualizuje magicznie tego dowodu. Zawsze zapisać stan
+roboczy i ponownie skonfigurować wersję przeznaczoną do odbioru.
+
+K. NIE ZMIENIONO DOMYŚLNEJ GRY
+  genomes_game i stare skrypty nadal korzystają z Diligent.
+  THREEPP_GL na tym etapie udostępnia bootstrap, nie --unit-lab.
+  Nie przekazywać --unit-lab do bootstrapu: parser jawnie go odrzuca.
+  Pełny adapter/UI/postać są następnymi etapami, nie ukrytą częścią tego
+  executable. Po odbiorze wracamy do TP-03, nie do nowego portu anatomii.

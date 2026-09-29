@@ -1,0 +1,56 @@
+OTWARTE RYZYKA / BLOKERY
+========================
+Format: ID | zakres | stan | dalsze działanie
+
+R01 | Build/GPU | WAIT_USER
+ Nie wykonano configure/build/testów. Krok G01/G02-bootstrap z KOMENDY.txt
+ może ujawnić problem kompilatora, SDK SDL lub przypiętego upstream.
+
+R02 | Prywatny loader | WAIT_USER
+ Jeden pin, jeden shim. Sprawdzić --cycles 3 i ponowne otwarcie procesu.
+ Nie dodać drugiego GLAD jako obejścia błędu linkowania.
+
+R03 | DPI i stary profil | WAIT_USER
+ Nowe SdlPlatform skaluje zdarzenia do framebuffer. Dotyczy to także
+ zachowanego Diligent. Wymagana regresja kliknięć/resize starej gry.
+ Stara bool vulkan zachowana przejściowo; jawny enum ma pierwszeństwo.
+
+R04 | Integracja GameApplication | DOING / TP-01-04, TP-02-04/05
+ Nie przełączono aplikacji, RmlUi, zadań generowania i właściwego
+ shutdown scen. Bootstrap nie jest dowodem, że cała gra już działa.
+
+R05 | Stary backend / main | DOING / TP-00-02
+ W aktualnym początku DiligentBackend.cpp nie ma dawnych znaczników
+ konfliktu; nadal istnieją różne wersje/stare helpery w drzewie.
+ Nie wykonano pełnego skanu całego checkoutu ani build starego backendu.
+ Profil THREEPP_GL nie kompiluje Diligent. Nie przypisywać starych
+ awarii FXC nowemu rendererowi. Nie oznaczać pełnego audytu jako PASS.
+
+R06 | Dokumentacja normatywna | DOING / TP-00-03
+ ADR rozstrzyga kierunek i AGENTS.md do niego kieruje. Starsze duże
+ rozdziały wymagają synchronizacji bez niszczenia kontraktów domenowych.
+
+R07 | Compute i usuwanie Diligent | DOING / TP-00-04, TP-15-03
+ Mapa konsumentów jest startowa, nie pełny skan symboli. Nie usuwać
+ Diligent zanim wszystkie zależności i ewentualne CPU fallbacki
+ zostaną jawnie rozstrzygnięte.
+
+R08 | Potrójna zgodność | TODO / TP-14-04
+ Oddzielić niezmienność wejściowego artefaktu, zgodność skinningu
+ i wizualny odbiór. Nie kasować fixture dla uzyskania zielonego testu.
+
+R09 | Tożsamość builda | WAIT_USER
+ Log zapisuje SHA i tracked state z CZASU KONFIGURACJI. Nie stanowi
+ dowodu zgodności lokalnych zmian wykonanych później. Do odbioru:
+ git status, czysty commit, ponowna konfiguracja, komenda i log.
+
+R10 | Platformy | WAIT_USER
+ Windows/Linux wymagają oddzielnego odbioru. Gałąź atrybutów Apple
+ nie jest deklaracją obsługi całego buildu macOS. Brak wsparcia tego
+ pakietu dla mobile/Emscripten. Nie wykonywano benchmarków RTS.
+
+R11 | Zwolnienia na złym wątku | KONTRAKT
+ Zasoby GL mają zostać zwolnione przed kontekstem na jego wątku.
+ SdlPlatform kontroluje właściciela; nie przenosi automatycznie
+ niewłaściwie użytego obiektu z workera. Pełna kolejka zwolnień
+ dla renderera i jego cache należy do następnych etapów.

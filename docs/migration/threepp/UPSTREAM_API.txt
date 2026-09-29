@@ -1,0 +1,56 @@
+THREEPP / PIN I KONTROLOWANE API
+===============================
+Repo: https://github.com/markaren/threepp
+Pin: ad9571cbcbb5e27c4dd582d4810fb0b235534f60
+Licencja główna: MIT; patrz external/threepp/LICENSE.
+Bundled third-party zachowuje własne notices; pełny audyt pakowania
+zostaje w TP-16-01. Nie dodawano zewnętrznych modeli ani plików fontów.
+
+UŻYTE W PAKIECIE BOOTSTRAP
+ src/CMakeLists.txt: target threepp, alias threepp::threepp.
+ include/threepp/renderers/GLRenderer.hpp:
+   GLRenderer(std::pair<int,int>, const Parameters& = {})
+   setPixelRatio(float), setSize(pair), setClearColor(Color,float), clear(...)
+   Destructor: zakres życia kończy się PRZED SdlPlatform.
+ include/threepp/renderers/Renderer.hpp: autoClear.
+ include/threepp/math/Color.hpp: RGB float.
+ src/threepp/utils/LoadGlad.hpp [PRYWATNY, NIE STABILNE API]:
+   loadGlad(GLADloadproc), gladLoaded().
+ src/threepp/utils/LoadGlad.cpp:
+   first-load-wins, globalny stan procesu.
+ src/external/glad/glad/glad.h:
+   GLADloadproc, gladLoadGLLoader, istniejące funkcje OpenGL.
+
+SEAM
+ Tylko engine/render/threepp/ThreeppGlBootstrap.cpp dostaje prywatny
+ include src/ oraz src/external/glad. Nie kompilujemy drugiego glad.c.
+ Pierwsza inicjalizacja: threepp::loadGlad(resolver SDL).
+ Następny kontekst w tym samym procesie: odświeżenie TEJ SAMEJ tablicy
+ przez gladLoadGLLoader. Samo loadGlad ponownie nic by nie zrobiło,
+ a zamknięcie ostatniego okna może rozładować sterownik.
+ Brak równoległych kontekstów. Wywołania na wątku SDL/main.
+
+SDL3 resolver zwraca wskaźnik funkcji, GLAD1 oczekuje void*.
+Izolowane reinterpret_cast ma kontrakt desktop Windows/Linux GL ABI.
+Nie rozszerzać tego założenia na inne platformy bez odrębnego odbioru.
+
+CMAKE
+ Minimalne CMake 3.21; schema presetów 3 odpowiada temu minimum.
+ GLFW/editor/examples/tests/audio/Vulkan/Python/FBX/USD/RLTOOLS/
+ FSR/DLSS/inference wyłączone zmiennymi w zakresie funkcji.
+ BUILD_SHARED_LIBS=OFF tylko w zakresie konfiguracji threepp:
+ upstream src/CMakeLists.txt linkuje glfw przy BUILD_SHARED_LIBS=ON
+ nawet bez frontendu GLFW. Nie zmieniać na shared bez nowego audytu.
+ EXCLUDE_FROM_ALL nie oznacza, że CMake nie deklaruje żadnego
+ opcjonalnego targetu (np. wykrytego V-HACD); nie linkujemy go do gry.
+ Headless nie wchodzi w konfigurację threepp ani nie wymaga jego checkoutu.
+ Pin sprawdzany przez git rev-parse i tracked diff; nie ma autoupgrade.
+
+API NA NASTĘPNY ETAP — NIEZAIMPLEMENTOWANE W TEJ PACZCE
+ BufferGeometry::setAttribute/getOrCreateMorphAttribute/setIndex/addGroup;
+ morphTargetsRelative; ObjectWithMaterials::setMaterials;
+ Skeleton::create(bones, boneInverses); SkinnedMesh::bind;
+ ObjectWithMorphTargetInfluences::morphTargetInfluences;
+ OrbitControls(Camera&, PeripheralsEventSource&).
+ Wymagany ponowny przegląd przy każdej zmianie pinu.
+ Źródła: external/threepp w wymienionym SHA, nie ruchome master.
