@@ -1,1 +1,31 @@
-<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>UNIT LAB</h1><p data-bind="text: seed">Seed: 0</p><button data-action="unit.regenerate">Regenerate</button><button data-action="scene.return-main-menu">Back</button></section></body></rml>
+<rml>
+<head>
+  <title>Unit Lab</title>
+  <link type="text/rcss" href="screen.rcss" />
+</head>
+<body>
+  <section class="panel">
+    <h1>UNIT LAB</h1>
+    <p class="hint">Procedural infantry / threepp preview</p>
+    <div class="controls">
+      <button data-action="unit.regenerate">Next seed / regenerate</button>
+      <button data-action="unit.detail">Cycle detail level</button>
+      <button data-action="unit.camera">Cycle camera preset</button>
+      <button data-action="unit.locomotion">Cycle locomotion</button>
+      <button data-action="unit.pause">Pause / resume animation</button>
+      <button data-action="unit.expression">Cycle expression</button>
+      <button data-action="unit.expression-intensity">Cycle expression intensity</button>
+      <button data-action="unit.variation">Cycle phenotype variation</button>
+      <button data-action="unit.loadout">Cycle equipment loadout</button>
+      <button data-action="unit.genome-preset">Cycle genome preset</button>
+      <button data-action="unit.surface">Toggle surface</button>
+      <button data-action="unit.wireframe">Toggle wireframe</button>
+      <button data-action="unit.skeleton">Toggle skeleton</button>
+      <button data-action="unit.bounds">Toggle bounds</button>
+      <button data-action="unit.normals">Toggle normals</button>
+      <button data-action="unit.weight">Cycle weight-debug bone</button>
+      <button class="back" data-action="scene.return-main-menu">Back to main menu</button>
+    </div>
+  </section>
+</body>
+</rml>

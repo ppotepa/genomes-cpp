@@ -2,6 +2,7 @@
 #include "ThreeppGlBootstrap.hpp"
 #include "ThreeppUiPass.hpp"
 
+#include <genomes/foundation/StableHash.hpp>
 #include <genomes/platform/Platform.hpp>
 
 #include <threepp/cameras/PerspectiveCamera.hpp>
@@ -357,9 +358,8 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
     if (auto current = platform.make_gl_current(); !current) {
         return Result::failure(current.error());
     }
-    if (auto info = initializeThreeppGl(platform); !info) {
-        return Result::failure(info.error());
-    }
+    auto gl_info = initializeThreeppGl(platform);
+    if (!gl_info) return Result::failure(gl_info.error());
     try {
         auto impl = std::make_unique<Impl>(platform);
         impl->width = static_cast<std::uint32_t>(std::max(1, platform.width()));
@@ -397,8 +397,10 @@ ThreeppSceneRenderer::create(platform::SdlPlatform& platform) {
         impl->caps.presentation = true;
         impl->caps.instanced_rendering = true;
         impl->caps.gpu_skinning = true;
-        impl->caps.api_major = 3U;
-        impl->caps.api_minor = 3U;
+        impl->caps.api_major = static_cast<std::uint32_t>(std::max(0, gl_info.value().major));
+        impl->caps.api_minor = static_cast<std::uint32_t>(std::max(0, gl_info.value().minor));
+        impl->caps.limits.max_texture_dimension =
+            static_cast<std::uint32_t>(std::max(0, gl_info.value().max_texture_size));
         return Result::success(std::unique_ptr<ThreeppSceneRenderer>(
             new ThreeppSceneRenderer(std::move(impl))));
     } catch (...) {

@@ -176,6 +176,14 @@ int GameApplication::run(int argc, char** argv) {
             return 1;
         }
         if (platform_frame.quit_requested) break;
+        if (!platform_frame.metrics.drawable()) {
+            // SDL keeps pumping events while minimized, but an OpenGL swap on a
+            // zero-sized/non-drawable surface is invalid. Pause presentation
+            // time instead of poisoning renderer health during minimize.
+            std::this_thread::sleep_for(std::chrono::milliseconds{20});
+            previous = std::chrono::steady_clock::now();
+            continue;
+        }
         if (platform_frame.resized && platform_frame.width > 0 && platform_frame.height > 0) {
             const auto resized = resize_renderer(
                 static_cast<std::uint32_t>(platform_frame.width),
