@@ -22,7 +22,7 @@ struct Patch {Feature feature{};double y0{},y1{},t0{},t1{},half_x{},half_y{};std
 
 class Layout final {
 public:
-    explicit Layout(const EquipmentFit& fit,bool emulate_cache):face(fit.face),height(fit.body.height),cache_enabled(emulate_cache) {
+    explicit Layout(const EquipmentFit& fit,bool emulate_cache):face(fit.face),height(fit.body.reference_height),cache_enabled(emulate_cache) {
         const auto& body=fit.body;
         const double neck_x=.0285*body.neck_scale,neck_z=.024*body.neck_scale;
         constexpr std::array<Section,12U> base{{

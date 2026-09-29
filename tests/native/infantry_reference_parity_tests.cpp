@@ -401,7 +401,7 @@ int main() {
                          <<" actual="<<native_fit.value().headBottom(head_angles[index])<<'\n';return 2;
             }
         {
-            ReferenceSurfaceBuilder jacket_builder(fit_phenotype.value().body.height,kRigBoneCount);
+            ReferenceSurfaceBuilder jacket_builder(fit_phenotype.value().body.reference_height,kRigBoneCount);
             ReferenceJacketTopology jacket_topology{};
             const auto jacket_build=ReferenceBodySurfaceGenerator::appendJacket(
                 jacket_builder,native_fit.value(),fit_rig.value(),kDefaultUniformColor,3U,

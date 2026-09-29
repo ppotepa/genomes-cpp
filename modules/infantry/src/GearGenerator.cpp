@@ -408,6 +408,10 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
             bone.world_bind.translation.x / body.height,
             bone.world_bind.translation.y / body.height,
             bone.world_bind.translation.z / body.height};
+        result.reference_bind_points[boneIndex(bone.id)] = {
+            bone.world_bind.translation.x / body.reference_height,
+            bone.world_bind.translation.y / body.reference_height,
+            bone.world_bind.translation.z / body.reference_height};
     }
     const auto set_socket = [&result](EquipmentSocketId id, BoneId bone,
                                       foundation::Vec3 position,

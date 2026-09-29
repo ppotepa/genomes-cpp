@@ -65,6 +65,7 @@ struct EquipmentFit final {
     EquipmentVisualDefinition headgear_visual{};
     std::array<EquipmentSocket, static_cast<std::size_t>(EquipmentSocketId::Count)> sockets{};
     std::array<foundation::Vec3, kRigBoneCount> bind_points{};
+    std::array<std::array<double,3U>, kRigBoneCount> reference_bind_points{};
 
     [[nodiscard]] bool valid(const SkeletonData&) const noexcept;
     [[nodiscard]] const EquipmentFitSlot& at(EquipmentSlot slot) const noexcept {

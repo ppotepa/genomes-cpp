@@ -10,6 +10,11 @@ namespace genomes::infantry {
 
 namespace {
 
+[[nodiscard]] ReferenceVec3 referenceBind(const EquipmentFit& fit,BoneId bone) {
+    const auto& point=fit.reference_bind_points[boneIndex(bone)];
+    return {point[0],point[1],point[2]};
+}
+
 [[nodiscard]] double smooth(double value) noexcept {
     value=std::clamp(value,0.0,1.0);return value*value*(3.0-2.0*value);
 }
@@ -22,9 +27,9 @@ namespace {
 
 [[nodiscard]] std::vector<ReferenceInfluence> torsoWeights(
     const EquipmentFit& fit,ReferenceVec3 point) {
-    const double lower=fit.bind_points[boneIndex(BoneId::SpineLower)].y;
-    const double upper=fit.bind_points[boneIndex(BoneId::SpineUpper)].y;
-    const double chest_y=fit.bind_points[boneIndex(BoneId::Chest)].y;
+    const double lower=referenceBind(fit,BoneId::SpineLower).y;
+    const double upper=referenceBind(fit,BoneId::SpineUpper).y;
+    const double chest_y=referenceBind(fit,BoneId::Chest).y;
     if(point.y<lower){const double t=smooth((point.y-fit.hip_y)/std::max(.001,lower-fit.hip_y));
         return {{static_cast<std::uint16_t>(boneIndex(BoneId::Hips)),1.0-t},
                 {static_cast<std::uint16_t>(boneIndex(BoneId::SpineLower)),t}};}
@@ -34,8 +39,8 @@ namespace {
     if(point.y<chest_y){const double t=smooth((point.y-upper)/std::max(.001,chest_y-upper));
         return {{static_cast<std::uint16_t>(boneIndex(BoneId::SpineUpper)),1.0-t},
                 {static_cast<std::uint16_t>(boneIndex(BoneId::Chest)),t}};}
-    if(point.y>.832){const double head_pivot=fit.bind_points[boneIndex(BoneId::Head)].y;
-        const double neck_joint=fit.bind_points[boneIndex(BoneId::Neck)].y;
+    if(point.y>.832){const double head_pivot=referenceBind(fit,BoneId::Head).y;
+        const double neck_joint=referenceBind(fit,BoneId::Neck).y;
         const double head=smooth((point.y-(head_pivot-.022))/.030);
         const double chest=(1.0-smooth((point.y-(neck_joint-.010))/.030))*(1.0-head);
         return {{static_cast<std::uint16_t>(boneIndex(BoneId::Chest)),chest},
@@ -78,9 +83,9 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendJacket(
     const std::size_t first_vertex=builder.vertexCount();
     const std::uint32_t segments=detail_level==3U?32U:detail_level==1U?16U:24U;
     const std::uint32_t column_span=detail_level==3U?4U:detail_level==1U?2U:3U;
-    const double shoulder_y=fit.bind_points[boneIndex(BoneId::UpperArmL)].y;
-    const double neck_y=fit.bind_points[boneIndex(BoneId::Neck)].y;
-    const double shoulder_half=std::abs(fit.bind_points[boneIndex(BoneId::UpperArmL)].x);
+    const double shoulder_y=referenceBind(fit,BoneId::UpperArmL).y;
+    const double neck_y=referenceBind(fit,BoneId::Neck).y;
+    const double shoulder_half=std::abs(referenceBind(fit,BoneId::UpperArmL).x);
     const ReferenceColor base{uniform.r,uniform.g,uniform.b};
     std::vector<ReferenceSurfaceBuilder::Ring> rings;
     rings.reserve(fit.jacket.size());builder.setTag("jacket");
@@ -145,8 +150,7 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendSleeve(
     const BoneId elbow_id=left?BoneId::ForeArmL:BoneId::ForeArmR;
     const BoneId wrist_id=left?BoneId::HandL:BoneId::HandR;
     const BoneId clavicle_id=left?BoneId::ClavicleL:BoneId::ClavicleR;
-    const auto to_reference=[&](BoneId id){const auto point=fit.bind_points[boneIndex(id)];
-        return ReferenceVec3{point.x,point.y,point.z};};
+    const auto to_reference=[&](BoneId id){return referenceBind(fit,id);};
     const auto shoulder=to_reference(shoulder_id),elbow=to_reference(elbow_id),wrist=to_reference(wrist_id);
     const auto difference=[](ReferenceVec3 a,ReferenceVec3 b){return ReferenceVec3{a.x-b.x,a.y-b.y,a.z-b.z};};
     const auto length=[](ReferenceVec3 value){return std::sqrt(value.x*value.x+value.y*value.y+value.z*value.z);};
@@ -220,11 +224,11 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendHand(
     const std::size_t first_vertex=builder.vertexCount();
     const BoneId wrist_id=left?BoneId::HandL:BoneId::HandR;
     const BoneId elbow_id=left?BoneId::ForeArmL:BoneId::ForeArmR;
-    const auto wrist_value=fit.bind_points[boneIndex(wrist_id)];
-    const auto elbow_value=fit.bind_points[boneIndex(elbow_id)];
-    const ReferenceVec3 wrist{wrist_value.x,wrist_value.y,wrist_value.z};
+    const auto wrist_value=referenceBind(fit,wrist_id);
+    const auto elbow_value=referenceBind(fit,elbow_id);
+    const ReferenceVec3 wrist=wrist_value;
     ReferenceVec3 direction{wrist_value.x-elbow_value.x,wrist_value.y-elbow_value.y,
-                            wrist_value.z-elbow_value.z};
+        wrist_value.z-elbow_value.z};
     const auto length=[](ReferenceVec3 value){return std::sqrt(value.x*value.x+value.y*value.y+value.z*value.z);};
     const double direction_length=length(direction);direction={direction.x/direction_length,
         direction.y/direction_length,direction.z/direction_length};
@@ -374,7 +378,7 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendPants(
     for(std::size_t index=1U;index<seam_count;++index){const double t=static_cast<double>(index)/seam_count;
         seam.push_back(builder.vertex({0.0,map_leg_y(.468-.025*std::sin(t*3.14159265358979323846)),
             mix(.059,-.059,t)*leg_thickness},seam_weights,shade(.84),{0.0,-1.0,0.0},{0.0,t}));}
-    seam.push_back(last[back]);const double hip_x=std::abs(fit.bind_points[boneIndex(BoneId::ThighL)].x);
+    seam.push_back(last[back]);const double hip_x=std::abs(referenceBind(fit,BoneId::ThighL).x);
     constexpr std::array<std::array<double,3U>,13U> legs{{{{.438,.052,.055}},{{.407,.050,.052}},
         {{.370,.045,.047}},{{.330,.038,.042}},{{.305,.035,.037}},{{.293,.034,.035}},
         {{.282,.034,.034}},{{.270,.034,.034}},{{.249,.035,.036}},{{.219,.037,.037}},
@@ -391,7 +395,7 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendPants(
         for(std::size_t index=0;index<loop.size();++index)angles.push_back(start+(area<0.0?-1.0:1.0)*
             6.283185307179586476925286766559*static_cast<double>(index)/loop.size());
         auto last_loop=loop;const BoneId thigh=left?BoneId::ThighL:BoneId::ThighR;
-        const BoneId shin=left?BoneId::ShinL:BoneId::ShinR;const double knee_y=fit.bind_points[boneIndex(shin)].y;
+        const BoneId shin=left?BoneId::ShinL:BoneId::ShinR;const double knee_y=referenceBind(fit,shin).y;
         for(const auto& row:legs){const double y=map_leg_y(row[0]);const double knee=smooth((knee_y-y)/
                 std::max(.018,.058*(static_cast<double>(fit.body.hip_y)/.54)));
             const auto weights=[&](ReferenceVec3){return std::vector<ReferenceInfluence>{
@@ -412,8 +416,8 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendBoot(
     std::uint32_t detail_level,foundation::Color boot_color) {
     const std::size_t first_vertex=builder.vertexCount();std::size_t triangles=0U;
     const std::size_t segments=detail_level==3U?28U:detail_level==1U?8U:16U;
-    const double sign=left?1.0:-1.0,foot_x=std::abs(fit.bind_points[boneIndex(
-        left?BoneId::FootL:BoneId::FootR)].x),foot_scale=fit.body.foot_scale;
+    const double sign=left?1.0:-1.0,foot_x=std::abs(referenceBind(fit,
+        left?BoneId::FootL:BoneId::FootR).x),foot_scale=fit.body.foot_scale;
     const BoneId foot=left?BoneId::FootL:BoneId::FootR,toes=left?BoneId::ToesL:BoneId::ToesR,
         shin=left?BoneId::ShinL:BoneId::ShinR;
     const auto map_leg_y=[&](double y){return .045+(y-.045)*(fit.body.hip_y-.045)/(.54-.045);};
