@@ -21,6 +21,13 @@ constexpr std::array<std::array<float, 3U>, 14U> kJacketProfile{{
     {{.825F, .112F, .051F}}, {{.841F, .070F, .040F}},
     {{.852F, .045F, .036F}}, {{.859F, .042F, .034F}},
 }};
+constexpr std::array<std::array<double, 3U>, 14U> kReferenceJacketProfile{{
+    {{.504, .112, .071}}, {{.519, .113, .071}}, {{.552, .110, .067}},
+    {{.595, .094, .056}}, {{.640, .100, .059}}, {{.698, .113, .066}},
+    {{.735, .122, .066}}, {{.759, .129, .064}}, {{.785, .134, .062}},
+    {{.809, .127, .057}}, {{.825, .112, .051}}, {{.841, .070, .040}},
+    {{.852, .045, .036}}, {{.859, .042, .034}}
+}};
 
 [[nodiscard]] float mix(float a, float b, float t) noexcept { return a + (b - a) * t; }
 [[nodiscard]] float smooth(float value) noexcept {
@@ -182,7 +189,9 @@ float EquipmentFit::mapTorsoY(float reference_y) const noexcept {
 }
 
 double EquipmentFit::mapTorsoYExact(double reference_y) const noexcept {
-    const double start=reference_hip_y-.036;
+    // The JS anatomy exposes hipY through the runtime Float32 phenotype;
+    // preserve that value before the Number-space interpolation.
+    const double start=static_cast<double>(hip_y)-.036;
     const double t=std::clamp((reference_y-.504)/.355,0.0,1.0);
     return start+(.859-start)*t;
 }
@@ -357,25 +366,26 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
     }
     for (std::size_t index = 0U; index < kJacketProfile.size(); ++index) {
         const auto& source = kJacketProfile[index];
-        const double chest_t = smoothExact((source[0] - .60) / .14);
-        const double shoulder = std::exp(-std::pow((source[0] - .790) / .060, 2.0));
+        const auto& reference_source = kReferenceJacketProfile[index];
+        const double chest_t = smoothExact((reference_source[0] - .60) / .14);
+        const double shoulder = std::exp(-std::pow((reference_source[0] - .790) / .060, 2.0));
         double width_scale = body.reference_waist_width_scale * (1.0-chest_t) +
             body.reference_chest_width_scale*chest_t;
         width_scale *= 1.0 + (body.reference_shoulder_width_scale - 1.0) * shoulder * .78;
         const double depth_scale = body.reference_waist_depth_scale * (1.0-chest_t) +
             body.reference_chest_depth_scale*chest_t;
         const float mapped_y = result.mapTorsoY(source[0]);
-        double radius_x = static_cast<double>(source[1]) * width_scale * shirt_ease;
-        double radius_z = static_cast<double>(source[2]) * depth_scale * shirt_ease;
-        if (source[0] >= .841F) {
+        double radius_x = reference_source[1] * width_scale * static_cast<double>(shirt_ease);
+        double radius_z = reference_source[2] * depth_scale * static_cast<double>(shirt_ease);
+        if (reference_source[0] >= .841) {
             const auto neck = FaceAnatomyEvaluator::sectionAt(result.face_anatomy,
                                                                mapped_y * body.height);
-            const float t = smooth((source[0] - .825F) / .034F);
+            const double t = smoothExact((reference_source[0] - .825) / .034);
             radius_x = radius_x + (static_cast<double>(neck.half_width / body.height + .0025F)-radius_x)*t;
             radius_z = radius_z + (static_cast<double>(neck.half_depth / body.height + .0025F)-radius_z)*t;
         }
         result.jacket[index] = {mapped_y, static_cast<float>(radius_x), static_cast<float>(radius_z), 0.0F,
-                                result.mapTorsoYExact(static_cast<double>(source[0])),
+                                result.mapTorsoYExact(reference_source[0]),
                                 static_cast<double>(radius_x), static_cast<double>(radius_z)};
     }
     if (const auto* pack = state.item(EquipmentSlot::Back)) {
