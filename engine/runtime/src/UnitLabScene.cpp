@@ -110,7 +110,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
     case 0: ++preview_seed_; rebuildModel(&context); break;
     case 1: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
     case 2:
-        camera_mode_ = static_cast<UnitLabCameraMode>((static_cast<std::uint8_t>(camera_mode_) + 1U) % 5U);
+        camera_mode_ = static_cast<UnitLabCameraMode>((static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U);
         camera_orbit_yaw_ = 0.0F; camera_orbit_pitch_ = 0.0F; camera_distance_scale_ = 1.0F;
         markDirty(UnitLabDirtyFlag::Ui); break;
     case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
@@ -452,6 +452,10 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         }
         metrics += " | EXPRESSION " + std::to_string(static_cast<int>(expression_)) +
                    "@" + std::to_string(expression_intensity_);
+        metrics += " | GPU UPLOAD " + std::to_string(context.render_telemetry.mesh_uploads);
+        metrics += " | PALETTE " + std::to_string(context.render_telemetry.palette_updates);
+        metrics += " | DRAW " + std::to_string(context.render_telemetry.draw_calls);
+        metrics += " | UI " + std::to_string(context.render_telemetry.ui_draw_calls);
     }
     context.ui.add({foundation::stable_id("unit-lab.metrics"), ui::UiWidgetType::Label,
                     std::move(metrics),
@@ -557,6 +561,17 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             camera_target = {0.0F, face.eye_y - face.eye_radius * 0.10F,
                              face.frontZ(face.eye_y) - face.eye_radius * 0.30F};
             camera_offset = {0.0F, extent * 0.015F, extent * 0.56F};
+            break;
+        }
+        case UnitLabCameraMode::Hands: {
+            const auto* left = model_artifact_->skeleton.findAttachment(
+                infantry::AttachmentPointId::LeftHand);
+            const auto* right = model_artifact_->skeleton.findAttachment(
+                infantry::AttachmentPointId::RightHand);
+            if (left != nullptr && right != nullptr) {
+                camera_target = multiply(add(left->world, right->world), 0.5F);
+            }
+            camera_offset = {0.0F, extent * 0.02F, extent * 0.72F};
             break;
         }
         }

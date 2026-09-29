@@ -22,6 +22,7 @@ enum class UnitLabCameraMode : std::uint8_t {
     Side,
     Back,
     Face,
+    Hands,
 };
 
 enum class UnitLabDirtyFlag : std::uint8_t {

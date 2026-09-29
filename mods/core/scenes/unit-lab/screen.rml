@@ -10,7 +10,7 @@
     <div class="controls">
       <button data-action="unit.regenerate">Next seed / regenerate</button>
       <button data-action="unit.detail">Cycle detail level</button>
-      <button data-action="unit.camera">Cycle camera preset</button>
+      <button data-action="unit.camera">Cycle camera: 3Q / front / side / back / face / hands</button>
       <button data-action="unit.locomotion">Cycle locomotion</button>
       <button data-action="unit.pause">Pause / resume animation</button>
       <button data-action="unit.expression">Cycle expression</button>

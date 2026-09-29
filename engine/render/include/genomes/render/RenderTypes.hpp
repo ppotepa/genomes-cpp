@@ -186,6 +186,10 @@ struct RenderUploadTelemetry final {
     std::uint64_t mesh_upload_bytes{0};
     std::uint64_t palette_updates{0};
     std::uint64_t draw_calls{0};
+    std::uint64_t ui_texture_uploads{0};
+    std::uint64_t ui_texture_upload_bytes{0};
+    std::uint64_t ui_buffer_grows{0};
+    std::uint64_t ui_draw_calls{0};
     std::uint64_t total_mesh_uploads{0};
     std::uint64_t total_mesh_upload_bytes{0};
 };

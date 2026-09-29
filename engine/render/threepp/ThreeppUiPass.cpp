@@ -51,7 +51,7 @@ struct ThreeppUiPass::Impl final {
         GLuint id{0U};
         std::uint32_t width{0U};
         std::uint32_t height{0U};
-        std::size_t content_hash{0U};
+        std::uint64_t content_revision{0U};
     };
 
     GLuint program{0U};
@@ -60,6 +60,9 @@ struct ThreeppUiPass::Impl final {
     GLuint ibo{0U};
     GLint viewport_location{-1};
     GLint textured_location{-1};
+    std::size_t vbo_capacity_bytes{0U};
+    std::size_t ibo_capacity_bytes{0U};
+    ThreeppUiStats stats{};
     std::unordered_map<std::uint64_t, Texture> textures;
 
     void destroyTexture(Texture& texture) noexcept {
@@ -76,6 +79,8 @@ struct ThreeppUiPass::Impl final {
         if (program != 0U) glDeleteProgram(program);
         program = vao = vbo = ibo = 0U;
         viewport_location = textured_location = -1;
+        vbo_capacity_bytes = ibo_capacity_bytes = 0U;
+        stats = {};
     }
 };
 
@@ -167,6 +172,7 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
         auto initialized = initialize();
         if (!initialized) return initialized;
     }
+    impl_->stats = {};
 
     std::unordered_set<std::uint64_t> live_textures;
     for (const auto& source : frame.textures) {
@@ -176,14 +182,10 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
             continue;
         }
         live_textures.insert(source.id);
-        std::size_t hash = 1469598103934665603ULL;
-        for (const auto value : source.rgba) {
-            hash ^= value;
-            hash *= 1099511628211ULL;
-        }
         auto& target = impl_->textures[source.id];
         if (target.id != 0U && target.width == source.width &&
-            target.height == source.height && target.content_hash == hash) {
+            target.height == source.height &&
+            target.content_revision == source.content_revision) {
             continue;
         }
         impl_->destroyTexture(target);
@@ -194,7 +196,7 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
         }
         target.width = source.width;
         target.height = source.height;
-        target.content_hash = hash;
+        target.content_revision = source.content_revision;
         glBindTexture(GL_TEXTURE_2D, target.id);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -204,6 +206,8 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8,
                      static_cast<GLsizei>(source.width), static_cast<GLsizei>(source.height),
                      0, GL_RGBA, GL_UNSIGNED_BYTE, source.rgba.data());
+        ++impl_->stats.texture_uploads;
+        impl_->stats.texture_upload_bytes += source.rgba.size();
     }
     for (auto it = impl_->textures.begin(); it != impl_->textures.end();) {
         if (!live_textures.contains(it->first)) {
@@ -285,16 +289,36 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
         glBindTexture(GL_TEXTURE_2D, texture);
         if (impl_->textured_location >= 0) glUniform1i(impl_->textured_location, texture != 0U ? 1 : 0);
 
+        const std::size_t vertex_bytes = vertices.size() * sizeof(GpuUiVertex);
+        const std::size_t index_bytes = indices.size() * sizeof(std::uint32_t);
+        const auto grow = [](std::size_t current, std::size_t required) {
+            std::size_t capacity = std::max<std::size_t>(4096U, current);
+            while (capacity < required) capacity *= 2U;
+            return capacity;
+        };
+
         glBindBuffer(GL_ARRAY_BUFFER, impl_->vbo);
-        glBufferData(GL_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(vertices.size() * sizeof(GpuUiVertex)),
-                     vertices.data(), GL_STREAM_DRAW);
+        if (vertex_bytes > impl_->vbo_capacity_bytes) {
+            impl_->vbo_capacity_bytes = grow(impl_->vbo_capacity_bytes, vertex_bytes);
+            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(impl_->vbo_capacity_bytes),
+                         nullptr, GL_STREAM_DRAW);
+            ++impl_->stats.buffer_grows;
+        }
+        glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(vertex_bytes),
+                        vertices.data());
+
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, impl_->ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                     static_cast<GLsizeiptr>(indices.size() * sizeof(std::uint32_t)),
-                     indices.data(), GL_STREAM_DRAW);
+        if (index_bytes > impl_->ibo_capacity_bytes) {
+            impl_->ibo_capacity_bytes = grow(impl_->ibo_capacity_bytes, index_bytes);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(impl_->ibo_capacity_bytes),
+                         nullptr, GL_STREAM_DRAW);
+            ++impl_->stats.buffer_grows;
+        }
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(index_bytes),
+                        indices.data());
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()),
                        GL_UNSIGNED_INT, nullptr);
+        ++impl_->stats.draw_calls;
     }
 
     glDisable(GL_SCISSOR_TEST);
@@ -302,6 +326,10 @@ foundation::Result<void, foundation::Error> ThreeppUiPass::draw(
     glUseProgram(0);
     glDepthMask(GL_TRUE);
     return Result::success();
+}
+
+ThreeppUiStats ThreeppUiPass::lastStats() const noexcept {
+    return impl_ ? impl_->stats : ThreeppUiStats{};
 }
 
 void ThreeppUiPass::shutdown() noexcept {

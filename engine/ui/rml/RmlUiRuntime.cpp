@@ -64,6 +64,7 @@ Rml::TextureHandle RenderAdapter::GenerateTexture(Rml::Span<const Rml::byte> sou
     const auto id = static_cast<Rml::TextureHandle>(next_texture_++);
     UiTexture texture{};
     texture.id = static_cast<std::uint64_t>(id);
+    texture.content_revision = 1U;
     texture.width = static_cast<std::uint32_t>(dimensions.x);
     texture.height = static_cast<std::uint32_t>(dimensions.y);
     const auto* begin = reinterpret_cast<const std::uint8_t*>(source.data());

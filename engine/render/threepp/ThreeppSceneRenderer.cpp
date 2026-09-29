@@ -452,6 +452,10 @@ void ThreeppSceneRenderer::begin_frame() {
     impl_->telemetry.mesh_upload_bytes = 0U;
     impl_->telemetry.palette_updates = 0U;
     impl_->telemetry.draw_calls = 0U;
+    impl_->telemetry.ui_texture_uploads = 0U;
+    impl_->telemetry.ui_texture_upload_bytes = 0U;
+    impl_->telemetry.ui_buffer_grows = 0U;
+    impl_->telemetry.ui_draw_calls = 0U;
     impl_->frame_open = true;
 }
 
@@ -665,6 +669,11 @@ void ThreeppSceneRenderer::submit(const PresentationSnapshot& snapshot,
             impl_->fail(ui_result.error().code, ui_result.error().message);
             return;
         }
+        const auto ui_stats = impl_->ui.lastStats();
+        impl_->telemetry.ui_texture_uploads = ui_stats.texture_uploads;
+        impl_->telemetry.ui_texture_upload_bytes = ui_stats.texture_upload_bytes;
+        impl_->telemetry.ui_buffer_grows = ui_stats.buffer_grows;
+        impl_->telemetry.ui_draw_calls = ui_stats.draw_calls;
         impl_->renderer->resetState();
         impl_->prune();
     } catch (...) {

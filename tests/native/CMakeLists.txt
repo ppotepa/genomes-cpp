@@ -150,6 +150,13 @@ genomes_set_project_warnings(genomes_test_render_backend)
 genomes_enable_test_assertions(genomes_test_render_backend)
 add_test(NAME render.backend COMMAND genomes_test_render_backend)
 
+add_executable(genomes_test_render_presentation_contract
+    render/presentation_contract_tests.cpp)
+target_link_libraries(genomes_test_render_presentation_contract PRIVATE genomes::render)
+genomes_set_project_warnings(genomes_test_render_presentation_contract)
+genomes_enable_test_assertions(genomes_test_render_presentation_contract)
+add_test(NAME render.presentation_contract COMMAND genomes_test_render_presentation_contract)
+
 add_executable(genomes_test_skinned_deformer
     render/skinned_deformer_tests.cpp)
 target_link_libraries(genomes_test_skinned_deformer PRIVATE genomes::render)

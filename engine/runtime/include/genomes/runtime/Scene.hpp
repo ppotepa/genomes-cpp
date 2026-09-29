@@ -40,6 +40,9 @@ struct SceneContext {
     const WorldGenerationConfig* world_config{nullptr};
     jobs::JobSystem* jobs{nullptr};
     render::RenderCapabilities render_capabilities{};
+    // Previous completed renderer frame. This is diagnostic/presentation data,
+    // never a simulation input.
+    render::RenderUploadTelemetry render_telemetry{};
 };
 
 class Scene {

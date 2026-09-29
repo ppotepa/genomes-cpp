@@ -48,6 +48,9 @@ struct UiGeometryVertex final {
 
 struct UiTexture final {
     std::uint64_t id{0};
+    // Producers increment this only when the pixel payload changes. Backends
+    // cache by (id, content_revision), avoiding a full atlas hash every frame.
+    std::uint64_t content_revision{0};
     std::uint32_t width{0};
     std::uint32_t height{0};
     std::vector<std::uint8_t> rgba;
