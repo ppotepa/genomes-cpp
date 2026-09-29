@@ -534,9 +534,11 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendClothDetails(
             ReferenceSurfaceBuilder::Ring ring;for(std::size_t index=0;index<segments;++index){const double angle=6.283185307179586476925286766559*index/segments,c=std::cos(angle),s=std::sin(angle);
                 // Match THREE.Vector3's sequential addScaledVector calls in
                 // SurfaceBuilder.ring(), rather than summing the offset first.
+                const auto add_scaled=[](double value,double direction,double scale){
+                    volatile double product=direction*scale;volatile double sum=value+product;return static_cast<double>(sum);};
                 ReferenceVec3 point=points[at];
-                point.x+=u.x*(radius*c);point.y+=u.y*(radius*c);point.z+=u.z*(radius*c);
-                point.x+=v.x*(radius*s);point.y+=v.y*(radius*s);point.z+=v.z*(radius*s);
+                point.x=add_scaled(point.x,u.x,radius*c);point.y=add_scaled(point.y,u.y,radius*c);point.z=add_scaled(point.z,u.z,radius*c);
+                point.x=add_scaled(point.x,v.x,radius*s);point.y=add_scaled(point.y,v.y,radius*s);point.z=add_scaled(point.z,v.z,radius*s);
                 ReferenceVec3 normal{u.x*c+v.x*s,u.y*c+v.y*s,u.z*c+v.z*s};
                 const double nl=std::sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
                 normal={normal.x/nl,normal.y/nl,normal.z/nl};

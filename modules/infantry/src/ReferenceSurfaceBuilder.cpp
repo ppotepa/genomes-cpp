@@ -167,10 +167,13 @@ void ReferenceSurfaceBuilder::cap(std::span<const VertexIndex> loop,
 
 AppearanceMesh ReferenceSurfaceBuilder::finalize() {
     AppearanceMesh mesh{};mesh.vertices.reserve(vertices_.size());
+    const auto jsFloatPosition=[this](double value) noexcept {
+        volatile double product=value*height_;
+        return static_cast<float>(product);
+    };
     for(const auto& raw:vertices_){AppearanceVertex vertex{};
-        vertex.position={static_cast<float>(raw.position.x*height_),
-                         static_cast<float>(raw.position.y*height_),
-                         static_cast<float>(raw.position.z*height_)};
+        vertex.position={jsFloatPosition(raw.position.x),jsFloatPosition(raw.position.y),
+                         jsFloatPosition(raw.position.z)};
         vertex.normal={static_cast<float>(raw.hint.x),static_cast<float>(raw.hint.y),
                        static_cast<float>(raw.hint.z)};
         vertex.uv={static_cast<float>(raw.uv[0]),static_cast<float>(raw.uv[1])};
