@@ -532,37 +532,59 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             (model_artifact_->appearance.minimum.x + model_artifact_->appearance.maximum.x) * 0.5F,
             (model_artifact_->appearance.minimum.y + model_artifact_->appearance.maximum.y) * 0.5F,
             (model_artifact_->appearance.minimum.z + model_artifact_->appearance.maximum.z) * 0.5F};
-        const float extent = std::max(0.5F,
-            model_artifact_->appearance.maximum.y - model_artifact_->appearance.minimum.y);
-        foundation::Vec3 camera_offset{0.0F, extent * 0.08F, extent * 2.35F};
+        const float extent = std::max(
+            0.5F, model_artifact_->appearance.maximum.y - model_artifact_->appearance.minimum.y);
+
+        foundation::Vec3 camera_target{center.x, center.y + extent * 0.02F, center.z};
+        foundation::Vec3 camera_offset{0.0F, extent * 0.06F, extent * 2.10F};
         switch (camera_mode_) {
-        case UnitLabCameraMode::Front: camera_offset = {0.0F, extent * 0.08F, extent * 2.35F}; break;
-        case UnitLabCameraMode::Side: camera_offset = {extent * 2.35F, extent * 0.08F, 0.0F}; break;
-        case UnitLabCameraMode::Back: camera_offset = {0.0F, extent * 0.08F, -extent * 2.35F}; break;
-        case UnitLabCameraMode::Face: camera_offset = {0.0F, extent * 0.62F, extent * 1.15F}; break;
-        case UnitLabCameraMode::ThreeQuarter: break;
+        case UnitLabCameraMode::Front:
+            camera_offset = {0.0F, extent * 0.06F, extent * 2.10F};
+            break;
+        case UnitLabCameraMode::Side:
+            camera_offset = {extent * 2.10F, extent * 0.06F, 0.0F};
+            break;
+        case UnitLabCameraMode::Back:
+            camera_offset = {0.0F, extent * 0.06F, -extent * 2.10F};
+            break;
+        case UnitLabCameraMode::ThreeQuarter:
+            camera_offset = {extent * 1.48F, extent * 0.08F, extent * 1.48F};
+            break;
+        case UnitLabCameraMode::Face: {
+            const auto& face = model_artifact_->phenotype.face;
+            camera_target = {0.0F, face.eye_y - face.eye_radius * 0.10F,
+                             face.frontZ(face.eye_y) - face.eye_radius * 0.30F};
+            camera_offset = {0.0F, extent * 0.015F, extent * 0.56F};
+            break;
         }
+        }
+
         const float horizontal = std::sqrt(camera_offset.x * camera_offset.x +
-                                            camera_offset.z * camera_offset.z);
+                                           camera_offset.z * camera_offset.z);
         const float base_angle = std::atan2(camera_offset.x, camera_offset.z);
         const float orbit_angle = base_angle + camera_orbit_yaw_;
         const float pitched_horizontal = horizontal * std::cos(camera_orbit_pitch_);
         camera_offset.x = pitched_horizontal * std::sin(orbit_angle);
         camera_offset.z = pitched_horizontal * std::cos(orbit_angle);
-        camera_offset.y = (camera_offset.y - extent * 0.08F) *
-                              std::cos(camera_orbit_pitch_) + extent * 0.08F +
-                          horizontal * std::sin(camera_orbit_pitch_);
-        camera_offset.x *= camera_distance_scale_;
-        camera_offset.y = extent * 0.08F +
-                          (camera_offset.y - extent * 0.08F) * camera_distance_scale_;
-        camera_offset.z *= camera_distance_scale_;
+        camera_offset.y += horizontal * std::sin(camera_orbit_pitch_);
+        camera_offset = multiply(camera_offset, camera_distance_scale_);
+
         context.presentation.camera = {
-            true, {center.x + camera_offset.x, center.y + camera_offset.y,
-                   center.z + camera_offset.z},
-            {center.x, center.y + (camera_mode_ == UnitLabCameraMode::Face
-                                       ? extent * 0.68F : extent * 0.45F), center.z},
-            {0.0F, 1.0F, 0.0F}, 0.72F, 0.05F, 100.0F};
-        const float model_rotation = std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
+            true,
+            add(camera_target, camera_offset),
+            camera_target,
+            {0.0F, 1.0F, 0.0F},
+            camera_mode_ == UnitLabCameraMode::Face ? 0.62F : 0.72F,
+            0.025F,
+            100.0F};
+        const float model_rotation =
+            std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
+        std::optional<render::RenderMesh> debug_deformed;
+        if (show_bounds_ || show_normals_ || show_wireframe_ || debug_weight_bone_) {
+            const auto& live_palette = context.presentation.skinned_palettes.back();
+            debug_deformed = render::deformSkinnedCPU(
+                *skinned_prototype_, live_palette.matrices, live_palette.morph_weights);
+        }
         const auto debugPoint = [model_rotation](Vec3 point) noexcept {
             return rotateY(point, model_rotation);
         };
@@ -572,21 +594,32 @@ void UnitLabScene::build_presentation(SceneContext& context) {
                 {debugPoint(start), debugPoint(end), color});
         };
         if (show_bounds_) {
-            const Vec3 minimum = model_artifact_->appearance.minimum;
-            const Vec3 maximum = model_artifact_->appearance.maximum;
+            Vec3 minimum = model_artifact_->appearance.minimum;
+            Vec3 maximum = model_artifact_->appearance.maximum;
+            if (debug_deformed && !debug_deformed->vertices.empty()) {
+                minimum = debug_deformed->vertices.front().position;
+                maximum = minimum;
+                for (const auto& vertex : debug_deformed->vertices) {
+                    minimum.x = std::min(minimum.x, vertex.position.x);
+                    minimum.y = std::min(minimum.y, vertex.position.y);
+                    minimum.z = std::min(minimum.z, vertex.position.z);
+                    maximum.x = std::max(maximum.x, vertex.position.x);
+                    maximum.y = std::max(maximum.y, vertex.position.y);
+                    maximum.z = std::max(maximum.z, vertex.position.z);
+                }
+            }
             const Vec3 corners[] = {
                 {minimum.x, minimum.y, minimum.z}, {maximum.x, minimum.y, minimum.z},
                 {maximum.x, maximum.y, minimum.z}, {minimum.x, maximum.y, minimum.z},
                 {minimum.x, minimum.y, maximum.z}, {maximum.x, minimum.y, maximum.z},
                 {maximum.x, maximum.y, maximum.z}, {minimum.x, maximum.y, maximum.z}};
             constexpr std::uint32_t edges[][2] = {
-                {0U, 1U}, {1U, 2U}, {2U, 3U}, {3U, 0U},
-                {4U, 5U}, {5U, 6U}, {6U, 7U}, {7U, 4U},
-                {0U, 4U}, {1U, 5U}, {2U, 6U}, {3U, 7U}};
-            for (const auto& edge : edges) {
+                {0U,1U},{1U,2U},{2U,3U},{3U,0U},
+                {4U,5U},{5U,6U},{6U,7U},{7U,4U},
+                {0U,4U},{1U,5U},{2U,6U},{3U,7U}};
+            for (const auto& edge : edges)
                 addDebugLine(corners[edge[0]], corners[edge[1]],
                              {0.10F, 0.85F, 1.0F, 1.0F});
-            }
         }
         if (show_skeleton_) {
             const auto pose = debugPose(
@@ -602,27 +635,35 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             }
         }
         if (show_normals_ || show_wireframe_ || debug_weight_bone_) {
-            const auto& vertices = skinned_prototype_->vertices;
+            const auto positionAt = [&](std::size_t index) noexcept {
+                return debug_deformed ? debug_deformed->vertices[index].position
+                                      : skinned_prototype_->vertices[index].position;
+            };
+            const auto normalAt = [&](std::size_t index) noexcept {
+                return debug_deformed ? debug_deformed->vertices[index].normal
+                                      : skinned_prototype_->vertices[index].normal;
+            };
             if (show_normals_ || debug_weight_bone_) {
-                for (std::size_t index = 0U; index < vertices.size(); index += 8U) {
-                    const auto& vertex = vertices[index];
-                    foundation::Color color{1.0F, 0.10F, 0.85F, 1.0F};
+                for (std::size_t index = 0U;
+                     index < skinned_prototype_->vertices.size(); index += 8U) {
+                    foundation::Color debug_color{1.0F, 0.10F, 0.85F, 1.0F};
                     if (debug_weight_bone_) {
                         float weight = 0.0F;
-                        const auto selected = static_cast<std::uint16_t>(*debug_weight_bone_);
+                        const auto selected =
+                            static_cast<std::uint16_t>(*debug_weight_bone_);
+                        const auto& vertex = skinned_prototype_->vertices[index];
                         for (std::size_t influence = 0U;
                              influence < vertex.bone_indices.size(); ++influence) {
-                            if (vertex.bone_indices[influence] == selected) {
+                            if (vertex.bone_indices[influence] == selected)
                                 weight += vertex.bone_weights[influence];
-                            }
                         }
                         const float clamped = std::clamp(weight, 0.0F, 1.0F);
-                        color = {clamped, 0.12F + 0.76F * (1.0F - clamped),
-                                 1.0F - clamped, 1.0F};
+                        debug_color = {clamped, 0.12F + 0.76F * (1.0F - clamped),
+                                       1.0F - clamped, 1.0F};
                     }
-                    addDebugLine(vertex.position,
-                                 add(vertex.position, multiply(vertex.normal, 0.045F)),
-                                 color);
+                    const auto position = positionAt(index);
+                    addDebugLine(position, add(position, multiply(normalAt(index), 0.045F)),
+                                 debug_color);
                 }
             }
             if (show_wireframe_) {
@@ -631,15 +672,12 @@ void UnitLabScene::build_presentation(SceneContext& context) {
                      index + 2U < skinned_prototype_->indices.size() &&
                      context.presentation.debug_lines.size() < kMaxDebugLines;
                      index += 3U) {
-                    const auto vertex = [this](std::uint32_t position) noexcept -> Vec3 {
-                        return skinned_prototype_->vertices[position].position;
-                    };
-                    const Vec3 a = vertex(skinned_prototype_->indices[index]);
-                    const Vec3 b = vertex(skinned_prototype_->indices[index + 1U]);
-                    const Vec3 c = vertex(skinned_prototype_->indices[index + 2U]);
+                    const Vec3 a = positionAt(skinned_prototype_->indices[index]);
+                    const Vec3 b = positionAt(skinned_prototype_->indices[index + 1U]);
+                    const Vec3 d = positionAt(skinned_prototype_->indices[index + 2U]);
                     addDebugLine(a, b, {0.15F, 1.0F, 0.35F, 1.0F});
-                    addDebugLine(b, c, {0.15F, 1.0F, 0.35F, 1.0F});
-                    addDebugLine(c, a, {0.15F, 1.0F, 0.35F, 1.0F});
+                    addDebugLine(b, d, {0.15F, 1.0F, 0.35F, 1.0F});
+                    addDebugLine(d, a, {0.15F, 1.0F, 0.35F, 1.0F});
                 }
             }
         }
