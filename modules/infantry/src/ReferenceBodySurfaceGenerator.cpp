@@ -532,9 +532,15 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendClothDetails(
             const double ul=std::sqrt(u.x*u.x+u.y*u.y+u.z*u.z);u={u.x/ul,u.y/ul,u.z/ul};const ReferenceVec3 v{
                 u.y*direction.z-u.z*direction.y,u.z*direction.x-u.x*direction.z,u.x*direction.y-u.y*direction.x};
             ReferenceSurfaceBuilder::Ring ring;for(std::size_t index=0;index<segments;++index){const double angle=6.283185307179586476925286766559*index/segments,c=std::cos(angle),s=std::sin(angle);
-                const ReferenceVec3 offset{u.x*radius*c+v.x*radius*s,u.y*radius*c+v.y*radius*s,u.z*radius*c+v.z*radius*s};
-                const ReferenceVec3 point{points[at].x+offset.x,points[at].y+offset.y,points[at].z+offset.z};
-                ring.push_back(builder.vertex(point,torsoWeights(fit,points[at]),color,offset,{static_cast<double>(index)/segments*3.0,static_cast<double>(at)/points.size()}));}
+                // Match THREE.Vector3's sequential addScaledVector calls in
+                // SurfaceBuilder.ring(), rather than summing the offset first.
+                ReferenceVec3 point=points[at];
+                point.x+=u.x*(radius*c);point.y+=u.y*(radius*c);point.z+=u.z*(radius*c);
+                point.x+=v.x*(radius*s);point.y+=v.y*(radius*s);point.z+=v.z*(radius*s);
+                ReferenceVec3 normal{u.x*c+v.x*s,u.y*c+v.y*s,u.z*c+v.z*s};
+                const double nl=std::sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
+                normal={normal.x/nl,normal.y/nl,normal.z/nl};
+                ring.push_back(builder.vertex(point,torsoWeights(fit,point),color,normal,{static_cast<double>(index)/segments*3.0,static_cast<double>(at)/points.size()}));}
             if(!previous.empty()){builder.bridge(previous,ring);triangles+=segments*2U;}previous=std::move(ring);}};
     for(const double sign:{1.0,-1.0}){const double x=sign*.054;patch_grid(x-.023,x+.023,.694,.750,.0025,shade(.88));
         patch_grid(x-.025,x+.025,.738,.755,.004,shade(.74));if(detail_level==3U){std::vector<ReferenceVec3> line,hem;

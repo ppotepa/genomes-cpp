@@ -45,15 +45,10 @@ struct InputFrame {
     float mouse_delta_x{0.0F};
     float mouse_delta_y{0.0F};
     float mouse_wheel_y{0.0F};
-<<<<<<< HEAD
     // Pointer coordinates and dimensions use framebuffer pixels, including DPI.
     float viewport_width{1280.0F};
     float viewport_height{720.0F};
-=======
-    std::uint32_t viewport_width{0};
-    std::uint32_t viewport_height{0};
     std::vector<Event> events;
->>>>>>> 13868ba (update mesh rendering)
 };
 
 } // namespace genomes::input

@@ -636,7 +636,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
             90.0F,
             38.0F,
             100.0F,
-            index % 4};
+            static_cast<float>(index % 4)};
         const foundation::Vec3 blue_position{-half_map + lateral, 0.0F, -half_map + depth};
         const foundation::Vec3 red_position{half_map - lateral, 0.0F, half_map - depth};
         const float blue_ground = terrain_->sampleBilinear(blue_position.x, blue_position.z);
