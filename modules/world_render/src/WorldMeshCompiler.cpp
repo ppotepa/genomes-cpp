@@ -2,6 +2,7 @@
 
 #include <genomes/buildings/BuildingModel.hpp>
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/geometry/PrimitiveBuilder.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -20,42 +21,17 @@ void append_colored_box(render::RenderMesh& mesh,
                         foundation::Vec3 size,
                         foundation::Color color,
                         float rotation_y) {
-    if (!std::isfinite(base.x) || !std::isfinite(base.y) || !std::isfinite(base.z) ||
-        !std::isfinite(size.x) || !std::isfinite(size.y) || !std::isfinite(size.z) ||
-        size.x <= 0.0F || size.y <= 0.0F || size.z <= 0.0F) {
-        return;
-    }
-    const float half_x = size.x * 0.5F;
-    const float half_z = size.z * 0.5F;
-    const float cosine = std::cos(rotation_y);
-    const float sine = std::sin(rotation_y);
-    const auto rotate = [base, cosine, sine](float x, float y, float z) {
-        return foundation::Vec3{base.x + x * cosine - z * sine, base.y + y,
-                                base.z + x * sine + z * cosine};
-    };
-    const foundation::Vec3 corners[] = {
-        rotate(-half_x, 0.0F, -half_z), rotate(half_x, 0.0F, -half_z),
-        rotate(half_x, 0.0F, half_z),   rotate(-half_x, 0.0F, half_z),
-        rotate(-half_x, size.y, -half_z), rotate(half_x, size.y, -half_z),
-        rotate(half_x, size.y, half_z),   rotate(-half_x, size.y, half_z)};
-    constexpr std::uint32_t faces[][4] = {
-        {0, 1, 5, 4}, {1, 2, 6, 5}, {2, 3, 7, 6},
-        {3, 0, 4, 7}, {4, 5, 6, 7}, {3, 2, 1, 0}};
-    constexpr foundation::Vec3 normals[] = {
-        {0.0F, 0.0F, -1.0F}, {1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F},
-        {-1.0F, 0.0F, 0.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, -1.0F, 0.0F}};
-    for (std::size_t face = 0; face < 6; ++face) {
-        const std::uint32_t base_index = static_cast<std::uint32_t>(mesh.vertices.size());
-        for (std::size_t corner = 0; corner < 4; ++corner) {
-            mesh.vertices.push_back({corners[faces[face][corner]], normals[face],
-                                     {corner == 1 || corner == 2 ? 1.0F : 0.0F,
-                                      corner >= 2 ? 1.0F : 0.0F},
-                                     color});
-        }
-        mesh.indices.insert(mesh.indices.end(),
-                            {base_index, base_index + 1, base_index + 2,
-                             base_index, base_index + 2, base_index + 3});
-    }
+    const auto primitive=geometry::makeBox({size});
+    if(primitive.empty())return;
+    geometry::MeshData transformed;
+    geometry::appendTransformed(transformed,primitive,{
+        {base.x,base.y+size.y*0.5F,base.z},{1.0F,1.0F,1.0F},rotation_y});
+    const auto index_base=static_cast<std::uint32_t>(mesh.vertices.size());
+    mesh.vertices.reserve(mesh.vertices.size()+transformed.vertices.size());
+    for(const auto& vertex:transformed.vertices)
+        mesh.vertices.push_back({vertex.position,vertex.normal,vertex.uv,color});
+    mesh.indices.reserve(mesh.indices.size()+transformed.indices.size());
+    for(const auto index:transformed.indices)mesh.indices.push_back(index_base+index);
 }
 
 void append_centered_box(render::RenderMesh& mesh,

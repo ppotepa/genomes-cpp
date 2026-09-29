@@ -1,5 +1,6 @@
 #include <genomes/infantry/ReferenceBodySurfaceGenerator.hpp>
 #include <genomes/infantry/ReferenceFaceSurfaceGenerator.hpp>
+#include <genomes/infantry/AppearanceMeshFinalizer.hpp>
 
 #include <algorithm>
 #include <array>
@@ -68,7 +69,10 @@ foundation::Result<ReferenceAvatarSurface,foundation::Error> ReferenceBodySurfac
     constexpr std::array<std::string_view,4U> names{"eyelidsClose","eyelidsArc","neckFlex","handsRelax"};
     ReferenceAvatarSurface result{};for(std::size_t index=0;index<names.size();++index){result.morphs[index].name=names[index];
         result.morphs[index].position_deltas=builder.morphPositions(names[index]);}
-    result.mesh=builder.finalize();result.mesh.materials={
+    result.mesh=builder.finalize();
+    if(auto finalized=finalizeAppearanceMesh(result.mesh);!finalized)
+        return foundation::Result<ReferenceAvatarSurface,foundation::Error>::failure(finalized.error());
+    result.mesh.materials={
         {"body",uniform,.95F,0.0F,1.0F,false},
         {"skin",fit.body.skin_color,.95F,0.0F,1.0F,false},
         {"hair",{.035F,.025F,.018F,1.0F},.9F,0.0F,1.0F,false}};

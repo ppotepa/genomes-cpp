@@ -590,3 +590,10 @@ genomes_set_project_warnings(genomes_test_infantry_model_compiler)
 genomes_enable_test_assertions(genomes_test_infantry_model_compiler)
 add_test(NAME infantry.model_compiler COMMAND genomes_test_infantry_model_compiler)
 endif()
+
+add_executable(genomes_test_geometry_shared_operations
+    geometry_shared_operations_tests.cpp)
+target_link_libraries(genomes_test_geometry_shared_operations PRIVATE genomes::geometry)
+genomes_set_project_warnings(genomes_test_geometry_shared_operations)
+genomes_enable_test_assertions(genomes_test_geometry_shared_operations)
+add_test(NAME geometry.shared_operations COMMAND genomes_test_geometry_shared_operations)

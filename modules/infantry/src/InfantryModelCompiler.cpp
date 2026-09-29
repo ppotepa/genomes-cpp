@@ -4,7 +4,6 @@
 #include <genomes/infantry/PhenotypeResolver.hpp>
 #include <genomes/infantry/ReferenceBodySurfaceGenerator.hpp>
 
-#include <algorithm>
 #include <cmath>
 
 namespace genomes::infantry {
@@ -159,54 +158,6 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request,
     appearance.cache_key = AppearanceCompiler::cacheKey(
         phenotype.value(), skeleton.value(), appearance_options);
     appearance.body = std::move(reference_surface.value().mesh);
-    std::vector<std::uint32_t> non_degenerate_indices;
-    non_degenerate_indices.reserve(appearance.body.indices.size());
-    std::vector<AppearanceIndexGroup> non_degenerate_groups;
-    for (const auto& group : appearance.body.groups) {
-        const auto start = static_cast<std::uint32_t>(non_degenerate_indices.size());
-        for (std::uint32_t offset = group.start; offset < group.start + group.count;
-             offset += 3U) {
-            const auto i0 = appearance.body.indices[offset];
-            const auto i1 = appearance.body.indices[offset + 1U];
-            const auto i2 = appearance.body.indices[offset + 2U];
-            const auto& a = appearance.body.vertices[i0].position;
-            const auto& b = appearance.body.vertices[i1].position;
-            const auto& c = appearance.body.vertices[i2].position;
-            const float abx=b.x-a.x,aby=b.y-a.y,abz=b.z-a.z;
-            const float acx=c.x-a.x,acy=c.y-a.y,acz=c.z-a.z;
-            const float nx=aby*acz-abz*acy,ny=abz*acx-abx*acz,nz=abx*acy-aby*acx;
-            if (nx*nx+ny*ny+nz*nz <= 1.0e-12F) continue;
-            non_degenerate_indices.insert(non_degenerate_indices.end(), {i0,i1,i2});
-        }
-        const auto count = static_cast<std::uint32_t>(non_degenerate_indices.size())-start;
-        if (count != 0U) non_degenerate_groups.push_back({start,count,group.material});
-    }
-    appearance.body.indices = std::move(non_degenerate_indices);
-    appearance.body.groups = std::move(non_degenerate_groups);
-    std::vector<foundation::Vec3> fallback_normals(appearance.body.vertices.size());
-    for (std::size_t offset=0;offset<appearance.body.indices.size();offset+=3U) {
-        const auto i0=appearance.body.indices[offset],i1=appearance.body.indices[offset+1U],i2=appearance.body.indices[offset+2U];
-        const auto& a=appearance.body.vertices[i0].position;const auto& b=appearance.body.vertices[i1].position;const auto& c=appearance.body.vertices[i2].position;
-        const float abx=b.x-a.x,aby=b.y-a.y,abz=b.z-a.z,acx=c.x-a.x,acy=c.y-a.y,acz=c.z-a.z;
-        const foundation::Vec3 normal{aby*acz-abz*acy,abz*acx-abx*acz,abx*acy-aby*acx};
-        for(const auto index:{i0,i1,i2})if(fallback_normals[index].x==0.0F&&fallback_normals[index].y==0.0F&&fallback_normals[index].z==0.0F)fallback_normals[index]=normal;
-    }
-    for (std::size_t index=0;index<appearance.body.vertices.size();++index) {
-        auto& vertex=appearance.body.vertices[index];
-        const float normal_length2 = vertex.normal.x * vertex.normal.x +
-            vertex.normal.y * vertex.normal.y + vertex.normal.z * vertex.normal.z;
-        if (!(normal_length2 > 1.0e-12F)) {const auto fallback=fallback_normals[index];const float length=std::sqrt(fallback.x*fallback.x+fallback.y*fallback.y+fallback.z*fallback.z);
-            vertex.normal=length>0.0F?foundation::Vec3{fallback.x/length,fallback.y/length,fallback.z/length}:foundation::Vec3{0.0F,1.0F,0.0F};}
-    }
-    for (std::size_t offset=0;offset<appearance.body.indices.size();offset+=3U) {
-        const auto i0=appearance.body.indices[offset],i1=appearance.body.indices[offset+1U],i2=appearance.body.indices[offset+2U];
-        const auto& a=appearance.body.vertices[i0];const auto& b=appearance.body.vertices[i1];const auto& c=appearance.body.vertices[i2];
-        const float abx=b.position.x-a.position.x,aby=b.position.y-a.position.y,abz=b.position.z-a.position.z;
-        const float acx=c.position.x-a.position.x,acy=c.position.y-a.position.y,acz=c.position.z-a.position.z;
-        const float nx=aby*acz-abz*acy,ny=abz*acx-abx*acz,nz=abx*acy-aby*acx;
-        const float average_x=(a.normal.x+b.normal.x+c.normal.x)/3.0F,average_y=(a.normal.y+b.normal.y+c.normal.y)/3.0F,average_z=(a.normal.z+b.normal.z+c.normal.z)/3.0F;
-        if(nx*average_x+ny*average_y+nz*average_z < -1.0e-6F)std::swap(appearance.body.indices[offset+1U],appearance.body.indices[offset+2U]);
-    }
     appearance.morphs = std::move(reference_surface.value().morphs);
     appearance.minimum = appearance.body.minimum;
     appearance.maximum = appearance.body.maximum;

@@ -1,5 +1,8 @@
 add_library(genomes_geometry STATIC
     src/MeshBuilder.cpp
+    src/MeshData.cpp
+    src/PrimitiveBuilder.cpp
+    src/MeshRepair.cpp
     src/ProfileSurface.cpp
     src/ParametricSurface.cpp
     src/MeshValidation.cpp)
@@ -11,3 +14,7 @@ target_compile_features(genomes_geometry PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_geometry)
 
 add_library(genomes::geometry ALIAS genomes_geometry)
+
+if(GENOMES_ENABLE_THREEPP)
+    add_subdirectory(threepp)
+endif()

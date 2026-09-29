@@ -1,0 +1,25 @@
+GENOMES GEOMETRY ROUTE — ACTIVE OWNERSHIP
+=========================================
+Updated: 2026-09-29
+
+1. engine/geometry is the single backend-neutral owner of reusable topology,
+   transforms, common primitives, validation and triangle repair.
+2. engine/geometry/threepp is an OPTIONAL CPU primitive provider. It converts
+   threepp Box/Sphere/Cylinder/Capsule BufferGeometry into geometry::MeshData.
+   It is not linked into headless simulation/domain modules.
+3. modules/infantry owns anatomy, skin weights, semantic material regions,
+   procedural face/hair/body rules. It does not own generic mesh repair.
+4. Production infantry model compilation remains the pinned Reference* route
+   until the JS parity gate is retired deliberately. AppearanceCompiler remains
+   a compatibility/standalone surface API; new production work must not create
+   a third topology builder.
+5. modules/world_render and render::procedural use engine/geometry primitives,
+   proving common operations outside the infantry domain.
+6. threepp remains presentation + standard primitive supplier. Simulation and
+   serialized world/domain artifacts never store threepp types.
+
+Next consolidation:
+- migrate additional rigid gear/debug primitives to geometry::MeshData /
+  threepp_provider where exact JS-buffer parity is not required;
+- converge ReferenceSurfaceBuilder and AppearanceMeshBuilder after semantic
+  parity fixtures establish which topology contracts must remain exact.
