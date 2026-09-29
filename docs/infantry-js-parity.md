@@ -25,7 +25,7 @@ stage without its fixture cannot be marked parity.
 | 10 | Battlefield integration | integration fixtures | shared pipeline | partial | `3d2710f` |
 | 11 | damage/ragdoll adaptation | native invariants only | damage/ragdoll tests | implemented | `3d2710f` |
 | 12 | fixture breadth | catalog hashes + extreme samples | all 36 seed/LOD/gear full-buffer fixtures are checked and parsed; every GNIF stream carries a quantized FNV-1a 64 descriptor hash which the native reader recomputes and verifies; mesh manifests carry position/normal/index extrema and the reader checks position extrema against the buffers; the checked-in 1024-seed genome catalog is parsed and every gene is verified against native generation at `2e-6`. Manual capture review remains pending | partial | worktree |
-| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | partial — normal Debug builds with 77/78 tests (strict reference parity remains); Diligent Debug builds cleanly and passes 78/79; SDL/RmlUi Debug builds cleanly and `ui.rml_smoke` plus fixture reader pass, with the same single reference-parity failure. Release and manual graphical capture remain pending. | worktree |
+| 13 | build matrix | build logs | headless, SDL/RmlUi, Null, no-infantry, DX12 | partial — normal Debug builds with 77/78 tests (strict reference parity remains); Diligent Debug and Release each build cleanly and pass 78/79; SDL/RmlUi Debug builds cleanly and `ui.rml_smoke` plus fixture reader pass, with the same single reference-parity failure. Manual graphical capture remains pending. | worktree |
 | 14 | final acceptance | capture matrix | all gates + manual review | pending | — |
 
 ## GNIF v1
@@ -96,6 +96,16 @@ groups, extrema, and quantized FNV-1a 64 hashes. Checked-in fixtures,
 - Test: fresh `verify-diligent-debug` build succeeds; 78/79 tests pass, with
   only `infantry.reference_parity` still failing.
 - Commit: `5d8c81a`.
+
+### 2.5 reference-input precision finding
+
+- The remaining head normal mismatch is unchanged after promoting the
+  derived face shape scalars to `double`.
+- The next source-level discrepancy is the JS `Number` genome input path:
+  native `FaceGenes` and the resolver request still store the source genes as
+  `float`, so the face authoring path starts from quantized values before the
+  final Float32 GPU boundary.
+- No tolerance or fixture changes were made for this finding.
 
 Follow-up: the jacket profile now also retains exact mapped Y and radius
 values, and the reference builder uses the exact generated height. The strict
