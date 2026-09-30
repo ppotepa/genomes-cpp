@@ -125,7 +125,7 @@ struct DiligentBackend::Impl final {
     RenderResult createPipeline(bool skinned,bool shadow_pass,bool double_sided,MaterialAlphaMode,Pipeline*&);
     RenderResult drawRange(std::span<const Item* const>,std::size_t range_index,bool shadow_pass);
     RenderResult setSceneConstants(bool shadow_pass);
-    void viewport(const RenderCamera&);
+    void viewport(const camera::PixelViewport&);
     void restoreTargets();
     void prune();
     Ptr<Diligent::IBuffer> buffer(const char*,std::size_t,Diligent::BIND_FLAGS,bool,const void* data=nullptr);

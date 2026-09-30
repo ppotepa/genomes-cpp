@@ -185,7 +185,8 @@ RenderResult DiligentBackend::Impl::renderUi(const ui::UiRenderFrame& frame) {
     telemetry.ui_buffer_grows+=(old_vb!=ui_vertex_capacity?1U:0U)+(old_ib!=ui_index_capacity?1U:0U);
     if(auto r=mapCopy(ui_vertices_buffer,vertices.data(),vb);!r)return r;
     if(auto r=mapCopy(ui_indices_buffer,indices.data(),ib);!r)return r;
-    viewport(RenderCamera{});context->SetPipelineState(ui_pipeline.state);
+    viewport(camera::PixelViewport{0,0,static_cast<int>(desc.Width),static_cast<int>(desc.Height)});
+    context->SetPipelineState(ui_pipeline.state);
     Diligent::IBuffer* vertex_buffer=ui_vertices_buffer;const Diligent::Uint64 zero=0;
     context->SetVertexBuffers(0,1,&vertex_buffer,&zero,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
     context->SetIndexBuffer(ui_indices_buffer,0,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);

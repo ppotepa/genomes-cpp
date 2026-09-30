@@ -21,18 +21,18 @@ bool validLights(const CharacterLightRig& lights) {
         std::isfinite(lights.hemisphere.intensity)&&lights.hemisphere.intensity>=0;
 }
 }
-void DiligentBackend::Impl::viewport(const RenderCamera& requested) {
+void DiligentBackend::Impl::viewport(const camera::PixelViewport& requested) {
     const auto& desc=swap->GetDesc();Diligent::Viewport value{};
-    value.TopLeftX=requested.viewport_left*static_cast<float>(desc.Width);
-    value.TopLeftY=requested.viewport_top*static_cast<float>(desc.Height);
-    value.Width=requested.viewport_width*static_cast<float>(desc.Width);
-    value.Height=requested.viewport_height*static_cast<float>(desc.Height);value.MinDepth=0;value.MaxDepth=1;
+    value.TopLeftX=static_cast<float>(requested.x);
+    value.TopLeftY=static_cast<float>(requested.y);
+    value.Width=static_cast<float>(requested.width);
+    value.Height=static_cast<float>(requested.height);value.MinDepth=0;value.MaxDepth=1;
     context->SetViewports(1U,&value,desc.Width,desc.Height);
 }
 void DiligentBackend::Impl::restoreTargets() {
     Diligent::ITextureView* target=swap->GetCurrentBackBufferRTV();
     context->SetRenderTargets(1U,&target,depth_view,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-    viewport(camera);
+    viewport(resolved_camera.viewport);
 }
 RenderResult DiligentBackend::Impl::setSceneConstants(bool shadow_pass) {
     SceneConstants constants{};const auto& vp=shadow_pass?shadow_matrix:camera_matrix;
@@ -110,6 +110,17 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
     }
     if (!have_resolved_camera) return error("Diligent requires a resolved camera");
     camera=snapshot.camera;
+    const auto& viewport_pixels=resolved_camera.viewport;
+    if (viewport_pixels.width<=0 || viewport_pixels.height<=0 ||
+        viewport_pixels.x<0 || viewport_pixels.y<0 ||
+        viewport_pixels.x+viewport_pixels.width>static_cast<int>(swap->GetDesc().Width) ||
+        viewport_pixels.y+viewport_pixels.height>static_cast<int>(swap->GetDesc().Height))
+        return error("resolved camera viewport is outside the framebuffer");
+    const auto& desc=swap->GetDesc();
+    camera.viewport_left=static_cast<float>(viewport_pixels.x)/static_cast<float>(desc.Width);
+    camera.viewport_top=static_cast<float>(viewport_pixels.y)/static_cast<float>(desc.Height);
+    camera.viewport_width=static_cast<float>(viewport_pixels.width)/static_cast<float>(desc.Width);
+    camera.viewport_height=static_cast<float>(viewport_pixels.height)/static_cast<float>(desc.Height);
     if (camera.enabled&&!camera.valid()) return error("invalid scene camera");
     if (!camera.enabled) {
         V lo{-1,0,-1},hi{1,2,1};
@@ -125,7 +136,6 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         const float extent=std::max({hi.x-lo.x,hi.y-lo.y,hi.z-lo.z,2.0F});
         camera.position=camera.target+V{extent,extent*.8F,extent};camera.far_plane=extent*12.0F;
     }
-    const auto& desc=swap->GetDesc();
     const float aspect=static_cast<float>(desc.Width)*camera.viewport_width/
         (static_cast<float>(desc.Height)*camera.viewport_height);
     if (have_resolved_camera) {
