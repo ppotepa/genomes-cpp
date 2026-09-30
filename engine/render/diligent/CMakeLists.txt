@@ -20,10 +20,9 @@ add_library(genomes_render_diligent STATIC
     DiligentBackend.cpp DiligentResources.cpp DiligentMeshUpload.cpp
     DiligentScenePasses.cpp DiligentDraw.cpp DiligentUiPass.cpp
     DiligentCapture.cpp DiligentSceneRenderer.cpp)
-target_link_libraries(genomes_render_diligent PUBLIC genomes::render PRIVATE
+target_link_libraries(genomes_render_diligent PUBLIC genomes::render genomes::camera PRIVATE
     Diligent-TextureLoader
-    $<$<PLATFORM_ID:Windows>:Diligent-GraphicsEngineD3D12-static>
-    $<$<NOT:$<PLATFORM_ID:Windows>>:Diligent-GraphicsEngineVk-static>)
+    Diligent-GraphicsEngineD3D12-static)
 target_include_directories(genomes_render_diligent PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(genomes_render_diligent PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(genomes_render_diligent SYSTEM PRIVATE
