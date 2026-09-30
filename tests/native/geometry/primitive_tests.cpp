@@ -3,6 +3,7 @@
 #include <genomes/geometry/ProfileSurface.hpp>
 #include <genomes/geometry/MeshValidation.hpp>
 #include <cassert>
+#include <cmath>
 
 int main() {
     using namespace genomes::geometry;
@@ -32,6 +33,8 @@ int main() {
     SweepSpec degenerate_sweep{{{0,0,0},{0,0,0}},{{0.5F,0.5F},{0.5F,0.5F}},8U,false,false};
     assert(!sweepProfile(degenerate_sweep));
     ParametricSurfaceSpec plane{}; plane.u_segments=2; plane.v_segments=2; plane.position=[](float u,float v){return genomes::foundation::Vec3{u,v,0};};
-    const auto tessellated=tessellateParametric(plane); assert(tessellated && tessellated.value().indices.size()==24U);
+    const auto tessellated=tessellateParametric(plane); assert(tessellated && tessellated.value().indices.size()==24U && validateMesh(tessellated.value()).valid());
+    plane.position=[](float, float){return genomes::foundation::Vec3{NAN, 0.0F, 0.0F};};
+    assert(!tessellateParametric(plane));
     return 0;
 }
