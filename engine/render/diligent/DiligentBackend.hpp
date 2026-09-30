@@ -27,7 +27,6 @@ public:
     [[nodiscard]] RenderResult resize(std::uint32_t,std::uint32_t) noexcept;
     [[nodiscard]] RenderResult wait_idle() noexcept override;
     [[nodiscard]] RenderResult capture(const std::filesystem::path&) noexcept;
-    void set_camera(const RenderCamera&) noexcept;
     void set_resolved_camera(const camera::ResolvedCamera&) noexcept;
     void shutdown() noexcept override;
 private:

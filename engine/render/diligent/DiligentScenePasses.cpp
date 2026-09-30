@@ -108,7 +108,8 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         }
         items.push_back(item);
     }
-    camera=have_camera_override?camera_override:snapshot.camera;
+    if (!have_resolved_camera) return error("Diligent requires a resolved camera");
+    camera=snapshot.camera;
     if (camera.enabled&&!camera.valid()) return error("invalid scene camera");
     if (!camera.enabled) {
         V lo{-1,0,-1},hi{1,2,1};
