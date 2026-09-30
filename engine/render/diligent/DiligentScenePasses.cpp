@@ -14,7 +14,7 @@ bool validLights(const CharacterLightRig& lights) {
         return std::isfinite(a.r)&&std::isfinite(a.g)&&std::isfinite(a.b)&&a.r>=0&&a.g>=0&&a.b>=0;
     };
     for (const auto* light:{&lights.key,&lights.fill}) {
-        if (!finite(light->direction)||dot(light->direction,light->direction)<1.0e-8F||
+        if (!math::finite(light->direction)||math::dot(light->direction,light->direction)<1.0e-8F||
             !valid_color(light->color)||!std::isfinite(light->intensity)||light->intensity<0) return false;
     }
     return valid_color(lights.hemisphere.sky)&&valid_color(lights.hemisphere.ground)&&
@@ -115,26 +115,31 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         for (const auto& item:items) {
             const auto extent=item.gpu->half_extent;
             for (float x:{-extent.x,extent.x}) for (float y:{-extent.y,extent.y}) for (float z:{-extent.z,extent.z}) {
-                const auto point=transformPoint(add(item.gpu->center,{x,y,z}),item.instance);
+                const auto point=transformPoint(item.gpu->center+V{x,y,z},item.instance);
                 lo={std::min(lo.x,point.x),std::min(lo.y,point.y),std::min(lo.z,point.z)};
                 hi={std::max(hi.x,point.x),std::max(hi.y,point.y),std::max(hi.z,point.z)};
             }
         }
-        camera={};camera.enabled=true;camera.target=scale(add(lo,hi),.5F);
+        camera={};camera.enabled=true;camera.target=(lo+hi)*.5F;
         const float extent=std::max({hi.x-lo.x,hi.y-lo.y,hi.z-lo.z,2.0F});
-        camera.position=add(camera.target,{extent,extent*.8F,extent});camera.far_plane=extent*12.0F;
+        camera.position=camera.target+V{extent,extent*.8F,extent};camera.far_plane=extent*12.0F;
     }
     const auto& desc=swap->GetDesc();
     const float aspect=static_cast<float>(desc.Width)*camera.viewport_width/
         (static_cast<float>(desc.Height)*camera.viewport_height);
-    camera_matrix=multiply(perspective(camera.vertical_fov,aspect,camera.near_plane,camera.far_plane),
-        lookAt(camera.position,camera.target,camera.up));
-    if (have_resolved_camera) camera_matrix.v=resolved_camera.view_projection.m;
-    const auto offset=sub(camera.position,camera.target);
-    const float radius=std::clamp(std::sqrt(dot(offset,offset))*.8F,3.0F,160.0F);
-    const V direction=normal(lights.key.direction),up=std::abs(direction.y)>.95F?V{0,0,1}:V{0,1,0};
+    if (have_resolved_camera) {
+        camera_matrix.v=resolved_camera.view_projection.m;
+    } else {
+        const auto view=math::lookAtRH(camera.position,camera.target,camera.up);
+        const auto projection=math::perspectiveD3D(camera.vertical_fov,aspect,
+                                                    camera.near_plane,camera.far_plane);
+        camera_matrix.v=(projection*view).m;
+    }
+    const auto offset=camera.position-camera.target;
+    const float radius=std::clamp(math::length(offset)*.8F,3.0F,160.0F);
+    const V direction=math::normalized(lights.key.direction),up=std::abs(direction.y)>.95F?V{0,0,1}:V{0,1,0};
     shadow_matrix=multiply(ortho(radius,.1F,radius*6.0F),
-        lookAt(add(camera.target,scale(direction,radius*3.0F)),camera.target,up));
+        fromMath(math::lookAtRH(camera.target+direction*(radius*3.0F),camera.target,up)));
     const auto& ndc=device->GetDeviceInfo().GetNDCAttribs();
     Mat4 uv=identity();uv.v[0]=.5F;uv.v[5]=ndc.YtoVScale;uv.v[10]=ndc.ZtoDepthScale;
     uv.v[12]=uv.v[13]=.5F;uv.v[14]=ndc.GetZtoDepthBias();shadow_uv_matrix=multiply(uv,shadow_matrix);
@@ -181,9 +186,9 @@ RenderResult DiligentBackend::Impl::renderItems(bool /*direct*/,bool shadow_pass
         if (shadow_pass&&(item.instance.flags&RenderInstanceFlagCastShadow)==0U) continue;
         for (std::size_t k=0;k<item.gpu->ranges.size();++k) {
             const auto alpha=effectiveAlpha(item.gpu->ranges[k],item.instance.tint);
-            const auto delta=sub(transformPoint(item.gpu->center,item.instance),camera.position);
+            const auto delta=transformPoint(item.gpu->center,item.instance)-camera.position;
             if (alpha==MaterialAlphaMode::Blend) {
-                if (!shadow_pass) transparent.push_back({&item,k,dot(delta,delta)});
+                if (!shadow_pass) transparent.push_back({&item,k,math::dot(delta,delta)});
                 continue;
             }
             if (item.skin) skin_draws.push_back({&item,k,0});

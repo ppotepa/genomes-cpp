@@ -26,12 +26,6 @@
 namespace genomes::render::diligent_detail {
 using V=foundation::Vec3;
 template<class T> using Ptr=Diligent::RefCntAutoPtr<T>;
-inline V add(V a,V b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
-inline V sub(V a,V b) { return {a.x-b.x,a.y-b.y,a.z-b.z}; }
-inline V scale(V a,float s) { return {a.x*s,a.y*s,a.z*s}; }
-inline float dot(V a,V b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
-inline V cross(V a,V b) { return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
-inline V normal(V v) { const float n=std::sqrt(dot(v,v)); return n>1.0e-8F?scale(v,1/n):V{0,1,0}; }
 struct Mat4 { std::array<float,16U> v{}; };
 inline Mat4 identity() { Mat4 m; m.v[0]=m.v[5]=m.v[10]=m.v[15]=1; return m; }
 inline Mat4 multiply(const Mat4& a,const Mat4& b) {
@@ -40,16 +34,10 @@ inline Mat4 multiply(const Mat4& a,const Mat4& b) {
         for (std::size_t k=0;k<4;++k) r.v[c*4+row]+=a.v[k*4+row]*b.v[c*4+k];
     return r;
 }
-inline Mat4 lookAt(V eye,V target,V up) {
-    const V f=normal(sub(target,eye)),r=normal(cross(f,up)),u=cross(r,f);
-    Mat4 m;
-    m.v={r.x,u.x,-f.x,0,r.y,u.y,-f.y,0,r.z,u.z,-f.z,0,-dot(r,eye),-dot(u,eye),dot(f,eye),1};
-    return m;
-}
-inline Mat4 perspective(float fov,float aspect,float near_z,float far_z) {
-    Mat4 m; const float f=1/std::tan(fov*.5F);
-    m.v[0]=f/aspect;m.v[5]=f;m.v[10]=far_z/(near_z-far_z);m.v[11]=-1;
-    m.v[14]=far_z*near_z/(near_z-far_z); return m;
+inline Mat4 fromMath(const math::Mat4& source) {
+    Mat4 result{};
+    result.v=source.m;
+    return result;
 }
 inline Mat4 ortho(float radius,float near_z,float far_z) {
     Mat4 m=identity();m.v[0]=m.v[5]=1/radius;m.v[10]=1/(near_z-far_z);m.v[14]=near_z/(near_z-far_z);return m;
