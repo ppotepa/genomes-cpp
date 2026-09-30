@@ -15,7 +15,10 @@ import sys
 
 _LEGACY = "three" + "pp"
 _GL = "GL"
-FORBIDDEN = (_LEGACY, _LEGACY.upper(), _GL + "Renderer", _GL + "FW")
+FORBIDDEN = (
+    _LEGACY, _LEGACY.upper(), _GL + "Renderer", _GL + "FW",
+    "A" + "VX2", "/arch:" + "AVX", "-march=" + "native",
+)
 PUBLIC_EXTERNAL = ("Diligent::", "fastgltf::", "manifold::", "meshopt_")
 _TRACKER_STATUSES = ("TODO", "DOING", "CODE_READY", "WAIT_USER", "VERIFIED", "BLOCKED")
 
