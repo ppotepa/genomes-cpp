@@ -149,7 +149,7 @@ LT-090 | CODE_READY | 10f6c0c | - | PresentationPipeline preserves final camera 
 LT-091 | CODE_READY | d72fe6c | - | Battlefield stores and publishes neutral CameraRequest source review | user runtime/Diligent build
 LT-092 | CODE_READY | 8dfcfa4 | - | GameApplication ownership comment; SceneDirector owns camera controller | user Diligent source/build review
 LT-093 | CODE_READY | 8dfcfa4 | - | UI filtering precedes SceneDirector camera input routing | user Diligent source/build review
-LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit NativeD3D target source review | user Windows/D3D12 build
+LT-094 | CODE_READY | dd3b40a | - | Diligent-only game composition, explicit NativeD3D target and bin/genomes_game.exe output | user Windows/D3D12 build
 LT-095 | CODE_READY | 8dfcfa4 | - | Diligent factory and swapchain restricted to Windows/D3D12 | user Diligent source/build review
 LT-097 | CODE_READY | e47554d | - | typed procedural box Result API and compatibility wrapper | user Diligent build and runtime review
 LT-098 | CODE_READY | e47554d | - | procedural boxes route through geometry makeBoxResult | user Diligent build and runtime review
