@@ -66,7 +66,7 @@ private:
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
     std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
-    render::RenderCamera render_camera_{};
+    camera::CameraRequest camera_request_{};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_;
 #if GENOMES_HAS_INFANTRY

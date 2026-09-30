@@ -108,7 +108,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         infantry_model_artifact_ = std::move(model.value());
     }
 #endif
-    render_camera_ = {};
+    camera_request_ = {};
     terrain_min_height_ = 0.0F;
     terrain_max_height_ = 0.0F;
     entities_.clear();
@@ -151,7 +151,7 @@ void BattlefieldScene::on_exit(SceneContext&) {
     render_world_mesh_.reset();
     render_infantry_mesh_.reset();
     infantry_skinned_prototype_.reset();
-    render_camera_ = {};
+    camera_request_ = {};
 #if GENOMES_HAS_INFANTRY
     infantry_.reset();
     animation_system_.reset();
@@ -236,9 +236,9 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
             continue;
         }
         const auto* state = state_found->second;
-        const float dx = state->position.x - render_camera_.position.x;
-        const float dy = state->position.y - render_camera_.position.y;
-        const float dz = state->position.z - render_camera_.position.z;
+        const float dx = state->position.x - camera_request_.position.x;
+        const float dy = state->position.y - camera_request_.position.y;
+        const float dz = state->position.z - camera_request_.position.z;
         const float distance2 = dx * dx + dy * dy + dz * dz;
         const infantry::AnimationLOD desired_lod =
             distance2 <= near2 ? infantry::AnimationLOD::Near :
@@ -534,7 +534,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     render_infantry_mesh_.reset();
-    render_camera_ = {};
+    camera_request_ = {};
     const gameplay::WorldScenarioArtifact* shared_artifact =
         scenario_ != nullptr ? scenario_->activeArtifact() : nullptr;
     if (shared_artifact != nullptr && shared_artifact->plan.content_hash == plan_->content_hash &&
@@ -569,14 +569,12 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         terrain_mesh_ = std::move(mesh_result.value());
     }
     const float camera_map_size = static_cast<float>(config_.map_size_m);
-    render_camera_.enabled = true;
-    render_camera_.position = {camera_map_size * 0.78F, camera_map_size * 0.92F,
-                               camera_map_size * 0.82F};
-    render_camera_.target = {0.0F, 0.0F, 0.0F};
-    render_camera_.up = {0.0F, 1.0F, 0.0F};
-    render_camera_.vertical_fov = 0.9F;
-    render_camera_.near_plane = 0.2F;
-    render_camera_.far_plane = std::max(1000.0F, camera_map_size * 4.0F);
+    camera_request_.preset = camera::CameraPreset::Battlefield;
+    camera_request_.position = {camera_map_size * 0.78F, camera_map_size * 0.92F,
+                                camera_map_size * 0.82F};
+    camera_request_.target = {0.0F, 0.0F, 0.0F};
+    camera_request_.up = {0.0F, 1.0F, 0.0F};
+    camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
     physics_.setGroundHeightQuery({&*terrain_, &sample_ground});
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
@@ -682,8 +680,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
 }
 
 void BattlefieldScene::build_presentation(SceneContext& context) {
-    context.presentation.camera = render_camera_;
-    context.publishCameraRequest(context.presentation.camera.toRequest());
+    context.publishCameraRequest(camera_request_);
     context.presentation.terrain_mesh = render_terrain_mesh_;
     context.presentation.world_mesh = render_world_mesh_;
     if (!plan_) {
