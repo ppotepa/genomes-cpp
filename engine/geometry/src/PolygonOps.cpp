@@ -56,7 +56,22 @@ foundation::Result<std::vector<std::uint32_t>, foundation::Error> triangulate(co
 #else
     auto normalized=normalizeWinding(polygon,PolygonWinding::CounterClockwise); if(!normalized)return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(normalized.error());
     using Point=std::array<float,2>; std::vector<std::vector<Point>> rings; rings.reserve(normalized.value().holes.size()+1); auto copyRing=[](const std::vector<math::Vec2>& source){std::vector<Point> result;result.reserve(source.size());for(const auto p:source)result.push_back({p.x,p.y});return result;}; rings.push_back(copyRing(normalized.value().outer));for(const auto& hole:normalized.value().holes)rings.push_back(copyRing(hole));
-    auto indices=mapbox::earcut<std::uint32_t>(rings); if(indices.empty())return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidState,"earcut produced no triangles")); if(indices.size()%3U!=0U)return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidState,"earcut produced incomplete triangles")); return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::success(std::move(indices));
+    auto indices=mapbox::earcut<std::uint32_t>(rings);
+    if(indices.empty())return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidState,"earcut produced no triangles"));
+    if(indices.size()%3U!=0U)return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidState,"earcut produced incomplete triangles"));
+    std::vector<Point> flattened;
+    for(const auto& ring:rings) flattened.insert(flattened.end(),ring.begin(),ring.end());
+    double expected_area=std::fabs(signedArea(normalized.value().outer));
+    for(const auto& hole:normalized.value().holes) expected_area-=std::fabs(signedArea(hole));
+    double triangulated_area=0.0;
+    for(std::size_t offset=0;offset<indices.size();offset+=3U){
+        if(indices[offset]>=flattened.size()||indices[offset+1U]>=flattened.size()||indices[offset+2U]>=flattened.size())return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::OutOfRange,"earcut index is out of range"));
+        const auto& a=flattened[indices[offset]];const auto& b=flattened[indices[offset+1U]];const auto& c=flattened[indices[offset+2U]];
+        triangulated_area+=std::fabs(static_cast<double>((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])))*0.5;
+    }
+    const double tolerance=std::max(1.0e-5,static_cast<double>(normalized.value().epsilon)*std::max(1.0,expected_area)*16.0);
+    if(!std::isfinite(expected_area)||!std::isfinite(triangulated_area)||std::fabs(triangulated_area-expected_area)>tolerance)return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidState,"earcut area is not conserved"));
+    return foundation::Result<std::vector<std::uint32_t>,foundation::Error>::success(std::move(indices));
 #endif
 }
 } // namespace genomes::geometry
