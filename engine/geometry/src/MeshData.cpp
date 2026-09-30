@@ -15,12 +15,33 @@ namespace {
 }
 
 bool MeshData::valid() const noexcept {
-    if (vertices.empty() || indices.empty() || indices.size() % 3U != 0U) return false;
+    const std::size_t vertex_count = positions.empty() ? vertices.size() : positions.size();
+    if (vertex_count == 0U || indices.empty() || indices.size() % 3U != 0U) return false;
     for (const auto& vertex : vertices)
         if (!finite(vertex.position) || !finite(vertex.normal) || !finite(vertex.uv)) return false;
+    if (!positions.empty()) {
+        for (const auto position : positions) if (!finite(position)) return false;
+        for (const auto normal : normals) if (!finite(normal)) return false;
+        for (const auto uv : uvs) if (!finite(uv)) return false;
+    }
     for (const auto index : indices)
-        if (index >= vertices.size()) return false;
+        if (index >= vertex_count) return false;
+    if (!positions.empty() && (normals.size() != positions.size() || uvs.size() != positions.size() ||
+        (!tangents.empty() && tangents.size() != positions.size()) ||
+        (!colors.empty() && colors.size() != positions.size()))) return false;
+    for (const auto& range : submeshes)
+        if (range.first_index % 3U != 0U || range.index_count % 3U != 0U ||
+            static_cast<std::size_t>(range.first_index) + range.index_count > indices.size()) return false;
     return true;
+}
+
+void MeshData::rebuildStreams() noexcept {
+    positions.clear(); normals.clear(); uvs.clear(); colors.clear(); bounds = {};
+    positions.reserve(vertices.size()); normals.reserve(vertices.size()); uvs.reserve(vertices.size());
+    for (const auto& vertex : vertices) {
+        positions.push_back(vertex.position); normals.push_back(vertex.normal); uvs.push_back(vertex.uv);
+        bounds.include(vertex.position);
+    }
 }
 
 void appendTransformed(MeshData& destination, const MeshData& source,
@@ -55,6 +76,8 @@ void appendTransformed(MeshData& destination, const MeshData& source,
             n, vertex.uv});
     }
     for (const auto index : source.indices) destination.indices.push_back(base + index);
+    destination.rebuildStreams();
+    if (destination.submeshes.empty()) destination.submeshes.push_back({0U, static_cast<std::uint32_t>(destination.indices.size()), 0U});
 }
 
 } // namespace genomes::geometry
