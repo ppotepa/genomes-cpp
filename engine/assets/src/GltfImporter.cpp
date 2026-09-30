@@ -1,4 +1,5 @@
 #include <genomes/assets/GltfImporter.hpp>
+#include <genomes/geometry/MeshOperations.hpp>
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 #include <fastgltf/types.hpp>
@@ -57,7 +58,9 @@ foundation::Result<ImportedScene, foundation::Error> importStaticGltf(const std:
     ImportedScene scene{}; scene.materials.resize(asset.materials.size());
     for(std::size_t material_index=0;material_index<asset.materials.size();++material_index){const auto& source=asset.materials[material_index].pbrData;auto& target=scene.materials[material_index];target.base_color={static_cast<float>(source.baseColorFactor.x()),static_cast<float>(source.baseColorFactor.y()),static_cast<float>(source.baseColorFactor.z()),static_cast<float>(source.baseColorFactor.w())};target.metallic=static_cast<float>(source.metallicFactor);target.roughness=static_cast<float>(source.roughnessFactor);}
     std::size_t total_vertices=0,total_indices=0;
-    for(const auto& mesh:asset.meshes) for(const auto& primitive:mesh.primitives){
+    std::vector<std::vector<geometry::MeshData>> primitive_meshes(asset.meshes.size());
+    for (std::size_t mesh_index = 0; mesh_index < asset.meshes.size(); ++mesh_index)
+        for(const auto& primitive:asset.meshes[mesh_index].primitives){
         if(primitive.type!=fastgltf::PrimitiveType::Triangles||primitive.dracoCompression)return Result::failure(error(foundation::ErrorCode::Unsupported,"only uncompressed triangles are supported"));
         const auto position_it=primitive.findAttribute("POSITION"); if(position_it==primitive.attributes.end())return Result::failure(error(foundation::ErrorCode::InvalidArgument,"POSITION is required"));
         const auto& position_accessor=asset.accessors[position_it->accessorIndex];
@@ -71,7 +74,35 @@ foundation::Result<ImportedScene, foundation::Error> importStaticGltf(const std:
         if(primitive.indicesAccessor.has_value()){const auto& index_accessor=asset.accessors[primitive.indicesAccessor.value()]; output.indices.resize(index_accessor.count); fastgltf::iterateAccessorWithIndex<std::uint32_t>(asset,index_accessor,[&](std::uint32_t index,std::size_t i){output.indices[i]=index;});}else{if(position_accessor.count%3U!=0U)return Result::failure(error(foundation::ErrorCode::InvalidArgument,"non-indexed triangles require a multiple of three vertices"));output.indices.resize(position_accessor.count);for(std::size_t index=0;index<output.indices.size();++index)output.indices[index]=static_cast<std::uint32_t>(index);}
         if(output.indices.size()>limits.max_indices-std::min(total_indices,limits.max_indices))return Result::failure(error(foundation::ErrorCode::OutOfRange,"glTF index limit exceeded"));
         if(primitive.materialIndex.has_value()&&primitive.materialIndex.value()>=scene.materials.size())return Result::failure(error(foundation::ErrorCode::OutOfRange,"primitive material index is out of range"));
-        total_vertices+=output.vertices.size();total_indices+=output.indices.size(); output.rebuildStreams();output.submeshes.push_back({0U,static_cast<std::uint32_t>(output.indices.size()),primitive.materialIndex.value_or(0U)});if(!output.valid())return Result::failure(error(foundation::ErrorCode::InvalidArgument,"imported primitive failed validation"));scene.meshes.push_back(std::move(output));
+        total_vertices+=output.vertices.size();total_indices+=output.indices.size(); output.rebuildStreams();output.submeshes.push_back({0U,static_cast<std::uint32_t>(output.indices.size()),primitive.materialIndex.value_or(0U)});if(!output.valid())return Result::failure(error(foundation::ErrorCode::InvalidArgument,"imported primitive failed validation"));primitive_meshes[mesh_index].push_back(std::move(output));
+    }
+    scene.meshes.reserve(asset.meshes.size());
+    for (auto& primitives : primitive_meshes) {
+        if (primitives.empty()) {
+            scene.meshes.emplace_back();
+            continue;
+        }
+        const bool any_tangents = std::any_of(primitives.begin(), primitives.end(),
+                                              [](const geometry::MeshData& mesh) {
+                                                  return !mesh.tangents.empty();
+                                              });
+        const bool any_colors = std::any_of(primitives.begin(), primitives.end(),
+                                            [](const geometry::MeshData& mesh) {
+                                                return !mesh.colors.empty();
+                                            });
+        for (auto& primitive : primitives) {
+            const auto vertex_count = primitive.vertices.size();
+            if (any_tangents && primitive.tangents.empty())
+                primitive.tangents.assign(vertex_count, math::Vec4{1.0F, 0.0F, 0.0F, 1.0F});
+            if (any_colors && primitive.colors.empty())
+                primitive.colors.assign(vertex_count, foundation::Color{});
+        }
+        const auto combined = geometry::combine(std::span<const geometry::MeshData>(
+            primitives.data(), primitives.size()));
+        if (!combined)
+            return Result::failure(error(foundation::ErrorCode::InvalidArgument,
+                                         "glTF mesh primitives could not be combined"));
+        scene.meshes.push_back(combined.value());
     }
     std::vector<std::size_t> parents(asset.nodes.size(), std::numeric_limits<std::size_t>::max());
     for (std::size_t parent_index = 0; parent_index < asset.nodes.size(); ++parent_index) {
