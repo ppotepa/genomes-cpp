@@ -19,6 +19,11 @@ if(NOT _options MATCHES "PROPERTY STRINGS HEADLESS DILIGENT")
     message(FATAL_ERROR "Diligent renderer profile is missing")
 endif()
 
+file(READ "${GENOMES_SOURCE_DIR}/CMakeLists.txt" _root_cmake)
+if(NOT _root_cmake MATCHES "project\\(Genomes VERSION 0\\.1\\.0 LANGUAGES C CXX\\)")
+    message(FATAL_ERROR "root project must enable C for the pinned MikkTSpace source")
+endif()
+
 file(READ "${GENOMES_SOURCE_DIR}/CMakePresets.json" _presets)
 if(_presets MATCHES "${_legacy_cpu_lower}|${_legacy_gl}|dev-diligent-hybrid")
     message(FATAL_ERROR "presets still expose a removed legacy profile")
