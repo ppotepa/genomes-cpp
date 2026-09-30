@@ -116,7 +116,7 @@ void MainMenuScene::frame_update(SceneContext& context, double) {
 }
 
 void MainMenuScene::build_presentation(SceneContext& context) {
-    context.presentation.clear();
+    context.presentation.clear_scene_payload();
 
     if (preview_prototypes_.empty()) {
         preview_prototypes_.push_back(render::procedural::make_box(

@@ -18,6 +18,9 @@ int main() {
     assert(low.value().snapshot.simulation_tick == source.simulation_tick);
     assert(source.instances.size() == 3U);
     assert(low.value().snapshot.instances.front().object_id == 1U);
+    source.clear_scene_payload();
+    assert(source.simulation_tick == 42U && source.camera.enabled);
+    assert(source.instances.empty());
     const auto debug = pipeline.prepare(source, {0.75F, 3U, 64U, 1000.0F, true});
     assert(debug && debug.value().stats.output_instances == 3U);
     assert(debug.value().stats.debug_overlays);

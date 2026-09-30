@@ -32,6 +32,18 @@ struct PresentationSnapshot final {
     std::shared_ptr<const RenderMesh> world_mesh;
     std::shared_ptr<const RenderMesh> infantry_mesh;
 
+    void clear_scene_payload() {
+        debug_lines.clear();
+        instances.clear();
+        instance_prototypes.clear();
+        skinned_prototypes.clear();
+        skinned_palettes.clear();
+        terrain_mesh.reset();
+        world_mesh.reset();
+        infantry_mesh.reset();
+    }
+
+    // Full reset is owned by SceneDirector and is not a scene extraction API.
     void clear() {
         frame_number = 0;
         simulation_tick = 0;
@@ -41,14 +53,7 @@ struct PresentationSnapshot final {
         world_origin_revision = 0;
         camera = {};
         character_lights = {};
-        debug_lines.clear();
-        instances.clear();
-        instance_prototypes.clear();
-        skinned_prototypes.clear();
-        skinned_palettes.clear();
-        terrain_mesh.reset();
-        world_mesh.reset();
-        infantry_mesh.reset();
+        clear_scene_payload();
     }
 };
 

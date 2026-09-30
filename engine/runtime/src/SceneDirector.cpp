@@ -164,7 +164,7 @@ void SceneDirector::frame_update(double dt) {
     // A presentation is an extraction for this frame. Clearing it here keeps
     // a scene that has no visual entities from inheriting the previous scene's
     // instances after a transition.
-    presentation_.clear();
+    presentation_.clear_scene_payload();
     presentation_.previous_simulation_tick = previous_presentation_tick_.value;
     presentation_.simulation_tick = next_presentation_tick_.value;
     presentation_.interpolation_alpha = interpolation_alpha_;

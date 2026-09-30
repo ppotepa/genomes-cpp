@@ -587,7 +587,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 }
 
 void UnitLabScene::build_presentation(SceneContext& context) {
-    context.presentation.clear();
+    context.presentation.clear_scene_payload();
     if (model_artifact_) {
         if (!skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {

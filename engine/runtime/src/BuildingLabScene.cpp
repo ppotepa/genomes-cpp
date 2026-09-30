@@ -181,7 +181,7 @@ void BuildingLabScene::frame_update(SceneContext& context, double) {
 }
 
 void BuildingLabScene::build_presentation(SceneContext& context) {
-    context.presentation.clear();
+    context.presentation.clear_scene_payload();
     if (!render_mesh_ || render_mesh_->vertices.empty() || render_mesh_->indices.empty()) {
         return;
     }
