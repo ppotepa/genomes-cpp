@@ -40,12 +40,12 @@ LT-030 | CODE_READY | dec980a | - | foundation alias review | ABI test evidence
 LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evidence
 LT-129 | CODE_READY | dec980a | - | math regression test source review | user Debug/Release CTest
 LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geometry tests and build
-LT-033 | CODE_READY | 6e01fac | - | MeshData validation preserves optional streams and enforces finite/format invariants | geometry tests and build
+LT-033 | CODE_READY | ce77a0c | - | MeshData validation and append transform preserve optional streams, groups and reflection winding | geometry tests and build
 LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build
 LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
 LT-036 | CODE_READY | 995f873 | - | primitive result contract source review | geometry tests and build
 LT-037 | CODE_READY | 995f873 | - | box validation/winding source review | primitive tests and build
-LT-142 | CODE_READY | e48b542 | - | shared geometry regression covers stream-preserving combine, non-uniform scale and reflection winding | geometry tests and build
+LT-142 | CODE_READY | ce77a0c | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale and reflection winding | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
 LT-073 | CODE_READY | 5d53b10 | - | projection/picking and bounded fit implementation rejects degenerate inputs | camera tests and build
