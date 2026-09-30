@@ -157,6 +157,9 @@ bool SceneDirector::change_to(foundation::SceneId id) {
         return false;
     }
 
+    ++scene_epoch_;
+    camera_controller_initialized_ = false;
+
     SceneContext context = make_context();
     if (current_) {
         current_->on_exit(context);
@@ -185,9 +188,6 @@ void SceneDirector::frame_update(double dt) {
     // a scene that has no visual entities from inheriting the previous scene's
     // instances after a transition.
     presentation_.clear_scene_payload();
-    presentation_.previous_simulation_tick = previous_presentation_tick_.value;
-    presentation_.simulation_tick = next_presentation_tick_.value;
-    presentation_.interpolation_alpha = interpolation_alpha_;
     current_->frame_update(context, dt);
     ui_.update(dt);
     current_->build_presentation(context);
@@ -209,6 +209,10 @@ void SceneDirector::frame_update(double dt) {
             presentation_.has_resolved_camera = true;
         }
     }
+    presentation_.scene_epoch = scene_epoch_;
+    presentation_.previous_simulation_tick = previous_presentation_tick_.value;
+    presentation_.simulation_tick = next_presentation_tick_.value;
+    presentation_.interpolation_alpha = interpolation_alpha_;
     process_commands();
 
     // Publish an immutable copy into the bounded exchange. The public

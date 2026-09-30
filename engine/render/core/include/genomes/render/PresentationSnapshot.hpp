@@ -14,6 +14,7 @@ namespace genomes::render {
 // simulation has advanced to another tick.
 struct PresentationSnapshot final {
     std::uint64_t frame_number{0};
+    std::uint64_t scene_epoch{0};
     std::uint64_t simulation_tick{0};
     std::uint64_t previous_simulation_tick{0};
     double interpolation_alpha{0.0};
@@ -53,6 +54,7 @@ struct PresentationSnapshot final {
     // Full reset is owned by SceneDirector and is not a scene extraction API.
     void clear() {
         frame_number = 0;
+        scene_epoch = 0;
         simulation_tick = 0;
         previous_simulation_tick = 0;
         interpolation_alpha = 0.0;

@@ -75,6 +75,7 @@ private:
     int framebuffer_height_{720};
     camera::CameraController camera_controller_{};
     bool camera_controller_initialized_{false};
+    std::uint64_t scene_epoch_{0};
     render::SnapshotExchange presentation_exchange_{3};
 };
 
