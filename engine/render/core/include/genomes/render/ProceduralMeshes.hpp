@@ -1,10 +1,21 @@
 #pragma once
 
 #include <genomes/render/RenderTypes.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 
 #include <memory>
 
 namespace genomes::render::procedural {
+
+using MeshResult = foundation::Result<std::shared_ptr<const RenderMesh>, foundation::Error>;
+
+// Typed construction path. Geometry validation failures remain observable to
+// callers; the compatibility helper below is only for legacy scene call-sites.
+[[nodiscard]] MeshResult make_box_result(
+    foundation::StableId mesh_id,
+    foundation::Vec3 half_extents,
+    foundation::Color color = {1.0F, 1.0F, 1.0F, 1.0F});
 
 // Creates an immutable, centered box prototype. Instance transforms remain
 // in RenderInstance, so this helper is suitable for menu previews as well as

@@ -1,3 +1,5 @@
+# Math is first because foundation's compatibility aliases publicly depend on
+# its value types; the remaining targets follow their header dependency DAG.
 add_subdirectory(math)
 add_subdirectory(foundation)
 add_subdirectory(camera)
