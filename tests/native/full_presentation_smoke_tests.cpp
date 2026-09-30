@@ -7,8 +7,11 @@ int main() {
     render::PresentationSnapshot source{};
     source.simulation_tick = 42U;
     source.camera.enabled = true;
+    source.camera.revision = 77U;
     source.camera.position = {0.0F, 10.0F, 0.0F};
     source.camera.target = {0.0F, 0.0F, 0.0F};
+    source.has_resolved_camera = true;
+    source.resolved_camera.viewport = {12, 24, 640, 480};
     source.instances = {{3U, 1U, 1U, {30.0F, 0.0F, 0.0F}},
                         {1U, 1U, 1U, {1.0F, 0.0F, 0.0F}},
                         {2U, 1U, 1U, {2.0F, 0.0F, 0.0F}}};
@@ -18,6 +21,9 @@ int main() {
     assert(low.value().snapshot.simulation_tick == source.simulation_tick);
     assert(source.instances.size() == 3U);
     assert(low.value().snapshot.instances.front().object_id == 1U);
+    assert(low.value().snapshot.camera.revision == 77U);
+    assert(low.value().snapshot.has_resolved_camera &&
+           low.value().snapshot.resolved_camera.viewport.width == 640);
     source.clear_scene_payload();
     assert(source.simulation_tick == 42U && source.camera.enabled);
     assert(source.instances.empty());
