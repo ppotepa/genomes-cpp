@@ -105,7 +105,7 @@ LT-083 | CODE_READY | ed351d6 | - | UI/input, mode-aware camera control, scene e
 LT-155 | CODE_READY | d760db5 | - | historical threepp START notice source review | documentation review
 LT-156 | CODE_READY | d760db5 | - | historical threepp command notice source review | documentation review
 LT-157 | CODE_READY | d760db5 | - | README lightweight toolkit and Diligent/D3D12 guidance source review | documentation review
-LT-158 | CODE_READY | d760db5 | - | target architecture lightweight toolkit amendment source review | documentation review
+LT-158 | CODE_READY | 625f6c8 | - | target architecture layers, neutral camera input and Diligent GPU owner documentation source review | documentation consistency review
 LT-159 | CODE_READY | d760db5 | - | coding/dependency boundary amendment source review | documentation review
 LT-160 | CODE_READY | ff4edfe | - | pinned toolkit dependency roles/licenses amendment and D3D12-only production scope source review | dependency audit
 LT-161 | CODE_READY | d760db5 | - | math convention amendment source review | math review
