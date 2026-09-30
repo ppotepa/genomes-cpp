@@ -21,6 +21,7 @@ class CameraController final {
 public:
     explicit CameraController(ControlMode mode = ControlMode::Orbit) noexcept : mode_(mode) {}
     void setMode(ControlMode mode) noexcept { mode_ = mode; }
+    void rebaseOrbitTarget(math::Vec3 target) noexcept { home_target_ = target; }
     [[nodiscard]] ControlMode mode() const noexcept { return mode_; }
     void reset(const CameraRequest& request) noexcept;
     void update(CameraRequest& request, const CameraInput& input, float delta_seconds) noexcept;

@@ -1,5 +1,6 @@
 #include <genomes/camera/CameraController.hpp>
 #include <cassert>
+#include <cmath>
 
 int main() {
     using namespace genomes::camera;
@@ -8,6 +9,11 @@ int main() {
     const auto original=request.position;
     controller.update(request,{1.0F,0,0,0,0,0,false,false,false},1.0F/60.0F);
     assert(request.position.x!=original.x || request.position.z!=original.z);
+    const auto orbit_offset = request.position - request.target;
+    controller.rebaseOrbitTarget({2.0F, 0.0F, 0.0F});
+    controller.update(request,{},1.0F/60.0F);
+    assert(request.target.x == 2.0F);
+    assert(std::abs(request.position.x - request.target.x - orbit_offset.x) < 1.0e-5F);
     controller.update(request,{},1.0F/60.0F);
     controller.update(request,{0,0,0,0,0,0,true,false,false},1.0F/60.0F);
     assert(request.position.x==original.x && request.position.y==original.y && request.position.z==original.z);

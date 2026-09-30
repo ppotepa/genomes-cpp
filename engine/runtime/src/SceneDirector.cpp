@@ -188,6 +188,7 @@ void SceneDirector::frame_update(double dt) {
         return;
     }
     SceneContext context = make_context();
+    const render::RenderCamera previous_camera = presentation_.camera;
     ui_.clear();
     // A presentation is an extraction for this frame. Clearing it here keeps
     // a scene that has no visual entities from inheriting the previous scene's
@@ -197,11 +198,28 @@ void SceneDirector::frame_update(double dt) {
     ui_.update(dt);
     current_->build_presentation(context);
     if (presentation_.has_camera_request) {
-        const std::uint64_t revision = presentation_.camera.revision;
+        const camera::CameraRequest declared = presentation_.camera_request;
+        const std::uint64_t declared_revision = presentation_.camera.revision;
+        const bool preserve_pose = camera_controller_initialized_ && previous_camera.enabled &&
+                                   declared.mode != camera::CameraMode::Fixed &&
+                                   declared_revision == previous_camera.revision;
+        auto resolved_request = declared;
+        if (preserve_pose) {
+            const foundation::Vec3 orbit_offset = previous_camera.position - previous_camera.target;
+            resolved_request.position = declared.target + orbit_offset;
+            resolved_request.up = declared.up;
+            camera_controller_.setMode(declared.mode);
+            if (declared.mode == camera::CameraMode::Orbit)
+                camera_controller_.rebaseOrbitTarget(declared.target);
+        } else {
+            camera_controller_.setMode(declared.mode);
+            camera_controller_.reset(resolved_request);
+            camera_controller_initialized_ = declared.mode != camera::CameraMode::Fixed;
+        }
         presentation_.camera = {};
         presentation_.camera.enabled = true;
-        presentation_.camera.applyRequest(presentation_.camera_request);
-        presentation_.camera.revision = revision;
+        presentation_.camera.applyRequest(resolved_request);
+        presentation_.camera.revision = declared_revision != 0U ? declared_revision : previous_camera.revision;
     }
     presentation_.has_resolved_camera = false;
     if (presentation_.camera.enabled) {
