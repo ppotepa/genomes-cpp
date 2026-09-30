@@ -1,6 +1,7 @@
 #include <genomes/geometry/MeshValidation.hpp>
 
 #include <cmath>
+#include <vector>
 
 namespace genomes::geometry {
 
@@ -65,6 +66,23 @@ MeshValidationReport validateMesh(std::span<const foundation::Vec3> positions,
             }
         }
     }
+    return report;
+}
+
+MeshValidationReport validateMesh(const MeshData& mesh,float area_epsilon,float winding_epsilon) noexcept {
+    std::vector<foundation::Vec3> legacy_positions;
+    std::vector<foundation::Vec3> legacy_normals;
+    std::span<const foundation::Vec3> positions(mesh.positions);
+    std::span<const foundation::Vec3> normals(mesh.normals);
+    if(positions.empty()&&!mesh.vertices.empty()){
+        legacy_positions.reserve(mesh.vertices.size()); legacy_normals.reserve(mesh.vertices.size());
+        for(const auto& vertex:mesh.vertices){legacy_positions.push_back(vertex.position);legacy_normals.push_back(vertex.normal);}
+        positions=legacy_positions; normals=legacy_normals;
+    }
+    auto report=validateMesh(positions,normals,mesh.indices,area_epsilon,winding_epsilon);
+    if(!mesh.positions.empty()&&(mesh.normals.size()!=mesh.positions.size()||mesh.uvs.size()!=mesh.positions.size()||(!mesh.tangents.empty()&&mesh.tangents.size()!=mesh.positions.size())||(!mesh.colors.empty()&&mesh.colors.size()!=mesh.positions.size())))++report.stream_mismatch_count;
+    for(const auto& range:mesh.submeshes)if(range.first_index%3U!=0U||range.index_count%3U!=0U||static_cast<std::size_t>(range.first_index)+range.index_count>mesh.indices.size())++report.invalid_submesh_count;
+    if(!mesh.bounds.empty){math::Aabb recomputed;for(const auto position:positions)recomputed.include(position);const float e=1.0e-4F;if(recomputed.empty||std::fabs(recomputed.min.x-mesh.bounds.min.x)>e||std::fabs(recomputed.min.y-mesh.bounds.min.y)>e||std::fabs(recomputed.min.z-mesh.bounds.min.z)>e||std::fabs(recomputed.max.x-mesh.bounds.max.x)>e||std::fabs(recomputed.max.y-mesh.bounds.max.y)>e||std::fabs(recomputed.max.z-mesh.bounds.max.z)>e)++report.bounds_mismatch_count;}
     return report;
 }
 

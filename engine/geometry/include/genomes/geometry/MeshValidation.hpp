@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/geometry/MeshData.hpp>
 
 #include <cstdint>
 #include <span>
@@ -13,10 +14,15 @@ struct MeshValidationReport final {
     std::uint64_t nonfinite_vertex_count{0};
     std::uint64_t invalid_index_count{0};
     std::uint64_t winding_mismatch_count{0};
+    std::uint64_t stream_mismatch_count{0};
+    std::uint64_t invalid_submesh_count{0};
+    std::uint64_t bounds_mismatch_count{0};
 
     [[nodiscard]] bool valid() const noexcept {
         return degenerate_triangle_count == 0U && nonfinite_vertex_count == 0U &&
-               invalid_index_count == 0U && winding_mismatch_count == 0U;
+               invalid_index_count == 0U && winding_mismatch_count == 0U &&
+               stream_mismatch_count == 0U && invalid_submesh_count == 0U &&
+               bounds_mismatch_count == 0U;
     }
 };
 
@@ -26,5 +32,8 @@ struct MeshValidationReport final {
     std::span<const std::uint32_t> indices,
     float area_epsilon = 1.0e-8F,
     float winding_epsilon = 1.0e-5F) noexcept;
+
+[[nodiscard]] MeshValidationReport validateMesh(const MeshData&, float area_epsilon = 1.0e-8F,
+                                                 float winding_epsilon = 1.0e-5F) noexcept;
 
 } // namespace genomes::geometry
