@@ -41,7 +41,10 @@ try {
         (Join-Path $repoRoot 'external/SDL/CMakeLists.txt'),
         (Join-Path $repoRoot 'external/RmlUi/CMakeLists.txt'),
         (Join-Path $repoRoot 'external/freetype/CMakeLists.txt'),
-        (Join-Path $repoRoot 'external/json/single_include/nlohmann/json.hpp')
+        (Join-Path $repoRoot 'external/json/single_include/nlohmann/json.hpp'),
+        (Join-Path $repoRoot 'external/meshoptimizer/CMakeLists.txt'),
+        (Join-Path $repoRoot 'external/mikktspace/mikktspace.c'),
+        (Join-Path $repoRoot 'external/earcut/include/mapbox/earcut.hpp')
     )
     $missingDependency = $requiredDependencies |
         Where-Object { -not (Test-Path $_) } | Select-Object -First 1
