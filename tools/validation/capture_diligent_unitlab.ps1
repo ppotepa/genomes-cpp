@@ -51,6 +51,17 @@ try {
         if (-not (Test-Path $image) -or -not (Test-Path ($image+'.json'))) {
             throw "Capture is incomplete: $($case.Name)"
         }
+        if ((Get-Item -LiteralPath $image).Length -le 0) {
+            throw "Capture produced an empty image: $($case.Name)"
+        }
+        try {
+            $metadata = Get-Content -Raw -LiteralPath ($image+'.json') | ConvertFrom-Json
+        } catch {
+            throw "Capture produced invalid metadata JSON: $($case.Name)"
+        }
+        if ($null -eq $metadata) {
+            throw "Capture produced empty metadata: $($case.Name)"
+        }
         Write-Host "Created $image and metadata. Visual acceptance is still required."
     }
     git rev-parse HEAD | Set-Content (Join-Path $OutputDirectory 'tested-sha.txt')
