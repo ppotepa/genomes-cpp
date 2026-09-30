@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=6 DOING=0 CODE_READY=161 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 161/167 = 96.41%; remaining 3.59%
+TODO=5 DOING=0 CODE_READY=162 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 162/167 = 97.01%; remaining 2.99%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -134,7 +134,7 @@ LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset p
 LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
 LT-009 | CODE_READY | 925ae13 | - | removed threepp gitlink after active reference audit | user static guard
-LT-015 | TODO | - | - | - | implement and review assigned path
+LT-015 | CODE_READY | bf9f493 | - | exact meshoptimizer pin/checkout and isolated upstream options | user meshoptimizer configure/build
 LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration helper source review | user configure/static guard
 LT-018 | CODE_READY | 1500e1c | - | renderer options restricted to HEADLESS/DILIGENT_LEGACY source review | user configure boundary test
 LT-019 | CODE_READY | 1500e1c | - | root CMake toolkit/dependency composition without active threepp source review | user configure/build
@@ -182,7 +182,7 @@ LT-128 | CODE_READY | 925ae13 | - | removed legacy window contract tests; neutra
 LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window contract test source review | user headless CTest
 LT-141 | TODO | - | - | - | implement and review assigned path
 LT-144 | CODE_READY | c62ada6 | - | skinned index-only stream and morph numbering regression source review | user infantry CTest
-LT-145 | TODO | - | - | - | implement and review assigned path
+LT-145 | CODE_READY | 9b2d8fc | - | frame abort, resolved camera and camera-only prototype retention source tests | user Diligent restoration CTest/GPU
 LT-146 | CODE_READY | ced2f05 | - | native CMake configuration boundary guard for HEADLESS/Diligent and no legacy profiles | user headless CTest
 LT-147 | CODE_READY | c62ada6 | - | infantry index-order test links neutral geometry API source review | user infantry CTest
 LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest

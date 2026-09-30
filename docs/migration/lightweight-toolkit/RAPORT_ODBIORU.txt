@@ -26,7 +26,7 @@ a5889f4 (shared camera math in Diligent), d82c8c9 (neutral camera contract),
 539281b (Diligent scene renderer checkpoint), d760db5/a440b23 (S10 documentation),
 bddcbc4 (acceptance evidence and capture manifest), c51a2b1 (MeshData tests),
 b74835f (CSG tests), 2f83fb5 (lightweight toolkit integration smoke), 48ee95d (scene geometry/camera/snapshot ownership), ab29a72 (neutral platform contract), 523d721 (toolkit benchmark harness), 6f9914b (presentation phase benchmark), 23fedf5 (test labels), 5666603 (Diligent-only game composition), 1500e1c (active CMake threepp removal), 925ae13 (physical threepp removal and runners), 90a126c (active-tree static guard pass), c62ada6 (camera/infantry/runtime smoke coverage), 85f15ae (resolved Diligent viewport boundary), 10f6c0c (presentation camera preservation), d72fe6c (neutral Battlefield camera request), 174423f (configuration boundary guard), 8dfcfa4 (camera ownership/input order and D3D12-only backend)
-Current source progress: 161/167 = 96.41%
+Current source progress: 162/167 = 97.01%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
@@ -57,4 +57,4 @@ a template and does not constitute acceptance evidence.
 PER-LT EVIDENCE
 ---------------
 See POSTEP.txt. Each VERIFIED row must carry tested SHA and an evidence pointer.
-Latest source slices: e47554d (engine target dependency order and typed procedural box API), ced2f05 (token-neutral configuration boundary test), 2346838 (optional toolkit benchmark phases and shared world box Result path).
+Latest source slices: e47554d (engine target dependency order and typed procedural box API), ced2f05 (token-neutral configuration boundary test), 2346838 (optional toolkit benchmark phases and shared world box Result path), 9b2d8fc (camera-only prototype retention test), bf9f493 (isolated meshoptimizer options).
