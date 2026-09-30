@@ -5,6 +5,7 @@ add_library(genomes_geometry STATIC
     src/MeshBuilder.cpp
     src/MeshData.cpp
     src/MeshOperations.cpp
+    src/MeshOptimizer.cpp
     src/PrimitiveBuilder.cpp
     src/MeshRepair.cpp
     src/IndexOrderOptimizer.cpp
