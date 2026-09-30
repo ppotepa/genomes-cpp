@@ -65,38 +65,80 @@ void MeshData::rebuildStreams() noexcept {
 
 void appendTransformed(MeshData& destination, const MeshData& source,
                        const MeshTransform& transform) {
-    if (source.vertices.empty()) return;
+    if (!source.valid() || (!destination.vertices.empty() && !destination.valid())) return;
+    const std::size_t source_vertex_count = source.positions.empty() ? source.vertices.size() : source.positions.size();
+    if (source_vertex_count == 0U || source_vertex_count > std::numeric_limits<std::uint32_t>::max() ||
+        source.indices.size() > std::numeric_limits<std::uint32_t>::max() ||
+        destination.vertices.size() > std::numeric_limits<std::uint32_t>::max() - source_vertex_count ||
+        destination.indices.size() > std::numeric_limits<std::uint32_t>::max() - source.indices.size()) return;
     const auto base = static_cast<std::uint32_t>(destination.vertices.size());
+    const auto index_base = static_cast<std::uint32_t>(destination.indices.size());
     const float c = std::cos(transform.rotation_y);
     const float s = std::sin(transform.rotation_y);
-    destination.vertices.reserve(destination.vertices.size() + source.vertices.size());
+    const auto transform_direction = [&](foundation::Vec3 value) {
+        const foundation::Vec3 scaled{
+            transform.scale.x != 0.0F ? value.x / transform.scale.x : 0.0F,
+            transform.scale.y != 0.0F ? value.y / transform.scale.y : 0.0F,
+            transform.scale.z != 0.0F ? value.z / transform.scale.z : 0.0F};
+        foundation::Vec3 rotated{scaled.x * c - scaled.z * s, scaled.y,
+                                 scaled.x * s + scaled.z * c};
+        const float length = std::sqrt(rotated.x * rotated.x + rotated.y * rotated.y +
+                                       rotated.z * rotated.z);
+        return length > 1.0e-8F ? rotated / length : foundation::Vec3{0.0F, 1.0F, 0.0F};
+    };
+    const std::size_t destination_vertex_count = destination.vertices.size();
+    const bool source_has_tangents = !source.tangents.empty();
+    const bool source_has_colors = !source.colors.empty();
+    if (!destination.tangents.empty() && destination.tangents.size() != destination_vertex_count)
+        destination.tangents.clear();
+    if (!destination.colors.empty() && destination.colors.size() != destination_vertex_count)
+        destination.colors.clear();
+    if (source_has_tangents && destination.tangents.empty())
+        destination.tangents.assign(destination_vertex_count, {1.0F, 0.0F, 0.0F, 1.0F});
+    if (source_has_colors && destination.colors.empty())
+        destination.colors.assign(destination_vertex_count, {1.0F, 1.0F, 1.0F, 1.0F});
+    destination.vertices.reserve(destination.vertices.size() + source_vertex_count);
     destination.indices.reserve(destination.indices.size() + source.indices.size());
 
-    for (const auto& vertex : source.vertices) {
+    for (std::size_t vertex_index = 0; vertex_index < source_vertex_count; ++vertex_index) {
+        const MeshVertex vertex = source.vertices.empty()
+            ? MeshVertex{source.positions[vertex_index], source.normals[vertex_index], source.uvs[vertex_index]}
+            : source.vertices[vertex_index];
         const foundation::Vec3 p{
             vertex.position.x * transform.scale.x,
             vertex.position.y * transform.scale.y,
             vertex.position.z * transform.scale.z};
-        const foundation::Vec3 n0{
-            transform.scale.x != 0.0F ? vertex.normal.x / transform.scale.x : 0.0F,
-            transform.scale.y != 0.0F ? vertex.normal.y / transform.scale.y : 0.0F,
-            transform.scale.z != 0.0F ? vertex.normal.z / transform.scale.z : 0.0F};
-        foundation::Vec3 n{n0.x * c - n0.z * s, n0.y, n0.x * s + n0.z * c};
-        const float length = std::sqrt(n.x*n.x + n.y*n.y + n.z*n.z);
-        if (length > 1.0e-8F) {
-            n.x /= length; n.y /= length; n.z /= length;
-        } else {
-            n = {0.0F, 1.0F, 0.0F};
-        }
         destination.vertices.push_back({
             {transform.translation.x + p.x * c - p.z * s,
              transform.translation.y + p.y,
              transform.translation.z + p.x * s + p.z * c},
-            n, vertex.uv});
+            transform_direction(vertex.normal), vertex.uv});
+        if (source_has_tangents) {
+            const auto tangent = source.tangents[vertex_index];
+            const auto transformed = transform_direction({tangent.x, tangent.y, tangent.z});
+            destination.tangents.push_back({transformed.x, transformed.y, transformed.z, tangent.w});
+        } else if (!destination.tangents.empty()) {
+            destination.tangents.push_back({1.0F, 0.0F, 0.0F, 1.0F});
+        }
+        if (source_has_colors)
+            destination.colors.push_back(source.colors[vertex_index]);
+        else if (!destination.colors.empty())
+            destination.colors.push_back({1.0F, 1.0F, 1.0F, 1.0F});
     }
-    for (const auto index : source.indices) destination.indices.push_back(base + index);
+    const bool reflected = transform.scale.x * transform.scale.y * transform.scale.z < 0.0F;
+    for (std::size_t index = 0; index < source.indices.size(); index += 3U) {
+        destination.indices.push_back(base + source.indices[index]);
+        destination.indices.push_back(base + source.indices[index + (reflected ? 2U : 1U)]);
+        destination.indices.push_back(base + source.indices[index + (reflected ? 1U : 2U)]);
+    }
     destination.rebuildStreams();
-    if (destination.submeshes.empty()) destination.submeshes.push_back({0U, static_cast<std::uint32_t>(destination.indices.size()), 0U});
+    if (source.submeshes.empty()) {
+        destination.submeshes.push_back({index_base, static_cast<std::uint32_t>(source.indices.size()), 0U});
+    } else {
+        for (const auto range : source.submeshes)
+            destination.submeshes.push_back({index_base + range.first_index, range.index_count,
+                                              range.material_index});
+    }
 }
 
 } // namespace genomes::geometry

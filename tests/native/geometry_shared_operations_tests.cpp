@@ -65,6 +65,13 @@ int main() {
     appendTransformed(transformed,box,{{2.0F,3.0F,4.0F},{1.0F,2.0F,1.0F},0.5F});
     assert(transformed.valid());
     assert(transformed.vertices.size()==box.vertices.size());
+    MeshData appended;
+    appendTransformed(appended, attributed, {{}, {-1.0F, 1.0F, 1.0F}, 0.0F});
+    assert(appended.valid());
+    assert(appended.tangents.size() == attributed.tangents.size());
+    assert(appended.colors.size() == attributed.colors.size());
+    assert(appended.indices[1] == attributed.indices[2]);
+    assert(appended.indices[2] == attributed.indices[1]);
 
     const genomes::foundation::Vec3 positions[]={{0,0,0},{1,0,0},{0,1,0},{0,0,0}};
     const genomes::foundation::Vec3 normals[]={{0,0,1},{0,0,1},{0,0,1},{0,0,0}};
