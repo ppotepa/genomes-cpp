@@ -69,8 +69,9 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
     }
     framebuffer_width_ = std::max(1, static_cast<int>(input.viewport_width));
     framebuffer_height_ = std::max(1, static_cast<int>(input.viewport_height));
-    if (presentation_.camera.enabled && presentation_.camera.interactive_orbit) {
+    if (presentation_.camera.enabled && presentation_.camera.mode != camera::CameraMode::Fixed) {
         camera::CameraRequest request = presentation_.camera.toRequest();
+        camera_controller_.setMode(request.mode);
         if (!camera_controller_initialized_) {
             camera_controller_.reset(request);
             camera_controller_initialized_ = true;
@@ -78,6 +79,10 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
         camera::CameraInput camera_input{};
         camera_input.orbit_x = input.mouse_left_down ? input.mouse_delta_x * 0.01F : 0.0F;
         camera_input.orbit_y = input.mouse_left_down ? input.mouse_delta_y * 0.01F : 0.0F;
+        camera_input.move_x = static_cast<float>(input.right_pressed) -
+                              static_cast<float>(input.left_pressed);
+        camera_input.move_z = static_cast<float>(input.down_pressed) -
+                              static_cast<float>(input.up_pressed);
         camera_input.zoom = -input.mouse_wheel_y * 0.05F;
         camera_input.cancel = input.cancel_pressed || input.pointer_cancel;
         camera_input.focus_lost = input.focus_lost;
@@ -192,12 +197,10 @@ void SceneDirector::frame_update(double dt) {
     ui_.update(dt);
     current_->build_presentation(context);
     if (presentation_.has_camera_request) {
-        const bool interactive_orbit = presentation_.camera.interactive_orbit;
         const std::uint64_t revision = presentation_.camera.revision;
         presentation_.camera = {};
         presentation_.camera.enabled = true;
         presentation_.camera.applyRequest(presentation_.camera_request);
-        presentation_.camera.interactive_orbit = interactive_orbit;
         presentation_.camera.revision = revision;
     }
     presentation_.has_resolved_camera = false;

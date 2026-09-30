@@ -126,7 +126,7 @@ int main() {
     assert(gpu_presentation.skinned_prototypes.size() == 1U);
     assert(gpu_presentation.skinned_palettes.size() == 1U);
     assert(gpu_presentation.instance_prototypes.empty());
-    assert(!gpu_presentation.camera.interactive_orbit);
+    assert(gpu_presentation.camera.mode == genomes::camera::CameraMode::Orbit);
     assert(gpu_presentation.has_camera_request);
     assert(gpu_presentation.camera_request.preset ==
            genomes::camera::CameraPreset::UnitLab);
@@ -160,7 +160,7 @@ int main() {
     gpu_presentation.clear_scene_payload();
     gpu_scene.build_presentation(gpu_context);
     assert(!gpu_presentation.debug_lines.empty());
-    assert(!gpu_presentation.camera.interactive_orbit);
+    assert(gpu_presentation.camera.mode == genomes::camera::CameraMode::Orbit);
     assert(gpu_presentation.camera.revision != 0U);
     assert(gpu_presentation.camera.revision != initial_camera_revision ||
            gpu_presentation.camera.viewport_left == 0.40F);

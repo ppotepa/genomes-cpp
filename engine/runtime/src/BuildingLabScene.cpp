@@ -167,6 +167,7 @@ void BuildingLabScene::frame_update(SceneContext& context, double) {
 void BuildingLabScene::build_presentation(SceneContext& context) {
     camera::CameraRequest camera_request{};
     camera_request.preset = camera::CameraPreset::BuildingLab;
+    camera_request.mode = camera::CameraMode::Orbit;
     camera_request.position = {24.0F, 18.0F, 24.0F};
     camera_request.target = {0.0F, 2.0F, 0.0F};
     camera_request.lens = {0.85F, 0.2F, 250.0F};

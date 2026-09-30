@@ -4,7 +4,7 @@
 
 namespace genomes::camera {
 
-enum class ControlMode : std::uint8_t { Fixed, Orbit, Fly, RTS };
+using ControlMode = CameraMode;
 struct CameraInput final {
     float orbit_x{0};
     float orbit_y{0};

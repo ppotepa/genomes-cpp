@@ -4,6 +4,7 @@
 
 namespace genomes::camera {
 void CameraController::reset(const CameraRequest& request) noexcept {
+    mode_=request.mode;
     home_position_=request.position; home_target_=request.target;
     const math::Vec3 offset=request.position-request.target;
     distance_=std::max(0.01F,math::length(offset));

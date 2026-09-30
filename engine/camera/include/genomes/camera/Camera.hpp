@@ -10,10 +10,12 @@
 namespace genomes::camera {
 
 enum class CameraPreset : std::uint8_t { Custom, UnitLab, BuildingLab, Battlefield };
+enum class CameraMode : std::uint8_t { Fixed, Orbit, Fly, RTS };
 struct ViewportNormalized final { float x{0}; float y{0}; float width{1}; float height{1}; };
 struct CameraLens final { float vertical_fov{1.04719755F}; float near_plane{0.05F}; float far_plane{1000.0F}; };
 struct CameraRequest final {
     CameraPreset preset{CameraPreset::Custom};
+    CameraMode mode{CameraMode::Orbit};
     genomes::math::Vec3 position{0,1,3};
     genomes::math::Vec3 target{0,1,0};
     genomes::math::Vec3 up{0,1,0};

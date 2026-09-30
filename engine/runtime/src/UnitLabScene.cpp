@@ -673,12 +673,12 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         // consumes this bounded preset; the renderer does not own orbit input.
         context.presentation.camera.viewport_left = 0.40F;
         context.presentation.camera.viewport_width = 0.60F;
-        context.presentation.camera.interactive_orbit = false;
         context.presentation.camera.revision = foundation::stableHashCombine(
             model_artifact_->cache_key,
             static_cast<std::uint64_t>(camera_mode_));
         auto camera_request = context.presentation.camera.toRequest();
         camera_request.preset = camera::CameraPreset::UnitLab;
+        camera_request.mode = camera::CameraMode::Orbit;
         context.publishCameraRequest(camera_request);
         const float model_rotation =
             std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;

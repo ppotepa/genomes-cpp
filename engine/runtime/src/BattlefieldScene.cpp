@@ -570,6 +570,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
+    camera_request_.mode = camera::CameraMode::Orbit;
     camera_request_.position = {camera_map_size * 0.78F, camera_map_size * 0.92F,
                                 camera_map_size * 0.82F};
     camera_request_.target = {0.0F, 0.0F, 0.0F};

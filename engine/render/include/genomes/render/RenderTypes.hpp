@@ -150,10 +150,8 @@ struct RenderCamera final {
     float viewport_top{0.0F};
     float viewport_width{1.0F};
     float viewport_height{1.0F};
-    // Interactive cameras are owned by the presentation backend between
-    // explicit preset revisions. Domain scenes publish reset state only.
-    bool interactive_orbit{false};
     std::uint64_t revision{0U};
+    camera::CameraMode mode{camera::CameraMode::Orbit};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto finite = [](foundation::Vec3 v) noexcept {
@@ -181,6 +179,7 @@ struct RenderCamera final {
     [[nodiscard]] camera::CameraRequest toRequest() const noexcept {
         camera::CameraRequest request{};
         request.position=position; request.target=target; request.up=up;
+        request.mode=mode;
         request.lens.vertical_fov=vertical_fov;
         request.lens.near_plane=near_plane; request.lens.far_plane=far_plane;
         request.viewport={viewport_left,viewport_top,viewport_width,viewport_height};
@@ -188,6 +187,7 @@ struct RenderCamera final {
     }
     void applyRequest(const camera::CameraRequest& request) noexcept {
         position=request.position; target=request.target; up=request.up;
+        mode=request.mode;
         vertical_fov=request.lens.vertical_fov;
         near_plane=request.lens.near_plane; far_plane=request.lens.far_plane;
         viewport_left=request.viewport.x; viewport_top=request.viewport.y;
