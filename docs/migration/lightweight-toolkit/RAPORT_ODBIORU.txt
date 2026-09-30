@@ -8,7 +8,7 @@ Working tree: external/DiligentEngine had pre-existing local changes; preserved
 SOURCE REVIEW
 -------------
 Status: IN PROGRESS (source slices only)
-Static guard: PASS at source SHA 0e57e7b (active-tree forbidden-token and public-API scan)
+Static guard: PASS at source SHA e8baf7d (active-tree forbidden-token and public-API scan)
 Dependency closure: NOT RUN
 Source slices: dec980a (math), 470a55b (mesh streams), b012a5e (builder),
 995f873 (typed box), e99293d (mesh operations), d073a47 (optimizer),
