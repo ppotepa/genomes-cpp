@@ -91,7 +91,7 @@ LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime came
 LT-080 | CODE_READY | 611a251 | - | SDL window API is neutral or NativeD3D only; no GL/Vulkan context path; focus/cancel and framebuffer metrics preserved | platform tests and build
 LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source review | dependency audit and clean configure
 LT-014 | CODE_READY | 0e57e7b | - | isolated earcut/fastgltf/simdjson dependency helper with no configure-time downloads | clean configure and full-toolkit build
-LT-020 | CODE_READY | 0557a94 | - | Diligent default and headless/full preset source review; meshoptimizer enabled in dev-debug/dev-release | user configure/build/CTest
+LT-020 | CODE_READY | 0201c2e | - | Diligent/headless/full preset source review with explicit dev-release test preset and meshoptimizer in dev-debug/dev-release | user configure/build/CTest
 LT-017 | CODE_READY | 0f53a34 | - | Windows/D3D12-only Diligent with Tools-for-capture and no FX presence requirement | user Diligent configure/build
 LT-096 | CODE_READY | c4375ec | - | Diligent renderer target links capture tools and D3D12 only | user Diligent configure/build
 LT-068 | CODE_READY | d26d08b | - | optional neutral AssetPresentation render hook source review | assets-off core configure/build
