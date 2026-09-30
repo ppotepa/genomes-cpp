@@ -13,8 +13,7 @@ endif()
 if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY")
     add_subdirectory(game)
 elseif(GENOMES_RENDER_BACKEND STREQUAL "THREEPP_GL")
-    # Keep the low-level bootstrap as a focused context/lifecycle diagnostic,
-    # while the real game now consumes the same renderer-neutral snapshots.
-    add_subdirectory(threepp_bootstrap)
+    # The game remains the only application target; the legacy bootstrap is
+    # intentionally no longer part of the application composition.
     add_subdirectory(game)
 endif()
