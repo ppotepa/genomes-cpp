@@ -19,8 +19,8 @@ f7af825/734635b/9298d50 (assets/importer/presentation),
 ab4dd55 (runtime camera input and focus/cancel events, SDL metrics),
 e0c1e2a (Diligent resolved-camera matrix handoff), ebdc065 (dependency tracker),
 317a5f5 (Diligent default presets), 9279f4b (D3D12 dependency closure),
-c4375ec (D3D12 renderer target)
-Current source progress: 86/167 = 51.50%
+c4375ec (D3D12 renderer target), d26d08b (neutral asset render hook)
+Current source progress: 87/167 = 52.10%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
