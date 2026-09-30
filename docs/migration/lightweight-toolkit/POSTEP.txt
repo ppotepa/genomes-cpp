@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=54 DOING=0 CODE_READY=113 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 113/167 = 67.66%; remaining 32.34%
+TODO=53 DOING=0 CODE_READY=114 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 114/167 = 68.26%; remaining 31.74%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -187,7 +187,7 @@ LT-146 | TODO | - | - | - | implement and review assigned path
 LT-147 | TODO | - | - | - | implement and review assigned path
 LT-148 | TODO | - | - | - | implement and review assigned path
 LT-150 | TODO | - | - | - | implement and review assigned path
-LT-151 | TODO | - | - | - | implement and review assigned path
+LT-151 | CODE_READY | 523d721 | - | toolkit primitive/polygon/tangent/optimizer median-p95 benchmark source review | user benchmark execution
 LT-152 | TODO | - | - | - | implement and review assigned path
 LT-153 | TODO | - | - | - | implement and review assigned path
 
