@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=83 DOING=0 CODE_READY=84 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 84/167 = 50.30%; remaining 49.70%
+TODO=82 DOING=0 CODE_READY=85 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 85/167 = 50.90%; remaining 49.10%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -92,6 +92,7 @@ LT-080 | CODE_READY | ab4dd55 | - | SDL focus/cancel and framebuffer metrics sou
 LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source review | dependency audit and clean configure
 LT-014 | CODE_READY | 54ab30f | - | isolated toolkit dependency helper source review | clean configure and full-toolkit build
 LT-020 | CODE_READY | 317a5f5 | - | Diligent default and headless/full preset source review | user configure/build/CTest
+LT-017 | CODE_READY | 9279f4b | - | Windows/D3D12-only Diligent and tools-without-FX source review | user Diligent configure/build
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -109,7 +110,6 @@ LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review |
 LT-009 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | TODO | - | - | - | implement and review assigned path
-LT-017 | TODO | - | - | - | implement and review assigned path
 LT-018 | TODO | - | - | - | implement and review assigned path
 LT-019 | TODO | - | - | - | implement and review assigned path
 LT-021 | TODO | - | - | - | implement and review assigned path
