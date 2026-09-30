@@ -114,7 +114,8 @@ struct DiligentBackend::Impl final {
     std::vector<diligent_contract::InstanceGpuVertex> instance_scratch;
     std::shared_ptr<const RenderMesh> preview_fallback;
     RenderCamera camera{},camera_override{};
-    bool have_camera_override{false},open{false},prepared{false},drawn_meshes{false},drawn_instances{false};
+    camera::ResolvedCamera resolved_camera{};
+    bool have_camera_override{false},have_resolved_camera{false},open{false},prepared{false},drawn_meshes{false},drawn_instances{false};
     diligent_detail::Mat4 camera_matrix{},shadow_matrix{},shadow_uv_matrix{};
     CharacterLightRig lights{};
     RenderUploadTelemetry telemetry{};

@@ -129,6 +129,7 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         (static_cast<float>(desc.Height)*camera.viewport_height);
     camera_matrix=multiply(perspective(camera.vertical_fov,aspect,camera.near_plane,camera.far_plane),
         lookAt(camera.position,camera.target,camera.up));
+    if (have_resolved_camera) camera_matrix.v=resolved_camera.view_projection.m;
     const auto offset=sub(camera.position,camera.target);
     const float radius=std::clamp(std::sqrt(dot(offset,offset))*.8F,3.0F,160.0F);
     const V direction=normal(lights.key.direction),up=std::abs(direction.y)>.95F?V{0,0,1}:V{0,1,0};

@@ -1,6 +1,7 @@
 #pragma once
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
+#include <genomes/camera/Camera.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 #include <filesystem>
 #include <memory>
@@ -27,6 +28,7 @@ public:
     [[nodiscard]] RenderResult wait_idle() noexcept override;
     [[nodiscard]] RenderResult capture(const std::filesystem::path&) noexcept;
     void set_camera(const RenderCamera&) noexcept;
+    void set_resolved_camera(const camera::ResolvedCamera&) noexcept;
     void shutdown() noexcept override;
 private:
     struct Impl;

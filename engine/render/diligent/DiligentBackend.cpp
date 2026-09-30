@@ -75,6 +75,9 @@ std::pair<std::uint32_t,std::uint32_t> DiligentBackend::framebufferSize() const 
 void DiligentBackend::set_camera(const RenderCamera& camera) noexcept {
     if (impl_) { impl_->camera_override=camera;impl_->have_camera_override=camera.enabled; }
 }
+void DiligentBackend::set_resolved_camera(const camera::ResolvedCamera& camera) noexcept {
+    if (impl_) { impl_->resolved_camera=camera;impl_->have_resolved_camera=true; }
+}
 RenderResult DiligentBackend::begin_frame() noexcept {
     if (!impl_ || !impl_->caps.initialized || impl_->open) return error("Diligent begin in invalid state");
     try {
@@ -82,7 +85,7 @@ RenderResult DiligentBackend::begin_frame() noexcept {
         ++p.telemetry.frame;p.telemetry.mesh_uploads=0;p.telemetry.mesh_upload_bytes=0;p.telemetry.palette_updates=0;
         p.telemetry.draw_calls=0;p.telemetry.ui_draw_calls=0;p.telemetry.ui_texture_uploads=0;
         p.telemetry.ui_texture_upload_bytes=0;p.telemetry.ui_buffer_grows=0;
-        p.prepared=p.drawn_meshes=p.drawn_instances=p.have_camera_override=false;p.items.clear();
+        p.prepared=p.drawn_meshes=p.drawn_instances=false;p.have_camera_override=p.have_resolved_camera=false;p.items.clear();
         if (p.swap) {
             auto* target=p.swap->GetCurrentBackBufferRTV();
             if (!target) return error("missing swap-chain back buffer");
