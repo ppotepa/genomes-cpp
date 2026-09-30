@@ -66,6 +66,45 @@ def check_tracker(root: pathlib.Path, failures: list[str]) -> None:
         failures.append("tracker progress arithmetic does not match its LT rows")
 
 
+def cache_bool(cache_text: str, name: str) -> bool | None:
+    match = re.search(rf"^{re.escape(name)}:BOOL=(ON|OFF)$", cache_text, re.MULTILINE)
+    return None if match is None else match.group(1) == "ON"
+
+
+def check_build_boundaries(build: pathlib.Path, failures: list[str]) -> None:
+    cache = build / "CMakeCache.txt"
+    if not cache.exists():
+        return
+    cache_text = cache.read_text(encoding="utf-8", errors="replace")
+    if cache_bool(cache_text, "GENOMES_ENABLE_" + _LEGACY.upper()):
+        failures.append("build cache enables the legacy CPU provider")
+
+    backend_match = re.search(
+        r"^GENOMES_RENDER_BACKEND:STRING=([^\r\n]+)$", cache_text, re.MULTILINE,
+    )
+    backend = backend_match.group(1) if backend_match else None
+    if backend == "HEADLESS":
+        if cache_bool(cache_text, "GENOMES_ENABLE_DILIGENT") is True:
+            failures.append("HEADLESS build enables Diligent")
+        if cache_bool(cache_text, "GENOMES_ENABLE_SDL") is True:
+            failures.append("HEADLESS build enables SDL")
+
+    optional_off = (
+        cache_bool(cache_text, "GENOMES_ENABLE_ASSETS") is False
+        and cache_bool(cache_text, "GENOMES_ENABLE_CSG") is False
+    )
+    game_link_files = [
+        path for path in build.rglob("link.txt")
+        if "genomes_game" in path.as_posix().lower()
+    ]
+    for link_file in game_link_files:
+        link_text = link_file.read_text(encoding="utf-8", errors="replace").lower()
+        if backend == "HEADLESS" and any(token in link_text for token in ("diligent", "sdl")):
+            failures.append(f"HEADLESS game link contains graphics dependency: {link_file.relative_to(build)}")
+        if optional_off and any(token in link_text for token in ("fastgltf", "manifold")):
+            failures.append(f"game link contains optional toolkit dependency while assets/CSG are OFF: {link_file.relative_to(build)}")
+
+
 def tracked_files(root: pathlib.Path) -> list[pathlib.Path]:
     result = subprocess.run(
         ["git", "-C", str(root), "ls-files", "-z"],
@@ -97,11 +136,7 @@ def main() -> int:
         if "include/" in path.as_posix() and any(token in text for token in PUBLIC_EXTERNAL):
             failures.append(f"{path.relative_to(root)}: third-party type in public header")
     if args.build:
-        cache = args.build / "CMakeCache.txt"
-        if cache.exists():
-            cache_text = cache.read_text(encoding="utf-8", errors="replace")
-            if ("GENOMES_ENABLE_" + _LEGACY.upper() + ":BOOL=ON") in cache_text:
-                failures.append("build cache enables the legacy CPU provider")
+        check_build_boundaries(args.build.resolve(), failures)
     if failures:
         print("lightweight-toolkit static guard: FAIL")
         print("\n".join(sorted(set(failures))))
