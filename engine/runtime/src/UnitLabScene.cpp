@@ -679,6 +679,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         context.presentation.camera.revision = foundation::stableHashCombine(
             model_artifact_->cache_key,
             static_cast<std::uint64_t>(camera_mode_));
+        context.publishCameraRequest(context.presentation.camera.toRequest());
         const float model_rotation =
             std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
         std::optional<render::RenderMesh> debug_deformed;

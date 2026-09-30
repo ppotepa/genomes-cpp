@@ -20,6 +20,8 @@ struct PresentationSnapshot final {
     foundation::StableId world_origin_id{0};
     std::uint64_t world_origin_revision{0};
     RenderCamera camera{};
+    camera::CameraRequest camera_request{};
+    bool has_camera_request{false};
     camera::ResolvedCamera resolved_camera{};
     bool has_resolved_camera{false};
     CharacterLightRig character_lights{};
@@ -44,6 +46,8 @@ struct PresentationSnapshot final {
         terrain_mesh.reset();
         world_mesh.reset();
         infantry_mesh.reset();
+        camera_request = {};
+        has_camera_request = false;
     }
 
     // Full reset is owned by SceneDirector and is not a scene extraction API.
@@ -55,6 +59,8 @@ struct PresentationSnapshot final {
         world_origin_id = 0;
         world_origin_revision = 0;
         camera = {};
+        camera_request = {};
+        has_camera_request = false;
         resolved_camera = {};
         has_resolved_camera = false;
         character_lights = {};

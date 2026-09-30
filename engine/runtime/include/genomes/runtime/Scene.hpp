@@ -5,6 +5,7 @@
 #include <genomes/input/InputFrame.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
+#include <genomes/camera/Camera.hpp>
 #include <genomes/runtime/ApplicationCommand.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 
@@ -46,6 +47,15 @@ struct SceneContext {
     // Evidence/capture mode disables worker timing as an input to generated
     // presentation state. Simulation still advances through fixed_update.
     bool deterministic_capture{false};
+    camera::CameraRequest* camera_request{nullptr};
+    bool* camera_request_published{nullptr};
+
+    void publishCameraRequest(const camera::CameraRequest& request) noexcept {
+        if (camera_request != nullptr && camera_request_published != nullptr) {
+            *camera_request = request;
+            *camera_request_published = true;
+        }
+    }
 };
 
 class Scene {

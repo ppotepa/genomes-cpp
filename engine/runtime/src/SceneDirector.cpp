@@ -48,7 +48,8 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
 SceneContext SceneDirector::make_context() noexcept {
     return {commands_, ui_, presentation_, active_world_config_ ? &*active_world_config_ : nullptr,
             jobs_, renderer_.capabilities(), renderer_.uploadTelemetry(),
-            deterministic_capture_};
+            deterministic_capture_, &presentation_.camera_request,
+            &presentation_.has_camera_request};
 }
 
 void SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
@@ -190,6 +191,15 @@ void SceneDirector::frame_update(double dt) {
     current_->frame_update(context, dt);
     ui_.update(dt);
     current_->build_presentation(context);
+    if (presentation_.has_camera_request) {
+        const bool interactive_orbit = presentation_.camera.interactive_orbit;
+        const std::uint64_t revision = presentation_.camera.revision;
+        presentation_.camera = {};
+        presentation_.camera.enabled = true;
+        presentation_.camera.applyRequest(presentation_.camera_request);
+        presentation_.camera.interactive_orbit = interactive_orbit;
+        presentation_.camera.revision = revision;
+    }
     presentation_.has_resolved_camera = false;
     if (presentation_.camera.enabled) {
         const camera::CameraRequest request = presentation_.camera.toRequest();
