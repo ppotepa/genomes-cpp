@@ -904,5 +904,5 @@ The production presentation path for the current Genomes implementation is
 Windows/D3D12 through Diligent. CPU-facing layers are split into the neutral
 math, geometry and camera targets, with optional assets and CSG targets. The
 renderer consumes immutable PresentationSnapshot data; no domain or camera
-input code depends on Diligent or threepp. Headless core profiles do not
-configure graphics dependencies.
+input code depends on Diligent or a presentation backend. Headless core profiles
+do not configure graphics dependencies.
