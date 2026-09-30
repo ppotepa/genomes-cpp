@@ -38,18 +38,27 @@ foundation::Result<ResolvedCamera, foundation::Error> resolve(const CameraReques
 }
 
 foundation::Result<math::Vec3, foundation::Error> project(const ResolvedCamera& camera, math::Vec3 world) {
+    if (!math::finite(world))
+        return foundation::Result<math::Vec3, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument, "world point is not finite"));
     const math::Vec4 clip=camera.view_projection*math::Vec4{world.x,world.y,world.z,1};
     if(!std::isfinite(clip.w)||std::fabs(clip.w)<1e-8F) return foundation::Result<math::Vec3, foundation::Error>::failure(error(foundation::ErrorCode::InvalidState,"point cannot be projected"));
     const math::Vec3 ndc{clip.x/clip.w,clip.y/clip.w,clip.z/clip.w};
     return foundation::Result<math::Vec3, foundation::Error>::success({camera.viewport.x+(ndc.x+1)*0.5F*camera.viewport.width,camera.viewport.y+(1-ndc.y)*0.5F*camera.viewport.height,ndc.z});
 }
 foundation::Result<math::Vec3, foundation::Error> unproject(const ResolvedCamera& camera, math::Vec3 screen) {
+    if (!math::finite(screen))
+        return foundation::Result<math::Vec3, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument, "screen point is not finite"));
     if(camera.viewport.width<=0||camera.viewport.height<=0) return foundation::Result<math::Vec3, foundation::Error>::failure(error(foundation::ErrorCode::InvalidArgument,"viewport is empty"));
     const math::Vec4 world=camera.inverse_view_projection*math::Vec4{(screen.x-camera.viewport.x)*2.0F/camera.viewport.width-1,1-(screen.y-camera.viewport.y)*2.0F/camera.viewport.height,screen.z,1};
     if(std::fabs(world.w)<1e-8F) return foundation::Result<math::Vec3, foundation::Error>::failure(error(foundation::ErrorCode::InvalidState,"point cannot be unprojected"));
     return foundation::Result<math::Vec3, foundation::Error>::success({world.x/world.w,world.y/world.w,world.z/world.w});
 }
 foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error> screenRay(const ResolvedCamera& camera,float x,float y) {
+    if (!std::isfinite(x) || !std::isfinite(y))
+        return foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument, "screen coordinate is not finite"));
     auto near_point=unproject(camera,{x,y,0}); auto far_point=unproject(camera,{x,y,1});
     if(!near_point||!far_point) return foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error>::failure(error(foundation::ErrorCode::InvalidArgument,"screen coordinate is invalid"));
     math::Vec3 direction=far_point.value()-near_point.value(); if(!math::normalize(direction)) return foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error>::failure(error(foundation::ErrorCode::InvalidState,"screen ray is degenerate"));

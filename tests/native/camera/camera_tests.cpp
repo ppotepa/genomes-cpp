@@ -22,6 +22,12 @@ int main() {
     degenerate.position=degenerate.target;
     const auto bad_fit=fitToBounds(bounds,degenerate);
     assert(!bad_fit && bad_fit.error().code==genomes::foundation::ErrorCode::InvalidArgument);
+    const auto bad_project=project(resolved.value(), {NAN, 0.0F, 0.0F});
+    assert(!bad_project && bad_project.error().code==genomes::foundation::ErrorCode::InvalidArgument);
+    const auto bad_unproject=unproject(resolved.value(), {0.0F, INFINITY, 0.5F});
+    assert(!bad_unproject && bad_unproject.error().code==genomes::foundation::ErrorCode::InvalidArgument);
+    const auto bad_ray=screenRay(resolved.value(), NAN, 0.0F);
+    assert(!bad_ray && bad_ray.error().code==genomes::foundation::ErrorCode::InvalidArgument);
     const auto invalid=resolve(request,0,720);
     assert(!invalid && invalid.error().code==genomes::foundation::ErrorCode::InvalidArgument);
     return 0;
