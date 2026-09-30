@@ -66,9 +66,9 @@ LT-057 | CODE_READY | 46aa8b9 | - | Polygon2 contract source review | polygon te
 LT-058 | CODE_READY | 46aa8b9 | - | polygon operations API source review | polygon tests and build
 LT-059 | CODE_READY | 46aa8b9 | - | earcut validation/triangulation source review | polygon tests and build
 LT-132 | CODE_READY | 46aa8b9 | - | polygon regression test source review | user Debug/Release CTest
-LT-013 | CODE_READY | 2660846 | - | pinned Manifold submodule source review | optional CSG configure/build
-LT-060 | CODE_READY | 2660846 | - | SolidOps public contract source review | optional CSG tests and build
-LT-061 | CODE_READY | 2660846 | - | Manifold conversion source review | optional CSG tests and build
+LT-013 | CODE_READY | 114e4de | - | pinned Manifold submodule source review | optional CSG configure/build
+LT-060 | CODE_READY | 114e4de | - | SolidOps public contract source review | optional CSG tests and build
+LT-061 | CODE_READY | 114e4de | - | Manifold conversion source review | optional CSG tests and build
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
