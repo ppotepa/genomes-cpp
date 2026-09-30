@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=136 DOING=0 CODE_READY=31 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 31/167 = 18.56%; remaining 81.44%
+TODO=135 DOING=0 CODE_READY=32 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 32/167 = 19.16%; remaining 80.84%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -54,6 +54,7 @@ LT-074 | CODE_READY | c141009 | - | camera controller contract review | controll
 LT-075 | CODE_READY | c141009 | - | orbit/fly/RTS implementation review | controller tests and build
 LT-137 | CODE_READY | c141009 | - | controller regression test source review | user Debug/Release CTest
 LT-154 | CODE_READY | 2512ed9 | - | static guard source review | user guard execution after S08
+LT-166 | CODE_READY | 099c992 | - | acceptance command document source review | user-run command evidence
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
