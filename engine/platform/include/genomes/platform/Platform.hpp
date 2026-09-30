@@ -21,9 +21,9 @@ struct WindowConfig final {
     std::int32_t width{1280};
     std::int32_t height{720};
     bool resizable{true};
-    // Transitional compatibility for existing Diligent callers. An explicit
-    // graphics_api always wins; only graphicsApi() selects SDL window flags.
-    bool vulkan{true};
+    // An explicit graphics_api always wins; this compatibility bit defaults to
+    // a neutral window so production code must opt into a native API.
+    bool vulkan{false};
     std::optional<WindowGraphicsApi> graphics_api{};
 
     [[nodiscard]] WindowGraphicsApi graphicsApi() const noexcept {
