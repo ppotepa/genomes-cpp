@@ -14,26 +14,22 @@
 
 namespace genomes::platform {
 
-enum class WindowGraphicsApi : std::uint8_t { None, Vulkan, NativeD3D };
+enum class WindowGraphicsApi : std::uint8_t { None, NativeD3D };
 
 struct WindowConfig final {
     std::string_view title{"Genomes"};
     std::int32_t width{1280};
     std::int32_t height{720};
     bool resizable{true};
-    // An explicit graphics_api always wins; this compatibility bit defaults to
-    // a neutral window so production code must opt into a native API.
-    bool vulkan{false};
     std::optional<WindowGraphicsApi> graphics_api{};
 
     [[nodiscard]] WindowGraphicsApi graphicsApi() const noexcept {
-        return graphics_api.value_or(vulkan ? WindowGraphicsApi::Vulkan : WindowGraphicsApi::None);
+        return graphics_api.value_or(WindowGraphicsApi::None);
     }
     [[nodiscard]] bool valid() const noexcept {
         const auto api = graphicsApi();
         return width >= 320 && width <= 16'384 && height >= 200 && height <= 16'384 &&
-               (api == WindowGraphicsApi::None || api == WindowGraphicsApi::Vulkan ||
-                api == WindowGraphicsApi::NativeD3D);
+               (api == WindowGraphicsApi::None || api == WindowGraphicsApi::NativeD3D);
     }
 };
 

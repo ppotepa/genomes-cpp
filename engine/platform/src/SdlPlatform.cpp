@@ -61,7 +61,6 @@ SdlPlatform::create(WindowConfig config) {
 
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (config.resizable) flags |= SDL_WINDOW_RESIZABLE;
-    if (config.graphicsApi() == WindowGraphicsApi::Vulkan) flags |= SDL_WINDOW_VULKAN;
     const std::string title(config.title);
     SDL_Window* window = SDL_CreateWindow(title.c_str(), config.width, config.height, flags);
     if (window == nullptr) return fail("SDL window creation failed");

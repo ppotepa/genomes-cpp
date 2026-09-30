@@ -127,7 +127,6 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     window.width=1280;window.height=720;window.resizable=true;
     // The production application is Windows/D3D12. NativeD3D is explicit so
     // the platform layer cannot silently create a non-D3D presentation window.
-    window.vulkan=false;
     window.graphics_api=platform::WindowGraphicsApi::NativeD3D;
     auto created=platform::SdlPlatform::create(window);
     if (!created) return Result::failure(created.error());

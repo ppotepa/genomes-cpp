@@ -20,10 +20,8 @@ int main() {
     assert(std::isfinite(empty.scale_x()) && std::isfinite(empty.scale_y()));
 
     WindowConfig config{};
-    config.vulkan = false;
     config.graphics_api = WindowGraphicsApi::NativeD3D;
     assert(config.valid() && config.graphicsApi() == WindowGraphicsApi::NativeD3D);
-    config.vulkan = true;
     assert(config.valid() && config.graphicsApi() == WindowGraphicsApi::NativeD3D);
     config.graphics_api = static_cast<WindowGraphicsApi>(255);
     assert(!config.valid());
