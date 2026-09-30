@@ -13,6 +13,7 @@ if ($null -ne (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction
 $root=$PSScriptRoot
 $preset=if ($Configuration -eq 'Release') { 'dev-release' } else { 'dev-debug' }
 $binary=Join-Path $root "build/$preset/bin/genomes_game.exe"
+$cache=Join-Path $root "build/$preset/CMakeCache.txt"
 $oldPath=$env:PATH
 function Invoke-Checked([string]$Tool,[string[]]$Arguments) {
     & $Tool @Arguments
@@ -52,7 +53,9 @@ try {
         }
         Write-Host "Diligent profile: $preset; compiler/GPU acceptance has not yet been performed by this script."
         Invoke-Checked 'git' @('rev-parse','HEAD')
-        Invoke-Checked 'cmake' @('--preset',$preset)
+        if ($Reconfigure -or -not (Test-Path $cache)) {
+            Invoke-Checked 'cmake' @('--preset',$preset)
+        }
         Invoke-Checked 'cmake' @('--build','--preset',$preset,'--target','genomes_game')
     }
     if (-not (Test-Path $binary)) { throw "Executable is missing: $binary" }
