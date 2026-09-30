@@ -24,8 +24,9 @@ c4375ec (D3D12 renderer target), d26d08b (neutral asset render hook),
 a5889f4 (shared camera math in Diligent), d82c8c9 (neutral camera contract),
 9e0d751 (scene camera request publication), df8798a (camera ordering and scene epoch),
 539281b (Diligent scene renderer checkpoint), d760db5/a440b23 (S10 documentation),
-bddcbc4 (acceptance evidence and capture manifest)
-Current source progress: 108/167 = 64.67%
+bddcbc4 (acceptance evidence and capture manifest), c51a2b1 (MeshData tests),
+b74835f (CSG tests)
+Current source progress: 110/167 = 65.87%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
