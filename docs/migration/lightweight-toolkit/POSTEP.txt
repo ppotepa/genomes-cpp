@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=15 DOING=0 CODE_READY=152 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 152/167 = 91.02%; remaining 8.98%
+TODO=14 DOING=0 CODE_READY=153 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 153/167 = 91.62%; remaining 8.38%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -183,7 +183,7 @@ LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window co
 LT-141 | TODO | - | - | - | implement and review assigned path
 LT-144 | CODE_READY | c62ada6 | - | skinned index-only stream and morph numbering regression source review | user infantry CTest
 LT-145 | TODO | - | - | - | implement and review assigned path
-LT-146 | TODO | - | - | - | implement and review assigned path
+LT-146 | CODE_READY | 174423f | - | native CMake configuration boundary guard for HEADLESS/Diligent and no legacy profiles | user headless CTest
 LT-147 | CODE_READY | c62ada6 | - | infantry index-order test links neutral geometry API source review | user infantry CTest
 LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest
 LT-150 | CODE_READY | c62ada6 | - | UnitLab final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
