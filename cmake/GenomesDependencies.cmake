@@ -57,7 +57,6 @@ function(genomes_configure_diligent)
 
     foreach(target_name IN ITEMS
             DiligentCore-static
-            Diligent-GraphicsEngineVk-static
             Diligent-GraphicsEngineD3D12-static)
         genomes_mark_third_party("${target_name}")
     endforeach()

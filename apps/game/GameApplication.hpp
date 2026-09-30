@@ -59,6 +59,8 @@ private:
     ui::UiContentRegistry content_;
     ui::UiNativePluginManager plugins_;
     render::PresentationSnapshot presentation_;
+    // SceneDirector owns CameraController; keeping it after presentation_ makes
+    // camera/snapshot state outlive the renderer during orderly destruction.
     runtime::SceneDirector director_;
     simulation::FixedStepClock clock_;
 #if defined(GENOMES_HAS_RMLUI)

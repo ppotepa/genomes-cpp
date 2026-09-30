@@ -1,9 +1,8 @@
 #include "DiligentBackendImpl.hpp"
-#if defined(_WIN32)
-#include <DiligentCore/Graphics/GraphicsEngineD3D12/interface/EngineFactoryD3D12.h>
-#else
-#include <DiligentCore/Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
+#if !defined(_WIN32)
+#error "The Genomes Diligent production backend is Windows/D3D12 only"
 #endif
+#include <DiligentCore/Graphics/GraphicsEngineD3D12/interface/EngineFactoryD3D12.h>
 #include <iostream>
 
 namespace genomes::render {
@@ -12,53 +11,29 @@ using BackendResult=foundation::Result<std::unique_ptr<DiligentBackend>,foundati
 BackendResult DiligentBackend::create(RenderConfig config) { return create(config,{}); }
 BackendResult DiligentBackend::create(RenderConfig config,foundation::NativeWindowHandle native) {
     if (!config.valid()) return BackendResult::failure({foundation::ErrorCode::InvalidArgument,"invalid Diligent configuration"});
-#if defined(_WIN32)
     if (config.backend!=RenderBackendKind::D3D12) return BackendResult::failure({foundation::ErrorCode::Unsupported,"Windows Diligent profile requires D3D12"});
-#else
-    if (config.backend!=RenderBackendKind::Vulkan) return BackendResult::failure({foundation::ErrorCode::Unsupported,"non-Windows Diligent profile requires Vulkan"});
-#endif
     if (!config.headless && !native.valid()) return BackendResult::failure({foundation::ErrorCode::InvalidArgument,"Diligent requires a native window"});
     try {
         auto p=std::make_unique<Impl>(config);
-#if defined(_WIN32)
         auto* factory=Diligent::GetEngineFactoryD3D12();
         Diligent::EngineD3D12CreateInfo ci{};
-#else
-        auto* factory=Diligent::GetEngineFactoryVk();
-        Diligent::EngineVkCreateInfo ci{};
-#endif
         if (!factory) return BackendResult::failure({foundation::ErrorCode::Internal,"Diligent factory unavailable"});
         factory->SetBreakOnError(false);ci.EnableValidation=config.validation;
-#if defined(_WIN32)
         factory->CreateDeviceAndContextsD3D12(ci,&p->device,&p->context);
-#else
-        factory->CreateDeviceAndContextsVk(ci,&p->device,&p->context);
-#endif
         if (!p->device || !p->context) return BackendResult::failure({foundation::ErrorCode::Internal,"Diligent device/context creation failed"});
         if (!config.headless) {
             Diligent::NativeWindow w{};
-#if PLATFORM_WIN32
             if (native.system!=foundation::NativeWindowSystem::Win32) return BackendResult::failure({foundation::ErrorCode::Unsupported,"D3D12 requires Win32"});
             w.hWnd=native.window;
-#elif PLATFORM_LINUX
-            if (native.system!=foundation::NativeWindowSystem::X11) return BackendResult::failure({foundation::ErrorCode::Unsupported,"current Vulkan SDL integration requires X11"});
-            w.pDisplay=native.display;w.WindowId=static_cast<Diligent::Uint32>(native.window_id);
-#else
-            return BackendResult::failure({foundation::ErrorCode::Unsupported,"native Diligent window integration is not available on this platform"});
-#endif
             Diligent::SwapChainDesc desc{};desc.Width=config.width;desc.Height=config.height;
             desc.BufferCount=config.frames_in_flight;desc.ColorBufferFormat=Diligent::TEX_FORMAT_RGBA8_UNORM_SRGB;
             desc.DepthBufferFormat=Diligent::TEX_FORMAT_D32_FLOAT;
-#if defined(_WIN32)
             factory->CreateSwapChainD3D12(p->device,p->context,desc,Diligent::FullScreenModeDesc{},w,&p->swap);
-#else
-            factory->CreateSwapChainVk(p->device,p->context,desc,w,&p->swap);
-#endif
             if (!p->swap) return BackendResult::failure({foundation::ErrorCode::Internal,"Diligent swap chain creation failed"});
             if (auto r=p->initializeResources();!r) return BackendResult::failure(r.error());
         }
         p->caps.initialized=true;
-        std::cout<<"Genomes Diligent renderer: "<<(config.backend==RenderBackendKind::D3D12?"D3D12":"Vulkan")
+        std::cout<<"Genomes Diligent renderer: D3D12"
                  <<"; native meshes + skinning + direct PBR + key shadows; sRGB target\n";
         return BackendResult::success(std::unique_ptr<DiligentBackend>{new DiligentBackend{std::move(p)}});
     } catch (...) { return BackendResult::failure({foundation::ErrorCode::Internal,"Diligent initialization exception"}); }

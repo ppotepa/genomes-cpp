@@ -194,6 +194,7 @@ int GameApplication::run(int argc,char** argv) {
         previous=now;
         // Captures keep their declared state independent of accidental input.
         if (!options.capture_path) {
+            // UI filtering completes before SceneDirector routes input to the camera controller.
 #if defined(GENOMES_HAS_RMLUI)
             director_.handle_input(rml_ui_->filter_input(platform_frame.input));
 #else
