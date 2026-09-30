@@ -24,6 +24,7 @@ genomes_configure_rmlui()
 genomes_configure_sdl()
 genomes_configure_threepp()
 genomes_configure_earcut()
+genomes_configure_manifold()
 
 add_subdirectory(engine)
 add_subdirectory(modules)
