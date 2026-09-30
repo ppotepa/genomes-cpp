@@ -83,6 +83,13 @@ No JobSystem implementation yet.
 No ECS selection yet.
 No Diligent/Jolt/Recast bootstrap yet.
 
+LT v1.0 amendment:
+    public toolkit APIs use neutral Genomes math/geometry/camera types;
+    fastgltf and Manifold remain optional and private to their targets;
+    mesh reordering must preserve every vertex stream and submesh range;
+    immutable prototypes are optimized once at the presentation boundary;
+    no global ISA or warning-policy changes are permitted for third parties.
+
 ======================================================================
 TARGET FILE TREE
 ======================================================================

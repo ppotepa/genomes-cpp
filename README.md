@@ -53,6 +53,15 @@ its provenance, but reference data cannot select production algorithms.
 
 ## Core technology direction
 
+The current lightweight-toolkit migration supersedes the historical threepp
+comparison path. Production presentation is Windows/D3D12 through Diligent;
+headless profiles use no graphics dependency. CPU geometry, math and camera
+contracts live in the neutral `genomes::` toolkit. Optional fastgltf assets and
+Manifold CSG are disabled in the default game and enabled only by the full
+toolkit presets. Use `dev-debug`/`dev-release`, `headless-core-*` or
+`toolkit-full-*` from `CMakePresets.json`; do not use the historical
+`docs/migration/threepp` commands.
+
 - C++20 initially, with selective C++23 adoption only after toolchain baseline changes
 - Diligent Engine for rendering/RHI
 - Jolt Physics behind a Genomes physics abstraction
@@ -190,8 +199,8 @@ The repository now contains the first renderer-independent vertical slice:
   synthesizing one CPU mesh for every unit;
 - `genomes_platform` owns the SDL3 window and translates SDL events into the
   engine's semantic input frame;
-- `genomes_render_diligent` is an opt-in Vulkan adapter for headless and
-  windowed presentation. It is built only with `GENOMES_ENABLE_DILIGENT=ON`,
+- `genomes_render_diligent` is the Windows/D3D12 presentation adapter. It is
+  built only with `GENOMES_ENABLE_DILIGENT=ON`,
   owns the first terrain/semantic-world/infantry 3D pass, depth buffer and
   UI/world-map debug passes, advertises instanced-rendering capability to
   scene extraction and never leaks Diligent types through the generic renderer
@@ -200,7 +209,7 @@ The repository now contains the first renderer-independent vertical slice:
   archetype/query path without opening a window;
 - `genomes_menu` exercises the main menu with a headless renderer and semantic
   input frames;
-- `genomes_game` is the first SDL3 + Vulkan windowed vertical slice, drawing the
+- `genomes_game` is the SDL3 + Diligent/D3D12 windowed vertical slice, drawing the
   engine-owned main-menu scene (including text and selection state), the unit
   laboratory, the building laboratory with runtime part damage, the world
   configuration scene and a generated battlefield plan after `Start`; the

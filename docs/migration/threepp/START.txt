@@ -1,5 +1,10 @@
 THREEPP — PIERWSZY PAKIET IMPLEMENTACYJNY
 ======================================
+
+STATUS: HISTORYCZNE / SUPERSEDED. Nie używać jako instrukcji bieżącego
+checkoutu. Obowiązujący kierunek to docs/decisions/ADR_LIGHTWEIGHT_TOOLKIT.md
+oraz docs/migration/lightweight-toolkit/POSTEP.txt; produkcyjny renderer to
+Diligent/D3D12, a threepp jest ścieżką usuwaną.
 Data: 2026-09-29
 Kod: 25a661f343509f676e60d67be69846b40e3cc339
 Baseline: 188dc2aac34821f2a21cec3eb66ac5049f3ccf60

@@ -1,5 +1,9 @@
 THREEPP / UNITLAB — FINAL ACCEPTANCE COMMANDS
 ================================================
+
+STATUS: HISTORYCZNE / SUPERSEDED. Poniższe komendy dokumentują dawny eksperyment
+threepp/GL i nie są bramką bieżącej migracji. Używaj
+docs/migration/lightweight-toolkit/KOMENDY.txt dla Diligent/D3D12 i headless.
 Updated: 2026-09-29
 Implementation code head documented: e67d37dd48ffcf33c8d7ef1c33e6776238558c96
 

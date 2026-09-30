@@ -188,3 +188,11 @@ OUTPUT / HANDOFF TO NEXT CHAPTER
 Continue with the next chapter in the master index.
 
 END OF CHAPTER 4.4
+
+
+LT v1.0 implementation amendment:
+    MeshData uses SoA streams with explicit UInt16/UInt32 indices,
+    SubmeshRange groups and local bounds. Any vertex reorder returns a complete
+    remap for every stream; the current skinned policy permits index order only.
+    GeometryRecipe identities hash stable parameters and provider versions, and
+    immutable prototypes are optimized once at the presentation boundary.

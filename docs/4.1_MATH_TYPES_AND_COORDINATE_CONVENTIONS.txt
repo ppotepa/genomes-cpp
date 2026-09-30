@@ -193,3 +193,10 @@ OUTPUT / HANDOFF TO NEXT CHAPTER
 Continue with the next chapter in the master index.
 
 END OF CHAPTER 4.1
+
+
+LT v1.0 implementation amendment:
+    right-handed world, +Y up, metres and radians;
+    column-major matrices with column vectors;
+    D3D clip depth [0,1];
+    genomes::math::Vec/Quat/Mat4/Transform/Bounds are the neutral public types.

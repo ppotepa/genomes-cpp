@@ -189,3 +189,10 @@ OUTPUT / HANDOFF TO NEXT CHAPTER
 Continue with the next chapter in the master index.
 
 END OF CHAPTER 4.3
+
+
+LT v1.0 implementation amendment:
+    Polygon2 stores one outer ring and validated holes;
+    winding normalization and containment are explicit operations;
+    earcut triangulation rejects self-intersection, degeneracy and invalid
+    hole indices; no general polygon offset engine is implied by this module.

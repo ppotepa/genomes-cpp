@@ -895,3 +895,14 @@ It must inspect the entire relevant TARGET/SOURCE repository and build a complet
         -> reference classification
 
 The inventory must include all current prototypes, not only the main runtime.
+
+
+LIGHTWEIGHT TOOLKIT AMENDMENT (LT v1.0)
+=======================================
+
+The production presentation path for the current Genomes implementation is
+Windows/D3D12 through Diligent. CPU-facing layers are split into the neutral
+math, geometry and camera targets, with optional assets and CSG targets. The
+renderer consumes immutable PresentationSnapshot data; no domain or camera
+input code depends on Diligent or threepp. Headless core profiles do not
+configure graphics dependencies.
