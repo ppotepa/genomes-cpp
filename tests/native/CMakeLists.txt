@@ -12,6 +12,12 @@ genomes_set_project_warnings(genomes_test_math_types)
 genomes_enable_test_assertions(genomes_test_math_types)
 add_test(NAME math.types COMMAND genomes_test_math_types)
 
+add_executable(genomes_test_camera_types camera/camera_tests.cpp)
+target_link_libraries(genomes_test_camera_types PRIVATE genomes::camera)
+genomes_set_project_warnings(genomes_test_camera_types)
+genomes_enable_test_assertions(genomes_test_camera_types)
+add_test(NAME camera.types COMMAND genomes_test_camera_types)
+
 if(TARGET genomes_render_smoke)
     add_test(NAME render.diligent_headless COMMAND genomes_render_smoke)
 endif()

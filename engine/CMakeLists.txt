@@ -1,5 +1,6 @@
 add_subdirectory(math)
 add_subdirectory(foundation)
+add_subdirectory(camera)
 add_subdirectory(geometry)
 add_subdirectory(ui)
 if(GENOMES_ENABLE_RMLUI)
