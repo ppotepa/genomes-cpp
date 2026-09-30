@@ -13,6 +13,15 @@ int main() {
     assert(world && std::fabs(world.value().z-request.target.z)<1e-3F);
     const auto ray=screenRay(resolved.value(),screen.value().x,screen.value().y);
     assert(ray && math::lengthSquared(ray.value().second)>0.99F);
+    math::Aabb bounds{};
+    bounds.include({-1.0F, -2.0F, -1.0F});
+    bounds.include({3.0F, 2.0F, 1.0F});
+    const auto fitted=fitToBounds(bounds,request);
+    assert(fitted && fitted.value().target.x==1.0F && fitted.value().target.y==0.0F);
+    CameraRequest degenerate=request;
+    degenerate.position=degenerate.target;
+    const auto bad_fit=fitToBounds(bounds,degenerate);
+    assert(!bad_fit && bad_fit.error().code==genomes::foundation::ErrorCode::InvalidArgument);
     const auto invalid=resolve(request,0,720);
     assert(!invalid && invalid.error().code==genomes::foundation::ErrorCode::InvalidArgument);
     return 0;

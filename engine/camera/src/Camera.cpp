@@ -56,7 +56,31 @@ foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error> screenRa
     return foundation::Result<std::pair<math::Vec3,math::Vec3>, foundation::Error>::success(std::make_pair(near_point.value(),direction));
 }
 foundation::Result<CameraRequest, foundation::Error> fitToBounds(const math::Aabb& bounds,const CameraRequest& source) {
-    if(bounds.empty) return foundation::Result<CameraRequest, foundation::Error>::failure(error(foundation::ErrorCode::InvalidArgument,"cannot fit empty bounds"));
-    CameraRequest result=source; const math::Vec3 center=bounds.center(); const float radius=std::max(1e-4F,math::length(bounds.extent())); const float distance=radius/std::tan(source.lens.vertical_fov*0.5F); const math::Vec3 direction=math::normalized(source.position-source.target); result.target=center; result.position=center+direction*distance; return foundation::Result<CameraRequest, foundation::Error>::success(std::move(result));
+    if(bounds.empty || !math::finite(bounds.min) || !math::finite(bounds.max) ||
+       bounds.min.x > bounds.max.x || bounds.min.y > bounds.max.y || bounds.min.z > bounds.max.z)
+        return foundation::Result<CameraRequest, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument,"cannot fit invalid bounds"));
+    if(!validLens(source.lens) || !math::finite(source.position) ||
+       !math::finite(source.target) || !math::finite(source.up))
+        return foundation::Result<CameraRequest, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument,"camera template is invalid"));
+    const math::Vec3 source_offset=source.position-source.target;
+    bool direction_valid=false;
+    const math::Vec3 direction=math::normalized(source_offset,&direction_valid);
+    if(!direction_valid)
+        return foundation::Result<CameraRequest, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument,"camera template pose is degenerate"));
+    const float half_fov=source.lens.vertical_fov*0.5F;
+    const float tangent=std::tan(half_fov);
+    if(!std::isfinite(tangent) || tangent<=0.0F)
+        return foundation::Result<CameraRequest, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument,"camera template lens is degenerate"));
+    CameraRequest result=source;
+    const math::Vec3 center=bounds.center();
+    const float radius=std::max(1e-4F,math::length(bounds.extent()));
+    const float distance=radius/tangent;
+    result.target=center;
+    result.position=center+direction*distance;
+    return foundation::Result<CameraRequest, foundation::Error>::success(std::move(result));
 }
 }
