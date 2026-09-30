@@ -12,8 +12,10 @@ Static guard: NOT RUN
 Dependency closure: NOT RUN
 Source slices: dec980a (math), 470a55b (mesh streams), b012a5e (builder),
 995f873 (typed box), e99293d (mesh operations), d073a47 (optimizer),
-ef84e82 (recipe), 55ae5b2 (camera), c141009 (controller), 9223936 (guard)
-Current source progress: 38/167 = 22.75%
+ef84e82 (recipe), 46aa8b9 (earcut/polygons), 2660846/114e4de (CSG),
+f7af825/734635b (assets/importer), 55ae5b2 (camera), c141009 (controller),
+9223936 (guard)
+Current source progress: 56/167 = 33.53%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
