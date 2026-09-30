@@ -88,7 +88,7 @@ LT-131 | CODE_READY | 1a718fd | - | primitive/sweep/parametric test source revie
 LT-133 | CODE_READY | 25d93d0 | - | dedicated tangent-space test source review | user Debug/Release CTest
 LT-078 | CODE_READY | 20a7bb9 | - | snapshot payload/metadata split source review | runtime tests and build
 LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime camera input source review | platform/runtime tests and build
-LT-080 | CODE_READY | ab4dd55 | - | SDL focus/cancel and framebuffer metrics source review | platform tests and build
+LT-080 | CODE_READY | 9fea04c | - | SDL window path no longer creates or exposes OpenGL contexts; focus/cancel and framebuffer metrics preserved | platform tests and build
 LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source review | dependency audit and clean configure
 LT-014 | CODE_READY | 54ab30f | - | isolated toolkit dependency helper source review | clean configure and full-toolkit build
 LT-020 | CODE_READY | 1500e1c | - | Diligent default and headless/full preset source review | user configure/build/CTest
@@ -113,7 +113,7 @@ LT-162 | CODE_READY | d760db5 | - | polygon/earcut boundary amendment source rev
 LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source review | geometry review
 LT-164 | CODE_READY | bddcbc4 | - | infantry status lightweight-toolkit amendment source review | documentation review
 LT-165 | CODE_READY | bddcbc4 | - | restoration acceptance Windows/D3D12 NOT RUN amendment source review | user acceptance
-LT-167 | CODE_READY | bddcbc4 | - | capture run ID stdout/stderr/exit/manifest source review | user GPU capture
+LT-167 | CODE_READY | 9fea04c | - | Diligent-only capture preset/executable path plus run ID stdout/stderr/exit/manifest source review | user GPU capture
 LT-130 | CODE_READY | c51a2b1 | - | MeshData SoA/submesh/index/transform regression test source review | user geometry CTest
 LT-134 | CODE_READY | b74835f | - | optional CSG union/difference/intersection test source review | user full-toolkit CTest
 LT-138 | CODE_READY | 2f83fb5 | - | primitive/optimize/tangent/RenderMesh/snapshot integration test source review | user headless/full CTest
@@ -179,7 +179,7 @@ LT-125 | CODE_READY | 925ae13 | - | removed legacy threepp test registration | s
 LT-126 | CODE_READY | 925ae13 | - | removed legacy input adapter tests | static guard
 LT-127 | CODE_READY | 925ae13 | - | removed legacy primitive provider tests | static guard
 LT-128 | CODE_READY | 925ae13 | - | removed legacy window contract tests; neutral replacement is LT-139 | static guard
-LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window contract test source review | user headless CTest
+LT-139 | CODE_READY | 9fea04c | - | neutral platform framebuffer/focus/NativeD3D contract test source review | user headless CTest
 LT-141 | CODE_READY | 68a2035 | - | binary static triangle GLB fixture and importer regression source review | user full-toolkit CTest
 LT-144 | CODE_READY | c62ada6 | - | skinned index-only stream and morph numbering regression source review | user infantry CTest
 LT-145 | CODE_READY | 9b2d8fc | - | frame abort, resolved camera and camera-only prototype retention source tests | user Diligent restoration CTest/GPU
