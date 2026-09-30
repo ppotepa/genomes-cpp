@@ -34,6 +34,11 @@ genomes_set_project_warnings(genomes_test_platform_window_contract)
 genomes_enable_test_assertions(genomes_test_platform_window_contract)
 add_test(NAME platform.window_contract COMMAND genomes_test_platform_window_contract)
 set_tests_properties(platform.window_contract PROPERTIES LABELS "cpu;platform")
+
+add_test(NAME config.boundaries
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/config_boundaries.cmake")
+set_tests_properties(config.boundaries PROPERTIES LABELS "source;cpu;configuration")
 add_executable(genomes_test_polygon geometry/polygon_tests.cpp)
 target_link_libraries(genomes_test_polygon PRIVATE genomes::geometry)
 genomes_set_project_warnings(genomes_test_polygon)
