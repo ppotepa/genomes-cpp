@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=51 DOING=0 CODE_READY=116 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 116/167 = 69.46%; remaining 30.54%
+TODO=48 DOING=0 CODE_READY=119 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 119/167 = 71.26%; remaining 28.74%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -91,7 +91,7 @@ LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime came
 LT-080 | CODE_READY | ab4dd55 | - | SDL focus/cancel and framebuffer metrics source review | platform tests and build
 LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source review | dependency audit and clean configure
 LT-014 | CODE_READY | 54ab30f | - | isolated toolkit dependency helper source review | clean configure and full-toolkit build
-LT-020 | CODE_READY | 317a5f5 | - | Diligent default and headless/full preset source review | user configure/build/CTest
+LT-020 | CODE_READY | 1500e1c | - | Diligent default and headless/full preset source review | user configure/build/CTest
 LT-017 | CODE_READY | 9279f4b | - | Windows/D3D12-only Diligent and tools-without-FX source review | user Diligent configure/build
 LT-096 | CODE_READY | c4375ec | - | Diligent renderer target links capture tools and D3D12 only | user Diligent configure/build
 LT-068 | CODE_READY | d26d08b | - | optional neutral AssetPresentation render hook source review | assets-off core configure/build
@@ -135,9 +135,9 @@ LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review 
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
 LT-009 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
-LT-016 | TODO | - | - | - | implement and review assigned path
-LT-018 | TODO | - | - | - | implement and review assigned path
-LT-019 | TODO | - | - | - | implement and review assigned path
+LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration helper source review | user configure/static guard
+LT-018 | CODE_READY | 1500e1c | - | renderer options restricted to HEADLESS/DILIGENT_LEGACY source review | user configure boundary test
+LT-019 | CODE_READY | 1500e1c | - | root CMake toolkit/dependency composition without active threepp source review | user configure/build
 LT-021 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
