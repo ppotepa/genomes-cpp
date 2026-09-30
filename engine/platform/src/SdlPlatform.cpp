@@ -24,9 +24,6 @@ std::atomic_flag window_lease = ATOMIC_FLAG_INIT;
 [[nodiscard]] SDL_Window* as_window(void* value) noexcept {
     return static_cast<SDL_Window*>(value);
 }
-[[nodiscard]] SDL_GLContext as_context(void* value) noexcept {
-    return static_cast<SDL_GLContext>(value);
-}
 } // namespace
 
 foundation::Result<std::unique_ptr<SdlPlatform>, foundation::Error>
@@ -42,7 +39,7 @@ SdlPlatform::create(WindowConfig config) {
                                       "NativeD3D windows require Windows"});
     }
 #endif
-    auto platform = std::unique_ptr<SdlPlatform>(new SdlPlatform(config, nullptr, nullptr));
+    auto platform = std::unique_ptr<SdlPlatform>(new SdlPlatform(config, nullptr));
     if (window_lease.test_and_set(std::memory_order_acquire)) {
         return CreateResult::failure({foundation::ErrorCode::InvalidState,
                                       "only one live Genomes SDL window is supported"});
@@ -65,45 +62,10 @@ SdlPlatform::create(WindowConfig config) {
     SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
     if (config.resizable) flags |= SDL_WINDOW_RESIZABLE;
     if (config.graphicsApi() == WindowGraphicsApi::Vulkan) flags |= SDL_WINDOW_VULKAN;
-    if (config.graphicsApi() == WindowGraphicsApi::OpenGL) {
-        if (SDL_GL_GetCurrentContext() != nullptr) {
-            return CreateResult::failure({foundation::ErrorCode::InvalidState,
-                                          "a foreign OpenGL context is already current"});
-        }
-        SDL_GL_ResetAttributes();
-        struct Attribute { SDL_GLAttr name; int value; };
-        constexpr Attribute attributes[] = {
-            {SDL_GL_CONTEXT_MAJOR_VERSION, 3}, {SDL_GL_CONTEXT_MINOR_VERSION, 3},
-            {SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE},
-            {SDL_GL_DOUBLEBUFFER, 1}, {SDL_GL_DEPTH_SIZE, 24}, {SDL_GL_STENCIL_SIZE, 8},
-            {SDL_GL_RED_SIZE, 8}, {SDL_GL_GREEN_SIZE, 8},
-            {SDL_GL_BLUE_SIZE, 8}, {SDL_GL_ALPHA_SIZE, 8}
-        };
-        for (const auto& attribute : attributes) {
-            if (!SDL_GL_SetAttribute(attribute.name, attribute.value)) {
-                return fail("SDL OpenGL attribute setup failed");
-            }
-        }
-#if defined(__APPLE__)
-        if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)) {
-            return fail("SDL forward-compatible context setup failed");
-        }
-#endif
-        flags |= SDL_WINDOW_OPENGL;
-    }
-
     const std::string title(config.title);
     SDL_Window* window = SDL_CreateWindow(title.c_str(), config.width, config.height, flags);
     if (window == nullptr) return fail("SDL window creation failed");
     platform->window_ = window;
-    SDL_GLContext context = nullptr;
-    if (config.graphicsApi() == WindowGraphicsApi::OpenGL) {
-        context = SDL_GL_CreateContext(window);
-        platform->gl_context_ = context;
-        if (context == nullptr || !SDL_GL_MakeCurrent(window, context)) {
-            return fail("SDL OpenGL context creation failed");
-        }
-    }
     if (!platform->refresh_metrics()) {
         return CreateResult::failure(sdl_error(foundation::ErrorCode::Internal,
                                                "SDL initial drawable size query failed"));
@@ -111,8 +73,8 @@ SdlPlatform::create(WindowConfig config) {
     return CreateResult::success(std::move(platform));
 }
 
-SdlPlatform::SdlPlatform(WindowConfig config, void* window, void* context) noexcept
-    : config_(config), window_(window), gl_context_(context),
+SdlPlatform::SdlPlatform(WindowConfig config, void* window) noexcept
+    : config_(config), window_(window),
       owner_thread_(std::this_thread::get_id()) {}
 SdlPlatform::~SdlPlatform() { shutdown(); }
 
@@ -255,49 +217,6 @@ PlatformFrame SdlPlatform::poll_events() {
     return frame;
 }
 
-bool SdlPlatform::gl_context_current() const noexcept {
-    return on_owner_thread() && gl_context_ != nullptr &&
-        SDL_GL_GetCurrentContext() == as_context(gl_context_) &&
-        SDL_GL_GetCurrentWindow() == as_window(window_);
-}
-SdlPlatform::OperationResult SdlPlatform::make_gl_current() noexcept {
-    if (!on_owner_thread() || !initialized_ || gl_context_ == nullptr) {
-        return OperationResult::failure({foundation::ErrorCode::InvalidState,
-                                         "make-current requires the owning SDL/OpenGL thread"});
-    }
-    if (!SDL_GL_MakeCurrent(as_window(window_), as_context(gl_context_))) {
-        return OperationResult::failure(sdl_error(foundation::ErrorCode::Internal, "SDL make-current failed"));
-    }
-    return OperationResult::success();
-}
-SdlPlatform::OperationResult SdlPlatform::swap_gl_window() noexcept {
-    if (!gl_context_current() || !metrics_.drawable()) {
-        return OperationResult::failure({foundation::ErrorCode::InvalidState,
-                                         "swap requires a current, drawable SDL/OpenGL window"});
-    }
-    if (!SDL_GL_SwapWindow(as_window(window_))) {
-        return OperationResult::failure(sdl_error(foundation::ErrorCode::Internal, "SDL swap failed"));
-    }
-    return OperationResult::success();
-}
-SdlPlatform::OperationResult SdlPlatform::set_gl_swap_interval(int interval) noexcept {
-    if (interval < -1 || interval > 1) {
-        return OperationResult::failure({foundation::ErrorCode::InvalidArgument, "unsupported swap interval"});
-    }
-    if (!gl_context_current()) {
-        return OperationResult::failure({foundation::ErrorCode::InvalidState, "swap interval requires current GL"});
-    }
-    if (!SDL_GL_SetSwapInterval(interval)) {
-        return OperationResult::failure(sdl_error(foundation::ErrorCode::Unsupported,
-                                                 "requested swap interval is unavailable"));
-    }
-    return OperationResult::success();
-}
-SdlPlatform::GlFunction SdlPlatform::gl_proc_address(const char* name) noexcept {
-    return name != nullptr && SDL_GL_GetCurrentContext() != nullptr
-        ? SDL_GL_GetProcAddress(name) : nullptr;
-}
-
 foundation::NativeWindowHandle SdlPlatform::native_window() const noexcept {
     foundation::NativeWindowHandle handle{};
     if (!initialized_ || window_ == nullptr || !on_owner_thread()) return handle;
@@ -323,14 +242,8 @@ foundation::NativeWindowHandle SdlPlatform::native_window() const noexcept {
 }
 
 void SdlPlatform::shutdown() noexcept {
-    assert(on_owner_thread() && "destroy SDL/OpenGL resources on their owning thread");
+    assert(on_owner_thread() && "destroy SDL resources on their owning thread");
     if (!on_owner_thread()) return;
-    if (gl_context_ != nullptr) {
-        if (!SDL_GL_DestroyContext(as_context(gl_context_))) {
-            (void)sdl_error(foundation::ErrorCode::Internal, "SDL OpenGL context destruction failed");
-        }
-        gl_context_ = nullptr;
-    }
     if (window_ != nullptr) {
         SDL_DestroyWindow(as_window(window_));
         window_ = nullptr;

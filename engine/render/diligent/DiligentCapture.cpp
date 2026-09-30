@@ -106,7 +106,7 @@ RenderResult DiligentBackend::Impl::writeCapture() {
         return error("Diligent PNG encoding failed",foundation::ErrorCode::Internal);
     std::ostringstream metadata;
     metadata<<"{\n\"schema\":1,\"configured_git_sha\":\""<<GENOMES_DILIGENT_BUILD_SHA
-            <<"\",\"backend\":\""<<(config.backend==RenderBackendKind::D3D12?"D3D12":"Vulkan")
+            <<"\",\"backend\":\"D3D12"
             <<"\",\"frame\":"<<telemetry.frame<<",\"width\":"<<desc.Width<<",\"height\":"<<desc.Height
             <<",\"mesh_uploads\":"<<telemetry.mesh_uploads<<",\"mesh_upload_bytes\":"<<telemetry.mesh_upload_bytes
             <<",\"skin_constant_writes\":"<<telemetry.palette_updates<<",\"draw_calls_including_shadows\":"<<telemetry.draw_calls

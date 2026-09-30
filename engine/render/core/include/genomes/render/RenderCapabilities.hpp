@@ -6,9 +6,7 @@ namespace genomes::render {
 
 enum class RenderBackendKind : std::uint8_t {
     Null,
-    OpenGL,
     D3D12,
-    Vulkan,
 };
 
 // Kept separate from Diligent feature structs. Values are frozen at backend

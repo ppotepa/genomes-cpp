@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('dev-debug','dev-release','dev-diligent','release-diligent','dev-diligent-hybrid')][string]$Preset='dev-debug',
+    [ValidateSet('dev-debug','dev-release')][string]$Preset='dev-debug',
     [string]$OutputDirectory=''
 )
 $ErrorActionPreference='Stop'
@@ -8,7 +8,7 @@ if ($null -ne (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction
     $PSNativeCommandUseErrorActionPreference=$false
 }
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$executable=Join-Path $root "build/$Preset/apps/game/genomes_game.exe"
+$executable=Join-Path $root "build/$Preset/bin/genomes_game.exe"
 if (-not (Test-Path $executable)) { throw "Build genomes_game first: $executable" }
 $runId=Get-Date -Format 'yyyyMMdd-HHmmssfff'
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {

@@ -14,7 +14,7 @@
 
 namespace genomes::platform {
 
-enum class WindowGraphicsApi : std::uint8_t { None, OpenGL, Vulkan, NativeD3D };
+enum class WindowGraphicsApi : std::uint8_t { None, Vulkan, NativeD3D };
 
 struct WindowConfig final {
     std::string_view title{"Genomes"};
@@ -32,8 +32,8 @@ struct WindowConfig final {
     [[nodiscard]] bool valid() const noexcept {
         const auto api = graphicsApi();
         return width >= 320 && width <= 16'384 && height >= 200 && height <= 16'384 &&
-               (api == WindowGraphicsApi::None || api == WindowGraphicsApi::OpenGL ||
-                api == WindowGraphicsApi::Vulkan || api == WindowGraphicsApi::NativeD3D);
+               (api == WindowGraphicsApi::None || api == WindowGraphicsApi::Vulkan ||
+                api == WindowGraphicsApi::NativeD3D);
     }
 };
 
@@ -51,8 +51,6 @@ struct PlatformFrame final {
 class SdlPlatform final {
 public:
     using OperationResult = foundation::Result<void, foundation::Error>;
-    using GlFunction = void (*)();
-
     static foundation::Result<std::unique_ptr<SdlPlatform>, foundation::Error>
     create(WindowConfig config);
     ~SdlPlatform();
@@ -66,23 +64,16 @@ public:
     [[nodiscard]] const WindowMetrics& metrics() const noexcept { return metrics_; }
     [[nodiscard]] WindowGraphicsApi graphics_api() const noexcept { return config_.graphicsApi(); }
     [[nodiscard]] bool on_owner_thread() const noexcept;
-    [[nodiscard]] bool gl_context_current() const noexcept;
-    [[nodiscard]] OperationResult make_gl_current() noexcept;
-    [[nodiscard]] OperationResult swap_gl_window() noexcept;
-    [[nodiscard]] OperationResult set_gl_swap_interval(int interval) noexcept;
-    [[nodiscard]] static GlFunction gl_proc_address(const char* name) noexcept;
-
     // All methods and destruction run on the SDL/main thread. Dispose renderer
-    // resources before this call; it destroys the context, then the window.
+    // resources before this call; it destroys the native window only.
     void shutdown() noexcept;
 
 private:
-    SdlPlatform(WindowConfig config, void* window, void* gl_context) noexcept;
+    SdlPlatform(WindowConfig config, void* window) noexcept;
     [[nodiscard]] bool refresh_metrics() noexcept;
 
     WindowConfig config_{};
     void* window_{nullptr};
-    void* gl_context_{nullptr};
     WindowMetrics metrics_{};
     std::thread::id owner_thread_;
     float last_mouse_x_{0.0F}; // window coordinates, not previously scaled pixels

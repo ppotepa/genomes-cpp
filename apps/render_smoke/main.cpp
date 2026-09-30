@@ -4,11 +4,7 @@
 
 int main() {
     genomes::render::RenderConfig config{};
-#if defined(_WIN32)
     config.backend = genomes::render::RenderBackendKind::D3D12;
-#else
-    config.backend = genomes::render::RenderBackendKind::Vulkan;
-#endif
     config.headless = true;
 
     auto created = genomes::render::DiligentBackend::create(config);
