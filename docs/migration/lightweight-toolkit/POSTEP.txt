@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=62 DOING=0 CODE_READY=105 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 105/167 = 62.87%; remaining 37.13%
+TODO=59 DOING=0 CODE_READY=108 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 108/167 = 64.67%; remaining 35.33%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -111,6 +111,9 @@ LT-160 | CODE_READY | d760db5 | - | pinned toolkit dependency roles/licenses ame
 LT-161 | CODE_READY | d760db5 | - | math convention amendment source review | math review
 LT-162 | CODE_READY | d760db5 | - | polygon/earcut boundary amendment source review | geometry review
 LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source review | geometry review
+LT-164 | CODE_READY | bddcbc4 | - | infantry status lightweight-toolkit amendment source review | documentation review
+LT-165 | CODE_READY | bddcbc4 | - | restoration acceptance Windows/D3D12 NOT RUN amendment source review | user acceptance
+LT-167 | CODE_READY | bddcbc4 | - | capture run ID stdout/stderr/exit/manifest source review | user GPU capture
 LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
 LT-086 | CODE_READY | e0c1e2a | - | Diligent final snapshot handoff and transaction end/abort source review | user Diligent restoration tests
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
@@ -187,9 +190,6 @@ LT-150 | TODO | - | - | - | implement and review assigned path
 LT-151 | TODO | - | - | - | implement and review assigned path
 LT-152 | TODO | - | - | - | implement and review assigned path
 LT-153 | TODO | - | - | - | implement and review assigned path
-LT-164 | TODO | - | - | - | implement and review assigned path
-LT-165 | TODO | - | - | - | implement and review assigned path
-LT-167 | TODO | - | - | - | implement and review assigned path
 
 Checkpoint template
 -------------------
