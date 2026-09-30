@@ -10,6 +10,12 @@ namespace genomes::render::procedural {
 
 using MeshResult = foundation::Result<std::shared_ptr<const RenderMesh>, foundation::Error>;
 
+[[nodiscard]] foundation::Result<void, foundation::Error> append_box(
+    RenderMesh& destination,
+    foundation::Vec3 center,
+    foundation::Vec3 extent,
+    foundation::Color color = {1.0F, 1.0F, 1.0F, 1.0F});
+
 // Typed construction path. Geometry validation failures remain observable to
 // callers; the compatibility helper below is only for legacy scene call-sites.
 [[nodiscard]] MeshResult make_box_result(

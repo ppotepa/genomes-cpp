@@ -3,7 +3,7 @@
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/camera/Camera.hpp>
-#include <genomes/geometry/PrimitiveBuilder.hpp>
+#include <genomes/render/ProceduralMeshes.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -13,29 +13,6 @@
 namespace genomes::runtime {
 
 namespace {
-
-void append_box(render::RenderMesh& mesh,
-                foundation::Vec3 center,
-                foundation::Vec3 extent,
-                foundation::Color color) {
-    const auto generated = geometry::makeBoxResult({extent});
-    if (!generated) {
-        return;
-    }
-    const auto& box = generated.value();
-    const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
-    mesh.vertices.reserve(mesh.vertices.size() + box.vertices.size());
-    mesh.indices.reserve(mesh.indices.size() + box.indices.size());
-    for (const auto& vertex : box.vertices) {
-        mesh.vertices.push_back({{vertex.position.x + center.x,
-                                  vertex.position.y + center.y,
-                                  vertex.position.z + center.z},
-                                 vertex.normal, vertex.uv, color});
-    }
-    for (const auto index : box.indices) {
-        mesh.indices.push_back(base + index);
-    }
-}
 
 [[nodiscard]] foundation::Color part_color(buildings::BuildingPartKind kind,
                                             float integrity) noexcept {
@@ -197,8 +174,13 @@ void BuildingLabScene::rebuild_mesh() {
         if (index >= runtime_parts.size() || runtime_parts[index].destroyed) {
             continue;
         }
-        append_box(*mesh, plan_.parts[index].center, plan_.parts[index].extent,
-                   part_color(plan_.parts[index].kind, runtime_parts[index].integrity));
+        const auto appended = render::procedural::append_box(
+            *mesh, plan_.parts[index].center, plan_.parts[index].extent,
+            part_color(plan_.parts[index].kind, runtime_parts[index].integrity));
+        if (!appended) {
+            error_ = appended.error().message;
+            return;
+        }
     }
     render_mesh_ = std::move(mesh);
 }
