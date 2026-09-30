@@ -57,4 +57,4 @@ a template and does not constitute acceptance evidence.
 PER-LT EVIDENCE
 ---------------
 See POSTEP.txt. Each VERIFIED row must carry tested SHA and an evidence pointer.
-Latest source slice: e47554d (engine target dependency order and typed procedural box API).
+Latest source slices: e47554d (engine target dependency order and typed procedural box API), ced2f05 (token-neutral configuration boundary test).
