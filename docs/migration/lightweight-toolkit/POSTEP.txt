@@ -112,8 +112,8 @@ LT-161 | CODE_READY | d760db5 | - | math convention amendment source review | ma
 LT-162 | CODE_READY | d760db5 | - | polygon/earcut boundary amendment source review | geometry review
 LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source review | geometry review
 LT-164 | CODE_READY | ce1d3a2 | - | infantry status updated for current toolkit profile and preserved parity | documentation review
-LT-165 | CODE_READY | ce1d3a2 | - | restoration acceptance commands aligned with Diligent/D3D12 and NOT RUN evidence | user acceptance
-LT-167 | CODE_READY | 9fea04c | - | Diligent-only capture preset/executable path plus run ID stdout/stderr/exit/manifest source review | user GPU capture
+LT-165 | CODE_READY | c0793b1 | - | restoration acceptance commands and 12-case capture coverage aligned with Diligent/D3D12 and NOT RUN evidence | user acceptance
+LT-167 | CODE_READY | c0793b1 | - | Diligent-only capture preset/executable path plus walk/run/crouch, run ID, stdout/stderr/exit/manifest source review | user GPU capture
 LT-130 | CODE_READY | 6e01fac | - | MeshData SoA/submesh/index/transform and optional-stream regression test source review | user geometry CTest
 LT-134 | CODE_READY | b74835f | - | optional CSG union/difference/intersection test source review | user full-toolkit CTest
 LT-138 | CODE_READY | 2f83fb5 | - | primitive/optimize/tangent/RenderMesh/snapshot integration test source review | user headless/full CTest
