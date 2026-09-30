@@ -1,4 +1,5 @@
 #include <genomes/geometry/MeshRepair.hpp>
+#include <genomes/geometry/MeshOperations.hpp>
 #include <genomes/geometry/PrimitiveBuilder.hpp>
 
 #include <cassert>
@@ -12,6 +13,12 @@ int main() {
     const auto invalid = makeBoxResult({{-1.0F, 1.0F, 1.0F}});
     assert(!invalid && invalid.error().code == genomes::foundation::ErrorCode::InvalidArgument);
     assert(box.positions.size() == box.vertices.size() && !box.bounds.empty);
+    const auto combined = combine(std::span<const MeshData>(&box, 1));
+    assert(combined && combined.value().vertices.size() == box.vertices.size());
+    const auto moved = transform(box, genomes::math::Transform{{1,2,3},{},{2,2,2}});
+    assert(moved && moved.value().bounds.center().x > box.bounds.center().x);
+    const auto sixteen = convertIndexFormat(box, IndexFormat::UInt16);
+    assert(sixteen && sixteen.value().index_format == IndexFormat::UInt16);
 
     MeshData transformed;
     appendTransformed(transformed,box,{{2.0F,3.0F,4.0F},{1.0F,2.0F,1.0F},0.5F});

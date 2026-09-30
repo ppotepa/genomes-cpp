@@ -4,6 +4,7 @@ genomes_configure_meshoptimizer()
 add_library(genomes_geometry STATIC
     src/MeshBuilder.cpp
     src/MeshData.cpp
+    src/MeshOperations.cpp
     src/PrimitiveBuilder.cpp
     src/MeshRepair.cpp
     src/IndexOrderOptimizer.cpp
