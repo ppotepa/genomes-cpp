@@ -131,7 +131,7 @@ LT-044 | CODE_READY | fcdb996 | - | mesh repair contract source review | geometr
 LT-045 | CODE_READY | fcdb996 | - | stream-preserving mesh repair source review | geometry tests and build
 LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
-LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
+LT-135 | CODE_READY | 043319d | - | glTF importer regression covers materials, submesh ranges, local/world transforms and presentation bounds | user full-toolkit CTest
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
 LT-009 | CODE_READY | 925ae13 | - | removed threepp gitlink after active reference audit | user static guard
 LT-015 | CODE_READY | bf9f493 | - | exact meshoptimizer pin/checkout and isolated upstream options | user meshoptimizer configure/build
