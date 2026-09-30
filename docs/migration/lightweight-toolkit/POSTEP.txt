@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=73 DOING=0 CODE_READY=94 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 94/167 = 56.29%; remaining 43.71%
+TODO=71 DOING=0 CODE_READY=96 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 96/167 = 57.49%; remaining 42.51%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -102,6 +102,8 @@ LT-077 | CODE_READY | d82c8c9 | - | neutral camera request conversion and render
 LT-081 | CODE_READY | 9e0d751 | - | SceneContext camera request publication and scene-owned snapshot boundary source review | user runtime/camera tests
 LT-082 | CODE_READY | df8798a | - | SceneDirector camera owner, scene epoch and final camera source review | user runtime/camera tests
 LT-083 | CODE_READY | df8798a | - | UI/input, scene extraction, camera resolve, timing and publish ordering source review | user runtime tests
+LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
+LT-086 | CODE_READY | e0c1e2a | - | Diligent final snapshot handoff and transaction end/abort source review | user Diligent restoration tests
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -126,8 +128,6 @@ LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
 LT-084 | TODO | - | - | - | implement and review assigned path
-LT-085 | TODO | - | - | - | implement and review assigned path
-LT-086 | TODO | - | - | - | implement and review assigned path
 LT-088 | TODO | - | - | - | implement and review assigned path
 LT-089 | TODO | - | - | - | implement and review assigned path
 LT-090 | TODO | - | - | - | implement and review assigned path
