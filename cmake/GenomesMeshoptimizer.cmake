@@ -24,11 +24,14 @@ function(genomes_configure_meshoptimizer)
         message(FATAL_ERROR "meshoptimizer has tracked local changes; preserve them, then restore or repin deliberately")
     endif()
     # No GPU, windowing, codecs or gltfpack dependencies are configured here.
-    set(MESHOPT_BUILD_DEMO OFF)
-    set(MESHOPT_BUILD_GLTFPACK OFF)
-    set(MESHOPT_BUILD_SHARED_LIBS OFF)
-    set(MESHOPT_WERROR OFF)
-    set(MESHOPT_INSTALL OFF)
+    # Keep the upstream project CPU-only and hermetic. Cache entries are forced
+    # because meshoptimizer is an embedded subdirectory and must not inherit a
+    # developer's prior standalone configuration.
+    set(MESHOPT_BUILD_DEMO OFF CACHE BOOL "Disable meshoptimizer demo" FORCE)
+    set(MESHOPT_BUILD_GLTFPACK OFF CACHE BOOL "Disable meshoptimizer gltfpack" FORCE)
+    set(MESHOPT_BUILD_SHARED_LIBS OFF CACHE BOOL "Build meshoptimizer statically" FORCE)
+    set(MESHOPT_WERROR OFF CACHE BOOL "Do not promote upstream warnings" FORCE)
+    set(MESHOPT_INSTALL OFF CACHE BOOL "Disable meshoptimizer install rules" FORCE)
     add_subdirectory("${GENOMES_MESHOPTIMIZER_SOURCE_DIR}"
         "${CMAKE_BINARY_DIR}/_deps/meshoptimizer-build" EXCLUDE_FROM_ALL)
     genomes_mark_third_party(meshoptimizer)
