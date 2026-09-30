@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=55 DOING=0 CODE_READY=112 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 112/167 = 67.07%; remaining 32.93%
+TODO=54 DOING=0 CODE_READY=113 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 113/167 = 67.66%; remaining 32.34%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -179,7 +179,7 @@ LT-125 | TODO | - | - | - | implement and review assigned path
 LT-126 | TODO | - | - | - | implement and review assigned path
 LT-127 | TODO | - | - | - | implement and review assigned path
 LT-128 | TODO | - | - | - | implement and review assigned path
-LT-139 | TODO | - | - | - | implement and review assigned path
+LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window contract test source review | user headless CTest
 LT-141 | TODO | - | - | - | implement and review assigned path
 LT-144 | TODO | - | - | - | implement and review assigned path
 LT-145 | TODO | - | - | - | implement and review assigned path
