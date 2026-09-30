@@ -53,7 +53,7 @@ LT-136 | CODE_READY | 55ae5b2 | - | camera regression test source review | user 
 LT-074 | CODE_READY | c141009 | - | camera controller contract review | controller tests and build
 LT-075 | CODE_READY | c141009 | - | orbit/fly/RTS implementation review | controller tests and build
 LT-137 | CODE_READY | c141009 | - | controller regression test source review | user Debug/Release CTest
-LT-154 | CODE_READY | 2512ed9 | - | static guard source review | user guard execution after S08
+LT-154 | CODE_READY | 9223936 | - | static guard source review | user guard execution after S08
 LT-166 | CODE_READY | 099c992 | - | acceptance command document source review | user-run command evidence
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
