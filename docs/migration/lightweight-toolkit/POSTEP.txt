@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=140 DOING=0 CODE_READY=27 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 27/167 = 16.17%; remaining 83.83%
+TODO=137 DOING=0 CODE_READY=30 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 30/167 = 17.96%; remaining 82.04%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -50,6 +50,9 @@ LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests a
 LT-072 | CODE_READY | 55ae5b2 | - | request/resolved camera contract review | camera tests and build
 LT-073 | CODE_READY | 55ae5b2 | - | projection/picking implementation review | camera tests and build
 LT-136 | CODE_READY | 55ae5b2 | - | camera regression test source review | user Debug/Release CTest
+LT-074 | CODE_READY | c141009 | - | camera controller contract review | controller tests and build
+LT-075 | CODE_READY | c141009 | - | orbit/fly/RTS implementation review | controller tests and build
+LT-137 | CODE_READY | c141009 | - | controller regression test source review | user Debug/Release CTest
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
