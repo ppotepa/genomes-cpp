@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=71 DOING=0 CODE_READY=96 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 96/167 = 57.49%; remaining 42.51%
+TODO=62 DOING=0 CODE_READY=105 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 105/167 = 62.87%; remaining 37.13%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -102,6 +102,15 @@ LT-077 | CODE_READY | d82c8c9 | - | neutral camera request conversion and render
 LT-081 | CODE_READY | 9e0d751 | - | SceneContext camera request publication and scene-owned snapshot boundary source review | user runtime/camera tests
 LT-082 | CODE_READY | df8798a | - | SceneDirector camera owner, scene epoch and final camera source review | user runtime/camera tests
 LT-083 | CODE_READY | df8798a | - | UI/input, scene extraction, camera resolve, timing and publish ordering source review | user runtime tests
+LT-155 | CODE_READY | d760db5 | - | historical threepp START notice source review | documentation review
+LT-156 | CODE_READY | d760db5 | - | historical threepp command notice source review | documentation review
+LT-157 | CODE_READY | d760db5 | - | README lightweight toolkit and Diligent/D3D12 guidance source review | documentation review
+LT-158 | CODE_READY | d760db5 | - | target architecture lightweight toolkit amendment source review | documentation review
+LT-159 | CODE_READY | d760db5 | - | coding/dependency boundary amendment source review | documentation review
+LT-160 | CODE_READY | d760db5 | - | pinned toolkit dependency roles/licenses amendment source review | dependency audit
+LT-161 | CODE_READY | d760db5 | - | math convention amendment source review | math review
+LT-162 | CODE_READY | d760db5 | - | polygon/earcut boundary amendment source review | geometry review
+LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source review | geometry review
 LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
 LT-086 | CODE_READY | e0c1e2a | - | Diligent final snapshot handoff and transaction end/abort source review | user Diligent restoration tests
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
@@ -178,15 +187,6 @@ LT-150 | TODO | - | - | - | implement and review assigned path
 LT-151 | TODO | - | - | - | implement and review assigned path
 LT-152 | TODO | - | - | - | implement and review assigned path
 LT-153 | TODO | - | - | - | implement and review assigned path
-LT-155 | TODO | - | - | - | implement and review assigned path
-LT-156 | TODO | - | - | - | implement and review assigned path
-LT-157 | TODO | - | - | - | implement and review assigned path
-LT-158 | TODO | - | - | - | implement and review assigned path
-LT-159 | TODO | - | - | - | implement and review assigned path
-LT-160 | TODO | - | - | - | implement and review assigned path
-LT-161 | TODO | - | - | - | implement and review assigned path
-LT-162 | TODO | - | - | - | implement and review assigned path
-LT-163 | TODO | - | - | - | implement and review assigned path
 LT-164 | TODO | - | - | - | implement and review assigned path
 LT-165 | TODO | - | - | - | implement and review assigned path
 LT-167 | TODO | - | - | - | implement and review assigned path
