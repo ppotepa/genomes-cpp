@@ -7,42 +7,15 @@
       "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "GENOMES_RENDER_BACKEND": "DILIGENT_LEGACY", "GENOMES_ENABLE_THREEPP_RENDERER": "OFF",
-        "GENOMES_ENABLE_THREEPP": "OFF", "GENOMES_ENABLE_SDL": "ON",
+        "GENOMES_RENDER_BACKEND": "DILIGENT_LEGACY", "GENOMES_ENABLE_SDL": "ON",
         "GENOMES_ENABLE_DILIGENT": "ON", "GENOMES_ENABLE_RMLUI": "ON",
         "GENOMES_ENABLE_CUDA": "OFF", "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
     },
     {
-      "name": "dev-release", "displayName": "Existing threepp comparison Release", "inherits": "dev-debug",
+      "name": "dev-release", "displayName": "Diligent D3D12 Release", "inherits": "dev-debug",
       "binaryDir": "${sourceDir}/build/dev-release",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON" }
-    },
-    {
-      "name": "headless-threepp-migration", "displayName": "CPU contracts without graphics",
-      "generator": "Ninja", "binaryDir": "${sourceDir}/build/headless-threepp-migration",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug", "GENOMES_RENDER_BACKEND": "HEADLESS",
-        "GENOMES_ENABLE_THREEPP": "OFF", "GENOMES_ENABLE_THREEPP_RENDERER": "OFF",
-        "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_SDL": "OFF",
-        "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
-        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
-      }
-    },
-    {
-      "name": "dev-threepp", "displayName": "Experimental threepp GL Debug",
-      "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-threepp",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "GENOMES_RENDER_BACKEND": "THREEPP_GL", "GENOMES_ENABLE_THREEPP_RENDERER": "ON",
-        "GENOMES_ENABLE_THREEPP": "ON", "GENOMES_ENABLE_SDL": "ON",
-        "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_RMLUI": "ON", "GENOMES_ENABLE_CUDA": "OFF",
-        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
-      }
-    },
-    {
-      "name": "release-threepp", "displayName": "Experimental threepp GL Release", "inherits": "dev-threepp",
-      "binaryDir": "${sourceDir}/build/release-threepp", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
       "name": "dev-diligent", "displayName": "Diligent production candidate Debug - no GL renderer",
@@ -51,7 +24,6 @@
         "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "GENOMES_RENDER_BACKEND": "DILIGENT_LEGACY",
         "GENOMES_ENABLE_DILIGENT": "ON", "GENOMES_ENABLE_SDL": "ON", "GENOMES_ENABLE_RMLUI": "ON",
-        "GENOMES_ENABLE_THREEPP": "OFF", "GENOMES_ENABLE_THREEPP_RENDERER": "OFF",
         "GENOMES_ENABLE_MESHOPTIMIZER": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
         "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
       }
@@ -61,12 +33,12 @@
       "binaryDir": "${sourceDir}/build/release-diligent", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
-      "name": "dev-diligent-hybrid", "displayName": "Diligent + optional threepp CPU provider + meshoptimizer", "inherits": "dev-diligent",
-      "binaryDir": "${sourceDir}/build/dev-diligent-hybrid",
-      "cacheVariables": { "GENOMES_ENABLE_THREEPP": "ON", "GENOMES_ENABLE_THREEPP_RENDERER": "OFF", "GENOMES_ENABLE_MESHOPTIMIZER": "ON" }
+      "name": "dev-diligent-meshopt", "displayName": "Diligent D3D12 + meshoptimizer", "inherits": "dev-diligent",
+      "binaryDir": "${sourceDir}/build/dev-diligent-meshopt",
+      "cacheVariables": { "GENOMES_ENABLE_MESHOPTIMIZER": "ON" }
     },
     {
-      "name": "headless-infantry-upgrade", "inherits": "headless-threepp-migration",
+      "name": "headless-infantry-upgrade", "inherits": "headless-core-debug",
       "binaryDir": "${sourceDir}/build/headless-infantry-upgrade",
       "cacheVariables": { "GENOMES_ENABLE_MESHOPTIMIZER": "OFF" }
     },
@@ -81,8 +53,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug", "GENOMES_RENDER_BACKEND": "HEADLESS",
         "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_SDL": "OFF",
-        "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_THREEPP": "OFF",
-        "GENOMES_ENABLE_THREEPP_RENDERER": "OFF", "GENOMES_ENABLE_ASSETS": "OFF",
+        "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_ASSETS": "OFF",
         "GENOMES_ENABLE_CSG": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
         "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
       }
@@ -111,12 +82,9 @@
   "buildPresets": [
     { "name": "dev-debug", "configurePreset": "dev-debug" },
     { "name": "dev-release", "configurePreset": "dev-release" },
-    { "name": "headless-threepp-migration", "configurePreset": "headless-threepp-migration" },
-    { "name": "dev-threepp", "configurePreset": "dev-threepp" },
-    { "name": "release-threepp", "configurePreset": "release-threepp" },
     { "name": "dev-diligent", "configurePreset": "dev-diligent" },
     { "name": "release-diligent", "configurePreset": "release-diligent" },
-    { "name": "dev-diligent-hybrid", "configurePreset": "dev-diligent-hybrid" },
+    { "name": "dev-diligent-meshopt", "configurePreset": "dev-diligent-meshopt" },
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade" },
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt" },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug" },
@@ -126,12 +94,9 @@
   ],
   "testPresets": [
     { "name": "dev-debug", "configurePreset": "dev-debug", "output": { "outputOnFailure": true } },
-    { "name": "headless-threepp-migration", "configurePreset": "headless-threepp-migration", "output": { "outputOnFailure": true } },
-    { "name": "dev-threepp", "configurePreset": "dev-threepp", "output": { "outputOnFailure": true } },
-    { "name": "release-threepp", "configurePreset": "release-threepp", "output": { "outputOnFailure": true } },
     { "name": "dev-diligent", "configurePreset": "dev-diligent", "output": { "outputOnFailure": true } },
     { "name": "release-diligent", "configurePreset": "release-diligent", "output": { "outputOnFailure": true } },
-    { "name": "dev-diligent-hybrid", "configurePreset": "dev-diligent-hybrid", "output": { "outputOnFailure": true } },
+    { "name": "dev-diligent-meshopt", "configurePreset": "dev-diligent-meshopt", "output": { "outputOnFailure": true } },
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade", "output": { "outputOnFailure": true } },
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt", "output": { "outputOnFailure": true } },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug", "output": { "outputOnFailure": true } },

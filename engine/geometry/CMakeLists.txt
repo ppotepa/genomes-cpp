@@ -48,6 +48,3 @@ target_compile_features(genomes_geometry PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_geometry)
 add_library(genomes::geometry ALIAS genomes_geometry)
 
-if(GENOMES_ENABLE_THREEPP)
-    add_subdirectory(threepp)
-endif()

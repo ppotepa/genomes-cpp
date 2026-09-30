@@ -25,41 +25,16 @@ option(GENOMES_ENABLE_MIKKTSPACE
 set(GENOMES_ENABLE_CUDA "AUTO" CACHE STRING "CUDA compute backend mode (AUTO, OFF, or ON)")
 set_property(CACHE GENOMES_ENABLE_CUDA PROPERTY STRINGS AUTO OFF ON)
 
-# Dependency usage and application renderer selection are separate decisions.
-# This enables the existing CPU primitive provider, NOT an OpenGL game.
-# The pinned upstream build is still broad; CPU usage does not mean GL/GLFW
-# have already been removed from the upstream compilation/link dependency set.
-option(GENOMES_ENABLE_THREEPP "Configure pinned threepp for geometry/tools" OFF)
-set(_genomes_threepp_renderer_default OFF)
-if(DEFINED GENOMES_RENDER_BACKEND AND GENOMES_RENDER_BACKEND STREQUAL "THREEPP_GL")
-    set(_genomes_threepp_renderer_default ON)
-endif()
-option(GENOMES_ENABLE_THREEPP_RENDERER
-    "Build experimental threepp/GLRenderer adapter (not the production architecture)"
-    ${_genomes_threepp_renderer_default})
-unset(_genomes_threepp_renderer_default)
-
 set(_genomes_backend_default HEADLESS)
 if(GENOMES_ENABLE_SDL AND GENOMES_ENABLE_DILIGENT)
     set(_genomes_backend_default DILIGENT_LEGACY)
-elseif(GENOMES_ENABLE_THREEPP_RENDERER)
-    set(_genomes_backend_default THREEPP_GL)
 endif()
-# DILIGENT_LEGACY is retained as a compatibility spelling for existing callers.
-# The accepted production renderer is Diligent; reactivation is a separate gate.
 set(GENOMES_RENDER_BACKEND "${_genomes_backend_default}" CACHE STRING
-    "Application presentation profile: HEADLESS, DILIGENT_LEGACY, THREEPP_GL (experimental)")
+    "Application presentation profile: HEADLESS or DILIGENT_LEGACY (Diligent/D3D12)")
 unset(_genomes_backend_default)
-set_property(CACHE GENOMES_RENDER_BACKEND PROPERTY STRINGS HEADLESS DILIGENT_LEGACY THREEPP_GL)
-if(NOT GENOMES_RENDER_BACKEND MATCHES "^(HEADLESS|THREEPP_GL|DILIGENT_LEGACY)$")
+set_property(CACHE GENOMES_RENDER_BACKEND PROPERTY STRINGS HEADLESS DILIGENT_LEGACY)
+if(NOT GENOMES_RENDER_BACKEND MATCHES "^(HEADLESS|DILIGENT_LEGACY)$")
     message(FATAL_ERROR "Unknown GENOMES_RENDER_BACKEND=${GENOMES_RENDER_BACKEND}")
-endif()
-if(GENOMES_ENABLE_THREEPP_RENDERER AND
-        (NOT GENOMES_ENABLE_THREEPP OR NOT GENOMES_ENABLE_SDL))
-    message(FATAL_ERROR "The experimental threepp renderer requires threepp and SDL")
-endif()
-if(GENOMES_RENDER_BACKEND STREQUAL "THREEPP_GL" AND NOT GENOMES_ENABLE_THREEPP_RENDERER)
-    message(FATAL_ERROR "THREEPP_GL requires GENOMES_ENABLE_THREEPP_RENDERER=ON")
 endif()
 if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY" AND
         (NOT GENOMES_ENABLE_DILIGENT OR NOT GENOMES_ENABLE_SDL))

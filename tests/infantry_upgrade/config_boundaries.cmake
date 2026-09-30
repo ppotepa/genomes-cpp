@@ -3,13 +3,13 @@ if(NOT DEFINED GENOMES_SOURCE_DIR)
     message(FATAL_ERROR "GENOMES_SOURCE_DIR is required")
 endif()
 
-# Geometry dependency alone must not select or build the Genomes GL adapter.
-set(GENOMES_ENABLE_THREEPP ON)
+# CPU-only configuration must remain headless and must not select a graphics
+# backend merely because geometry/toolkit code is enabled.
 set(GENOMES_ENABLE_SDL OFF)
 set(GENOMES_ENABLE_DILIGENT OFF)
 include("${GENOMES_SOURCE_DIR}/cmake/GenomesOptions.cmake")
-if(NOT GENOMES_RENDER_BACKEND STREQUAL "HEADLESS" OR GENOMES_ENABLE_THREEPP_RENDERER)
-    message(FATAL_ERROR "Geometry-only threepp selected a renderer")
+if(NOT GENOMES_RENDER_BACKEND STREQUAL "HEADLESS")
+message(FATAL_ERROR "CPU-only configuration selected a renderer")
 endif()
 
 unset(GENOMES_RENDER_BACKEND CACHE)
@@ -18,12 +18,5 @@ set(GENOMES_ENABLE_SDL ON)
 set(GENOMES_ENABLE_DILIGENT ON)
 include("${GENOMES_SOURCE_DIR}/cmake/GenomesOptions.cmake")
 if(NOT GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY")
-    message(FATAL_ERROR "Diligent plus geometry dependency did not select Diligent")
-endif()
-
-set(GENOMES_RENDER_BACKEND THREEPP_GL)
-set(GENOMES_ENABLE_THREEPP_RENDERER ON)
-include("${GENOMES_SOURCE_DIR}/cmake/GenomesOptions.cmake")
-if(NOT GENOMES_RENDER_BACKEND STREQUAL "THREEPP_GL")
-    message(FATAL_ERROR "Explicit experimental GL profile was not retained")
+message(FATAL_ERROR "Diligent plus geometry dependency did not select Diligent")
 endif()
