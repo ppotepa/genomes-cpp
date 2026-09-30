@@ -16,7 +16,9 @@ enum class EventType : std::uint8_t {
     MouseWheel,
     WindowResize,
     TextInputStart,
-    TextInputStop
+    TextInputStop,
+    FocusLost,
+    PointerCancel
 };
 
 struct Event final {
@@ -38,6 +40,8 @@ struct InputFrame {
     bool right_pressed{false};
     bool confirm_pressed{false};
     bool cancel_pressed{false};
+    bool focus_lost{false};
+    bool pointer_cancel{false};
     bool mouse_left_pressed{false};
     bool mouse_left_down{false};
     float mouse_x{0.0F};

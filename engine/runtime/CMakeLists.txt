@@ -17,6 +17,7 @@ target_include_directories(genomes_runtime PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_runtime PUBLIC
     genomes::foundation
+    genomes::camera
     genomes::render
     genomes::ui
     genomes::input

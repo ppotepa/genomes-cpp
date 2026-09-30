@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/render/RenderTypes.hpp>
+#include <genomes/camera/Camera.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -19,6 +20,8 @@ struct PresentationSnapshot final {
     foundation::StableId world_origin_id{0};
     std::uint64_t world_origin_revision{0};
     RenderCamera camera{};
+    camera::ResolvedCamera resolved_camera{};
+    bool has_resolved_camera{false};
     CharacterLightRig character_lights{};
     std::vector<DebugLine> debug_lines;
     std::vector<RenderInstance> instances;
@@ -52,6 +55,8 @@ struct PresentationSnapshot final {
         world_origin_id = 0;
         world_origin_revision = 0;
         camera = {};
+        resolved_camera = {};
+        has_resolved_camera = false;
         character_lights = {};
         clear_scene_payload();
     }

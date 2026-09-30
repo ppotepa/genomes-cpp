@@ -165,6 +165,12 @@ PlatformFrame SdlPlatform::poll_events() {
             }
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:
+            frame.input.focus_lost = true;
+            frame.input.pointer_cancel = true;
+            frame.input.events.push_back({input::EventType::FocusLost, 0, 0, 0,
+                0.0F, 0.0F, 0.0F, 0.0F, {}});
+            frame.input.events.push_back({input::EventType::PointerCancel, 0, 0, 0,
+                0.0F, 0.0F, 0.0F, 0.0F, {}});
             if (mouse_left_down_) {
                 const auto p = metrics_.to_pixels(last_mouse_x_, last_mouse_y_);
                 frame.input.events.push_back({input::EventType::MouseButtonUp, 0, 0,

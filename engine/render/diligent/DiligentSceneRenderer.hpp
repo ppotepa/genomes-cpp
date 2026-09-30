@@ -1,7 +1,6 @@
 #pragma once
 #include "DiligentBackend.hpp"
 #include <genomes/render/RenderFrameTransaction.hpp>
-#include <genomes/render/OrbitCameraController.hpp>
 #include <cstddef>
 
 namespace genomes::render {
@@ -11,7 +10,7 @@ public:
     void begin_frame() override;
     void submit(const PresentationSnapshot&,const ui::UiRenderFrame&) override;
     void end_frame() override;
-    void handle_input(const input::InputFrame& input) override { orbit_.input(input); }
+    void handle_input(const input::InputFrame&) override {}
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override { return backend_.capabilities(); }
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override { return backend_.uploadTelemetry(); }
     [[nodiscard]] bool healthy() const noexcept override { return frame_.healthy(); }
@@ -22,7 +21,6 @@ public:
 private:
     DiligentBackend& backend_;
     RenderFrameTransaction frame_;
-    OrbitCameraController orbit_;
     std::size_t instances_{0},ui_nodes_{0};
 };
 } // namespace genomes::render

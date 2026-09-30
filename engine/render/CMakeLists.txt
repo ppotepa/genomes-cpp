@@ -7,7 +7,7 @@ add_library(genomes_render_core STATIC
 target_include_directories(genomes_render_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/core/include")
-target_link_libraries(genomes_render_core PUBLIC genomes::foundation genomes::geometry genomes::ui)
+target_link_libraries(genomes_render_core PUBLIC genomes::foundation genomes::geometry genomes::camera genomes::ui)
 target_compile_features(genomes_render_core PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_render_core)
 

@@ -4,6 +4,8 @@
 #include <genomes/render/RenderExtraction.hpp>
 #include <genomes/runtime/Scene.hpp>
 #include <genomes/foundation/Time.hpp>
+#include <genomes/camera/Camera.hpp>
+#include <genomes/camera/CameraController.hpp>
 
 #include <functional>
 #include <memory>
@@ -69,6 +71,10 @@ private:
     foundation::SimulationTick previous_presentation_tick_{};
     foundation::SimulationTick next_presentation_tick_{};
     double interpolation_alpha_{0.0};
+    int framebuffer_width_{1280};
+    int framebuffer_height_{720};
+    camera::CameraController camera_controller_{};
+    bool camera_controller_initialized_{false};
     render::SnapshotExchange presentation_exchange_{3};
 };
 

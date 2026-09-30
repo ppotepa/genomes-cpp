@@ -66,7 +66,37 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
     if (ui_.process_input(input)) {
         return;
     }
-    renderer_.handle_input(input);
+    framebuffer_width_ = std::max(1, static_cast<int>(input.viewport_width));
+    framebuffer_height_ = std::max(1, static_cast<int>(input.viewport_height));
+    if (presentation_.camera.enabled && presentation_.camera.interactive_orbit) {
+        camera::CameraRequest request{};
+        request.position = presentation_.camera.position;
+        request.target = presentation_.camera.target;
+        request.up = presentation_.camera.up;
+        request.lens.vertical_fov = presentation_.camera.vertical_fov;
+        request.lens.near_plane = presentation_.camera.near_plane;
+        request.lens.far_plane = presentation_.camera.far_plane;
+        request.viewport = {presentation_.camera.viewport_left,
+                            presentation_.camera.viewport_top,
+                            presentation_.camera.viewport_width,
+                            presentation_.camera.viewport_height};
+        if (!camera_controller_initialized_) {
+            camera_controller_.reset(request);
+            camera_controller_initialized_ = true;
+        }
+        camera::CameraInput camera_input{};
+        camera_input.orbit_x = input.mouse_left_down ? input.mouse_delta_x * 0.01F : 0.0F;
+        camera_input.orbit_y = input.mouse_left_down ? input.mouse_delta_y * 0.01F : 0.0F;
+        camera_input.zoom = -input.mouse_wheel_y * 0.05F;
+        camera_input.cancel = input.cancel_pressed || input.pointer_cancel;
+        camera_input.focus_lost = input.focus_lost;
+        camera_controller_.update(request, camera_input, 1.0F / 60.0F);
+        presentation_.camera.position = request.position;
+        presentation_.camera.target = request.target;
+        ++presentation_.camera.revision;
+    } else {
+        camera_controller_initialized_ = false;
+    }
     SceneContext context = make_context();
     current_->handle_input(context, input);
     process_commands();
@@ -171,6 +201,25 @@ void SceneDirector::frame_update(double dt) {
     current_->frame_update(context, dt);
     ui_.update(dt);
     current_->build_presentation(context);
+    presentation_.has_resolved_camera = false;
+    if (presentation_.camera.enabled) {
+        camera::CameraRequest request{};
+        request.position = presentation_.camera.position;
+        request.target = presentation_.camera.target;
+        request.up = presentation_.camera.up;
+        request.lens.vertical_fov = presentation_.camera.vertical_fov;
+        request.lens.near_plane = presentation_.camera.near_plane;
+        request.lens.far_plane = presentation_.camera.far_plane;
+        request.viewport = {presentation_.camera.viewport_left,
+                            presentation_.camera.viewport_top,
+                            presentation_.camera.viewport_width,
+                            presentation_.camera.viewport_height};
+        const auto resolved = camera::resolve(request, framebuffer_width_, framebuffer_height_);
+        if (resolved) {
+            presentation_.resolved_camera = resolved.value();
+            presentation_.has_resolved_camera = true;
+        }
+    }
     process_commands();
 
     // Publish an immutable copy into the bounded exchange. The public

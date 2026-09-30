@@ -3,8 +3,7 @@ namespace genomes::render {
 void DiligentSceneRenderer::begin_frame() { frame_.begin([this] { return backend_.begin_frame(); }); }
 void DiligentSceneRenderer::submit(const PresentationSnapshot& scene,const ui::UiRenderFrame& ui) {
     instances_=scene.instances.size(); ui_nodes_=ui.widgets.size()+ui.commands.size();
-    const auto [width,height]=backend_.framebufferSize();
-    backend_.set_camera(orbit_.resolve(scene.camera,width,height));
+    backend_.set_camera(scene.camera);
     frame_.submit([&] {
         if (auto r=backend_.draw_meshes(scene);!r) return r;
         if (auto r=backend_.draw_instances(scene);!r) return r;
