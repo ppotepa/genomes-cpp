@@ -79,7 +79,7 @@ LT-067 | CODE_READY | 9298d50 | - | neutral asset presentation implementation so
 LT-010 | CODE_READY | 54ab30f | - | pinned MikkTSpace submodule source review | geometry configure/build
 LT-048 | CODE_READY | 54ab30f | - | tangent-space API source review | geometry tests and build
 LT-049 | CODE_READY | 93f9232 | - | tangent stream transform preserves MikkTSpace handedness across reflections | tangent tests and build
-LT-008 | CODE_READY | 9fb59fd | - | dependency role/pin and DiligentTools initialization documentation source review | dependency audit
+LT-008 | CODE_READY | b5b1355 | - | dependency initialization, role, pin and license documentation review | dependency audit
 LT-038 | CODE_READY | fd02c38 | - | profile/sweep contract supports ellipse normals, closed/open loops and explicit caps | geometry tests and build
 LT-039 | CODE_READY | fd02c38 | - | sweep uses validated parallel-transport frames and rejects zero-length tangents | geometry tests and build
 LT-040 | CODE_READY | ae4e73a | - | parametric surface contract validates finite callbacks, domains and bounded sampling | geometry tests and build
