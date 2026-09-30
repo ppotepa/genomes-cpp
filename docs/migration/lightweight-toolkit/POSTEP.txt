@@ -82,9 +82,9 @@ LT-049 | CODE_READY | 93f9232 | - | tangent stream transform preserves MikkTSpac
 LT-008 | CODE_READY | 9fb59fd | - | dependency role/pin and DiligentTools initialization documentation source review | dependency audit
 LT-038 | CODE_READY | fd02c38 | - | profile/sweep contract supports ellipse normals, closed/open loops and explicit caps | geometry tests and build
 LT-039 | CODE_READY | fd02c38 | - | sweep uses validated parallel-transport frames and rejects zero-length tangents | geometry tests and build
-LT-040 | CODE_READY | 1a718fd | - | parametric surface contract source review | geometry tests and build
-LT-041 | CODE_READY | 1a718fd | - | deterministic parametric tessellation source review | geometry tests and build
-LT-131 | CODE_READY | fd02c38 | - | primitive/sweep tests cover all toolkit primitives, cap winding, segmentation and invalid paths | user Debug/Release CTest
+LT-040 | CODE_READY | ae4e73a | - | parametric surface contract validates finite callbacks, domains and bounded sampling | geometry tests and build
+LT-041 | CODE_READY | ae4e73a | - | deterministic parametric tessellation uses consistent winding, finite normals and overflow-safe limits | geometry tests and build
+LT-131 | CODE_READY | ae4e73a | - | primitive/sweep/parametric tests cover all toolkit primitives, cap winding, segmentation and invalid callbacks/paths | user Debug/Release CTest
 LT-133 | CODE_READY | 25d93d0 | - | dedicated tangent-space test source review | user Debug/Release CTest
 LT-078 | CODE_READY | 20a7bb9 | - | snapshot payload/metadata split source review | runtime tests and build
 LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime camera input source review | platform/runtime tests and build
