@@ -28,9 +28,6 @@ function(genomes_configure_diligent)
     genomes_require_file(
         "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentTools/CMakeLists.txt"
         "DiligentTools (required for Genomes capture)")
-    genomes_require_file(
-        "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentFX/CMakeLists.txt"
-        "DiligentFX")
 
     # These cache values are set before add_subdirectory because the upstream
     # meta-project reads them while it configures DiligentCore.
