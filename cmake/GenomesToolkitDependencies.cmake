@@ -12,10 +12,10 @@ function(genomes_configure_earcut)
         message(FATAL_ERROR "earcut.hpp is not initialized at '${GENOMES_EARCUT_SOURCE_DIR}'")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_EARCUT_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_EARCUT_SOURCE_DIR}" -C "${GENOMES_EARCUT_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_EARCUT_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_EARCUT_PIN}")
         message(FATAL_ERROR "earcut.hpp must be pinned to ${GENOMES_EARCUT_PIN}; found '${actual_pin}'")
     endif()
     # earcut.hpp is header-only. Do not add the upstream meta-project: its
@@ -41,10 +41,10 @@ function(genomes_configure_manifold)
         message(FATAL_ERROR "Manifold is not initialized at '${GENOMES_MANIFOLD_SOURCE_DIR}'")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_MANIFOLD_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_MANIFOLD_SOURCE_DIR}" -C "${GENOMES_MANIFOLD_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_MANIFOLD_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_MANIFOLD_PIN}")
         message(FATAL_ERROR "Manifold must be pinned to ${GENOMES_MANIFOLD_PIN}; found '${actual_pin}'")
     endif()
     set(MANIFOLD_DOWNLOADS OFF CACHE BOOL "Disallow Manifold dependency downloads" FORCE)
@@ -78,10 +78,10 @@ function(genomes_configure_simdjson)
         message(FATAL_ERROR "simdjson single-header sources are not initialized at '${GENOMES_SIMDJSON_SOURCE_DIR}'")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_SIMDJSON_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_SIMDJSON_SOURCE_DIR}" -C "${GENOMES_SIMDJSON_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_SIMDJSON_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_SIMDJSON_PIN}")
         message(FATAL_ERROR "simdjson must be pinned to ${GENOMES_SIMDJSON_PIN}; found '${actual_pin}'")
     endif()
     add_library(genomes_simdjson STATIC
@@ -101,10 +101,10 @@ function(genomes_configure_fastgltf)
         message(FATAL_ERROR "fastgltf is not initialized at '${GENOMES_FASTGLTF_SOURCE_DIR}'")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_FASTGLTF_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_FASTGLTF_SOURCE_DIR}" -C "${GENOMES_FASTGLTF_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_FASTGLTF_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_FASTGLTF_PIN}")
         message(FATAL_ERROR "fastgltf must be pinned to ${GENOMES_FASTGLTF_PIN}; found '${actual_pin}'")
     endif()
     set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "Disable fastgltf upstream tests" FORCE)
@@ -133,9 +133,9 @@ function(genomes_configure_mikktspace)
         message(FATAL_ERROR "MikkTSpace is not initialized at '${GENOMES_MIKKTSPACE_SOURCE_DIR}'")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_MIKKTSPACE_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_MIKKTSPACE_SOURCE_DIR}" -C "${GENOMES_MIKKTSPACE_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_MIKKTSPACE_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_MIKKTSPACE_PIN}")
         message(FATAL_ERROR "MikkTSpace must be pinned to ${GENOMES_MIKKTSPACE_PIN}; found '${actual_pin}'")
     endif()
     add_library(genomes_mikktspace STATIC "${GENOMES_MIKKTSPACE_SOURCE_DIR}/mikktspace.c")

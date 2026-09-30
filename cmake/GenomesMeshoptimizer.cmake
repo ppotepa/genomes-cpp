@@ -12,13 +12,13 @@ function(genomes_configure_meshoptimizer)
         message(FATAL_ERROR "meshoptimizer is not initialized. Run: git submodule update --init external/meshoptimizer")
     endif()
     find_package(Git REQUIRED)
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" rev-parse HEAD
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" -C "${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" rev-parse HEAD
         RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin
         OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_MESHOPTIMIZER_PIN)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL "${GENOMES_MESHOPTIMIZER_PIN}")
         message(FATAL_ERROR "meshoptimizer must be pinned to ${GENOMES_MESHOPTIMIZER_PIN}; found '${actual_pin}'")
     endif()
-    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" diff --quiet HEAD --
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -c "safe.directory=${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" -C "${GENOMES_MESHOPTIMIZER_SOURCE_DIR}" diff --quiet HEAD --
         RESULT_VARIABLE dirty_result ERROR_QUIET)
     if(NOT dirty_result EQUAL 0)
         message(FATAL_ERROR "meshoptimizer has tracked local changes; preserve them, then restore or repin deliberately")
