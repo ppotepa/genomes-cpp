@@ -2,6 +2,7 @@
 #include <genomes/geometry/MeshOperations.hpp>
 #include <genomes/geometry/MeshOptimizer.hpp>
 #include <genomes/geometry/GeometryRecipe.hpp>
+#include <genomes/geometry/TangentSpace.hpp>
 #include <genomes/geometry/PrimitiveBuilder.hpp>
 
 #include <cassert>
@@ -27,6 +28,8 @@ int main() {
     const GeometryRecipe recipe{GeometryOperation::Primitive, "box.v1", recipe_parameters, 7U};
     const GeometryRecipe recipe_copy{GeometryOperation::Primitive, "box.v1", recipe_parameters, 7U};
     assert(recipe.identity() == recipe_copy.identity());
+    const auto tangents = generateTangents(box);
+    assert(tangents && tangents.value().tangents.size() == box.vertices.size());
 
     MeshData transformed;
     appendTransformed(transformed,box,{{2.0F,3.0F,4.0F},{1.0F,2.0F,1.0F},0.5F});

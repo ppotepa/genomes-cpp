@@ -26,6 +26,7 @@ genomes_configure_threepp()
 genomes_configure_earcut()
 genomes_configure_manifold()
 genomes_configure_fastgltf()
+genomes_configure_mikktspace()
 
 add_subdirectory(engine)
 add_subdirectory(modules)
