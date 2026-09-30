@@ -22,8 +22,8 @@ e0c1e2a (Diligent resolved-camera matrix handoff), ebdc065 (dependency tracker),
 c4375ec (D3D12 renderer target), d26d08b (neutral asset render hook),
 12ca051 (application composition), eddc74d (camera controller ownership),
 a5889f4 (shared camera math in Diligent), d82c8c9 (neutral camera contract),
-9e0d751 (scene camera request publication)
-Current source progress: 92/167 = 55.09%
+9e0d751 (scene camera request publication), df8798a (camera ordering and scene epoch)
+Current source progress: 94/167 = 56.29%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
