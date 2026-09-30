@@ -1,7 +1,7 @@
 #include "TestSupport.hpp"
 #include <DiligentGpuContracts.hpp>
 #include <genomes/render/DrawMaterialPlan.hpp>
-#include <genomes/render/OrbitCameraController.hpp>
+#include <genomes/camera/CameraController.hpp>
 #include <genomes/render/RenderFrameTransaction.hpp>
 #include <limits>
 #include <stdexcept>
@@ -100,38 +100,22 @@ void palette() {
     check(sizeof(SkinnedPassConstants)==4640U&&sizeof(MaterialConstants)==64U,"GPU constant ABI changed");
 }
 
-input::Event mouse(input::EventType type,int button,float x,float y) {
-    input::Event e{};e.type=type;e.mouse_button=button;e.x=x;e.y=y;return e;
-}
 void orbit() {
-    render::OrbitCameraController controller;
-    render::RenderCamera requested{};requested.enabled=true;requested.position={0,1,5};requested.target={0,1,0};
-    requested.interactive_orbit=true;requested.revision=1;
-    requested.viewport_left=.4F;requested.viewport_width=.6F;
-    const auto original=controller.resolve(requested,1000,600);
-    input::InputFrame f{};
-    f.events={mouse(input::EventType::MouseButtonDown,1,100,200),mouse(input::EventType::MouseMove,0,200,250)};
-    controller.input(f);
-    check(controller.dragButton()==0,"UI press started orbit");
-    check(upgrade_test::equal(original.position,controller.resolve(requested,1000,600).position),"UI press moved camera");
-    f.events={mouse(input::EventType::MouseButtonDown,1,600,200),mouse(input::EventType::MouseMove,0,680,225)};
-    controller.input(f);
-    const auto rotated=controller.resolve(requested,1000,600);
-    check(!upgrade_test::equal(original.position,rotated.position),"viewport drag did not rotate");
-    f.events={mouse(input::EventType::MouseButtonUp,1,2000,2000)};controller.input(f);
-    check(controller.dragButton()==0,"release outside viewport left a stuck drag");
-    check(upgrade_test::equal(rotated.position,controller.resolve(requested,2000,1200).position),"resize reset orbit");
-    requested.revision=2;
-    check(upgrade_test::equal(original.position,controller.resolve(requested,1000,600).position),"preset revision did not reset camera");
-    f.mouse_x=700;f.mouse_y=300;f.events={mouse(input::EventType::MouseWheel,0,0,0)};f.events[0].wheel_y=1;
-    controller.input(f);
-    const auto zoomed=controller.resolve(requested,1000,600);
-    check(zoomed.position.z<original.position.z,"positive wheel did not zoom in");
-    f.events={mouse(input::EventType::MouseButtonDown,3,700,250),mouse(input::EventType::MouseMove,0,720,260)};
-    controller.input(f);
-    check(!upgrade_test::equal(zoomed.target,controller.resolve(requested,1000,600).target),"pan did not move target");
-    requested.interactive_orbit=false;
-    check(upgrade_test::equal(requested.position,controller.resolve(requested,1000,600).position)&&controller.dragButton()==0,"non-orbit camera retained interactive ownership");
+    camera::CameraController controller(camera::ControlMode::Orbit);
+    camera::CameraRequest requested{};
+    requested.position={0,1,5}; requested.target={0,1,0};
+    controller.reset(requested);
+    const auto original=requested.position;
+    controller.update(requested,{0.5F,0.25F,0,0,0,0,false,false,false},1.0F/60.0F);
+    check(!upgrade_test::equal(original,requested.position),"orbit input did not move camera");
+    controller.update(requested,{0,0,0,0,0,0,false,false,true},1.0F/60.0F);
+    check(upgrade_test::equal(original,requested.position),"focus loss did not reset camera");
+    controller.setMode(camera::ControlMode::Fly);
+    controller.update(requested,{0,0,0,0,1,0,false,false,false},1.0F);
+    check(requested.position.z>original.z,"fly input did not move camera");
+    controller.setMode(camera::ControlMode::RTS);
+    controller.update(requested,{0,0,0,0,0,1,false,false,false},1.0F/60.0F);
+    check(requested.position.y>0.0F,"RTS camera lost positive height");
 }
 }
 int main() {frameTransactions();materials();palette();orbit();return 0;}

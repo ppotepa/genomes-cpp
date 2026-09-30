@@ -39,7 +39,7 @@ The public `genomes::render_diligent` target and compatibility backend spelling
 - `DiligentGpuContracts.hpp`: plain CPU ABI structures with static layout checks.
 - `DrawMaterialPlan.hpp`: renderer-neutral group/material validation.
 - `RenderFrameTransaction.hpp`: close/abort-on-failure lifecycle, original-error retention.
-- `OrbitCameraController.hpp`: native Y-up orbit/pan/zoom consuming filtered pixel input.
+- `camera/CameraController.hpp`: native Y-up orbit/fly/RTS control consuming filtered input.
 
 ## Fixed contracts
 

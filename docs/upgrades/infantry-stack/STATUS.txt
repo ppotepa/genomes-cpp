@@ -25,7 +25,7 @@ A | CODE_READY_WAIT_USER | Jedna aktywna implementacja Diligent, trwale VB/IB,
 B | CODE_READY_WAIT_USER | Neutralne MaterialDescriptor i grupy indeksow,
     mask/blend/double-sided/tint, direct-light GGX, hemisfera, jedna mapa cienia
     glownego swiatla, pojedyncze kodowanie sRGB.
-C | CODE_READY_WAIT_USER | Natywny OrbitCameraController bez threepp, wspolny
+C | CODE_READY_WAIT_USER | Natywny camera::CameraController bez threepp, wspolny
     viewport/kamera 3D, UI na pelnym oknie, geometria/tekstury RmlUi,
     premultiplied alpha, cache tekstur, widoczny status i telemetria UnitLab.
 D | CODE_READY_WAIT_USER | Kolejkowany PNG przed Present, Diligent staging readback,
