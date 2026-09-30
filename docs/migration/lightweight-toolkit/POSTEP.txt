@@ -64,8 +64,8 @@ LT-055 | CODE_READY | ef84e82 | - | deterministic recipe hash source review | ge
 LT-011 | CODE_READY | 46aa8b9 | - | pinned earcut submodule source review | user full-toolkit configure/build
 LT-057 | CODE_READY | 46aa8b9 | - | Polygon2 contract source review | polygon tests and build
 LT-058 | CODE_READY | 46aa8b9 | - | polygon operations API source review | polygon tests and build
-LT-059 | CODE_READY | c886527 | - | earcut validation rejects crossing, boundary-touching and overlapping holes before triangulation | polygon tests and build
-LT-132 | CODE_READY | c886527 | - | polygon regression covers crossing/overlapping holes and winding/triangulation | user Debug/Release CTest
+LT-059 | CODE_READY | d93f325 | - | earcut validation rejects invalid holes and enforces index bounds/area conservation | polygon tests and build
+LT-132 | CODE_READY | d93f325 | - | polygon regression covers hole topology, winding and triangulation area conservation | user Debug/Release CTest
 LT-013 | CODE_READY | 114e4de | - | pinned Manifold submodule source review | optional CSG configure/build
 LT-060 | CODE_READY | 114e4de | - | SolidOps public contract source review | optional CSG tests and build
 LT-061 | CODE_READY | 114e4de | - | Manifold conversion source review | optional CSG tests and build
