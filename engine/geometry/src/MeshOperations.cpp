@@ -111,8 +111,10 @@ foundation::Result<MeshData, foundation::Error> transform(const MeshData& source
         const auto xyz = transformNormal(*inverse, {tangent.x, tangent.y, tangent.z});
         tangent.x = xyz.x; tangent.y = xyz.y; tangent.z = xyz.z;
     }
-    if (operation.scale.x * operation.scale.y * operation.scale.z < 0.0F)
+    if (operation.scale.x * operation.scale.y * operation.scale.z < 0.0F) {
         reverseTriangleWinding(result);
+        for (auto& tangent : result.tangents) tangent.w = -tangent.w;
+    }
     refreshBounds(result);
     refreshDefaultSubmesh(result);
     return foundation::Result<MeshData, foundation::Error>::success(std::move(result));

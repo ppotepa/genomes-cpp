@@ -50,6 +50,7 @@ int main() {
     assert(reflected.value().indices[2] == attributed.indices[1]);
     assert(reflected.value().colors.size() == attributed.colors.size());
     assert(reflected.value().colors.front().r == attributed.colors.front().r);
+    assert(reflected.value().tangents.front().w == -attributed.tangents.front().w);
     const auto sixteen = convertIndexFormat(box, IndexFormat::UInt16);
     assert(sixteen && sixteen.value().index_format == IndexFormat::UInt16);
     const auto optimized = optimizeMesh(box, OptimizationPolicy::Skinned);
@@ -72,6 +73,7 @@ int main() {
     assert(appended.colors.size() == attributed.colors.size());
     assert(appended.indices[1] == attributed.indices[2]);
     assert(appended.indices[2] == attributed.indices[1]);
+    assert(appended.tangents.front().w == -attributed.tangents.front().w);
 
     const genomes::foundation::Vec3 positions[]={{0,0,0},{1,0,0},{0,1,0},{0,0,0}};
     const genomes::foundation::Vec3 normals[]={{0,0,1},{0,0,1},{0,0,1},{0,0,0}};

@@ -97,6 +97,7 @@ void appendTransformed(MeshData& destination, const MeshData& source,
         destination.tangents.assign(destination_vertex_count, {1.0F, 0.0F, 0.0F, 1.0F});
     if (source_has_colors && destination.colors.empty())
         destination.colors.assign(destination_vertex_count, {1.0F, 1.0F, 1.0F, 1.0F});
+    const bool reflected = transform.scale.x * transform.scale.y * transform.scale.z < 0.0F;
     destination.vertices.reserve(destination.vertices.size() + source_vertex_count);
     destination.indices.reserve(destination.indices.size() + source.indices.size());
 
@@ -116,7 +117,8 @@ void appendTransformed(MeshData& destination, const MeshData& source,
         if (source_has_tangents) {
             const auto tangent = source.tangents[vertex_index];
             const auto transformed = transform_direction({tangent.x, tangent.y, tangent.z});
-            destination.tangents.push_back({transformed.x, transformed.y, transformed.z, tangent.w});
+            const float handedness = reflected ? -tangent.w : tangent.w;
+            destination.tangents.push_back({transformed.x, transformed.y, transformed.z, handedness});
         } else if (!destination.tangents.empty()) {
             destination.tangents.push_back({1.0F, 0.0F, 0.0F, 1.0F});
         }
@@ -125,7 +127,6 @@ void appendTransformed(MeshData& destination, const MeshData& source,
         else if (!destination.colors.empty())
             destination.colors.push_back({1.0F, 1.0F, 1.0F, 1.0F});
     }
-    const bool reflected = transform.scale.x * transform.scale.y * transform.scale.z < 0.0F;
     for (std::size_t index = 0; index < source.indices.size(); index += 3U) {
         destination.indices.push_back(base + source.indices[index]);
         destination.indices.push_back(base + source.indices[index + (reflected ? 2U : 1U)]);
