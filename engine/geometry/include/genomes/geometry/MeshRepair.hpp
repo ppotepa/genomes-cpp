@@ -14,7 +14,7 @@ namespace genomes::geometry {
 struct TriangleGroup final {
     std::uint32_t start{0U};
     std::uint32_t count{0U};
-    std::uint16_t material{0U};
+    std::uint32_t material{0U};
 };
 
 struct MeshRepairStats final {

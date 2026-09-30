@@ -118,7 +118,7 @@ foundation::Result<MeshRepairMeshResult, foundation::Error> repairMesh(const Mes
     using Result=foundation::Result<MeshRepairMeshResult,foundation::Error>;
     if(!source.valid()||source.vertices.empty())return Result::failure({foundation::ErrorCode::InvalidArgument,"mesh repair requires a valid indexed vertex mesh"});
     MeshData normalized=source;if(normalized.positions.empty())normalized.rebuildStreams();
-    std::vector<TriangleGroup> groups;groups.reserve(normalized.submeshes.size());for(const auto& range:normalized.submeshes)groups.push_back({range.first_index,range.index_count,static_cast<std::uint16_t>(range.material_index)});
+    std::vector<TriangleGroup> groups;groups.reserve(normalized.submeshes.size());for(const auto& range:normalized.submeshes)groups.push_back({range.first_index,range.index_count,range.material_index});
     auto repaired=repairTriangleMesh(normalized.positions,normalized.normals,normalized.indices,groups);if(!repaired)return Result::failure(repaired.error()); MeshRepairMeshResult result{};result.mesh=std::move(normalized);result.mesh.indices=std::move(repaired.value().indices);result.mesh.normals=std::move(repaired.value().normals);for(std::size_t i=0;i<result.mesh.vertices.size();++i)result.mesh.vertices[i].normal=result.mesh.normals[i];result.mesh.submeshes.clear();for(const auto group:repaired.value().groups)result.mesh.submeshes.push_back({group.start,group.count,group.material});result.mesh.rebuildStreams();result.stats=repaired.value().stats;return Result::success(std::move(result));
 }
 

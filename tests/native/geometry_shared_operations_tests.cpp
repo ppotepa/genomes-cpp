@@ -78,12 +78,13 @@ int main() {
     const genomes::foundation::Vec3 positions[]={{0,0,0},{1,0,0},{0,1,0},{0,0,0}};
     const genomes::foundation::Vec3 normals[]={{0,0,1},{0,0,1},{0,0,1},{0,0,0}};
     const std::uint32_t indices[]={0,1,2,0,3,1};
-    const TriangleGroup groups[]={{0U,6U,0U}};
+    const TriangleGroup groups[]={{0U,6U,70000U}};
     const auto repaired=repairTriangleMesh(positions,normals,indices,groups);
     assert(repaired);
     assert(repaired.value().indices.size()==3U);
     assert(repaired.value().groups.size()==1U);
     assert(repaired.value().groups.front().count==3U);
+    assert(repaired.value().groups.front().material==70000U);
     assert(repaired.value().stats.removed_degenerate_triangles==1U);
     const auto repaired_mesh=repairMesh(box);
     assert(repaired_mesh && repaired_mesh.value().mesh.valid());
