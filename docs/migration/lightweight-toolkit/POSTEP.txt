@@ -77,12 +77,6 @@ LT-019 | TODO | - | - | - | implement and review assigned path
 LT-020 | TODO | - | - | - | implement and review assigned path
 LT-021 | TODO | - | - | - | implement and review assigned path
 LT-022 | TODO | - | - | - | implement and review assigned path
-LT-032 | TODO | - | - | - | implement and review assigned path
-LT-033 | TODO | - | - | - | implement and review assigned path
-LT-034 | TODO | - | - | - | implement and review assigned path
-LT-035 | TODO | - | - | - | implement and review assigned path
-LT-036 | TODO | - | - | - | implement and review assigned path
-LT-037 | TODO | - | - | - | implement and review assigned path
 LT-038 | TODO | - | - | - | implement and review assigned path
 LT-039 | TODO | - | - | - | implement and review assigned path
 LT-040 | TODO | - | - | - | implement and review assigned path
@@ -91,16 +85,10 @@ LT-042 | TODO | - | - | - | implement and review assigned path
 LT-043 | TODO | - | - | - | implement and review assigned path
 LT-044 | TODO | - | - | - | implement and review assigned path
 LT-045 | TODO | - | - | - | implement and review assigned path
-LT-046 | TODO | - | - | - | implement and review assigned path
-LT-047 | TODO | - | - | - | implement and review assigned path
 LT-048 | TODO | - | - | - | implement and review assigned path
 LT-049 | TODO | - | - | - | implement and review assigned path
-LT-050 | TODO | - | - | - | implement and review assigned path
-LT-051 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
-LT-054 | TODO | - | - | - | implement and review assigned path
-LT-055 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
 LT-057 | TODO | - | - | - | implement and review assigned path
 LT-058 | TODO | - | - | - | implement and review assigned path
@@ -116,11 +104,6 @@ LT-067 | TODO | - | - | - | implement and review assigned path
 LT-068 | TODO | - | - | - | implement and review assigned path
 LT-069 | TODO | - | - | - | implement and review assigned path
 LT-070 | TODO | - | - | - | implement and review assigned path
-LT-071 | TODO | - | - | - | implement and review assigned path
-LT-072 | TODO | - | - | - | implement and review assigned path
-LT-073 | TODO | - | - | - | implement and review assigned path
-LT-074 | TODO | - | - | - | implement and review assigned path
-LT-075 | TODO | - | - | - | implement and review assigned path
 LT-076 | TODO | - | - | - | implement and review assigned path
 LT-077 | TODO | - | - | - | implement and review assigned path
 LT-078 | TODO | - | - | - | implement and review assigned path
@@ -180,13 +163,10 @@ LT-132 | TODO | - | - | - | implement and review assigned path
 LT-133 | TODO | - | - | - | implement and review assigned path
 LT-134 | TODO | - | - | - | implement and review assigned path
 LT-135 | TODO | - | - | - | implement and review assigned path
-LT-136 | TODO | - | - | - | implement and review assigned path
-LT-137 | TODO | - | - | - | implement and review assigned path
 LT-138 | TODO | - | - | - | implement and review assigned path
 LT-139 | TODO | - | - | - | implement and review assigned path
 LT-140 | TODO | - | - | - | implement and review assigned path
 LT-141 | TODO | - | - | - | implement and review assigned path
-LT-142 | TODO | - | - | - | implement and review assigned path
 LT-143 | TODO | - | - | - | implement and review assigned path
 LT-144 | TODO | - | - | - | implement and review assigned path
 LT-145 | TODO | - | - | - | implement and review assigned path
@@ -198,7 +178,6 @@ LT-150 | TODO | - | - | - | implement and review assigned path
 LT-151 | TODO | - | - | - | implement and review assigned path
 LT-152 | TODO | - | - | - | implement and review assigned path
 LT-153 | TODO | - | - | - | implement and review assigned path
-LT-154 | TODO | - | - | - | implement and review assigned path
 LT-155 | TODO | - | - | - | implement and review assigned path
 LT-156 | TODO | - | - | - | implement and review assigned path
 LT-157 | TODO | - | - | - | implement and review assigned path
@@ -210,7 +189,6 @@ LT-162 | TODO | - | - | - | implement and review assigned path
 LT-163 | TODO | - | - | - | implement and review assigned path
 LT-164 | TODO | - | - | - | implement and review assigned path
 LT-165 | TODO | - | - | - | implement and review assigned path
-LT-166 | TODO | - | - | - | implement and review assigned path
 LT-167 | TODO | - | - | - | implement and review assigned path
 
 Checkpoint template
