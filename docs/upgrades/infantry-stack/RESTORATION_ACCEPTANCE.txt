@@ -1,0 +1,230 @@
+GENOMES / UPG-02 / DILIGENT RESTORATION — ODBIOR
+=================================================
+Data: 2026-09-30
+Baza zmian: 7183c5c0c907277431ca0fe122e8c23dd174841e
+Kod A-E: 5/5 etapow przygotowane. Wykonanie przez uzytkownika: 0/5 potwierdzone.
+Te instrukcje nie sa raportem wykonanych testow.
+
+0. NIE STOSUJ POPRZEDNIEJ PACZKI ZIP
+----------------------------------
+Zmiany sa teraz pelnym pakietem w repozytorium, nie nakladka do starego ZIP-a.
+Nie stosuj GENOMES_INFANTRY_UPGRADE_02A_DILIGENT.zip na nowym commicie.
+Przed pull sprawdz i zabezpiecz wlasne zmiany. Nie wykonuj reset --hard.
+
+    git status --short
+    git pull --ff-only
+    git rev-parse HEAD
+    git submodule status
+
+Zapisz SHA i status. Build identity jest zapisywane podczas konfiguracji CMake;
+ponow konfiguracje po zmianie commita, aby zapisane SHA odpowiadalo kodowi.
+
+1. TESTY CPU BEZ SDK GRAFICZNEGO
+-------------------------------
+Nowe testy ABI/materialow/klatki/kamery nie potrzebuja Diligent ani threepp.
+Najpierw wykonaj je bez komplikowania diagnozy sterownikiem czy FXC:
+
+    cmake --preset headless-infantry-upgrade
+    cmake --build --preset headless-infantry-upgrade --target genomes_test_diligent_restoration
+    ctest --preset headless-infantry-upgrade -R "^render[.]diligent_(restoration|source_contracts)$" --output-on-failure
+
+Sprawdzane sa m.in.:
+- CPU/HLSL: staly bufor 4640 B, bone palette offset 224 B;
+- formaty wierzcholkow 52/180 B i material constants 64 B;
+- material draw groups, opacity/tint/mask i bledne indeksy;
+- brak akceptacji nieobslugiwanych ID tekstur jako pozornego sukcesu;
+- nieudana klatka -> abort, bez Present; pierwszy blad nie jest gubiony;
+- orbit/pan/zoom, klikniecie poza viewportem, release poza oknem, reset i resize;
+- rejestracja wszystkich aktywnych .cpp i kolejnosc pol shaderow;
+- rzeczywiste data binding statusu/telemetrii w pliku RML.
+
+Test zrodlowy sprawdza tekst/kontrakty, nie kompiluje ani nie wykonuje shaderow.
+
+2. PRZYPINANE ZALEZNOSCI DILIGENT
+---------------------------------
+    git submodule update --init --recursive external/DiligentEngine external/SDL external/RmlUi external/freetype external/json
+
+Nie aktualizuj submodulow do przypadkowego main/master.
+Konfiguracja uzywa wersji zapisanych w nadrzednym repozytorium.
+
+Windows: wymagany skonfigurowany toolchain C++ i narzedzia Windows SDK.
+FXC i DXC to rozne programy. Nie przemianowuj dxc.exe na fxc.exe.
+run-diligent.ps1 szuka fxc w PATH i standardowych katalogach Windows SDK x64,
+ale niczego nie instaluje i nie modyfikuje trwale systemowego PATH.
+
+Linux: obecny adapter okna jest X11/Vulkan, nie Wayland. Potrzebne sa zaleznosci
+Vulkan/X11 odpowiednie do pinned Diligent/SDL; nie deklarujemy ich obecnosci.
+
+3. DILIGENT DEBUG — SAM BUILD
+------------------------------
+PowerShell, z katalogu repo:
+
+    .\run-diligent.ps1 -BuildOnly
+
+Alternatywnie, w juz przygotowanym developer shell:
+
+    cmake --preset dev-diligent
+    cmake --build --preset dev-diligent --target genomes_game
+
+Istotne ustawienia:
+    GENOMES_RENDER_BACKEND=DILIGENT_LEGACY
+    GENOMES_ENABLE_DILIGENT=ON
+    GENOMES_ENABLE_THREEPP=OFF
+    GENOMES_ENABLE_THREEPP_RENDERER=OFF
+
+Nazwa DILIGENT_LEGACY pozostala dla kompatybilnosci konfiguracji.
+Target genomes::render_diligent zawiera juz NOWA implementacje z tego pakietu.
+Nie jest to powrot do starego monolitycznego kodu.
+
+4. FOCUSED CTEST W KONFIGURACJI GRY
+----------------------------------
+    cmake --build --preset dev-diligent --target genomes_test_diligent_restoration genomes_test_unit_lab_smoke genomes_test_infantry_presentation
+    ctest --preset dev-diligent -R "^(render[.]diligent_(restoration|source_contracts)|runtime[.]unit_lab_smoke|infantry[.]presentation)$" --output-on-failure
+
+Po zbudowaniu WSZYSTKICH celow testowych mozna wykonac szerszy zestaw:
+    cmake --build --preset dev-diligent
+    ctest --preset dev-diligent -L infantry-upgrade --output-on-failure
+
+Nie uruchamiaj szerokiego regexu testow po zbudowaniu tylko jednego executable:
+CTest nie buduje brakujacych programow automatycznie.
+
+5. PIERWSZY OBRAZ — NIE STARY SKROT RUNDEV
+-----------------------------------------
+Windows:
+    .\build\dev-diligent\apps\game\genomes_game.exe --unit-lab
+
+Linux:
+    ./build/dev-diligent/apps/game/genomes_game --unit-lab
+
+Uruchamiaj z katalogu repo, aby sciezka mods/core byla poprawna.
+Nie uzywaj na tym etapie rundev.ps1 do potwierdzenia nowego backendu:
+stare skrypty/dev-debug/dev-release nadal stanowia sciezke porownawcza THREEPP_GL.
+Nowy backend jest dostepny przez run-diligent.ps1 i jawne presety Diligent.
+
+Kontrola reczna:
+[ ] log zawiera D3D12 albo Vulkan, nie GLRenderer;
+[ ] postac jest kompletna, bez rozciagnietych/losowych trojkatow;
+[ ] skora, mundur, oczy, wlosy, buty i metal nie sa jednym materialem;
+[ ] glowny cien reaguje na postac i trafia na teren/podloze;
+[ ] heatmapa jest domyslnie wylaczona, a po wyborze kosci zmienia kolor;
+[ ] wylaczenie Surface nie zatrzymuje kolejnych klatek;
+[ ] skeleton/normals/wireframe/bounds nadal sie rysuja;
+[ ] panel jest przewijalny i miesci sie w lewych 40% okna;
+[ ] status pokazuje wybrany gen/slot, bledy generacji i parametry, nie staly napis;
+[ ] osobna linia pokazuje uploady, skin constant writes i draw calls;
+[ ] klikniecie w panel nie obraca kamery;
+[ ] lewy drag w podgladzie obraca, prawy/srodkowy przesuwa, wheel przybliza;
+[ ] puszczenie przycisku poza viewportem konczy drag;
+[ ] zmiana presetu resetuje orbit, resize go nie resetuje;
+[ ] minimalizacja/restore nie wywoluje Swap/Present przy zerowym rozmiarze;
+[ ] UI/camera sa zgodne na granicy panelu przy dostepnych skalach DPI.
+
+6. DETERMINISTYCZNY PNG + JSON
+------------------------------
+Przyklad pojedynczego capture (uzyj NOWEJ sciezki):
+
+    .\build\dev-diligent\apps\game\genomes_game.exe --unit-lab --unitlab-camera front --deterministic --frames 180 --capture artifacts/diligent-front-01.png --capture-frame 180
+
+Powstaja:
+    artifacts/diligent-front-01.png
+    artifacts/diligent-front-01.png.json
+
+PNG jest odczytywany przed Present z biezacego backbuffera.
+Readback jest swiadomie synchroniczny tylko dla capture; nie wykonuje sie co klatke.
+Istniejace pliki nie sa nadpisywane. Kod bledu nie jest traktowany jako capture success.
+JSON zawiera m.in. backend, configured SHA, klatke, rozmiar, kamere, viewport,
+identyfikatory/revision siatek, skeleton/pose revision i wagi morphow.
+Dla pelnej provenance zachowaj tez log startu, git status i uzyta komende.
+
+Seria 11 capture'ow Windows:
+
+    .\tools\validation\capture_diligent_unitlab.ps1 -Preset dev-diligent
+
+Skrypt uruchamia:
+- 3Q/front/side/back/face/hands;
+- run i crouch;
+- eyes-closed, anger i pain.
+
+Kazdy przypadek ma osobny PNG, JSON i log. Skrypt odmawia uzycia istniejacego
+katalogu wyjsciowego. Stworzenie plikow NIE oznacza ich akceptacji wizualnej.
+
+7. ODBIOR GEOMETRII I DEFORMACJI
+-------------------------------
+Porownaj z prototypem JS, oddzielajac blad geometrii od zmiany oswietlenia.
+[ ] bark/torso-arm, lokiec i kolano w ruchu;
+[ ] szyja/head, oczy/powieki, zuchwa/usta;
+[ ] dlonie i palce, buty;
+[ ] scalp i hairline z przodu/boku/tylu;
+[ ] materialy, jednostronne/dwustronne powierzchnie i backface culling;
+[ ] shadow acne/peter-panning, zasieg cienia i alpha mask;
+[ ] UI alfa/tekst/scissor, zwlaszcza na kontrastowym tle.
+
+Ten pakiet nie zmienia domenowych generatorow ani JS fixtures. Nie zakladaj,
+ze zmiana renderera sama naprawila kazdy profil anatomiczny.
+
+8. OPTYMALIZACJA UPG-01 W WLACZONYM TRYBIE
+-----------------------------------------
+    git submodule update --init external/meshoptimizer
+    cmake --preset headless-infantry-meshopt
+    cmake --build --preset headless-infantry-meshopt --target genomes_test_index_order genomes_test_infantry_draw_order
+    ctest --preset headless-infantry-meshopt -R "^(geometry[.]index_order|infantry[.]draw_order)$" --output-on-failure
+
+Opcjonalny caly profil hybrydowy, z wczesniejszym providerem threepp CPU:
+    git submodule update --init --recursive external/threepp
+    .\run-diligent.ps1 -Hybrid -BuildOnly
+    .\build\dev-diligent-hybrid\apps\game\genomes_game.exe --unit-lab
+
+Threepp renderer nadal OFF. Upstream threepp jest obecnie szerszy niz sam provider;
+wlaczenie tego profilu nie jest dowodem usuniecia GLFW/GL z jego zaleznosci.
+
+9. JAK INTERPRETOWAC TELEMETRIE
+-------------------------------
+mesh_uploads powinno byc 0 po rozgrzaniu, gdy zmienia sie tylko poza/morphy.
+Zmiana seeda/detail/genome/equipment moze utworzyc nowy immutable VB/IB.
+
+palette_updates = rzeczywiste zapisy CB skinningu podczas rysowania.
+Nie oznacza tylko zmiany pose_revision. Dynamiczne bufory CB sa zapisywane
+na nowo w nowej klatce i osobnych przebiegach, nawet przy pauzie.
+Kolejne materialy tej samej instancji w przebiegu nie kopiuja ponownie 69 macierzy.
+
+Draw calls obejmuja cienie; UI draw calls sa osobne.
+Brak twierdzenia o wzroscie FPS przed pomiarem. Zapisz sredni i wysoki percentyl
+czasu klatki dla tej samej sceny, kamery, liczby jednostek i konfiguracji.
+
+10. RELEASE I LINUX
+-------------------
+    .\run-diligent.ps1 -Configuration Release -BuildOnly
+    .\tools\validation\capture_diligent_unitlab.ps1 -Preset release-diligent
+
+Linux odpowiedniki:
+    cmake --preset release-diligent
+    cmake --build --preset release-diligent --target genomes_game
+    ./build/release-diligent/apps/game/genomes_game --unit-lab --deterministic --frames 180 --capture artifacts/linux-3q-01.png --capture-frame 180
+
+Nie zakladamy bitowej zgodnosci obrazow pomiedzy API/GPU/toolchainami.
+Deterministyczne sa zadane parametry i ticki, nie obietnica identycznego rastera.
+
+11. RAPORT
+----------
+Tested SHA:
+Working tree status:
+Toolchain / system / GPU / driver:
+CPU tests OFF:
+CPU tests meshoptimizer ON:
+Diligent Debug configure/build:
+Shader compilation/startup:
+Capture folder:
+Visual issues (plik + widoczny objaw):
+Orbit/UI/Surface OFF:
+Resize/minimize/DPI:
+Telemetry after warmup:
+Release:
+Linux (jesli wykonany):
+Wynik: PASS / FAIL / NOT RUN
+
+12. PO ODBIORZE
+---------------
+Dopiero po udokumentowanym odbiorze promuj dev-diligent/release-diligent na
+zwykle dev-debug/dev-release i zmien RunNative. To osobna, mala zmiana konfiguracji.
+Nie usuwaj punktu porownania GL ani bibliotek na podstawie samego utworzenia PNG.
+Dalsze prace nad anatomia/ubraniem/gear i LOD maja wlasny zakres, poza tym pakietem.

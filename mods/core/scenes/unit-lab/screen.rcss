@@ -3,11 +3,17 @@ body {
   color: #d5e2f2;
   font-family: LatoLatin;
 }
+/* Outer width is exactly the 40% inspector area reserved by RenderCamera.
+   Padding is inside that width, so resize/DPI cannot overlap the orbit viewport. */
 .panel {
-  width: 420px;
-  height: 92%;
-  margin: 24px;
-  padding: 20px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 40%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0px;
+  padding: 14px;
   background-color: rgba(8, 16, 28, 220);
   border: 1px #263b54;
   overflow-y: auto;
@@ -18,9 +24,10 @@ h1 { margin-bottom: 4px; color: #f0f5fb; }
 button {
   display: block;
   width: 100%;
-  height: 38px;
+  box-sizing: border-box;
+  min-height: 38px;
   margin-bottom: 6px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background-color: #122238;
   border: 1px #294563;
   color: #d5e2f2;

@@ -1,36 +1,43 @@
-struct PSInput {
-    float4 Position:SV_POSITION;
-    float3 Normal:NORMAL0;
-    float4 Color:COLOR0;
-    float3 WorldPosition:TEXCOORD0;
-    float2 UV:TEXCOORD1;
-    nointerpolation uint MaterialRegion:TEXCOORD2;
-    float Weight:TEXCOORD3;
-};
-float4 main(PSInput input):SV_TARGET {
-    if (ObjectPositionScale.w>=0) {
-        float w=saturate(input.Weight);
-        return float4(w,0.15+0.65*(1-abs(2*w-1)),1-w,1);
-    }
-    float roughness=0.72, specular=0.08;
-    switch (input.MaterialRegion) {
-        case 0: case 11: case 14: roughness=0.90; specular=0.025; break;
-        case 4: roughness=0.62; specular=0.08; break;
-        case 5: case 6: case 7: roughness=0.12; specular=0.32; break;
-        case 13: case 15: roughness=0.65; specular=0.07; break;
-        case 16: roughness=0.32; specular=0.35; break;
-        case 17: roughness=0.60; specular=0.10; break;
-        default: break;
-    }
-    // Vertex colors already carry resolved skin/hair/iris/equipment identity.
-    // Do not tint them a second time by hard-coded brown/green material colors.
-    float3 base=max(input.Color.rgb,0.0);
-    if (input.MaterialRegion==0 || input.MaterialRegion==11 || input.MaterialRegion==14) {
-        float2 frequency=float2(140,180);
-        float footprint=max(length(ddx(input.UV*frequency)),length(ddy(input.UV*frequency)));
-        float weave=sin(input.UV.x*frequency.x)*sin(input.UV.y*frequency.y);
-        base*=1.0+0.025*weave*(1.0-saturate(footprint));
-    }
-    float3 lit=characterLight(base,safeNormal(input.Normal),input.WorldPosition,roughness,specular);
-    return float4(characterToneMap(lit),input.Color.a);
+Texture2D<float> g_ShadowMap;
+SamplerComparisonState g_ShadowMap_sampler;
+static const float PI=3.141592653589793;
+float shadowVisibility(float3 world,float3 normal) {
+    if(ShadowParameters.z<0.5 || MaterialFlags.w==0)return 1;
+    float4 q=mul(ShadowUVProjection,float4(world,1));
+    float3 uvz=q.xyz/q.w;
+    if(any(uvz.xy<0)||any(uvz.xy>1)||uvz.z<=0||uvz.z>=1)return 1;
+    float bias=ShadowParameters.x*(1+2*(1-saturate(dot(normal,safeNormal(KeyDirectionIntensity.xyz)))));
+    float value=0;
+    [unroll]for(int y=-1;y<=1;++y)[unroll]for(int x=-1;x<=1;++x)
+        value+=g_ShadowMap.SampleCmpLevelZero(g_ShadowMap_sampler,uvz.xy+float2(x,y)*ShadowParameters.y,uvz.z-bias);
+    return value/9;
+}
+float3 directBRDF(float3 base,float metallic,float roughness,float3 n,float3 v,float3 l,float3 irradiance) {
+    float nv=max(dot(n,v),1e-4),nl=saturate(dot(n,l));
+    float3 h=safeNormal(l+v);float nh=saturate(dot(n,h)),vh=saturate(dot(v,h));
+    float a=roughness*roughness,a2=a*a;
+    float d=a2/(PI*pow(nh*nh*(a2-1)+1,2));
+    float k=pow(roughness+1,2)/8;
+    float g=(nv/(nv*(1-k)+k))*(nl/(nl*(1-k)+k));
+    float3 f0=lerp(float3(.04,.04,.04),base,metallic);
+    float3 f=f0+(1-f0)*pow(1-vh,5);
+    float3 diffuse=(1-f)*(1-metallic)*base/PI;
+    return (diffuse+d*g*f/max(4*nv*nl,1e-4))*irradiance*nl;
+}
+float3 toneMap(float3 x) { x=max(x,0);return saturate(x*(2.51*x+.03)/(x*(2.43*x+.59)+.14)); }
+float4 main(SurfacePixel p,bool front:SV_IsFrontFace):SV_TARGET {
+    float alpha=surfaceAlpha(p);
+    if(MaterialFlags.z==1)clip(alpha-MaterialFactors.w);
+    if(p.Weight>=0)return float4(lerp(float3(.03,.10,.75),float3(1,.05,.01),saturate(p.Weight)),1);
+    float3 n=safeNormal(p.Normal);if(!front)n=-n;
+    float3 base=max(surfaceColor(p).rgb,0),v=safeNormal(SceneCameraPosition.xyz-p.WorldPosition);
+    float roughness=clamp(MaterialFactors.x,.045,1),metallic=saturate(MaterialFactors.y);
+    float3 ambient=lerp(HemisphereGround.rgb*HemisphereGround.a,HemisphereSky.rgb*HemisphereSky.a,n.y*.5+.5);
+    float3 light=ambient*base*(1-metallic);
+    light+=directBRDF(base,metallic,roughness,n,v,safeNormal(KeyDirectionIntensity.xyz),
+        KeyColor.rgb*KeyDirectionIntensity.w*shadowVisibility(p.WorldPosition,n));
+    light+=directBRDF(base,metallic,roughness,n,v,safeNormal(FillDirectionIntensity.xyz),FillColor.rgb*FillDirectionIntensity.w);
+    // sRGB render target performs display encoding once. This pass is direct-light PBR,
+    // not an IBL/HDR postprocessing implementation.
+    return float4(toneMap(light),alpha);
 }

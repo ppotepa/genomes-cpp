@@ -4,9 +4,11 @@
   <link type="text/rcss" href="screen.rcss" />
 </head>
 <body>
-  <section class="panel">
+  <section class="panel" data-model="ui">
     <h1>UNIT LAB</h1>
-    <p class="hint">Procedural infantry / threepp preview</p>
+    <p class="hint">Procedural infantry / native presentation</p>
+    <p class="status">{{ status }}</p>
+    <p class="telemetry">{{ selected }}</p>
     <div class="controls">
       <button data-action="unit.regenerate">Next seed / regenerate</button>
       <button data-action="unit.detail">Cycle detail level</button>

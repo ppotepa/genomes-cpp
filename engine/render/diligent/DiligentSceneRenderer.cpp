@@ -1,50 +1,17 @@
 #include "DiligentSceneRenderer.hpp"
-
 namespace genomes::render {
-
-void DiligentSceneRenderer::begin_frame() {
-    const RenderResult result = backend_.begin_frame();
-    healthy_ = static_cast<bool>(result);
-    if (!healthy_) {
-        last_error_ = result.error();
-    }
+void DiligentSceneRenderer::begin_frame() { frame_.begin([this] { return backend_.begin_frame(); }); }
+void DiligentSceneRenderer::submit(const PresentationSnapshot& scene,const ui::UiRenderFrame& ui) {
+    instances_=scene.instances.size(); ui_nodes_=ui.widgets.size()+ui.commands.size();
+    const auto [width,height]=backend_.framebufferSize();
+    backend_.set_camera(orbit_.resolve(scene.camera,width,height));
+    frame_.submit([&] {
+        if (auto r=backend_.draw_meshes(scene);!r) return r;
+        if (auto r=backend_.draw_instances(scene);!r) return r;
+        return backend_.draw_ui(ui);
+    });
 }
-
-void DiligentSceneRenderer::submit(const PresentationSnapshot& snapshot,
-                                   const ui::UiRenderFrame& frame) {
-    if (!healthy_) {
-        return;
-    }
-    submitted_instances_ += snapshot.instances.size();
-    submitted_ui_nodes_ += frame.commands.size();
-    const RenderResult mesh_result = backend_.draw_meshes(snapshot);
-    healthy_ = static_cast<bool>(mesh_result);
-    if (!healthy_) {
-        last_error_ = mesh_result.error();
-        return;
-    }
-    const RenderResult instance_result = backend_.draw_instances(snapshot);
-    healthy_ = static_cast<bool>(instance_result);
-    if (!healthy_) {
-        last_error_ = instance_result.error();
-        return;
-    }
-    const RenderResult result = backend_.draw_ui(frame);
-    healthy_ = static_cast<bool>(result);
-    if (!healthy_) {
-        last_error_ = result.error();
-    }
-}
-
 void DiligentSceneRenderer::end_frame() {
-    if (!healthy_) {
-        return;
-    }
-    const RenderResult result = backend_.end_frame();
-    healthy_ = static_cast<bool>(result);
-    if (!healthy_) {
-        last_error_ = result.error();
-    }
+    frame_.end([this] { return backend_.end_frame(); },[this] { return backend_.abort_frame(); });
 }
-
 } // namespace genomes::render

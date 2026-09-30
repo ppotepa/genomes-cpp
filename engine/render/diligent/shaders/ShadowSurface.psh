@@ -1,0 +1,4 @@
+void main(SurfacePixel p) {
+    if(MaterialFlags.z==1)clip(surfaceAlpha(p)-MaterialFactors.w);
+    // Opaque/masked casters only. Blended objects do not enter this pass.
+}
