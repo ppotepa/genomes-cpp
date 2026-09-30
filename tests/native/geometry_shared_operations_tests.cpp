@@ -1,6 +1,7 @@
 #include <genomes/geometry/MeshRepair.hpp>
 #include <genomes/geometry/MeshOperations.hpp>
 #include <genomes/geometry/MeshOptimizer.hpp>
+#include <genomes/geometry/GeometryRecipe.hpp>
 #include <genomes/geometry/PrimitiveBuilder.hpp>
 
 #include <cassert>
@@ -22,6 +23,10 @@ int main() {
     assert(sixteen && sixteen.value().index_format == IndexFormat::UInt16);
     const auto optimized = optimizeMesh(box, OptimizationPolicy::Skinned);
     assert(optimized && !optimized.value().report.vertices_remapped);
+    const float recipe_parameters[] = {2.0F, 4.0F, 6.0F};
+    const GeometryRecipe recipe{GeometryOperation::Primitive, "box.v1", recipe_parameters, 7U};
+    const GeometryRecipe recipe_copy{GeometryOperation::Primitive, "box.v1", recipe_parameters, 7U};
+    assert(recipe.identity() == recipe_copy.identity());
 
     MeshData transformed;
     appendTransformed(transformed,box,{{2.0F,3.0F,4.0F},{1.0F,2.0F,1.0F},0.5F});
