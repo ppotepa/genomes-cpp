@@ -2,9 +2,10 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
+#include <genomes/camera/Camera.hpp>
+#include <genomes/geometry/PrimitiveBuilder.hpp>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -17,39 +18,22 @@ void append_box(render::RenderMesh& mesh,
                 foundation::Vec3 center,
                 foundation::Vec3 extent,
                 foundation::Color color) {
-    if (extent.x <= 0.0F || extent.y <= 0.0F || extent.z <= 0.0F) {
+    const auto generated = geometry::makeBoxResult({extent});
+    if (!generated) {
         return;
     }
-    const foundation::Vec3 half{extent.x * 0.5F, extent.y * 0.5F, extent.z * 0.5F};
-    constexpr std::array<std::array<std::uint32_t, 4>, 6> faces{{
-        {{0, 1, 5, 4}}, {{1, 2, 6, 5}}, {{2, 3, 7, 6}},
-        {{3, 0, 4, 7}}, {{4, 5, 6, 7}}, {{3, 2, 1, 0}},
-    }};
-    constexpr std::array<foundation::Vec3, 6> normals{{
-        {0.0F, 0.0F, -1.0F}, {1.0F, 0.0F, 0.0F}, {0.0F, 0.0F, 1.0F},
-        {-1.0F, 0.0F, 0.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, -1.0F, 0.0F},
-    }};
-    constexpr std::array<foundation::Vec2, 4> uv{{
-        {0.0F, 0.0F}, {1.0F, 0.0F}, {1.0F, 1.0F}, {0.0F, 1.0F},
-    }};
-    const std::array<foundation::Vec3, 8> corners{{
-        {center.x - half.x, center.y - half.y, center.z - half.z},
-        {center.x + half.x, center.y - half.y, center.z - half.z},
-        {center.x + half.x, center.y + half.y, center.z - half.z},
-        {center.x - half.x, center.y + half.y, center.z - half.z},
-        {center.x - half.x, center.y - half.y, center.z + half.z},
-        {center.x + half.x, center.y - half.y, center.z + half.z},
-        {center.x + half.x, center.y + half.y, center.z + half.z},
-        {center.x - half.x, center.y + half.y, center.z + half.z},
-    }};
-    for (std::size_t face = 0; face < faces.size(); ++face) {
-        const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
-        for (std::size_t corner = 0; corner < faces[face].size(); ++corner) {
-            mesh.vertices.push_back(
-                {corners[faces[face][corner]], normals[face], uv[corner], color});
-        }
-        mesh.indices.insert(mesh.indices.end(),
-                            {base, base + 1, base + 2, base, base + 2, base + 3});
+    const auto& box = generated.value();
+    const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
+    mesh.vertices.reserve(mesh.vertices.size() + box.vertices.size());
+    mesh.indices.reserve(mesh.indices.size() + box.indices.size());
+    for (const auto& vertex : box.vertices) {
+        mesh.vertices.push_back({{vertex.position.x + center.x,
+                                  vertex.position.y + center.y,
+                                  vertex.position.z + center.z},
+                                 vertex.normal, vertex.uv, color});
+    }
+    for (const auto index : box.indices) {
+        mesh.indices.push_back(base + index);
     }
 }
 
@@ -181,7 +165,12 @@ void BuildingLabScene::frame_update(SceneContext& context, double) {
 }
 
 void BuildingLabScene::build_presentation(SceneContext& context) {
-    context.presentation.clear_scene_payload();
+    camera::CameraRequest camera_request{};
+    camera_request.preset = camera::CameraPreset::BuildingLab;
+    camera_request.position = {24.0F, 18.0F, 24.0F};
+    camera_request.target = {0.0F, 2.0F, 0.0F};
+    camera_request.lens = {0.85F, 0.2F, 250.0F};
+    context.publishCameraRequest(camera_request);
     if (!render_mesh_ || render_mesh_->vertices.empty() || render_mesh_->indices.empty()) {
         return;
     }

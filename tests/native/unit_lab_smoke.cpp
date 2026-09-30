@@ -112,11 +112,17 @@ int main() {
     gpu_context.render_capabilities.gpu_skinning = true;
     genomes::runtime::UnitLabScene gpu_scene;
     gpu_scene.on_enter(gpu_context);
+    gpu_presentation.simulation_tick = 17U;
+    gpu_presentation.clear_scene_payload();
+    assert(gpu_presentation.simulation_tick == 17U);
     gpu_scene.build_presentation(gpu_context);
     assert(gpu_presentation.skinned_prototypes.size() == 1U);
     assert(gpu_presentation.skinned_palettes.size() == 1U);
     assert(gpu_presentation.instance_prototypes.empty());
-    assert(gpu_presentation.camera.interactive_orbit);
+    assert(!gpu_presentation.camera.interactive_orbit);
+    assert(gpu_presentation.has_camera_request);
+    assert(gpu_presentation.camera_request.preset ==
+           genomes::camera::CameraPreset::UnitLab);
     assert(std::abs(gpu_presentation.camera.viewport_left - 0.40F) < 1.0e-6F);
     assert(std::abs(gpu_presentation.camera.viewport_width - 0.60F) < 1.0e-6F);
     const auto initial_camera_revision = gpu_presentation.camera.revision;
@@ -144,9 +150,10 @@ int main() {
     gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
                                          .mouse_x = 100.0F, .mouse_y = 1046.0F,
                                          .events = {}});
+    gpu_presentation.clear_scene_payload();
     gpu_scene.build_presentation(gpu_context);
     assert(!gpu_presentation.debug_lines.empty());
-    assert(gpu_presentation.camera.interactive_orbit);
+    assert(!gpu_presentation.camera.interactive_orbit);
     assert(gpu_presentation.camera.revision != 0U);
     assert(gpu_presentation.camera.revision != initial_camera_revision ||
            gpu_presentation.camera.viewport_left == 0.40F);
@@ -155,6 +162,7 @@ int main() {
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.genome-plus"), {}) ==
         genomes::ui::UiActionResult::Handled);
+    gpu_presentation.clear_scene_payload();
     gpu_scene.build_presentation(gpu_context);
     assert(gpu_presentation.skinned_prototypes.front() != before_genome);
 

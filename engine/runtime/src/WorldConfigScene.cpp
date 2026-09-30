@@ -142,7 +142,6 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
 }
 
 void WorldConfigScene::build_presentation(SceneContext& context) {
-    context.presentation.clear_scene_payload();
     if (preview_prototypes_.empty()) {
         preview_prototypes_.push_back(render::procedural::make_box(
             foundation::stable_id("mesh.preview.terrain"), {3.0F, 0.10F, 3.0F},

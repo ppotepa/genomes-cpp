@@ -682,7 +682,6 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
 }
 
 void BattlefieldScene::build_presentation(SceneContext& context) {
-    context.presentation.clear_scene_payload();
     context.presentation.camera = render_camera_;
     context.publishCameraRequest(context.presentation.camera.toRequest());
     context.presentation.terrain_mesh = render_terrain_mesh_;

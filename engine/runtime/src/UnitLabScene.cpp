@@ -587,7 +587,6 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 }
 
 void UnitLabScene::build_presentation(SceneContext& context) {
-    context.presentation.clear_scene_payload();
     if (model_artifact_) {
         if (!skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
@@ -670,16 +669,17 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             camera_mode_ == UnitLabCameraMode::Face ? 0.62F : 0.72F,
             0.025F,
             100.0F};
-        // The left side belongs to the RmlUi inspector. Threepp owns orbit,
-        // pan and zoom inside the remaining presentation viewport until this
-        // explicit preset/model revision changes.
+        // The left side belongs to the RmlUi inspector. The camera controller
+        // consumes this bounded preset; the renderer does not own orbit input.
         context.presentation.camera.viewport_left = 0.40F;
         context.presentation.camera.viewport_width = 0.60F;
-        context.presentation.camera.interactive_orbit = true;
+        context.presentation.camera.interactive_orbit = false;
         context.presentation.camera.revision = foundation::stableHashCombine(
             model_artifact_->cache_key,
             static_cast<std::uint64_t>(camera_mode_));
-        context.publishCameraRequest(context.presentation.camera.toRequest());
+        auto camera_request = context.presentation.camera.toRequest();
+        camera_request.preset = camera::CameraPreset::UnitLab;
+        context.publishCameraRequest(camera_request);
         const float model_rotation =
             std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
         std::optional<render::RenderMesh> debug_deformed;
