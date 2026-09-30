@@ -35,7 +35,7 @@ readNodeTransform(const fastgltf::Node& node) {
         return Result::failure(error(foundation::ErrorCode::Unsupported,
                                      "glTF node transform variant is unsupported"));
     }
-    if (!result.valid())
+    if (!result.rotation.normalizeSelf() || !result.valid())
         return Result::failure(error(foundation::ErrorCode::InvalidArgument,
                                      "glTF node transform is invalid"));
     return Result::success(result);
