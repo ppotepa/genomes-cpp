@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=82 DOING=0 CODE_READY=85 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 85/167 = 50.90%; remaining 49.10%
+TODO=81 DOING=0 CODE_READY=86 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 86/167 = 51.50%; remaining 48.50%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -93,6 +93,7 @@ LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source revi
 LT-014 | CODE_READY | 54ab30f | - | isolated toolkit dependency helper source review | clean configure and full-toolkit build
 LT-020 | CODE_READY | 317a5f5 | - | Diligent default and headless/full preset source review | user configure/build/CTest
 LT-017 | CODE_READY | 9279f4b | - | Windows/D3D12-only Diligent and tools-without-FX source review | user Diligent configure/build
+LT-096 | CODE_READY | c4375ec | - | Diligent renderer target links capture tools and D3D12 only | user Diligent configure/build
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -135,7 +136,6 @@ LT-092 | TODO | - | - | - | implement and review assigned path
 LT-093 | TODO | - | - | - | implement and review assigned path
 LT-094 | TODO | - | - | - | implement and review assigned path
 LT-095 | TODO | - | - | - | implement and review assigned path
-LT-096 | TODO | - | - | - | implement and review assigned path
 LT-097 | TODO | - | - | - | implement and review assigned path
 LT-098 | TODO | - | - | - | implement and review assigned path
 LT-099 | TODO | - | - | - | implement and review assigned path
