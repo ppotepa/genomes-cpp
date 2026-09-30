@@ -8,6 +8,7 @@ add_library(genomes_geometry STATIC
     src/MeshOptimizer.cpp
     src/GeometryRecipe.cpp
     src/PolygonOps.cpp
+    src/SolidOps.cpp
     src/PrimitiveBuilder.cpp
     src/MeshRepair.cpp
     src/IndexOrderOptimizer.cpp
@@ -23,6 +24,12 @@ if(GENOMES_ENABLE_EARCUT)
     target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_EARCUT=1)
 else()
     target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_EARCUT=0)
+endif()
+if(GENOMES_ENABLE_CSG)
+    target_link_libraries(genomes_geometry PRIVATE genomes::manifold)
+    target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_MANIFOLD=1)
+else()
+    target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_MANIFOLD=0)
 endif()
 if(GENOMES_ENABLE_MESHOPTIMIZER)
     target_link_libraries(genomes_geometry PRIVATE genomes::meshoptimizer)

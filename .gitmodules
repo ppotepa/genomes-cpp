@@ -22,3 +22,6 @@
 [submodule "external/earcut"]
 	path = external/earcut
 	url = https://github.com/mapbox/earcut.hpp.git
+[submodule "external/manifold"]
+	path = external/manifold
+	url = https://github.com/elalish/manifold.git
