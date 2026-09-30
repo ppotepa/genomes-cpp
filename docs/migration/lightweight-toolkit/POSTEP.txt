@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=52 DOING=0 CODE_READY=115 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 115/167 = 68.86%; remaining 31.14%
+TODO=51 DOING=0 CODE_READY=116 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 116/167 = 69.46%; remaining 30.54%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -149,7 +149,7 @@ LT-090 | TODO | - | - | - | implement and review assigned path
 LT-091 | TODO | - | - | - | implement and review assigned path
 LT-092 | TODO | - | - | - | implement and review assigned path
 LT-093 | TODO | - | - | - | implement and review assigned path
-LT-094 | TODO | - | - | - | implement and review assigned path
+LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit NativeD3D target source review | user Windows/D3D12 build
 LT-095 | TODO | - | - | - | implement and review assigned path
 LT-097 | TODO | - | - | - | implement and review assigned path
 LT-098 | TODO | - | - | - | implement and review assigned path
