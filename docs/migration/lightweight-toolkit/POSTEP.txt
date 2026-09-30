@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=2 DOING=0 CODE_READY=165 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 165/167 = 98.80%; remaining 1.20%
+TODO=1 DOING=0 CODE_READY=166 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 166/167 = 99.40%; remaining 0.60%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
