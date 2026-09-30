@@ -1,6 +1,9 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
+#include <genomes/geometry/MeshData.hpp>
 
 #include <cstdint>
 #include <span>
@@ -30,6 +33,7 @@ public:
     using VertexIndex = std::uint32_t;
 
     [[nodiscard]] VertexIndex appendPosition(foundation::Vec3 position);
+    [[nodiscard]] VertexIndex appendVertex(const MeshVertex& vertex);
     void appendTriangle(VertexIndex a, VertexIndex b, VertexIndex c,
                         Winding winding = Winding::CounterClockwise);
     void bridgeLoops(std::span<const VertexIndex> first,
@@ -44,8 +48,13 @@ public:
     }
     void clear() noexcept;
 
+    [[nodiscard]] foundation::Result<void, foundation::Error>
+    appendMesh(const MeshData& mesh);
+    [[nodiscard]] foundation::Result<MeshData, foundation::Error> build() const;
+
 private:
     std::vector<foundation::Vec3> positions_;
+    std::vector<MeshVertex> vertices_;
     std::vector<std::uint32_t> indices_;
 };
 
