@@ -23,22 +23,22 @@ and plan version.
 
 ID | STATUS | CODE SHA | VERIFIED SHA | EVIDENCE | REMAINING CONDITION
 ---|---|---|---|---|---
-LT-001 | CODE_READY | working-tree | - | ADR source review | user verification at published SHA
-LT-002 | CODE_READY | working-tree | - | rules source review | user verification at published SHA
-LT-003 | CODE_READY | working-tree | - | infantry ADR source review | user verification at published SHA
-LT-004 | CODE_READY | working-tree | - | historical ADR source review | user verification at published SHA
-LT-005 | CODE_READY | working-tree | - | 167-row/count audit | user verification at published SHA
-LT-006 | CODE_READY | working-tree | - | acceptance template review | user verification at published SHA
-LT-023 | CODE_READY | working-tree | - | math target source review | user Debug/Release build and tests
-LT-024 | CODE_READY | working-tree | - | Vec ABI/source review | math test evidence
-LT-025 | CODE_READY | working-tree | - | Quat source review | math test evidence
-LT-026 | CODE_READY | working-tree | - | Mat4 source review | math test evidence
-LT-027 | CODE_READY | working-tree | - | Transform source review | math test evidence
-LT-028 | CODE_READY | working-tree | - | Bounds source review | math test evidence
-LT-029 | CODE_READY | working-tree | - | Math.cpp source review | math test evidence
-LT-030 | CODE_READY | working-tree | - | foundation alias review | ABI test evidence
-LT-031 | CODE_READY | working-tree | - | dependency-order review | headless build evidence
-LT-129 | CODE_READY | working-tree | - | math regression test source review | user Debug/Release CTest
+LT-001 | CODE_READY | dec980a | - | ADR source review | user verification at published SHA
+LT-002 | CODE_READY | dec980a | - | rules source review | user verification at published SHA
+LT-003 | CODE_READY | dec980a | - | infantry ADR source review | user verification at published SHA
+LT-004 | CODE_READY | dec980a | - | historical ADR source review | user verification at published SHA
+LT-005 | CODE_READY | dec980a | - | 167-row/count audit | user verification at published SHA
+LT-006 | CODE_READY | dec980a | - | acceptance template review | user verification at published SHA
+LT-023 | CODE_READY | dec980a | - | math target source review | user Debug/Release build and tests
+LT-024 | CODE_READY | dec980a | - | Vec ABI/source review | math test evidence
+LT-025 | CODE_READY | dec980a | - | Quat source review | math test evidence
+LT-026 | CODE_READY | dec980a | - | Mat4 source review | math test evidence
+LT-027 | CODE_READY | dec980a | - | Transform source review | math test evidence
+LT-028 | CODE_READY | dec980a | - | Bounds source review | math test evidence
+LT-029 | CODE_READY | dec980a | - | Math.cpp source review | math test evidence
+LT-030 | CODE_READY | dec980a | - | foundation alias review | ABI test evidence
+LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evidence
+LT-129 | CODE_READY | dec980a | - | math regression test source review | user Debug/Release CTest
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
