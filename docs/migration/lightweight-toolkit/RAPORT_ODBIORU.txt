@@ -1,0 +1,41 @@
+LT v1.0 - RAPORT ODBIORU
+========================
+
+Source baseline: 54588271b6d38330f3d1e8774e699a57e8abbf93
+Tested SHA: NOT RUN
+Working tree: external/DiligentEngine had pre-existing local changes; preserved
+
+SOURCE REVIEW
+-------------
+Status: IN PROGRESS
+Static guard: NOT RUN
+Dependency closure: NOT RUN
+
+CPU ACCEPTANCE
+--------------
+headless-core Debug/Release configure/build/CTest: NOT RUN
+toolkit-full Debug/Release configure/build/CTest: NOT RUN
+
+DILIGENT / GPU ACCEPTANCE
+------------------------
+Diligent Debug/Release configure/build/CTest: NOT RUN
+Shader creation and validation: NOT RUN
+UnitLab/BuildingLab/Battlefield: NOT RUN
+Capture PNG/metadata/stdout/stderr/exit: NOT RUN
+Visual review (poses, views, normals, materials, shadows, UI, gamma): NOT RUN
+
+PERFORMANCE
+-----------
+Toolkit benchmark median/p95/sample count/configuration/SHA: NOT RUN
+No-allocation camera update: NOT RUN
+No mesh upload after warmup for camera/pose-only frames: NOT RUN
+
+LIMITS
+------
+Windows/D3D12 is the target. Linux/Vulkan is not claimed. Assets and CSG are
+optional. Unsupported glTF v1 features must return Unsupported. This report is
+a template and does not constitute acceptance evidence.
+
+PER-LT EVIDENCE
+---------------
+See POSTEP.txt. Each VERIFIED row must carry tested SHA and an evidence pointer.

@@ -1,0 +1,208 @@
+LT v1.0 - NORMATIVE PROGRESS TRACKER
+=====================================
+
+Baseline SHA: 54588271b6d38330f3d1e8774e699a57e8abbf93
+Denominator: 167 distinct paths
+Statuses: TODO, DOING, CODE_READY, WAIT_USER, VERIFIED, BLOCKED
+
+Code progress = 100 * (CODE_READY + WAIT_USER + VERIFIED) / 167
+Acceptance progress = 100 * VERIFIED / 167
+
+Current summary
+---------------
+TODO=151 DOING=0 CODE_READY=16 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 16/167 = 9.58%; remaining 90.42%
+Acceptance progress: 0/167 = 0.00%; remaining 100.00%
+
+A row may become CODE_READY only after its change and dependency review are
+complete. WAIT_USER means source-ready but awaiting the user-run configure,
+build, CTest, benchmark, GPU, capture, or visual gate. VERIFIED requires an
+exact tested SHA and evidence. BLOCKED follows only three consecutive identical
+real blockers. New required paths receive new LT IDs and increase denominator
+and plan version.
+
+ID | STATUS | CODE SHA | VERIFIED SHA | EVIDENCE | REMAINING CONDITION
+---|---|---|---|---|---
+LT-001 | CODE_READY | working-tree | - | ADR source review | user verification at published SHA
+LT-002 | CODE_READY | working-tree | - | rules source review | user verification at published SHA
+LT-003 | CODE_READY | working-tree | - | infantry ADR source review | user verification at published SHA
+LT-004 | CODE_READY | working-tree | - | historical ADR source review | user verification at published SHA
+LT-005 | CODE_READY | working-tree | - | 167-row/count audit | user verification at published SHA
+LT-006 | CODE_READY | working-tree | - | acceptance template review | user verification at published SHA
+LT-023 | CODE_READY | working-tree | - | math target source review | user Debug/Release build and tests
+LT-024 | CODE_READY | working-tree | - | Vec ABI/source review | math test evidence
+LT-025 | CODE_READY | working-tree | - | Quat source review | math test evidence
+LT-026 | CODE_READY | working-tree | - | Mat4 source review | math test evidence
+LT-027 | CODE_READY | working-tree | - | Transform source review | math test evidence
+LT-028 | CODE_READY | working-tree | - | Bounds source review | math test evidence
+LT-029 | CODE_READY | working-tree | - | Math.cpp source review | math test evidence
+LT-030 | CODE_READY | working-tree | - | foundation alias review | ABI test evidence
+LT-031 | CODE_READY | working-tree | - | dependency-order review | headless build evidence
+LT-129 | CODE_READY | working-tree | - | math regression test source review | user Debug/Release CTest
+LT-007 | TODO | - | - | - | implement and review assigned path
+LT-008 | TODO | - | - | - | implement and review assigned path
+LT-009 | TODO | - | - | - | implement and review assigned path
+LT-010 | TODO | - | - | - | implement and review assigned path
+LT-011 | TODO | - | - | - | implement and review assigned path
+LT-012 | TODO | - | - | - | implement and review assigned path
+LT-013 | TODO | - | - | - | implement and review assigned path
+LT-014 | TODO | - | - | - | implement and review assigned path
+LT-015 | TODO | - | - | - | implement and review assigned path
+LT-016 | TODO | - | - | - | implement and review assigned path
+LT-017 | TODO | - | - | - | implement and review assigned path
+LT-018 | TODO | - | - | - | implement and review assigned path
+LT-019 | TODO | - | - | - | implement and review assigned path
+LT-020 | TODO | - | - | - | implement and review assigned path
+LT-021 | TODO | - | - | - | implement and review assigned path
+LT-022 | TODO | - | - | - | implement and review assigned path
+LT-032 | TODO | - | - | - | implement and review assigned path
+LT-033 | TODO | - | - | - | implement and review assigned path
+LT-034 | TODO | - | - | - | implement and review assigned path
+LT-035 | TODO | - | - | - | implement and review assigned path
+LT-036 | TODO | - | - | - | implement and review assigned path
+LT-037 | TODO | - | - | - | implement and review assigned path
+LT-038 | TODO | - | - | - | implement and review assigned path
+LT-039 | TODO | - | - | - | implement and review assigned path
+LT-040 | TODO | - | - | - | implement and review assigned path
+LT-041 | TODO | - | - | - | implement and review assigned path
+LT-042 | TODO | - | - | - | implement and review assigned path
+LT-043 | TODO | - | - | - | implement and review assigned path
+LT-044 | TODO | - | - | - | implement and review assigned path
+LT-045 | TODO | - | - | - | implement and review assigned path
+LT-046 | TODO | - | - | - | implement and review assigned path
+LT-047 | TODO | - | - | - | implement and review assigned path
+LT-048 | TODO | - | - | - | implement and review assigned path
+LT-049 | TODO | - | - | - | implement and review assigned path
+LT-050 | TODO | - | - | - | implement and review assigned path
+LT-051 | TODO | - | - | - | implement and review assigned path
+LT-052 | TODO | - | - | - | implement and review assigned path
+LT-053 | TODO | - | - | - | implement and review assigned path
+LT-054 | TODO | - | - | - | implement and review assigned path
+LT-055 | TODO | - | - | - | implement and review assigned path
+LT-056 | TODO | - | - | - | implement and review assigned path
+LT-057 | TODO | - | - | - | implement and review assigned path
+LT-058 | TODO | - | - | - | implement and review assigned path
+LT-059 | TODO | - | - | - | implement and review assigned path
+LT-060 | TODO | - | - | - | implement and review assigned path
+LT-061 | TODO | - | - | - | implement and review assigned path
+LT-062 | TODO | - | - | - | implement and review assigned path
+LT-063 | TODO | - | - | - | implement and review assigned path
+LT-064 | TODO | - | - | - | implement and review assigned path
+LT-065 | TODO | - | - | - | implement and review assigned path
+LT-066 | TODO | - | - | - | implement and review assigned path
+LT-067 | TODO | - | - | - | implement and review assigned path
+LT-068 | TODO | - | - | - | implement and review assigned path
+LT-069 | TODO | - | - | - | implement and review assigned path
+LT-070 | TODO | - | - | - | implement and review assigned path
+LT-071 | TODO | - | - | - | implement and review assigned path
+LT-072 | TODO | - | - | - | implement and review assigned path
+LT-073 | TODO | - | - | - | implement and review assigned path
+LT-074 | TODO | - | - | - | implement and review assigned path
+LT-075 | TODO | - | - | - | implement and review assigned path
+LT-076 | TODO | - | - | - | implement and review assigned path
+LT-077 | TODO | - | - | - | implement and review assigned path
+LT-078 | TODO | - | - | - | implement and review assigned path
+LT-079 | TODO | - | - | - | implement and review assigned path
+LT-080 | TODO | - | - | - | implement and review assigned path
+LT-081 | TODO | - | - | - | implement and review assigned path
+LT-082 | TODO | - | - | - | implement and review assigned path
+LT-083 | TODO | - | - | - | implement and review assigned path
+LT-084 | TODO | - | - | - | implement and review assigned path
+LT-085 | TODO | - | - | - | implement and review assigned path
+LT-086 | TODO | - | - | - | implement and review assigned path
+LT-087 | TODO | - | - | - | implement and review assigned path
+LT-088 | TODO | - | - | - | implement and review assigned path
+LT-089 | TODO | - | - | - | implement and review assigned path
+LT-090 | TODO | - | - | - | implement and review assigned path
+LT-091 | TODO | - | - | - | implement and review assigned path
+LT-092 | TODO | - | - | - | implement and review assigned path
+LT-093 | TODO | - | - | - | implement and review assigned path
+LT-094 | TODO | - | - | - | implement and review assigned path
+LT-095 | TODO | - | - | - | implement and review assigned path
+LT-096 | TODO | - | - | - | implement and review assigned path
+LT-097 | TODO | - | - | - | implement and review assigned path
+LT-098 | TODO | - | - | - | implement and review assigned path
+LT-099 | TODO | - | - | - | implement and review assigned path
+LT-100 | TODO | - | - | - | implement and review assigned path
+LT-101 | TODO | - | - | - | implement and review assigned path
+LT-102 | TODO | - | - | - | implement and review assigned path
+LT-103 | TODO | - | - | - | implement and review assigned path
+LT-104 | TODO | - | - | - | implement and review assigned path
+LT-105 | TODO | - | - | - | implement and review assigned path
+LT-106 | TODO | - | - | - | implement and review assigned path
+LT-107 | TODO | - | - | - | implement and review assigned path
+LT-108 | TODO | - | - | - | implement and review assigned path
+LT-109 | TODO | - | - | - | implement and review assigned path
+LT-110 | TODO | - | - | - | implement and review assigned path
+LT-111 | TODO | - | - | - | implement and review assigned path
+LT-112 | TODO | - | - | - | implement and review assigned path
+LT-113 | TODO | - | - | - | implement and review assigned path
+LT-114 | TODO | - | - | - | implement and review assigned path
+LT-115 | TODO | - | - | - | implement and review assigned path
+LT-116 | TODO | - | - | - | implement and review assigned path
+LT-117 | TODO | - | - | - | implement and review assigned path
+LT-118 | TODO | - | - | - | implement and review assigned path
+LT-119 | TODO | - | - | - | implement and review assigned path
+LT-120 | TODO | - | - | - | implement and review assigned path
+LT-121 | TODO | - | - | - | implement and review assigned path
+LT-122 | TODO | - | - | - | implement and review assigned path
+LT-123 | TODO | - | - | - | implement and review assigned path
+LT-124 | TODO | - | - | - | implement and review assigned path
+LT-125 | TODO | - | - | - | implement and review assigned path
+LT-126 | TODO | - | - | - | implement and review assigned path
+LT-127 | TODO | - | - | - | implement and review assigned path
+LT-128 | TODO | - | - | - | implement and review assigned path
+LT-130 | TODO | - | - | - | implement and review assigned path
+LT-131 | TODO | - | - | - | implement and review assigned path
+LT-132 | TODO | - | - | - | implement and review assigned path
+LT-133 | TODO | - | - | - | implement and review assigned path
+LT-134 | TODO | - | - | - | implement and review assigned path
+LT-135 | TODO | - | - | - | implement and review assigned path
+LT-136 | TODO | - | - | - | implement and review assigned path
+LT-137 | TODO | - | - | - | implement and review assigned path
+LT-138 | TODO | - | - | - | implement and review assigned path
+LT-139 | TODO | - | - | - | implement and review assigned path
+LT-140 | TODO | - | - | - | implement and review assigned path
+LT-141 | TODO | - | - | - | implement and review assigned path
+LT-142 | TODO | - | - | - | implement and review assigned path
+LT-143 | TODO | - | - | - | implement and review assigned path
+LT-144 | TODO | - | - | - | implement and review assigned path
+LT-145 | TODO | - | - | - | implement and review assigned path
+LT-146 | TODO | - | - | - | implement and review assigned path
+LT-147 | TODO | - | - | - | implement and review assigned path
+LT-148 | TODO | - | - | - | implement and review assigned path
+LT-149 | TODO | - | - | - | implement and review assigned path
+LT-150 | TODO | - | - | - | implement and review assigned path
+LT-151 | TODO | - | - | - | implement and review assigned path
+LT-152 | TODO | - | - | - | implement and review assigned path
+LT-153 | TODO | - | - | - | implement and review assigned path
+LT-154 | TODO | - | - | - | implement and review assigned path
+LT-155 | TODO | - | - | - | implement and review assigned path
+LT-156 | TODO | - | - | - | implement and review assigned path
+LT-157 | TODO | - | - | - | implement and review assigned path
+LT-158 | TODO | - | - | - | implement and review assigned path
+LT-159 | TODO | - | - | - | implement and review assigned path
+LT-160 | TODO | - | - | - | implement and review assigned path
+LT-161 | TODO | - | - | - | implement and review assigned path
+LT-162 | TODO | - | - | - | implement and review assigned path
+LT-163 | TODO | - | - | - | implement and review assigned path
+LT-164 | TODO | - | - | - | implement and review assigned path
+LT-165 | TODO | - | - | - | implement and review assigned path
+LT-166 | TODO | - | - | - | implement and review assigned path
+LT-167 | TODO | - | - | - | implement and review assigned path
+
+Checkpoint template
+-------------------
+Etap:
+Zadania LT:
+Status przed:
+Zmiana:
+Pliki:
+Test:
+Build:
+Pierwsza roznica:
+Maksymalny blad:
+Postep kodu:
+Postep odbioru:
+Pozostalo:
+Status po:

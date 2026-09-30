@@ -1,6 +1,6 @@
 # ADR: threepp presentation on the native Genomes engine
 
-Status: SUPERSEDED by `ADR_INFANTRY_STACK.md` (2026-09-30).
+Status: SUPERSEDED by `ADR_LIGHTWEIGHT_TOOLKIT.md` (2026-09-30).
 Do not treat the earlier GLRenderer migration as the accepted final stack.
 The owner clarified Diligent for GPU rendering plus selected CPU geometry tools.
 
@@ -19,4 +19,6 @@ modules or replace the procedural infantry generator with authored assets.
 
 The original historical text is retained in Git at
 `66843b5eae186b416c140c5e6157c1ea64477fc8`.
-See the new ADR and `docs/upgrades/infantry-stack/STATUS.txt` for active work.
+See `ADR_LIGHTWEIGHT_TOOLKIT.md` and
+`docs/migration/lightweight-toolkit/POSTEP.txt` for active work. No part of this
+historical record normatively recommends GLRenderer or threepp.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <genomes/math/Vec.hpp>
 #include <string_view>
 
 namespace genomes::foundation {
@@ -8,16 +9,8 @@ namespace genomes::foundation {
 using StableId = std::uint64_t;
 using SceneId = StableId;
 
-struct Vec2 {
-    float x{0.0F};
-    float y{0.0F};
-};
-
-struct Vec3 {
-    float x{0.0F};
-    float y{0.0F};
-    float z{0.0F};
-};
+using Vec2 = math::Vec2;
+using Vec3 = math::Vec3;
 
 struct Color {
     float r{1.0F};

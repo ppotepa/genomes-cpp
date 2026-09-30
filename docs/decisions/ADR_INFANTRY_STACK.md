@@ -1,16 +1,26 @@
 # ADR: upgrade infantry on Diligent with CPU geometry providers
 
-Status: accepted direction from the owner's clarification, 2026-09-30.
+Status: accepted infantry constraints; renderer/toolkit composition superseded
+by `ADR_LIGHTWEIGHT_TOOLKIT.md`, 2026-09-30.
 Supersedes `ADR_THREEPP_PRESENTATION.md` as the final renderer decision.
 Implementation baseline: `66843b5eae186b416c140c5e6157c1ea64477fc8`.
 
 ## Scope
 
 Keep C++20, CMake, SDL3, RmlUi, native jobs/caches and the existing infantry
-module. Diligent is the production GPU target. threepp is an optional supplier
-of CPU geometry/tools hidden behind the existing geometry adapter. Its GL
-renderer remains available only through the explicit experimental profile.
+module. Diligent is the production GPU target. Shared CPU math/geometry/camera
+utilities come from the lightweight toolkit; no renderer or third-party scene
+graph is part of the infantry domain.
 No Creature/Humanoid extraction or new physics/navigation framework is in scope.
+
+## Preserved reference implementation
+
+The lightweight toolkit replaces shared math, geometry, camera, and presentation
+utilities. It does not replace the infantry reference geometry, rig, morph
+targets, parity algorithms, fixtures, tolerances, semantic vertex numbering, or
+generator outputs. General-purpose primitives must not be composed into a new
+anatomical human. Presentation optimization remains outside the domain generator
+and must preserve every reference vertex stream and identity.
 
 ## First delivered slice
 

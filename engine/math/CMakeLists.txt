@@ -1,0 +1,5 @@
+add_library(genomes_math STATIC src/Math.cpp)
+target_include_directories(genomes_math PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_compile_features(genomes_math PUBLIC cxx_std_20)
+genomes_set_project_warnings(genomes_math)
+add_library(genomes::math ALIAS genomes_math)

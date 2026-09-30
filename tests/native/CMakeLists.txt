@@ -6,6 +6,12 @@ function(genomes_enable_test_assertions target)
     endif()
 endfunction()
 
+add_executable(genomes_test_math_types math/math_types_tests.cpp)
+target_link_libraries(genomes_test_math_types PRIVATE genomes::math)
+genomes_set_project_warnings(genomes_test_math_types)
+genomes_enable_test_assertions(genomes_test_math_types)
+add_test(NAME math.types COMMAND genomes_test_math_types)
+
 if(TARGET genomes_render_smoke)
     add_test(NAME render.diligent_headless COMMAND genomes_render_smoke)
 endif()
