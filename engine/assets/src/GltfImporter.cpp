@@ -49,6 +49,15 @@ foundation::Result<ImportedScene, foundation::Error> importStaticGltf(const std:
     auto parsed=parser.loadGltf(file.get(),path.parent_path(),options); if(parsed.error()!=fastgltf::Error::None)return Result::failure(error(foundation::ErrorCode::InvalidArgument,"fastgltf rejected the asset")); auto asset=std::move(parsed.get());
     if(asset.meshes.size()>limits.max_meshes||asset.nodes.size()>limits.max_nodes)return Result::failure(error(foundation::ErrorCode::OutOfRange,"glTF exceeds import limits"));
     if(!asset.skins.empty()||!asset.animations.empty())return Result::failure(error(foundation::ErrorCode::Unsupported,"skins and animations are unsupported in glTF v1 importer"));
+    if (!asset.images.empty() || !asset.textures.empty())
+        return Result::failure(error(foundation::ErrorCode::Unsupported,
+                                     "glTF image and texture decoding is unsupported"));
+    for (const auto& node : asset.nodes) {
+        if (node.skinIndex.has_value() || !node.weights.empty() ||
+            !node.instancingAttributes.empty())
+            return Result::failure(error(foundation::ErrorCode::Unsupported,
+                                         "glTF skins, morph weights and instancing are unsupported"));
+    }
     for (const auto& buffer : asset.buffers) {
         if (const auto* uri = std::get_if<fastgltf::sources::URI>(&buffer.data);
             uri != nullptr && !uri->uri.isLocalPath() && !uri->uri.isDataUri())
@@ -62,8 +71,14 @@ foundation::Result<ImportedScene, foundation::Error> importStaticGltf(const std:
     const auto accessor_in_bounds = [&asset](const std::size_t index) {
         return index < asset.accessors.size();
     };
-    for (std::size_t mesh_index = 0; mesh_index < asset.meshes.size(); ++mesh_index)
+    for (std::size_t mesh_index = 0; mesh_index < asset.meshes.size(); ++mesh_index) {
+        if (!asset.meshes[mesh_index].weights.empty())
+            return Result::failure(error(foundation::ErrorCode::Unsupported,
+                                         "glTF mesh morph weights are unsupported"));
         for(const auto& primitive:asset.meshes[mesh_index].primitives){
+        if (!primitive.targets.empty())
+            return Result::failure(error(foundation::ErrorCode::Unsupported,
+                                         "glTF morph targets are unsupported"));
         if(primitive.type!=fastgltf::PrimitiveType::Triangles||primitive.dracoCompression)return Result::failure(error(foundation::ErrorCode::Unsupported,"only uncompressed triangles are supported"));
         const auto position_it=primitive.findAttribute("POSITION"); if(position_it==primitive.attributes.end())return Result::failure(error(foundation::ErrorCode::InvalidArgument,"POSITION is required"));
         if (!accessor_in_bounds(position_it->accessorIndex))
@@ -81,6 +96,7 @@ foundation::Result<ImportedScene, foundation::Error> importStaticGltf(const std:
         if(output.indices.size()>limits.max_indices-std::min(total_indices,limits.max_indices))return Result::failure(error(foundation::ErrorCode::OutOfRange,"glTF index limit exceeded"));
         if(primitive.materialIndex.has_value()&&primitive.materialIndex.value()>=scene.materials.size())return Result::failure(error(foundation::ErrorCode::OutOfRange,"primitive material index is out of range"));
         total_vertices+=output.vertices.size();total_indices+=output.indices.size(); output.rebuildStreams();output.submeshes.push_back({0U,static_cast<std::uint32_t>(output.indices.size()),primitive.materialIndex.value_or(0U)});if(!output.valid())return Result::failure(error(foundation::ErrorCode::InvalidArgument,"imported primitive failed validation"));primitive_meshes[mesh_index].push_back(std::move(output));
+        }
     }
     scene.meshes.reserve(asset.meshes.size());
     for (auto& primitives : primitive_meshes) {
