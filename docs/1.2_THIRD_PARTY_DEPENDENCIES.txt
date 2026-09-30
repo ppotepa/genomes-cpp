@@ -264,10 +264,14 @@ Backend pruning is explicit per platform using current upstream options such as:
     DILIGENT_NO_METAL
     DILIGENT_NO_WEBGPU
 
-For the initial desktop Genomes target:
-    Windows keeps D3D12 + Vulkan.
-    Linux keeps Vulkan.
+For the current LT v1.0 Genomes target:
+    Windows keeps D3D12 as the production backend.
+    Linux/Vulkan is outside this work package and is not a supported result.
 Other backends are not built merely because upstream can build them.
+
+This LT v1.0 decision supersedes the earlier cross-platform backend intention
+in this historical chapter. The active production composition is validated by
+`cmake/GenomesDependencies.cmake` and `ADR_LIGHTWEIGHT_TOOLKIT.md`.
 
 Official Diligent documentation currently describes:
     CMake integration via add_subdirectory,
