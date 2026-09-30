@@ -20,6 +20,9 @@ add_library(genomes_geometry STATIC
 target_include_directories(genomes_geometry PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_geometry PUBLIC genomes::foundation)
+# All toolkit integrations remain private implementation details. Geometry's
+# public headers expose only neutral data and Result contracts, never upstream
+# MikkTSpace, earcut, meshoptimizer or Manifold types.
 if(GENOMES_ENABLE_EARCUT)
     target_link_libraries(genomes_geometry PRIVATE genomes::earcut)
     target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_EARCUT=1)
