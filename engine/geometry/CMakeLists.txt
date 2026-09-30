@@ -7,6 +7,7 @@ add_library(genomes_geometry STATIC
     src/MeshOperations.cpp
     src/MeshOptimizer.cpp
     src/GeometryRecipe.cpp
+    src/PolygonOps.cpp
     src/PrimitiveBuilder.cpp
     src/MeshRepair.cpp
     src/IndexOrderOptimizer.cpp
@@ -17,6 +18,12 @@ add_library(genomes_geometry STATIC
 target_include_directories(genomes_geometry PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_geometry PUBLIC genomes::foundation)
+if(GENOMES_ENABLE_EARCUT)
+    target_link_libraries(genomes_geometry PRIVATE genomes::earcut)
+    target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_EARCUT=1)
+else()
+    target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_EARCUT=0)
+endif()
 if(GENOMES_ENABLE_MESHOPTIMIZER)
     target_link_libraries(genomes_geometry PRIVATE genomes::meshoptimizer)
     target_compile_definitions(genomes_geometry PRIVATE GENOMES_HAS_MESHOPTIMIZER=1)

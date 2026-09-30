@@ -17,6 +17,8 @@ option(GENOMES_ENABLE_GPU_TESTS
     "Enable opt-in Diligent/GPU acceptance tests" OFF)
 option(GENOMES_BUILD_TOOLKIT_TOOLS
     "Build optional headless lightweight-toolkit tools" OFF)
+option(GENOMES_ENABLE_EARCUT
+    "Configure pinned earcut.hpp for polygon triangulation" ON)
 
 set(GENOMES_ENABLE_CUDA "AUTO" CACHE STRING "CUDA compute backend mode (AUTO, OFF, or ON)")
 set_property(CACHE GENOMES_ENABLE_CUDA PROPERTY STRINGS AUTO OFF ON)
