@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=77 DOING=0 CODE_READY=90 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 90/167 = 53.89%; remaining 46.11%
+TODO=76 DOING=0 CODE_READY=91 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 91/167 = 54.49%; remaining 45.51%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -98,6 +98,7 @@ LT-068 | CODE_READY | d26d08b | - | optional neutral AssetPresentation render ho
 LT-022 | CODE_READY | 12ca051 | - | application composition without threepp bootstrap plus asset probe source review | user app configure/build
 LT-076 | CODE_READY | eddc74d | - | renderer-owned orbit controller removal and call-site migration source review | user camera/infantry tests
 LT-087 | CODE_READY | a5889f4 | - | Diligent shared math camera matrix source review | user Diligent build and camera tests
+LT-077 | CODE_READY | d82c8c9 | - | neutral camera request conversion and renderer input removal source review | user camera/render tests
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -121,7 +122,6 @@ LT-021 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
-LT-077 | TODO | - | - | - | implement and review assigned path
 LT-081 | TODO | - | - | - | implement and review assigned path
 LT-082 | TODO | - | - | - | implement and review assigned path
 LT-083 | TODO | - | - | - | implement and review assigned path
