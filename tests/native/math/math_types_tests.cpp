@@ -10,6 +10,12 @@ int main() {
     Vec3 zero{}; assert(!normalize(zero));
     Quat q{}; assert(Quat::axisAngle({0,1,0},3.14159265358979323846F,q));
     const Vec3 turned=q.rotate(x); assert(std::fabs(turned.x+1)<1e-4F);
+    Quat scaled{0.0F, 2.0F, 0.0F, 0.0F};
+    const Vec3 scaled_turn=scaled.rotate(x); assert(std::fabs(scaled_turn.x+1)<1e-4F);
+    const Quat scaled_inverse=scaled.inverse();
+    const Quat identity=scaled*scaled_inverse;
+    assert(std::fabs(identity.w-1.0F)<1e-4F && std::fabs(identity.x)<1e-4F);
+    Quat invalid_angle{}; assert(!Quat::axisAngle({0,1,0}, NAN, invalid_angle));
     const Mat4 view=lookAtRH({0,0,2},{0,0,0},{0,1,0});
     const Mat4 projection=perspectiveD3D(1.0F,1.0F,0.1F,100.0F);
     assert(view.finite() && projection.finite() && view.inverse().has_value());
