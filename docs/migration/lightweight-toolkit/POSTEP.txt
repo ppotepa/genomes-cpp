@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=86 DOING=0 CODE_READY=81 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 81/167 = 48.50%; remaining 51.50%
+TODO=84 DOING=0 CODE_READY=83 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 83/167 = 49.70%; remaining 50.30%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -89,6 +89,8 @@ LT-133 | CODE_READY | 25d93d0 | - | dedicated tangent-space test source review |
 LT-078 | CODE_READY | 20a7bb9 | - | snapshot payload/metadata split source review | runtime tests and build
 LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime camera input source review | platform/runtime tests and build
 LT-080 | CODE_READY | ab4dd55 | - | SDL focus/cancel and framebuffer metrics source review | platform tests and build
+LT-007 | CODE_READY | 54ab30f | - | pinned toolkit submodule entries source review | dependency audit and clean configure
+LT-014 | CODE_READY | 54ab30f | - | isolated toolkit dependency helper source review | clean configure and full-toolkit build
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -103,9 +105,7 @@ LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-tool
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
 LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
-LT-007 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
-LT-014 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | TODO | - | - | - | implement and review assigned path
 LT-017 | TODO | - | - | - | implement and review assigned path
