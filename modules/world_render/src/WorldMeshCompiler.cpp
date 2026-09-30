@@ -21,8 +21,9 @@ void append_colored_box(render::RenderMesh& mesh,
                         foundation::Vec3 size,
                         foundation::Color color,
                         float rotation_y) {
-    const auto primitive=geometry::makeBox({size});
-    if(primitive.empty())return;
+    const auto primitive_result=geometry::makeBoxResult({size});
+    if(!primitive_result)return;
+    const auto& primitive=primitive_result.value();
     geometry::MeshData transformed;
     geometry::appendTransformed(transformed,primitive,{
         {base.x,base.y+size.y*0.5F,base.z},{1.0F,1.0F,1.0F},rotation_y});

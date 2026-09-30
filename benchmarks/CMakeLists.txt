@@ -55,6 +55,17 @@ genomes_set_project_warnings(genomes_bench_full_scene)
 
 add_executable(genomes_bench_toolkit toolkit_benchmark.cpp)
 target_link_libraries(genomes_bench_toolkit PRIVATE genomes::geometry)
+if(GENOMES_ENABLE_CSG)
+    target_compile_definitions(genomes_bench_toolkit PRIVATE GENOMES_BENCH_HAS_CSG=1)
+else()
+    target_compile_definitions(genomes_bench_toolkit PRIVATE GENOMES_BENCH_HAS_CSG=0)
+endif()
+if(GENOMES_ENABLE_ASSETS)
+    target_link_libraries(genomes_bench_toolkit PRIVATE genomes::assets)
+    target_compile_definitions(genomes_bench_toolkit PRIVATE GENOMES_BENCH_HAS_ASSETS=1)
+else()
+    target_compile_definitions(genomes_bench_toolkit PRIVATE GENOMES_BENCH_HAS_ASSETS=0)
+endif()
 genomes_set_project_warnings(genomes_bench_toolkit)
 
 add_executable(genomes_bench_field_atlas

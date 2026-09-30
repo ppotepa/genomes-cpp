@@ -2,6 +2,12 @@
 #include <genomes/geometry/PolygonOps.hpp>
 #include <genomes/geometry/PrimitiveBuilder.hpp>
 #include <genomes/geometry/TangentSpace.hpp>
+#if GENOMES_BENCH_HAS_CSG
+#include <genomes/geometry/SolidOps.hpp>
+#endif
+#if GENOMES_BENCH_HAS_ASSETS
+#include <genomes/assets/GltfImporter.hpp>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -35,7 +41,7 @@ double measure(Work&& work, std::size_t samples = 25U) {
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
     using namespace genomes;
     const auto box = geometry::makeBoxResult({{2.0F, 3.0F, 1.5F}});
     if (!box) {
@@ -59,5 +65,17 @@ int main() {
     std::cout << "optimize ";
     measure([&] { (void)geometry::optimizeMesh(box.value(), geometry::OptimizationPolicy::Static); });
     std::cout << '\n';
+#if GENOMES_BENCH_HAS_CSG
+    std::cout << "csg ";
+    measure([&] { (void)geometry::booleanSolid(box.value(), box.value(), geometry::SolidBoolean::Union); });
+    std::cout << '\n';
+#endif
+#if GENOMES_BENCH_HAS_ASSETS
+    if (argc > 1) {
+        std::cout << "gltf ";
+        measure([&] { (void)assets::importStaticGltf(argv[1]); });
+        std::cout << '\n';
+    }
+#endif
     return 0;
 }
