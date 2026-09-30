@@ -39,19 +39,57 @@ void reverseTriangleWinding(MeshData& mesh) noexcept {
 
 foundation::Result<MeshData, foundation::Error> combine(std::span<const MeshData> meshes) {
     MeshData result{};
+    if (meshes.empty())
+        return foundation::Result<MeshData, foundation::Error>::failure(
+            invalid("cannot combine an empty mesh span"));
+    bool has_tangents = false;
+    bool has_colors = false;
+    bool initialized_stream_policy = false;
     for (const auto& source : meshes) {
         if (!source.valid()) return foundation::Result<MeshData, foundation::Error>::failure(invalid("cannot combine invalid mesh"));
-        if (source.vertices.empty()) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::Unsupported,"stream-only combine requires an attribute adapter"});
-        if (result.vertices.size() > std::numeric_limits<std::uint32_t>::max()-source.vertices.size() || result.indices.size() > std::numeric_limits<std::uint32_t>::max()-source.indices.size()) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::OutOfRange,"combined mesh exceeds 32-bit limits"});
+        const std::size_t source_vertex_count = source.positions.empty() ? source.vertices.size() : source.positions.size();
+        const bool source_has_tangents = !source.tangents.empty();
+        const bool source_has_colors = !source.colors.empty();
+        if (!initialized_stream_policy) {
+            has_tangents = source_has_tangents;
+            has_colors = source_has_colors;
+            initialized_stream_policy = true;
+        } else if (source_has_tangents != has_tangents || source_has_colors != has_colors) {
+            return foundation::Result<MeshData, foundation::Error>::failure(
+                invalid("combined meshes must agree on optional stream presence"));
+        }
+        if (source_vertex_count > std::numeric_limits<std::uint32_t>::max() ||
+            source.indices.size() > std::numeric_limits<std::uint32_t>::max() ||
+            result.vertices.size() > std::numeric_limits<std::uint32_t>::max()-source_vertex_count ||
+            result.indices.size() > std::numeric_limits<std::uint32_t>::max()-source.indices.size())
+            return foundation::Result<MeshData, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange,"combined mesh exceeds 32-bit limits"});
         const auto vertex_base=static_cast<std::uint32_t>(result.vertices.size());
         const auto index_base=static_cast<std::uint32_t>(result.indices.size());
-        result.vertices.insert(result.vertices.end(),source.vertices.begin(),source.vertices.end());
+        result.vertices.reserve(result.vertices.size()+source_vertex_count);
+        for (std::size_t vertex_index = 0; vertex_index < source_vertex_count; ++vertex_index) {
+            if (!source.vertices.empty()) {
+                result.vertices.push_back(source.vertices[vertex_index]);
+            } else {
+                result.vertices.push_back({source.positions[vertex_index], source.normals[vertex_index],
+                                          source.uvs[vertex_index]});
+            }
+        }
+        if (has_tangents)
+            result.tangents.insert(result.tangents.end(), source.tangents.begin(), source.tangents.end());
+        if (has_colors)
+            result.colors.insert(result.colors.end(), source.colors.begin(), source.colors.end());
         result.indices.reserve(result.indices.size()+source.indices.size());
         for(const auto index:source.indices) result.indices.push_back(vertex_base+index);
-        for(const auto range:source.submeshes) result.submeshes.push_back({index_base+range.first_index,range.index_count,range.material_index});
+        if (source.submeshes.empty()) {
+            result.submeshes.push_back({index_base, static_cast<std::uint32_t>(source.indices.size()), 0U});
+        } else {
+            for(const auto range:source.submeshes)
+                result.submeshes.push_back({index_base+range.first_index,range.index_count,range.material_index});
+        }
     }
     if(result.vertices.empty()||result.indices.empty()) return foundation::Result<MeshData, foundation::Error>::failure(invalid("cannot combine empty mesh span"));
-    result.rebuildStreams(); if(result.submeshes.empty()) result.submeshes.push_back({0U,static_cast<std::uint32_t>(result.indices.size()),0U});
+    result.rebuildStreams();
     return foundation::Result<MeshData, foundation::Error>::success(std::move(result));
 }
 

@@ -22,6 +22,17 @@ int main() {
     attributed.tangents.assign(attributed.vertices.size(), {1.0F, 0.0F, 0.0F, 1.0F});
     attributed.colors.assign(attributed.vertices.size(), {0.2F, 0.4F, 0.6F, 1.0F});
     assert(attributed.valid());
+    const MeshData attributed_meshes[] = {attributed, attributed};
+    const auto combined_attributed = combine(std::span<const MeshData>(attributed_meshes, 2));
+    assert(combined_attributed && combined_attributed.value().vertices.size() == 48U);
+    assert(combined_attributed.value().tangents.size() == 48U);
+    assert(combined_attributed.value().colors.size() == 48U);
+    assert(combined_attributed.value().submeshes.size() == 2U);
+    auto stream_only = attributed;
+    stream_only.vertices.clear();
+    const MeshData stream_meshes[] = {stream_only, stream_only};
+    const auto combined_streams = combine(std::span<const MeshData>(stream_meshes, 2));
+    assert(combined_streams && combined_streams.value().vertices.size() == 48U);
     const auto moved = transform(attributed, genomes::math::Transform{{1,2,3},{},{2,3,4}});
     assert(moved && moved.value().bounds.center().x > box.bounds.center().x);
     assert(moved.value().tangents.size() == attributed.tangents.size());
