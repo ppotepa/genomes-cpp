@@ -152,8 +152,8 @@ LT-093 | CODE_READY | 8dfcfa4 | - | UI filtering precedes SceneDirector camera i
 LT-094 | CODE_READY | dd3b40a | - | Diligent-only game composition, explicit NativeD3D target and bin/genomes_game.exe output | user Windows/D3D12 build
 LT-095 | CODE_READY | 8dfcfa4 | - | Diligent factory and swapchain restricted to Windows/D3D12 | user Diligent source/build review
 LT-097 | CODE_READY | e47554d | - | typed procedural box Result API and compatibility wrapper | user Diligent build and runtime review
-LT-098 | CODE_READY | ef0a15b | - | procedural boxes route through geometry makeBoxResult and typed append facade | user Diligent build and runtime review
-LT-099 | CODE_READY | 2346838 | - | world mesh box path uses shared typed geometry Result | user world-render build/tests
+LT-098 | CODE_READY | 70d7769 | - | procedural boxes route through geometry makeBoxResult, rotation-aware transforms and typed append facade | user Diligent build and runtime review
+LT-099 | CODE_READY | 70d7769 | - | world mesh box path uses shared rotation-aware typed geometry Result with propagated failures | user world-render build/tests
 LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
 LT-105 | CODE_READY | 925ae13 | - | RunNative uses dev-debug/dev-release Diligent presets | user Release build
 LT-106 | CODE_READY | 925ae13 | - | run-diligent wrapper unified with dev presets and exit propagation | user Diligent build
