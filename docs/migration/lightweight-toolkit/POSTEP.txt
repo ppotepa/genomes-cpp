@@ -155,7 +155,7 @@ LT-097 | CODE_READY | e47554d | - | typed procedural box Result API and compatib
 LT-098 | CODE_READY | 70d7769 | - | procedural boxes route through geometry makeBoxResult, rotation-aware transforms and typed append facade | user Diligent build and runtime review
 LT-099 | CODE_READY | 70d7769 | - | world mesh box path uses shared rotation-aware typed geometry Result with propagated failures | user world-render build/tests
 LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
-LT-105 | CODE_READY | f4e7cb8 | - | RunNative uses dev-debug/dev-release Diligent presets and refreshes stale HEADLESS or incomplete Diligent caches | user Release build
+LT-105 | CODE_READY | cfc3423 | - | RunNative uses Diligent presets, refreshes stale caches and preflights default meshoptimizer/MikkTSpace/earcut checkout files | user Release build
 LT-106 | CODE_READY | fd69a53 | - | run-diligent wrapper unified with dev presets, reconfigure switch and exit propagation | user Diligent build
 LT-107 | CODE_READY | 925ae13 | - | run-diligent.cmd remains thin PowerShell wrapper | user script invocation
 LT-108 | CODE_READY | 925ae13 | - | removed run-threepp.ps1 | static guard
