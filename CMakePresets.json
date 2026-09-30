@@ -95,6 +95,7 @@
   ],
   "testPresets": [
     { "name": "dev-debug", "configurePreset": "dev-debug", "output": { "outputOnFailure": true } },
+    { "name": "dev-release", "configurePreset": "dev-release", "output": { "outputOnFailure": true } },
     { "name": "dev-diligent", "configurePreset": "dev-diligent", "output": { "outputOnFailure": true } },
     { "name": "release-diligent", "configurePreset": "release-diligent", "output": { "outputOnFailure": true } },
     { "name": "dev-diligent-meshopt", "configurePreset": "dev-diligent-meshopt", "output": { "outputOnFailure": true } },
