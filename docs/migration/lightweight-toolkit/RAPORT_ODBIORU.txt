@@ -7,9 +7,13 @@ Working tree: external/DiligentEngine had pre-existing local changes; preserved
 
 SOURCE REVIEW
 -------------
-Status: IN PROGRESS
+Status: IN PROGRESS (source slices only)
 Static guard: NOT RUN
 Dependency closure: NOT RUN
+Source slices: dec980a (math), 470a55b (mesh streams), b012a5e (builder),
+995f873 (typed box), 55ae5b2 (camera), c141009 (controller), 9223936 (guard)
+Current source progress: 32/167 = 19.16%
+Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
 --------------
