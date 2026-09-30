@@ -51,7 +51,15 @@ try {
 
     if (-not $NoBuild) {
         $cache = Join-Path $buildDirectory 'CMakeCache.txt'
-        if ($Reconfigure -or -not (Test-Path $cache)) {
+        $cacheMatchesDiligentPreset = $false
+        if (Test-Path $cache) {
+            $cacheContents = Get-Content -LiteralPath $cache -Raw
+            $cacheMatchesDiligentPreset =
+                $cacheContents -match '(?m)^GENOMES_RENDER_BACKEND:STRING=DILIGENT$' -and
+                $cacheContents -match '(?m)^GENOMES_ENABLE_DILIGENT:BOOL=ON$' -and
+                $cacheContents -match '(?m)^GENOMES_ENABLE_SDL:BOOL=ON$'
+        }
+        if ($Reconfigure -or -not $cacheMatchesDiligentPreset) {
             Write-Host "Configuring Genomes Diligent/D3D12 ($Configuration) with preset $preset"
             Invoke-NativeCommand -FilePath 'cmake' -Arguments @('--preset', $preset)
         }
