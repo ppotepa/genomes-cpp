@@ -79,7 +79,7 @@ LT-067 | CODE_READY | 9298d50 | - | neutral asset presentation implementation so
 LT-010 | CODE_READY | 54ab30f | - | pinned MikkTSpace submodule source review | geometry configure/build
 LT-048 | CODE_READY | 54ab30f | - | tangent-space API source review | geometry tests and build
 LT-049 | CODE_READY | 54ab30f | - | MikkTSpace adapter source review | tangent tests and build
-LT-008 | CODE_READY | 54ab30f | - | dependency role/pin documentation source review | dependency audit
+LT-008 | CODE_READY | 9fb59fd | - | dependency role/pin and DiligentTools initialization documentation source review | dependency audit
 LT-038 | CODE_READY | 1a718fd | - | profile/sweep contract source review | geometry tests and build
 LT-039 | CODE_READY | 1a718fd | - | parallel-transport sweep source review | geometry tests and build
 LT-040 | CODE_READY | 1a718fd | - | parametric surface contract source review | geometry tests and build
