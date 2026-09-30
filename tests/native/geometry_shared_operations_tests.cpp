@@ -46,5 +46,7 @@ int main() {
     assert(repaired.value().groups.size()==1U);
     assert(repaired.value().groups.front().count==3U);
     assert(repaired.value().stats.removed_degenerate_triangles==1U);
+    const auto repaired_mesh=repairMesh(box);
+    assert(repaired_mesh && repaired_mesh.value().mesh.valid());
     return 0;
 }

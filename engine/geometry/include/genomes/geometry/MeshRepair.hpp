@@ -3,6 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Types.hpp>
+#include <genomes/geometry/MeshData.hpp>
 
 #include <cstdint>
 #include <span>
@@ -28,11 +29,15 @@ struct MeshRepairResult final {
     std::vector<TriangleGroup> groups;
     MeshRepairStats stats{};
 };
+struct MeshRepairMeshResult final { MeshData mesh{}; MeshRepairStats stats{}; };
 
 [[nodiscard]] foundation::Result<MeshRepairResult, foundation::Error> repairTriangleMesh(
     std::span<const foundation::Vec3> positions,
     std::span<const foundation::Vec3> source_normals,
     std::span<const std::uint32_t> source_indices,
     std::span<const TriangleGroup> source_groups = {});
+
+[[nodiscard]] foundation::Result<MeshRepairMeshResult, foundation::Error>
+repairMesh(const MeshData&);
 
 } // namespace genomes::geometry
