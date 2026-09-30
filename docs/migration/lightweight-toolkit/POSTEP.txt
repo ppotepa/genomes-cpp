@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=14 DOING=0 CODE_READY=153 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 153/167 = 91.62%; remaining 8.38%
+TODO=12 DOING=0 CODE_READY=155 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 155/167 = 92.81%; remaining 7.19%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -147,10 +147,10 @@ LT-088 | CODE_READY | 85f15ae | - | Diligent scene pass consumes resolved matric
 LT-089 | CODE_READY | 85f15ae | - | Diligent UI uses framebuffer viewport and explicit scissor | user Diligent capture
 LT-090 | CODE_READY | 10f6c0c | - | PresentationPipeline preserves final camera and revision source review | user presentation CTest
 LT-091 | CODE_READY | d72fe6c | - | Battlefield stores and publishes neutral CameraRequest source review | user runtime/Diligent build
-LT-092 | TODO | - | - | - | implement and review assigned path
-LT-093 | TODO | - | - | - | implement and review assigned path
+LT-092 | CODE_READY | 8dfcfa4 | - | GameApplication ownership comment; SceneDirector owns camera controller | user Diligent source/build review
+LT-093 | CODE_READY | 8dfcfa4 | - | UI filtering precedes SceneDirector camera input routing | user Diligent source/build review
 LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit NativeD3D target source review | user Windows/D3D12 build
-LT-095 | TODO | - | - | - | implement and review assigned path
+LT-095 | CODE_READY | 8dfcfa4 | - | Diligent factory and swapchain restricted to Windows/D3D12 | user Diligent source/build review
 LT-097 | TODO | - | - | - | implement and review assigned path
 LT-098 | TODO | - | - | - | implement and review assigned path
 LT-099 | TODO | - | - | - | implement and review assigned path
