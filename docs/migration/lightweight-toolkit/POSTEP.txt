@@ -50,9 +50,9 @@ LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests a
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
 LT-073 | CODE_READY | 55ae5b2 | - | projection/picking implementation review | camera tests and build
 LT-136 | CODE_READY | 55ae5b2 | - | camera regression test source review | user Debug/Release CTest
-LT-074 | CODE_READY | 99c4ee2 | - | camera controller contract carries request mode without renderer ownership | controller tests and build
-LT-075 | CODE_READY | 99c4ee2 | - | orbit/fly/RTS mode selection and runtime input mapping review | controller tests and build
-LT-137 | CODE_READY | 99c4ee2 | - | controller mode/reset regression test source review | user Debug/Release CTest
+LT-074 | CODE_READY | ed351d6 | - | camera controller contract carries request mode and scene-target rebasing without renderer ownership | controller tests and build
+LT-075 | CODE_READY | ed351d6 | - | orbit/fly/RTS mode selection and runtime input mapping preserve scene extraction pose | controller tests and build
+LT-137 | CODE_READY | ed351d6 | - | controller mode/reset/rebase regression test source review | user Debug/Release CTest
 LT-154 | CODE_READY | 9223936 | - | static guard source review | user guard execution after S08
 LT-166 | CODE_READY | ce1d3a2 | - | acceptance command document and executable paths source review | user-run command evidence
 LT-046 | CODE_READY | e99293d | - | mesh operations API source review | geometry tests and build
@@ -101,7 +101,7 @@ LT-087 | CODE_READY | a5889f4 | - | Diligent shared math camera matrix source re
 LT-077 | CODE_READY | 99c4ee2 | - | neutral camera request conversion includes mode and renderer input remains absent | user camera/render tests
 LT-081 | CODE_READY | 9e0d751 | - | SceneContext camera request publication and scene-owned snapshot boundary source review | user runtime/camera tests
 LT-082 | CODE_READY | df8798a | - | SceneDirector camera owner, scene epoch and final camera source review | user runtime/camera tests
-LT-083 | CODE_READY | 99c4ee2 | - | UI/input, mode-aware camera control, scene extraction, resolve, timing and publish ordering source review | user runtime tests
+LT-083 | CODE_READY | ed351d6 | - | UI/input, mode-aware camera control, scene extraction, pose preservation, resolve, timing and publish ordering source review | user runtime tests
 LT-155 | CODE_READY | d760db5 | - | historical threepp START notice source review | documentation review
 LT-156 | CODE_READY | d760db5 | - | historical threepp command notice source review | documentation review
 LT-157 | CODE_READY | d760db5 | - | README lightweight toolkit and Diligent/D3D12 guidance source review | documentation review
