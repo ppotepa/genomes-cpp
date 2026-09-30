@@ -44,16 +44,17 @@ If optional preparation rejects input it logs the reason and returns the current
 reference-order model, not stale geometry or a half-written buffer. It is not
 cached as a successfully optimized mesh.
 
-## Explicit limits
+## Current lightweight-toolkit boundary
 
-This slice does not restore the entire Diligent adapter or switch the existing
-dev-debug/dev-release presets, which still explicitly select THREEPP_GL. The
-read source still contains a dynamic-buffer persistence defect in Diligent's
-world pass. Reactivation, material/camera/UI/capture integration and final
-preset cutover require a separate coherent renderer slice and user acceptance.
+The renderer migration is now represented by `ADR_LIGHTWEIGHT_TOOLKIT.md`.
+`dev-debug` and `dev-release` select the Diligent/D3D12 profile; `HEADLESS` is
+the CPU-only profile. The production application has no threepp provider or GL
+context path. This ADR still governs the infantry domain: reference geometry,
+rigs, morphs, fixtures, tolerances, semantic vertex numbering and generator
+outputs remain unchanged.
 
-The existing threepp build remains broad. Separating a target is not proof of
-an OpenGL/GLFW-free link closure. No speed/FPS or visual-parity claim is made.
+Source readiness is not runtime acceptance. Configure, build, CTest, benchmark,
+shader, GPU and visual evidence must be supplied by the user at an exact SHA.
 
 ## References
 

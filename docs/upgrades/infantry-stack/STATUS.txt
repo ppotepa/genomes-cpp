@@ -17,6 +17,18 @@ Etapy nie sa rowne czasowo; nie sa pomiarem godzin pozostalej pracy.
 CODE_READY oznacza przygotowany i przejrzany kod, nie potwierdzenie jego wykonania.
 Agent nie uruchamial CMake, kompilatora C++, shader compilera, CTest ani aplikacji/GPU.
 
+BIEŻĄCY LIGHTWEIGHT TOOLKIT / STAN ŹRÓDŁOWY
+--------------------------------------------
+Normatywny plan to `docs/migration/lightweight-toolkit/POSTEP.txt`: 167/167
+ścieżek ma status CODE_READY, a 0/167 ma status VERIFIED. Produkcyjny profil
+to `GENOMES_RENDER_BACKEND=DILIGENT` na Windows/D3D12; `HEADLESS` nie wymaga
+SDK graficznego. Opcjonalne assets/CSG są wyłączone w domyślnej grze.
+Źródłowy static guard przechodzi na ostatnim SHA; configure/build/CTest,
+benchmarki, shader compilation, GPU i visual acceptance pozostają NOT RUN.
+
+Poniższy opis A-E zachowuje historię wcześniejszego pakietu UPG-02. Nie jest
+aktywną instrukcją konfiguracji ani alternatywną ścieżką rendererową.
+
 UPG-02 / ZAMKNIETE ETAPY ZRODLOWE
 --------------------------------
 A | CODE_READY_WAIT_USER | Jedna aktywna implementacja Diligent, trwale VB/IB,
@@ -31,7 +43,7 @@ C | CODE_READY_WAIT_USER | Natywny camera::CameraController bez threepp, wspolny
 D | CODE_READY_WAIT_USER | Kolejkowany PNG przed Present, Diligent staging readback,
     zapis wierszy wg row pitch, enkoder DiligentTools, JSON z rewizjami/kamera,
     brak nadpisywania dowodow, 11 deterministycznych capture'ow w skrypcie.
-E | CODE_READY_WAIT_USER | Presety dev-diligent/release-diligent/hybrid/headless,
+E | CODE_READY_WAIT_USER | Historyczne presety Diligent/headless,
     run-diligent.ps1/.cmd, testy kontraktow CPU i zrodel, instrukcja odbioru,
     jeden kompletny commit zamiast czesciowego podmieniania backendu na main.
 
@@ -42,18 +54,14 @@ Nie uruchamiaj starego instalatora na tej rewizji.
 Jesli stary ZIP zostal juz lokalnie zastosowany: najpierw zachowaj wlasne zmiany
 w osobnym commicie/branchu i porownaj; nie stosuj reset --hard ani slepego nadpisania.
 
-CO JEST AKTYWNE
----------------
+HISTORYCZNY OPIS UPG-02 (NIEAKTYWNY)
+------------------------------------
 - Nowa implementacja jest pod tym samym targetem genomes::render_diligent.
 - Diligent uzywa istniejacego neutralnego PresentationSnapshot i obecnych modeli.
-- dev-diligent wybiera DILIGENT_LEGACY (stara nazwa kompatybilnosci), ale buduje
-  NOWA implementacje; threepp i jego GL renderer sa w tym presecie OFF.
-- dev-diligent-hybrid dodatkowo wlacza obecny CPU provider threepp i meshoptimizer,
-  ale GENOMES_ENABLE_THREEPP_RENDERER pozostaje OFF.
-- Biezacy upstream threepp nadal ma szeroki zestaw zaleznosci; nie deklarujemy
-  usuniecia OpenGL/GLFW z upstream ani generowania calej postaci przez threepp.
-- Stare dev-debug/dev-release/rundev/run-release pozostaja na sciezce porownawczej GL.
-  Po odbiorze nowego Diligent mozna bezpiecznie promowac nowe presety na domyslne.
+- Historyczny pakiet używał wcześniejszego profilu Diligent i porównawczej
+  ścieżki GL; te nazwy i skrypty nie obowiązują bieżącego checkoutu.
+- Bieżący checkout nie zawiera providera threepp ani renderera GL; nie używa się
+  starego profilu hybrydowego ani jego zależności.
 - Domena infantry, JS fixture'y, ECS, jobs, genome i numeracja wierzcholkow bez zmian.
 
 TELEMETRIA: DWA ROZNE KOSZTY
@@ -82,12 +90,13 @@ OGRANICZENIA, KTORYCH TEN PROCENT NIE UKRYWA
   cienia. Parametry wymagaja wizualnego odbioru.
 - RmlUi: podstawowe indexed geometry, tekstury, scissor, alfa. Zaawansowane maski,
   filtry i warstwy RmlUi nie sa nowa funkcja tego pakietu.
-- Platformy tego adaptera: Win32/D3D12 i Linux/X11/Vulkan; nie deklarujemy Wayland,
-  macOS ani automatycznego odtwarzania utraconego urzadzenia.
+- Platforma odbioru tego planu: Windows/Win32/D3D12. Linux/Vulkan nie jest
+  bramką ani deklarowanym wynikiem.
 
 NASTEPNY KROK
 -------------
-Uzytkownik wykonuje RESTORATION_ACCEPTANCE.txt i przekazuje tested SHA, logi,
+Użytkownik wykonuje bieżące komendy z `docs/migration/lightweight-toolkit/KOMENDY.txt`
+i przekazuje tested SHA, logi,
 PNG/JSON oraz opis usterek. Ewentualne poprawki realizujemy w jednej konkretnej
 warstwie; nie wracamy do zmiany calego stacku ani do nowej migracji.
 Do czasu odbioru pozostaje otwarta promocja Diligent na domyslna sciezke.

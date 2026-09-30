@@ -36,7 +36,7 @@ DILIGENT / D3D12 (Windows)
 cmake --preset dev-debug
 cmake --build --preset dev-debug
 ctest --preset dev-debug --output-on-failure
-.\build\dev-debug\apps\game\genomes_game.exe --unit-lab
+.\build\dev-debug\bin\genomes_game.exe --unit-lab
 
 cmake --preset dev-release
 cmake --build --preset dev-release
