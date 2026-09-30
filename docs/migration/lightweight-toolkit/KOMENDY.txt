@@ -1,0 +1,33 @@
+LT v1.0 - KOMENDY ODBIORU (uruchamia użytkownik)
+=================================================
+
+Nie uruchamiaj tych komend jako substytutu dowodu w source review. Każdy wynik
+ma być zapisany z dokładnym `git rev-parse HEAD`; lokalne zmiany DiligentEngine
+muszą pozostać zachowane.
+
+Core headless:
+  cmake --preset headless-core-debug
+  cmake --build --preset headless-core-debug
+  ctest --preset headless-core-debug --output-on-failure
+  cmake --preset headless-core-release
+  cmake --build --preset headless-core-release
+  ctest --preset headless-core-release --output-on-failure
+
+Full toolkit (po podłączeniu opt-in assets/CSG):
+  cmake --preset toolkit-full-debug
+  cmake --build --preset toolkit-full-debug
+  ctest --preset toolkit-full-debug --output-on-failure
+
+Diligent Windows/D3D12:
+  cmake --preset dev-diligent
+  cmake --build --preset dev-diligent
+  ctest --preset dev-diligent --output-on-failure
+  cmake --preset release-diligent
+  cmake --build --preset release-diligent
+  ctest --preset release-diligent --output-on-failure
+
+Static guard (expected to fail before S08 removes the old closure):
+  python tools/migration/check_lightweight_toolkit.py --root . --build build/dev-diligent
+
+GPU/capture acceptance remains user-run. A queued capture is not a pass without
+PNG, metadata, stdout/stderr, exit code, and visual review.

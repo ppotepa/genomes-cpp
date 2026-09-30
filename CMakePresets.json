@@ -74,6 +74,23 @@
       "name": "headless-infantry-meshopt", "inherits": "headless-infantry-upgrade",
       "binaryDir": "${sourceDir}/build/headless-infantry-meshopt",
       "cacheVariables": { "GENOMES_ENABLE_MESHOPTIMIZER": "ON" }
+    },
+    {
+      "name": "headless-core-debug", "displayName": "Lightweight toolkit headless core Debug",
+      "generator": "Ninja", "binaryDir": "${sourceDir}/build/headless-core-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug", "GENOMES_RENDER_BACKEND": "HEADLESS",
+        "GENOMES_ENABLE_DILIGENT": "OFF", "GENOMES_ENABLE_SDL": "OFF",
+        "GENOMES_ENABLE_RMLUI": "OFF", "GENOMES_ENABLE_THREEPP": "OFF",
+        "GENOMES_ENABLE_THREEPP_RENDERER": "OFF", "GENOMES_ENABLE_ASSETS": "OFF",
+        "GENOMES_ENABLE_CSG": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
+        "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"
+      }
+    },
+    {
+      "name": "headless-core-release", "inherits": "headless-core-debug",
+      "binaryDir": "${sourceDir}/build/headless-core-release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     }
   ],
   "buildPresets": [
@@ -86,7 +103,9 @@
     { "name": "release-diligent", "configurePreset": "release-diligent" },
     { "name": "dev-diligent-hybrid", "configurePreset": "dev-diligent-hybrid" },
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade" },
-    { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt" }
+    { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt" },
+    { "name": "headless-core-debug", "configurePreset": "headless-core-debug" },
+    { "name": "headless-core-release", "configurePreset": "headless-core-release" }
   ],
   "testPresets": [
     { "name": "dev-debug", "configurePreset": "dev-debug", "output": { "outputOnFailure": true } },
@@ -97,6 +116,8 @@
     { "name": "release-diligent", "configurePreset": "release-diligent", "output": { "outputOnFailure": true } },
     { "name": "dev-diligent-hybrid", "configurePreset": "dev-diligent-hybrid", "output": { "outputOnFailure": true } },
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade", "output": { "outputOnFailure": true } },
-    { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt", "output": { "outputOnFailure": true } }
+    { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt", "output": { "outputOnFailure": true } },
+    { "name": "headless-core-debug", "configurePreset": "headless-core-debug", "output": { "outputOnFailure": true } },
+    { "name": "headless-core-release", "configurePreset": "headless-core-release", "output": { "outputOnFailure": true } }
   ]
 }

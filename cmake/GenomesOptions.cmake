@@ -9,6 +9,14 @@ option(GENOMES_ENABLE_JS_REFERENCE_PARITY
     "Regenerate infantry parity fixtures with pinned JavaScript (developer-only)" OFF)
 option(GENOMES_ENABLE_MESHOPTIMIZER
     "Prepare render index order with pinned CPU-only meshoptimizer" OFF)
+option(GENOMES_ENABLE_ASSETS
+    "Build the optional backend-neutral static glTF importer" OFF)
+option(GENOMES_ENABLE_CSG
+    "Build the optional Manifold-backed solid operations" OFF)
+option(GENOMES_ENABLE_GPU_TESTS
+    "Enable opt-in Diligent/GPU acceptance tests" OFF)
+option(GENOMES_BUILD_TOOLKIT_TOOLS
+    "Build optional headless lightweight-toolkit tools" OFF)
 
 set(GENOMES_ENABLE_CUDA "AUTO" CACHE STRING "CUDA compute backend mode (AUTO, OFF, or ON)")
 set_property(CACHE GENOMES_ENABLE_CUDA PROPERTY STRINGS AUTO OFF ON)
