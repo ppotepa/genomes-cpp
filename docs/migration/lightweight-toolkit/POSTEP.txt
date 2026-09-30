@@ -40,7 +40,7 @@ LT-030 | CODE_READY | dec980a | - | foundation alias review | ABI test evidence
 LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evidence
 LT-129 | CODE_READY | dec980a | - | math regression test source review | user Debug/Release CTest
 LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geometry tests and build
-LT-033 | CODE_READY | 470a55b | - | MeshData validation/remap review | geometry tests and build
+LT-033 | CODE_READY | 6e01fac | - | MeshData validation preserves optional streams and enforces finite/format invariants | geometry tests and build
 LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build
 LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
 LT-036 | CODE_READY | 995f873 | - | primitive result contract source review | geometry tests and build
@@ -114,7 +114,7 @@ LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source re
 LT-164 | CODE_READY | ce1d3a2 | - | infantry status updated for current toolkit profile and preserved parity | documentation review
 LT-165 | CODE_READY | ce1d3a2 | - | restoration acceptance commands aligned with Diligent/D3D12 and NOT RUN evidence | user acceptance
 LT-167 | CODE_READY | 9fea04c | - | Diligent-only capture preset/executable path plus run ID stdout/stderr/exit/manifest source review | user GPU capture
-LT-130 | CODE_READY | c51a2b1 | - | MeshData SoA/submesh/index/transform regression test source review | user geometry CTest
+LT-130 | CODE_READY | 6e01fac | - | MeshData SoA/submesh/index/transform and optional-stream regression test source review | user geometry CTest
 LT-134 | CODE_READY | b74835f | - | optional CSG union/difference/intersection test source review | user full-toolkit CTest
 LT-138 | CODE_READY | 2f83fb5 | - | primitive/optimize/tangent/RenderMesh/snapshot integration test source review | user headless/full CTest
 LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
@@ -125,8 +125,8 @@ LT-103 | CODE_READY | 48ee95d | - | MainMenu snapshot ownership source review | 
 LT-104 | CODE_READY | 48ee95d | - | WorldConfig snapshot ownership source review | runtime tests and build
 LT-149 | CODE_READY | 20a7bb9 | - | presentation metadata regression source review | user Debug/Release CTest
 LT-042 | CODE_READY | e635ee4 | - | mesh validation report contract source review | geometry tests and build
-LT-043 | CODE_READY | e635ee4 | - | mesh validation implementation source review | geometry tests and build
-LT-143 | CODE_READY | e635ee4 | - | expanded mesh validation regression source review | user Debug/Release CTest
+LT-043 | CODE_READY | 6e01fac | - | mesh validation reports optional-stream NaN/Inf and bounds failures | geometry tests and build
+LT-143 | CODE_READY | 6e01fac | - | expanded mesh validation regression covers tangent/color NaN/Inf and stream mismatch | user Debug/Release CTest
 LT-044 | CODE_READY | fcdb996 | - | mesh repair contract source review | geometry tests and build
 LT-045 | CODE_READY | fcdb996 | - | stream-preserving mesh repair source review | geometry tests and build
 LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
