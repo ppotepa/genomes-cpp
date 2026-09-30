@@ -19,6 +19,17 @@ namespace {
 [[nodiscard]] bool finite(foundation::Vec3 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
 }
+[[nodiscard]] bool finite(foundation::Vec2 v) noexcept {
+    return std::isfinite(v.x) && std::isfinite(v.y);
+}
+[[nodiscard]] bool finite(math::Vec4 v) noexcept {
+    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z) &&
+           std::isfinite(v.w);
+}
+[[nodiscard]] bool finite(foundation::Color c) noexcept {
+    return std::isfinite(c.r) && std::isfinite(c.g) && std::isfinite(c.b) &&
+           std::isfinite(c.a);
+}
 } // namespace
 
 MeshValidationReport validateMesh(std::span<const foundation::Vec3> positions,
@@ -80,9 +91,23 @@ MeshValidationReport validateMesh(const MeshData& mesh,float area_epsilon,float 
         positions=legacy_positions; normals=legacy_normals;
     }
     auto report=validateMesh(positions,normals,mesh.indices,area_epsilon,winding_epsilon);
-    if(!mesh.positions.empty()&&(mesh.normals.size()!=mesh.positions.size()||mesh.uvs.size()!=mesh.positions.size()||(!mesh.tangents.empty()&&mesh.tangents.size()!=mesh.positions.size())||(!mesh.colors.empty()&&mesh.colors.size()!=mesh.positions.size())))++report.stream_mismatch_count;
+    const std::size_t vertex_count = positions.size();
+    if((!mesh.positions.empty() && !mesh.vertices.empty() && mesh.vertices.size()!=vertex_count) ||
+       (!mesh.positions.empty() &&
+       (mesh.normals.size()!=vertex_count || mesh.uvs.size()!=vertex_count))
+       )
+        ++report.stream_mismatch_count;
+    if((!mesh.tangents.empty() && mesh.tangents.size()!=vertex_count) ||
+       (!mesh.colors.empty() && mesh.colors.size()!=vertex_count))
+        ++report.stream_mismatch_count;
+    for (const auto uv : mesh.uvs) if (!finite(uv)) ++report.nonfinite_vertex_count;
+    for (const auto tangent : mesh.tangents) if (!finite(tangent)) ++report.nonfinite_vertex_count;
+    for (const auto color : mesh.colors) if (!finite(color)) ++report.nonfinite_vertex_count;
     for(const auto& range:mesh.submeshes)if(range.first_index%3U!=0U||range.index_count%3U!=0U||static_cast<std::size_t>(range.first_index)+range.index_count>mesh.indices.size())++report.invalid_submesh_count;
-    if(!mesh.bounds.empty){math::Aabb recomputed;for(const auto position:positions)recomputed.include(position);const float e=1.0e-4F;if(recomputed.empty||std::fabs(recomputed.min.x-mesh.bounds.min.x)>e||std::fabs(recomputed.min.y-mesh.bounds.min.y)>e||std::fabs(recomputed.min.z-mesh.bounds.min.z)>e||std::fabs(recomputed.max.x-mesh.bounds.max.x)>e||std::fabs(recomputed.max.y-mesh.bounds.max.y)>e||std::fabs(recomputed.max.z-mesh.bounds.max.z)>e)++report.bounds_mismatch_count;}
+    if(!mesh.bounds.empty){
+        if(!finite(mesh.bounds.min)||!finite(mesh.bounds.max))++report.bounds_mismatch_count;
+        math::Aabb recomputed;for(const auto position:positions)recomputed.include(position);const float e=1.0e-4F;if(recomputed.empty||std::fabs(recomputed.min.x-mesh.bounds.min.x)>e||std::fabs(recomputed.min.y-mesh.bounds.min.y)>e||std::fabs(recomputed.min.z-mesh.bounds.min.z)>e||std::fabs(recomputed.max.x-mesh.bounds.max.x)>e||std::fabs(recomputed.max.y-mesh.bounds.max.y)>e||std::fabs(recomputed.max.z-mesh.bounds.max.z)>e)++report.bounds_mismatch_count;
+    }
     return report;
 }
 
