@@ -7,7 +7,7 @@
       "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "GENOMES_RENDER_BACKEND": "DILIGENT_LEGACY", "GENOMES_ENABLE_SDL": "ON",
+        "GENOMES_RENDER_BACKEND": "DILIGENT", "GENOMES_ENABLE_SDL": "ON",
         "GENOMES_ENABLE_DILIGENT": "ON", "GENOMES_ENABLE_RMLUI": "ON",
         "GENOMES_ENABLE_CUDA": "OFF", "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "ON"
       }
@@ -22,7 +22,7 @@
       "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev-diligent",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug", "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "GENOMES_RENDER_BACKEND": "DILIGENT_LEGACY",
+        "GENOMES_RENDER_BACKEND": "DILIGENT",
         "GENOMES_ENABLE_DILIGENT": "ON", "GENOMES_ENABLE_SDL": "ON", "GENOMES_ENABLE_RMLUI": "ON",
         "GENOMES_ENABLE_MESHOPTIMIZER": "OFF", "GENOMES_ENABLE_CUDA": "OFF",
         "GENOMES_BUILD_TESTS": "ON", "GENOMES_BUILD_BENCHMARKS": "OFF"

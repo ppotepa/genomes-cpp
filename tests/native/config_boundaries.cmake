@@ -15,7 +15,7 @@ endif()
 if(NOT _options MATCHES "HEADLESS")
     message(FATAL_ERROR "HEADLESS renderer profile is missing")
 endif()
-if(NOT _options MATCHES "DILIGENT_LEGACY")
+if(NOT _options MATCHES "DILIGENT")
     message(FATAL_ERROR "Diligent renderer profile is missing")
 endif()
 

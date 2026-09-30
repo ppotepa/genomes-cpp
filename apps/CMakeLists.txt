@@ -10,6 +10,6 @@ if(GENOMES_ENABLE_DILIGENT)
     add_subdirectory(render_smoke)
 endif()
 
-if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY")
+if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT")
     add_subdirectory(game)
 endif()

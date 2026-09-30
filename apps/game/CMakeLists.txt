@@ -5,7 +5,7 @@ genomes::runtime
 genomes::simulation
 genomes::platform)
 
-if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY")
+if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT")
 target_link_libraries(genomes_game PRIVATE
     genomes::render_diligent
     genomes::camera
