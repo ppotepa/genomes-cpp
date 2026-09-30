@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=5 DOING=0 CODE_READY=162 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 162/167 = 97.01%; remaining 2.99%
+TODO=2 DOING=0 CODE_READY=165 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 165/167 = 98.80%; remaining 1.20%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -139,9 +139,9 @@ LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration h
 LT-018 | CODE_READY | 1500e1c | - | renderer options restricted to HEADLESS/DILIGENT_LEGACY source review | user configure boundary test
 LT-019 | CODE_READY | 1500e1c | - | root CMake toolkit/dependency composition without active threepp source review | user configure/build
 LT-021 | CODE_READY | e47554d | - | engine target order documented by header dependency DAG | user headless configure/build
-LT-052 | TODO | - | - | - | implement and review assigned path
-LT-053 | TODO | - | - | - | implement and review assigned path
-LT-056 | TODO | - | - | - | implement and review assigned path
+LT-052 | CODE_READY | 9ae96d1 | - | legacy index optimizer API delegates to MeshOptimizer policy core | user geometry CTest with meshoptimizer OFF/ON
+LT-053 | CODE_READY | 9ae96d1 | - | index optimizer implementation deduplicated behind deterministic policy core | user geometry CTest with meshoptimizer OFF/ON
+LT-056 | CODE_READY | 43f99c7 | - | geometry target keeps toolkit dependencies private and optional | user headless/full-toolkit configure/build
 LT-084 | CODE_READY | 85f15ae | - | Diligent boundary requires ResolvedCamera and rejects missing final camera | user Diligent build
 LT-088 | CODE_READY | 85f15ae | - | Diligent scene pass consumes resolved matrices and pixel viewport | user Diligent capture
 LT-089 | CODE_READY | 85f15ae | - | Diligent UI uses framebuffer viewport and explicit scissor | user Diligent capture
