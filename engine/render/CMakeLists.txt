@@ -8,6 +8,11 @@ target_include_directories(genomes_render_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/core/include")
 target_link_libraries(genomes_render_core PUBLIC genomes::foundation genomes::geometry genomes::camera genomes::ui)
+if(GENOMES_ENABLE_ASSETS)
+    # AssetPresentation is neutral CPU data; fastgltf remains private to the
+    # optional assets target and never becomes part of render-core's API.
+    target_link_libraries(genomes_render_core PUBLIC genomes::assets)
+endif()
 target_compile_features(genomes_render_core PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_render_core)
 
