@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=88 DOING=0 CODE_READY=79 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 79/167 = 47.31%; remaining 52.69%
+TODO=87 DOING=0 CODE_READY=80 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 80/167 = 47.90%; remaining 52.10%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -87,6 +87,7 @@ LT-041 | CODE_READY | 1a718fd | - | deterministic parametric tessellation source
 LT-131 | CODE_READY | 1a718fd | - | primitive/sweep/parametric test source review | user Debug/Release CTest
 LT-133 | CODE_READY | 25d93d0 | - | dedicated tangent-space test source review | user Debug/Release CTest
 LT-078 | CODE_READY | 20a7bb9 | - | snapshot payload/metadata split source review | runtime tests and build
+LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime camera input source review | platform/runtime tests and build
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
 LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
@@ -118,7 +119,6 @@ LT-056 | TODO | - | - | - | implement and review assigned path
 LT-068 | TODO | - | - | - | implement and review assigned path
 LT-076 | TODO | - | - | - | implement and review assigned path
 LT-077 | TODO | - | - | - | implement and review assigned path
-LT-079 | TODO | - | - | - | implement and review assigned path
 LT-080 | TODO | - | - | - | implement and review assigned path
 LT-081 | TODO | - | - | - | implement and review assigned path
 LT-082 | TODO | - | - | - | implement and review assigned path
