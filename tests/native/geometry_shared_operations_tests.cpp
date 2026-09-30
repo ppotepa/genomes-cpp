@@ -9,6 +9,9 @@ int main() {
     assert(box.valid());
     assert(box.vertices.size()==24U);
     assert(box.indices.size()==36U);
+    const auto invalid = makeBoxResult({{-1.0F, 1.0F, 1.0F}});
+    assert(!invalid && invalid.error().code == genomes::foundation::ErrorCode::InvalidArgument);
+    assert(box.positions.size() == box.vertices.size() && !box.bounds.empty);
 
     MeshData transformed;
     appendTransformed(transformed,box,{{2.0F,3.0F,4.0F},{1.0F,2.0F,1.0F},0.5F});

@@ -2,15 +2,17 @@
 
 #include <array>
 #include <cmath>
+#include <utility>
 
 namespace genomes::geometry {
 
-MeshData makeBox(const BoxSpec& spec) {
+foundation::Result<MeshData, foundation::Error> makeBoxResult(const BoxSpec& spec) {
     MeshData mesh;
     if (!std::isfinite(spec.size.x) || !std::isfinite(spec.size.y) ||
         !std::isfinite(spec.size.z) || spec.size.x <= 0.0F ||
         spec.size.y <= 0.0F || spec.size.z <= 0.0F) {
-        return mesh;
+        return foundation::Result<MeshData, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "box dimensions must be finite and positive"});
     }
     const foundation::Vec3 h{spec.size.x*0.5F, spec.size.y*0.5F, spec.size.z*0.5F};
     const std::array<foundation::Vec3,8> corners{{
@@ -32,7 +34,14 @@ MeshData makeBox(const BoxSpec& spec) {
         mesh.indices.insert(mesh.indices.end(),
             {base,base+1U,base+2U,base,base+2U,base+3U});
     }
-    return mesh;
+    mesh.rebuildStreams();
+    mesh.submeshes.push_back({0U, static_cast<std::uint32_t>(mesh.indices.size()), 0U});
+    return foundation::Result<MeshData, foundation::Error>::success(std::move(mesh));
+}
+
+MeshData makeBox(const BoxSpec& spec) {
+    auto result = makeBoxResult(spec);
+    return result ? std::move(result).value() : MeshData{};
 }
 
 } // namespace genomes::geometry
