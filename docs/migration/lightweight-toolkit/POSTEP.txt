@@ -107,7 +107,7 @@ LT-156 | CODE_READY | d760db5 | - | historical threepp command notice source rev
 LT-157 | CODE_READY | d760db5 | - | README lightweight toolkit and Diligent/D3D12 guidance source review | documentation review
 LT-158 | CODE_READY | d760db5 | - | target architecture lightweight toolkit amendment source review | documentation review
 LT-159 | CODE_READY | d760db5 | - | coding/dependency boundary amendment source review | documentation review
-LT-160 | CODE_READY | d760db5 | - | pinned toolkit dependency roles/licenses amendment source review | dependency audit
+LT-160 | CODE_READY | ff4edfe | - | pinned toolkit dependency roles/licenses amendment and D3D12-only production scope source review | dependency audit
 LT-161 | CODE_READY | d760db5 | - | math convention amendment source review | math review
 LT-162 | CODE_READY | d760db5 | - | polygon/earcut boundary amendment source review | geometry review
 LT-163 | CODE_READY | d760db5 | - | MeshData/recipe contract amendment source review | geometry review
