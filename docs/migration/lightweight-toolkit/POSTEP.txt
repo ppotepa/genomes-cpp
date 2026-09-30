@@ -47,12 +47,12 @@ LT-036 | CODE_READY | 995f873 | - | primitive result contract source review | ge
 LT-037 | CODE_READY | 995f873 | - | box validation/winding source review | primitive tests and build
 LT-142 | CODE_READY | ef84e82 | - | shared geometry regression source review | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
-LT-072 | CODE_READY | 55ae5b2 | - | request/resolved camera contract review | camera tests and build
+LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
 LT-073 | CODE_READY | 55ae5b2 | - | projection/picking implementation review | camera tests and build
 LT-136 | CODE_READY | 55ae5b2 | - | camera regression test source review | user Debug/Release CTest
-LT-074 | CODE_READY | c141009 | - | camera controller contract review | controller tests and build
-LT-075 | CODE_READY | c141009 | - | orbit/fly/RTS implementation review | controller tests and build
-LT-137 | CODE_READY | c141009 | - | controller regression test source review | user Debug/Release CTest
+LT-074 | CODE_READY | 99c4ee2 | - | camera controller contract carries request mode without renderer ownership | controller tests and build
+LT-075 | CODE_READY | 99c4ee2 | - | orbit/fly/RTS mode selection and runtime input mapping review | controller tests and build
+LT-137 | CODE_READY | 99c4ee2 | - | controller mode/reset regression test source review | user Debug/Release CTest
 LT-154 | CODE_READY | 9223936 | - | static guard source review | user guard execution after S08
 LT-166 | CODE_READY | ce1d3a2 | - | acceptance command document and executable paths source review | user-run command evidence
 LT-046 | CODE_READY | e99293d | - | mesh operations API source review | geometry tests and build
@@ -98,10 +98,10 @@ LT-068 | CODE_READY | d26d08b | - | optional neutral AssetPresentation render ho
 LT-022 | CODE_READY | 12ca051 | - | application composition without threepp bootstrap plus asset probe source review | user app configure/build
 LT-076 | CODE_READY | eddc74d | - | renderer-owned orbit controller removal and call-site migration source review | user camera/infantry tests
 LT-087 | CODE_READY | a5889f4 | - | Diligent shared math camera matrix source review | user Diligent build and camera tests
-LT-077 | CODE_READY | d82c8c9 | - | neutral camera request conversion and renderer input removal source review | user camera/render tests
+LT-077 | CODE_READY | 99c4ee2 | - | neutral camera request conversion includes mode and renderer input remains absent | user camera/render tests
 LT-081 | CODE_READY | 9e0d751 | - | SceneContext camera request publication and scene-owned snapshot boundary source review | user runtime/camera tests
 LT-082 | CODE_READY | df8798a | - | SceneDirector camera owner, scene epoch and final camera source review | user runtime/camera tests
-LT-083 | CODE_READY | df8798a | - | UI/input, scene extraction, camera resolve, timing and publish ordering source review | user runtime tests
+LT-083 | CODE_READY | 99c4ee2 | - | UI/input, mode-aware camera control, scene extraction, resolve, timing and publish ordering source review | user runtime tests
 LT-155 | CODE_READY | d760db5 | - | historical threepp START notice source review | documentation review
 LT-156 | CODE_READY | d760db5 | - | historical threepp command notice source review | documentation review
 LT-157 | CODE_READY | d760db5 | - | README lightweight toolkit and Diligent/D3D12 guidance source review | documentation review
@@ -186,7 +186,7 @@ LT-145 | CODE_READY | 9b2d8fc | - | frame abort, resolved camera and camera-only
 LT-146 | CODE_READY | 904ccf6 | - | native CMake configuration boundary guard asserts HEADLESS/DILIGENT profiles and no legacy profiles | user headless CTest
 LT-147 | CODE_READY | c62ada6 | - | infantry index-order test links neutral geometry API source review | user infantry CTest
 LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest
-LT-150 | CODE_READY | c62ada6 | - | UnitLab final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
+LT-150 | CODE_READY | 99c4ee2 | - | UnitLab mode-aware final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
 LT-151 | CODE_READY | 523d721 | - | toolkit primitive/polygon/tangent/optimizer median-p95 benchmark source review | user benchmark execution
 LT-152 | CODE_READY | 6f9914b | - | full-scene generation/camera/snapshot phase benchmark source review | user benchmark execution
 LT-153 | CODE_READY | 2346838 | - | toolkit benchmark conditionally reports primitive/polygon/tangent/optimizer/CSG/glTF | user benchmark execution
