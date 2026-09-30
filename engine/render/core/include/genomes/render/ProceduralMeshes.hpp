@@ -14,7 +14,8 @@ using MeshResult = foundation::Result<std::shared_ptr<const RenderMesh>, foundat
     RenderMesh& destination,
     foundation::Vec3 center,
     foundation::Vec3 extent,
-    foundation::Color color = {1.0F, 1.0F, 1.0F, 1.0F});
+    foundation::Color color = {1.0F, 1.0F, 1.0F, 1.0F},
+    float rotation_y = 0.0F);
 
 // Typed construction path. Geometry validation failures remain observable to
 // callers; the compatibility helper below is only for legacy scene call-sites.

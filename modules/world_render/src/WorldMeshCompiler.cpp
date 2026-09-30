@@ -2,7 +2,7 @@
 
 #include <genomes/buildings/BuildingModel.hpp>
 #include <genomes/foundation/StableHash.hpp>
-#include <genomes/geometry/PrimitiveBuilder.hpp>
+#include <genomes/render/ProceduralMeshes.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -16,33 +16,23 @@ namespace genomes::world_render {
 
 namespace {
 
-void append_colored_box(render::RenderMesh& mesh,
-                        foundation::Vec3 base,
-                        foundation::Vec3 size,
-                        foundation::Color color,
-                        float rotation_y) {
-    const auto primitive_result=geometry::makeBoxResult({size});
-    if(!primitive_result)return;
-    const auto& primitive=primitive_result.value();
-    geometry::MeshData transformed;
-    geometry::appendTransformed(transformed,primitive,{
-        {base.x,base.y+size.y*0.5F,base.z},{1.0F,1.0F,1.0F},rotation_y});
-    const auto index_base=static_cast<std::uint32_t>(mesh.vertices.size());
-    mesh.vertices.reserve(mesh.vertices.size()+transformed.vertices.size());
-    for(const auto& vertex:transformed.vertices)
-        mesh.vertices.push_back({vertex.position,vertex.normal,vertex.uv,color});
-    mesh.indices.reserve(mesh.indices.size()+transformed.indices.size());
-    for(const auto index:transformed.indices)mesh.indices.push_back(index_base+index);
+foundation::Result<void, foundation::Error> append_colored_box(render::RenderMesh& mesh,
+                                                               foundation::Vec3 base,
+                                                               foundation::Vec3 size,
+                                                               foundation::Color color,
+                                                               float rotation_y) {
+    return render::procedural::append_box(
+        mesh, {base.x, base.y + size.y * 0.5F, base.z}, size, color, rotation_y);
 }
 
-void append_centered_box(render::RenderMesh& mesh,
-                         foundation::Vec3 center,
-                         foundation::Vec3 size,
-                         foundation::Color color,
-                         float rotation_y) {
+foundation::Result<void, foundation::Error> append_centered_box(render::RenderMesh& mesh,
+                                                                foundation::Vec3 center,
+                                                                foundation::Vec3 size,
+                                                                foundation::Color color,
+                                                                float rotation_y) {
     foundation::Vec3 base = center;
     base.y -= size.y * 0.5F;
-    append_colored_box(mesh, base, size, color, rotation_y);
+    return append_colored_box(mesh, base, size, color, rotation_y);
 }
 
 [[nodiscard]] foundation::Vec3 rotate_local(foundation::Vec3 origin,
@@ -228,7 +218,11 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         }
         foundation::Vec3 base = feature.position;
         base.y += terrain.sampleBilinear(feature.position.x, feature.position.z);
-        append_colored_box(*mesh, base, size, color, feature.rotation_y);
+        const auto append_result = append_colored_box(*mesh, base, size, color, feature.rotation_y);
+        if (!append_result) {
+            return foundation::Result<std::shared_ptr<const render::RenderMesh>,
+                                      foundation::Error>::failure(append_result.error());
+        }
     }
 
     // Roads are compiled from the semantic graph, not from feature-scale
@@ -260,8 +254,13 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
                                                     part.center,
                                                     generated.resolution.rotation_y);
             center.y += terrain_height;
-            append_centered_box(*mesh, center, part.extent, building_part_color(part.kind),
-                                generated.resolution.rotation_y);
+            const auto append_result = append_centered_box(
+                *mesh, center, part.extent, building_part_color(part.kind),
+                generated.resolution.rotation_y);
+            if (!append_result) {
+                return foundation::Result<std::shared_ptr<const render::RenderMesh>,
+                                          foundation::Error>::failure(append_result.error());
+            }
         }
     }
 
