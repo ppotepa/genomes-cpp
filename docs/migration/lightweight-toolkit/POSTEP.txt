@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=16 DOING=0 CODE_READY=151 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 151/167 = 90.42%; remaining 9.58%
+TODO=15 DOING=0 CODE_READY=152 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 152/167 = 91.02%; remaining 8.98%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -146,7 +146,7 @@ LT-084 | CODE_READY | 85f15ae | - | Diligent boundary requires ResolvedCamera an
 LT-088 | CODE_READY | 85f15ae | - | Diligent scene pass consumes resolved matrices and pixel viewport | user Diligent capture
 LT-089 | CODE_READY | 85f15ae | - | Diligent UI uses framebuffer viewport and explicit scissor | user Diligent capture
 LT-090 | CODE_READY | 10f6c0c | - | PresentationPipeline preserves final camera and revision source review | user presentation CTest
-LT-091 | TODO | - | - | - | implement and review assigned path
+LT-091 | CODE_READY | d72fe6c | - | Battlefield stores and publishes neutral CameraRequest source review | user runtime/Diligent build
 LT-092 | TODO | - | - | - | implement and review assigned path
 LT-093 | TODO | - | - | - | implement and review assigned path
 LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit NativeD3D target source review | user Windows/D3D12 build
