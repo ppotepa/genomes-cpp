@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=149 DOING=0 CODE_READY=18 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 18/167 = 10.78%; remaining 89.22%
+TODO=147 DOING=0 CODE_READY=20 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 20/167 = 11.98%; remaining 88.02%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -41,6 +41,8 @@ LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evi
 LT-129 | CODE_READY | dec980a | - | math regression test source review | user Debug/Release CTest
 LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geometry tests and build
 LT-033 | CODE_READY | 470a55b | - | MeshData validation/remap review | geometry tests and build
+LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build
+LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
