@@ -45,7 +45,7 @@ LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tes
 LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
 LT-036 | CODE_READY | 929d797 | - | primitive specs and bounded Result API cover box, plane, grid, UV sphere, cylinder, cone and capsule | geometry tests and build
 LT-037 | CODE_READY | 929d797 | - | native primitives provide outward winding, UVs, normals, caps and bounded invalid-input handling | primitive tests and build
-LT-142 | CODE_READY | 93f9232 | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale, reflection winding and tangent handedness | geometry tests and build
+LT-142 | CODE_READY | 396bf2f | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale, reflection winding, tangent handedness and full material IDs | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
 LT-073 | CODE_READY | 0975b4a | - | projection/picking and bounded fit implementation rejects degenerate and nonfinite inputs | camera tests and build
@@ -127,8 +127,8 @@ LT-149 | CODE_READY | 20a7bb9 | - | presentation metadata regression source revi
 LT-042 | CODE_READY | e635ee4 | - | mesh validation report contract source review | geometry tests and build
 LT-043 | CODE_READY | 6e01fac | - | mesh validation reports optional-stream NaN/Inf and bounds failures | geometry tests and build
 LT-143 | CODE_READY | 6e01fac | - | expanded mesh validation regression covers tangent/color NaN/Inf and stream mismatch | user Debug/Release CTest
-LT-044 | CODE_READY | fcdb996 | - | mesh repair contract source review | geometry tests and build
-LT-045 | CODE_READY | fcdb996 | - | stream-preserving mesh repair source review | geometry tests and build
+LT-044 | CODE_READY | 396bf2f | - | mesh repair contract preserves uint32 material provenance without truncation | geometry tests and build
+LT-045 | CODE_READY | 396bf2f | - | stream-preserving mesh repair source review includes full material IDs | geometry tests and build
 LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
 LT-135 | CODE_READY | 043319d | - | glTF importer regression covers materials, submesh ranges, local/world transforms and presentation bounds | user full-toolkit CTest
