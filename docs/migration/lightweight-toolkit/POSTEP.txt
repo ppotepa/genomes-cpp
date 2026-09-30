@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=58 DOING=0 CODE_READY=109 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 109/167 = 65.27%; remaining 34.73%
+TODO=57 DOING=0 CODE_READY=110 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 110/167 = 65.87%; remaining 34.13%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -115,6 +115,7 @@ LT-164 | CODE_READY | bddcbc4 | - | infantry status lightweight-toolkit amendmen
 LT-165 | CODE_READY | bddcbc4 | - | restoration acceptance Windows/D3D12 NOT RUN amendment source review | user acceptance
 LT-167 | CODE_READY | bddcbc4 | - | capture run ID stdout/stderr/exit/manifest source review | user GPU capture
 LT-130 | CODE_READY | c51a2b1 | - | MeshData SoA/submesh/index/transform regression test source review | user geometry CTest
+LT-134 | CODE_READY | b74835f | - | optional CSG union/difference/intersection test source review | user full-toolkit CTest
 LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
 LT-086 | CODE_READY | e0c1e2a | - | Diligent final snapshot handoff and transaction end/abort source review | user Diligent restoration tests
 LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
@@ -177,7 +178,6 @@ LT-125 | TODO | - | - | - | implement and review assigned path
 LT-126 | TODO | - | - | - | implement and review assigned path
 LT-127 | TODO | - | - | - | implement and review assigned path
 LT-128 | TODO | - | - | - | implement and review assigned path
-LT-134 | TODO | - | - | - | implement and review assigned path
 LT-138 | TODO | - | - | - | implement and review assigned path
 LT-139 | TODO | - | - | - | implement and review assigned path
 LT-141 | TODO | - | - | - | implement and review assigned path
