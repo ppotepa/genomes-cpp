@@ -7,6 +7,7 @@ the guard never modifies the tree.
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import re
 import subprocess
@@ -105,6 +106,25 @@ def check_build_boundaries(build: pathlib.Path, failures: list[str]) -> None:
             failures.append(f"game link contains optional toolkit dependency while assets/CSG are OFF: {link_file.relative_to(build)}")
 
 
+def check_presets(root: pathlib.Path, failures: list[str]) -> None:
+    presets_path = root / "CMakePresets.json"
+    try:
+        presets = json.loads(presets_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        failures.append(f"CMakePresets.json is not valid JSON: {error}")
+        return
+    required = {
+        "dev-debug", "dev-release",
+        "headless-core-debug", "headless-core-release",
+        "toolkit-full-debug", "toolkit-full-release",
+    }
+    for kind in ("configurePresets", "buildPresets", "testPresets"):
+        names = {entry.get("name") for entry in presets.get(kind, [])}
+        missing = sorted(required - names)
+        if missing:
+            failures.append(f"CMakePresets.json is missing {kind}: {', '.join(missing)}")
+
+
 def tracked_files(root: pathlib.Path) -> list[pathlib.Path]:
     result = subprocess.run(
         ["git", "-C", str(root), "ls-files", "-z"],
@@ -121,6 +141,7 @@ def main() -> int:
     root = args.root.resolve()
     failures: list[str] = []
     check_tracker(root, failures)
+    check_presets(root, failures)
     for path in tracked_files(root):
         relative = path.relative_to(root)
         if relative.name == "concat.txt" or (
