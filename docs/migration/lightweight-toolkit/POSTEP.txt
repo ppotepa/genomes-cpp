@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=12 DOING=0 CODE_READY=155 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 155/167 = 92.81%; remaining 7.19%
+TODO=8 DOING=0 CODE_READY=159 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 159/167 = 95.21%; remaining 4.79%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -138,7 +138,7 @@ LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration helper source review | user configure/static guard
 LT-018 | CODE_READY | 1500e1c | - | renderer options restricted to HEADLESS/DILIGENT_LEGACY source review | user configure boundary test
 LT-019 | CODE_READY | 1500e1c | - | root CMake toolkit/dependency composition without active threepp source review | user configure/build
-LT-021 | TODO | - | - | - | implement and review assigned path
+LT-021 | CODE_READY | e47554d | - | engine target order documented by header dependency DAG | user headless configure/build
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
@@ -151,8 +151,8 @@ LT-092 | CODE_READY | 8dfcfa4 | - | GameApplication ownership comment; SceneDire
 LT-093 | CODE_READY | 8dfcfa4 | - | UI filtering precedes SceneDirector camera input routing | user Diligent source/build review
 LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit NativeD3D target source review | user Windows/D3D12 build
 LT-095 | CODE_READY | 8dfcfa4 | - | Diligent factory and swapchain restricted to Windows/D3D12 | user Diligent source/build review
-LT-097 | TODO | - | - | - | implement and review assigned path
-LT-098 | TODO | - | - | - | implement and review assigned path
+LT-097 | CODE_READY | e47554d | - | typed procedural box Result API and compatibility wrapper | user Diligent build and runtime review
+LT-098 | CODE_READY | e47554d | - | procedural boxes route through geometry makeBoxResult | user Diligent build and runtime review
 LT-099 | TODO | - | - | - | implement and review assigned path
 LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
 LT-105 | CODE_READY | 925ae13 | - | RunNative uses dev-debug/dev-release Diligent presets | user Release build
