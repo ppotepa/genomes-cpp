@@ -25,6 +25,7 @@ $cases=@(
     @{ Name='back'; Camera='back'; Pose='idle'; Expression='neutral'; Frame='180' },
     @{ Name='face'; Camera='face'; Pose='idle'; Expression='neutral'; Frame='180' },
     @{ Name='hands'; Camera='hands'; Pose='idle'; Expression='neutral'; Frame='180' },
+    @{ Name='walk'; Camera='3q'; Pose='walk'; Expression='neutral'; Frame='137' },
     @{ Name='run'; Camera='3q'; Pose='run'; Expression='neutral'; Frame='137' },
     @{ Name='crouch'; Camera='side'; Pose='crouch'; Expression='neutral'; Frame='121' },
     @{ Name='eyes-closed'; Camera='face'; Pose='idle'; Expression='eyes-closed'; Frame='90' },

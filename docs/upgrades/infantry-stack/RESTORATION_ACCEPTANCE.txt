@@ -129,13 +129,13 @@ JSON zawiera m.in. backend, configured SHA, klatke, rozmiar, kamere, viewport,
 identyfikatory/revision siatek, skeleton/pose revision i wagi morphow.
 Dla pelnej provenance zachowaj tez log startu, git status i uzyta komende.
 
-Seria 11 capture'ow Windows:
+Seria 12 capture'ow Windows:
 
     .\tools\validation\capture_diligent_unitlab.ps1 -Preset dev-debug
 
 Skrypt uruchamia:
 - 3Q/front/side/back/face/hands;
-- run i crouch;
+- walk, run i crouch;
 - eyes-closed, anger i pain.
 
 Kazdy przypadek ma osobny PNG, JSON i log. Skrypt odmawia uzycia istniejacego
