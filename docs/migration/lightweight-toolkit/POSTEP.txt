@@ -40,12 +40,12 @@ LT-030 | CODE_READY | dec980a | - | foundation alias review | ABI test evidence
 LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evidence
 LT-129 | CODE_READY | 6406108 | - | math regression covers quaternion inverse/rotation and nonfinite axis-angle cases | user Debug/Release CTest
 LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geometry tests and build
-LT-033 | CODE_READY | ce77a0c | - | MeshData validation and append transform preserve optional streams, groups and reflection winding | geometry tests and build
+LT-033 | CODE_READY | 93f9232 | - | MeshData validation and append transform preserve optional streams, groups, reflection winding and tangent handedness | geometry tests and build
 LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build
 LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
 LT-036 | CODE_READY | 995f873 | - | primitive result contract source review | geometry tests and build
 LT-037 | CODE_READY | 995f873 | - | box validation/winding source review | primitive tests and build
-LT-142 | CODE_READY | ce77a0c | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale and reflection winding | geometry tests and build
+LT-142 | CODE_READY | 93f9232 | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale, reflection winding and tangent handedness | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
 LT-073 | CODE_READY | 0975b4a | - | projection/picking and bounded fit implementation rejects degenerate and nonfinite inputs | camera tests and build
@@ -78,7 +78,7 @@ LT-066 | CODE_READY | 9298d50 | - | neutral asset presentation API source review
 LT-067 | CODE_READY | 9298d50 | - | neutral asset presentation implementation source review | asset tests and build
 LT-010 | CODE_READY | 54ab30f | - | pinned MikkTSpace submodule source review | geometry configure/build
 LT-048 | CODE_READY | 54ab30f | - | tangent-space API source review | geometry tests and build
-LT-049 | CODE_READY | 54ab30f | - | MikkTSpace adapter source review | tangent tests and build
+LT-049 | CODE_READY | 93f9232 | - | tangent stream transform preserves MikkTSpace handedness across reflections | tangent tests and build
 LT-008 | CODE_READY | 9fb59fd | - | dependency role/pin and DiligentTools initialization documentation source review | dependency audit
 LT-038 | CODE_READY | 1a718fd | - | profile/sweep contract source review | geometry tests and build
 LT-039 | CODE_READY | 1a718fd | - | parallel-transport sweep source review | geometry tests and build
