@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=20 DOING=0 CODE_READY=147 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 147/167 = 88.02%; remaining 11.98%
+TODO=17 DOING=0 CODE_READY=150 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 150/167 = 89.82%; remaining 10.18%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -142,9 +142,9 @@ LT-021 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
-LT-084 | TODO | - | - | - | implement and review assigned path
-LT-088 | TODO | - | - | - | implement and review assigned path
-LT-089 | TODO | - | - | - | implement and review assigned path
+LT-084 | CODE_READY | 85f15ae | - | Diligent boundary requires ResolvedCamera and rejects missing final camera | user Diligent build
+LT-088 | CODE_READY | 85f15ae | - | Diligent scene pass consumes resolved matrices and pixel viewport | user Diligent capture
+LT-089 | CODE_READY | 85f15ae | - | Diligent UI uses framebuffer viewport and explicit scissor | user Diligent capture
 LT-090 | TODO | - | - | - | implement and review assigned path
 LT-091 | TODO | - | - | - | implement and review assigned path
 LT-092 | TODO | - | - | - | implement and review assigned path
