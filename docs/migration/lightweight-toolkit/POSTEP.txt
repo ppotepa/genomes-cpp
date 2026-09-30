@@ -53,7 +53,7 @@ LT-136 | CODE_READY | 0975b4a | - | camera regression test covers project/unproj
 LT-074 | CODE_READY | ed351d6 | - | camera controller contract carries request mode and scene-target rebasing without renderer ownership | controller tests and build
 LT-075 | CODE_READY | ed351d6 | - | orbit/fly/RTS mode selection and runtime input mapping preserve scene extraction pose | controller tests and build
 LT-137 | CODE_READY | ed351d6 | - | controller mode/reset/rebase regression test source review | user Debug/Release CTest
-LT-154 | CODE_READY | 961203f | - | static guard validates forbidden boundaries, public APIs and 167-row tracker arithmetic | user guard execution after S08
+LT-154 | CODE_READY | 813c37e | - | static guard validates forbidden boundaries, public APIs, tracker arithmetic and HEADLESS/optional link boundaries | user guard execution after S08
 LT-166 | CODE_READY | ce1d3a2 | - | acceptance command document and executable paths source review | user-run command evidence
 LT-046 | CODE_READY | e99293d | - | mesh operations API source review | geometry tests and build
 LT-047 | CODE_READY | 9e6f24e | - | mesh operations combine complete streams/groups, preserve normals/winding and retain CSG output groups | geometry tests and build
