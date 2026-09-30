@@ -1,6 +1,0 @@
-#pragma once
-namespace genomes::bootstrap {
-inline constexpr char kRevision[] = "@GENOMES_BOOTSTRAP_REVISION@";
-inline constexpr char kTrackedState[] = "@GENOMES_BOOTSTRAP_TRACKED_STATE@";
-inline constexpr char kThreeppRevision[] = "@GENOMES_THREEPP_PIN@";
-}

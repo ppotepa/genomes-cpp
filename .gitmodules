@@ -13,9 +13,6 @@
 [submodule "external/json"]
 	path = external/json
 	url = https://github.com/nlohmann/json.git
-[submodule "external/threepp"]
-	path = external/threepp
-	url = https://github.com/markaren/threepp.git
 [submodule "external/meshoptimizer"]
 	path = external/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
