@@ -7,7 +7,34 @@
 namespace genomes::geometry {
 namespace {
 foundation::Error invalid(const char* message) { return {foundation::ErrorCode::InvalidArgument, message}; }
-void refresh(MeshData& mesh) { mesh.rebuildStreams(); mesh.submeshes.clear(); mesh.submeshes.push_back({0U,static_cast<std::uint32_t>(mesh.indices.size()),0U}); }
+foundation::Vec3 transformNormal(const math::Mat4& inverse, foundation::Vec3 normal) noexcept {
+    // Normals use the inverse transpose of the linear transform. Mat4 is
+    // column-major, so each output component reads one column of M^-1.
+    const foundation::Vec3 transformed{
+        inverse(0, 0) * normal.x + inverse(1, 0) * normal.y + inverse(2, 0) * normal.z,
+        inverse(0, 1) * normal.x + inverse(1, 1) * normal.y + inverse(2, 1) * normal.z,
+        inverse(0, 2) * normal.x + inverse(1, 2) * normal.y + inverse(2, 2) * normal.z};
+    return math::normalized(transformed);
+}
+
+void refreshBounds(MeshData& mesh) noexcept {
+    mesh.bounds = {};
+    if (!mesh.positions.empty()) {
+        for (const auto position : mesh.positions) mesh.bounds.include(position);
+    } else {
+        for (const auto& vertex : mesh.vertices) mesh.bounds.include(vertex.position);
+    }
+}
+
+void refreshDefaultSubmesh(MeshData& mesh) {
+    if (mesh.submeshes.empty())
+        mesh.submeshes.push_back({0U, static_cast<std::uint32_t>(mesh.indices.size()), 0U});
+}
+
+void reverseTriangleWinding(MeshData& mesh) noexcept {
+    for (std::size_t index = 0; index + 2U < mesh.indices.size(); index += 3U)
+        std::swap(mesh.indices[index + 1U], mesh.indices[index + 2U]);
+}
 }
 
 foundation::Result<MeshData, foundation::Error> combine(std::span<const MeshData> meshes) {
@@ -30,10 +57,27 @@ foundation::Result<MeshData, foundation::Error> combine(std::span<const MeshData
 
 foundation::Result<MeshData, foundation::Error> transform(const MeshData& source,const math::Transform& operation) {
     if(!operation.valid()) return foundation::Result<MeshData, foundation::Error>::failure(invalid("mesh transform is invalid"));
-    if(!source.valid()||source.vertices.empty()) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::Unsupported,"stream-only transform requires an attribute adapter"});
-    MeshData result=source; const auto matrix=operation.matrix(); const auto inverse=matrix.inverse(); if(!inverse) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::InvalidArgument,"mesh transform is singular"});
-    for(auto& vertex:result.vertices){ vertex.position=math::transformPoint(matrix,vertex.position); const math::Vec3 n{(*inverse)(0,0)*vertex.normal.x+(*inverse)(1,0)*vertex.normal.y+(*inverse)(2,0)*vertex.normal.z,(*inverse)(0,1)*vertex.normal.x+(*inverse)(1,1)*vertex.normal.y+(*inverse)(2,1)*vertex.normal.z,(*inverse)(0,2)*vertex.normal.x+(*inverse)(1,2)*vertex.normal.y+(*inverse)(2,2)*vertex.normal.z}; vertex.normal=math::normalized(n); }
-    refresh(result); return foundation::Result<MeshData, foundation::Error>::success(std::move(result));
+    if(!source.valid()) return foundation::Result<MeshData, foundation::Error>::failure(invalid("cannot transform invalid mesh"));
+    const auto matrix=operation.matrix(); const auto inverse=matrix.inverse();
+    if(!inverse) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::InvalidArgument,"mesh transform is singular"});
+    MeshData result=source;
+    if (!result.vertices.empty()) {
+        for (auto& vertex : result.vertices) {
+            vertex.position = math::transformPoint(matrix, vertex.position);
+            vertex.normal = transformNormal(*inverse, vertex.normal);
+        }
+    }
+    for (auto& position : result.positions) position = math::transformPoint(matrix, position);
+    for (auto& normal : result.normals) normal = transformNormal(*inverse, normal);
+    for (auto& tangent : result.tangents) {
+        const auto xyz = transformNormal(*inverse, {tangent.x, tangent.y, tangent.z});
+        tangent.x = xyz.x; tangent.y = xyz.y; tangent.z = xyz.z;
+    }
+    if (operation.scale.x * operation.scale.y * operation.scale.z < 0.0F)
+        reverseTriangleWinding(result);
+    refreshBounds(result);
+    refreshDefaultSubmesh(result);
+    return foundation::Result<MeshData, foundation::Error>::success(std::move(result));
 }
 
 foundation::Result<MeshData, foundation::Error> recalculateNormals(const MeshData& source) {
