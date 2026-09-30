@@ -84,6 +84,13 @@ def check_build_boundaries(build: pathlib.Path, failures: list[str]) -> None:
         r"^GENOMES_RENDER_BACKEND:STRING=([^\r\n]+)$", cache_text, re.MULTILINE,
     )
     backend = backend_match.group(1) if backend_match else None
+    if backend not in {"HEADLESS", "DILIGENT", None}:
+        failures.append(f"build cache contains an invalid renderer backend: {backend}")
+    if backend == "DILIGENT":
+        if cache_bool(cache_text, "GENOMES_ENABLE_DILIGENT") is not True:
+            failures.append("DILIGENT build does not enable Diligent")
+        if cache_bool(cache_text, "GENOMES_ENABLE_SDL") is not True:
+            failures.append("DILIGENT build does not enable SDL")
     if backend == "HEADLESS":
         if cache_bool(cache_text, "GENOMES_ENABLE_DILIGENT") is True:
             failures.append("HEADLESS build enables Diligent")
