@@ -43,8 +43,8 @@ LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geomet
 LT-033 | CODE_READY | 93f9232 | - | MeshData validation and append transform preserve optional streams, groups, reflection winding and tangent handedness | geometry tests and build
 LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build
 LT-035 | CODE_READY | b012a5e | - | MeshBuilder transaction/source review | geometry tests and build
-LT-036 | CODE_READY | 995f873 | - | primitive result contract source review | geometry tests and build
-LT-037 | CODE_READY | 995f873 | - | box validation/winding source review | primitive tests and build
+LT-036 | CODE_READY | 929d797 | - | primitive specs and bounded Result API cover box, plane, grid, UV sphere, cylinder, cone and capsule | geometry tests and build
+LT-037 | CODE_READY | 929d797 | - | native primitives provide outward winding, UVs, normals, caps and bounded invalid-input handling | primitive tests and build
 LT-142 | CODE_READY | 93f9232 | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale, reflection winding and tangent handedness | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
@@ -84,7 +84,7 @@ LT-038 | CODE_READY | 1a718fd | - | profile/sweep contract source review | geome
 LT-039 | CODE_READY | 1a718fd | - | parallel-transport sweep source review | geometry tests and build
 LT-040 | CODE_READY | 1a718fd | - | parametric surface contract source review | geometry tests and build
 LT-041 | CODE_READY | 1a718fd | - | deterministic parametric tessellation source review | geometry tests and build
-LT-131 | CODE_READY | 1a718fd | - | primitive/sweep/parametric test source review | user Debug/Release CTest
+LT-131 | CODE_READY | 929d797 | - | primitive tests cover all toolkit primitives, winding validation, segmentation and invalid inputs | user Debug/Release CTest
 LT-133 | CODE_READY | 25d93d0 | - | dedicated tangent-space test source review | user Debug/Release CTest
 LT-078 | CODE_READY | 20a7bb9 | - | snapshot payload/metadata split source review | runtime tests and build
 LT-079 | CODE_READY | ab4dd55 | - | neutral focus/cancel events and runtime camera input source review | platform/runtime tests and build
