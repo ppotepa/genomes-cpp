@@ -56,7 +56,7 @@ LT-137 | CODE_READY | ed351d6 | - | controller mode/reset/rebase regression test
 LT-154 | CODE_READY | 9223936 | - | static guard source review | user guard execution after S08
 LT-166 | CODE_READY | ce1d3a2 | - | acceptance command document and executable paths source review | user-run command evidence
 LT-046 | CODE_READY | e99293d | - | mesh operations API source review | geometry tests and build
-LT-047 | CODE_READY | e48b542 | - | mesh operations combine complete streams/groups and preserve inverse-transpose normals/reflection winding | geometry tests and build
+LT-047 | CODE_READY | 9e6f24e | - | mesh operations combine complete streams/groups, preserve normals/winding and retain CSG output groups | geometry tests and build
 LT-050 | CODE_READY | d073a47 | - | optimizer policy API source review | geometry tests and build
 LT-051 | CODE_READY | d073a47 | - | skinned-safe index optimizer source review | infantry optimizer tests and build
 LT-054 | CODE_READY | ef84e82 | - | immutable recipe contract source review | geometry tests and build
@@ -68,7 +68,7 @@ LT-059 | CODE_READY | d93f325 | - | earcut validation rejects invalid holes and 
 LT-132 | CODE_READY | d93f325 | - | polygon regression covers hole topology, winding and triangulation area conservation | user Debug/Release CTest
 LT-013 | CODE_READY | 114e4de | - | pinned Manifold submodule source review | optional CSG configure/build
 LT-060 | CODE_READY | 114e4de | - | SolidOps public contract source review | optional CSG tests and build
-LT-061 | CODE_READY | 114e4de | - | Manifold conversion source review | optional CSG tests and build
+LT-061 | CODE_READY | 9e6f24e | - | Manifold conversion preserves material runs and recalculates output normals without fabricating UVs | optional CSG tests and build
 LT-012 | CODE_READY | f7af825 | - | pinned fastgltf submodule source review | optional assets configure/build
 LT-062 | CODE_READY | f7af825 | - | assets target source review | optional assets configure/build
 LT-063 | CODE_READY | f7af825 | - | ImportedScene neutral contract source review | asset tests and build
