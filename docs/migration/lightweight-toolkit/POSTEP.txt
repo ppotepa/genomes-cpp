@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=8 DOING=0 CODE_READY=159 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 159/167 = 95.21%; remaining 4.79%
+TODO=6 DOING=0 CODE_READY=161 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 161/167 = 96.41%; remaining 3.59%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -153,7 +153,7 @@ LT-094 | CODE_READY | 5666603 | - | Diligent-only game composition and explicit 
 LT-095 | CODE_READY | 8dfcfa4 | - | Diligent factory and swapchain restricted to Windows/D3D12 | user Diligent source/build review
 LT-097 | CODE_READY | e47554d | - | typed procedural box Result API and compatibility wrapper | user Diligent build and runtime review
 LT-098 | CODE_READY | e47554d | - | procedural boxes route through geometry makeBoxResult | user Diligent build and runtime review
-LT-099 | TODO | - | - | - | implement and review assigned path
+LT-099 | CODE_READY | 2346838 | - | world mesh box path uses shared typed geometry Result | user world-render build/tests
 LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
 LT-105 | CODE_READY | 925ae13 | - | RunNative uses dev-debug/dev-release Diligent presets | user Release build
 LT-106 | CODE_READY | 925ae13 | - | run-diligent wrapper unified with dev presets and exit propagation | user Diligent build
@@ -189,7 +189,7 @@ LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geo
 LT-150 | CODE_READY | c62ada6 | - | UnitLab final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
 LT-151 | CODE_READY | 523d721 | - | toolkit primitive/polygon/tangent/optimizer median-p95 benchmark source review | user benchmark execution
 LT-152 | CODE_READY | 6f9914b | - | full-scene generation/camera/snapshot phase benchmark source review | user benchmark execution
-LT-153 | TODO | - | - | - | implement and review assigned path
+LT-153 | CODE_READY | 2346838 | - | toolkit benchmark conditionally reports primitive/polygon/tangent/optimizer/CSG/glTF | user benchmark execution
 
 Checkpoint template
 -------------------
