@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=23 DOING=0 CODE_READY=144 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 144/167 = 86.23%; remaining 13.77%
+TODO=20 DOING=0 CODE_READY=147 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 147/167 = 88.02%; remaining 11.98%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -181,12 +181,12 @@ LT-127 | CODE_READY | 925ae13 | - | removed legacy primitive provider tests | st
 LT-128 | CODE_READY | 925ae13 | - | removed legacy window contract tests; neutral replacement is LT-139 | static guard
 LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window contract test source review | user headless CTest
 LT-141 | TODO | - | - | - | implement and review assigned path
-LT-144 | TODO | - | - | - | implement and review assigned path
+LT-144 | CODE_READY | c62ada6 | - | skinned index-only stream and morph numbering regression source review | user infantry CTest
 LT-145 | TODO | - | - | - | implement and review assigned path
 LT-146 | TODO | - | - | - | implement and review assigned path
-LT-147 | TODO | - | - | - | implement and review assigned path
+LT-147 | CODE_READY | c62ada6 | - | infantry index-order test links neutral geometry API source review | user infantry CTest
 LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest
-LT-150 | TODO | - | - | - | implement and review assigned path
+LT-150 | CODE_READY | c62ada6 | - | UnitLab final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
 LT-151 | CODE_READY | 523d721 | - | toolkit primitive/polygon/tangent/optimizer median-p95 benchmark source review | user benchmark execution
 LT-152 | CODE_READY | 6f9914b | - | full-scene generation/camera/snapshot phase benchmark source review | user benchmark execution
 LT-153 | TODO | - | - | - | implement and review assigned path
