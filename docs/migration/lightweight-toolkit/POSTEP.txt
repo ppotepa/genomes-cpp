@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=48 DOING=0 CODE_READY=119 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 119/167 = 71.26%; remaining 28.74%
+TODO=23 DOING=0 CODE_READY=144 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 144/167 = 86.23%; remaining 13.77%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -133,7 +133,7 @@ LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-tool
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
 LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
-LT-009 | TODO | - | - | - | implement and review assigned path
+LT-009 | CODE_READY | 925ae13 | - | removed threepp gitlink after active reference audit | user static guard
 LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration helper source review | user configure/static guard
 LT-018 | CODE_READY | 1500e1c | - | renderer options restricted to HEADLESS/DILIGENT_LEGACY source review | user configure boundary test
@@ -155,30 +155,30 @@ LT-097 | TODO | - | - | - | implement and review assigned path
 LT-098 | TODO | - | - | - | implement and review assigned path
 LT-099 | TODO | - | - | - | implement and review assigned path
 LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
-LT-105 | TODO | - | - | - | implement and review assigned path
-LT-106 | TODO | - | - | - | implement and review assigned path
-LT-107 | TODO | - | - | - | implement and review assigned path
-LT-108 | TODO | - | - | - | implement and review assigned path
-LT-109 | TODO | - | - | - | implement and review assigned path
-LT-110 | TODO | - | - | - | implement and review assigned path
-LT-111 | TODO | - | - | - | implement and review assigned path
-LT-112 | TODO | - | - | - | implement and review assigned path
-LT-113 | TODO | - | - | - | implement and review assigned path
-LT-114 | TODO | - | - | - | implement and review assigned path
-LT-115 | TODO | - | - | - | implement and review assigned path
-LT-116 | TODO | - | - | - | implement and review assigned path
-LT-117 | TODO | - | - | - | implement and review assigned path
-LT-118 | TODO | - | - | - | implement and review assigned path
-LT-119 | TODO | - | - | - | implement and review assigned path
-LT-120 | TODO | - | - | - | implement and review assigned path
-LT-121 | TODO | - | - | - | implement and review assigned path
-LT-122 | TODO | - | - | - | implement and review assigned path
-LT-123 | TODO | - | - | - | implement and review assigned path
-LT-124 | TODO | - | - | - | implement and review assigned path
-LT-125 | TODO | - | - | - | implement and review assigned path
-LT-126 | TODO | - | - | - | implement and review assigned path
-LT-127 | TODO | - | - | - | implement and review assigned path
-LT-128 | TODO | - | - | - | implement and review assigned path
+LT-105 | CODE_READY | 925ae13 | - | RunNative uses dev-debug/dev-release Diligent presets | user Release build
+LT-106 | CODE_READY | 925ae13 | - | run-diligent wrapper unified with dev presets and exit propagation | user Diligent build
+LT-107 | CODE_READY | 925ae13 | - | run-diligent.cmd remains thin PowerShell wrapper | user script invocation
+LT-108 | CODE_READY | 925ae13 | - | removed run-threepp.ps1 | static guard
+LT-109 | CODE_READY | 925ae13 | - | removed run-threepp.cmd | static guard
+LT-110 | CODE_READY | 925ae13 | - | removed geometry threepp target | static guard
+LT-111 | CODE_READY | 925ae13 | - | removed geometry threepp public adapter | static guard
+LT-112 | CODE_READY | 925ae13 | - | removed geometry threepp implementation | static guard
+LT-113 | CODE_READY | 925ae13 | - | removed render threepp target | static guard
+LT-114 | CODE_READY | 925ae13 | - | removed ThreeppGlBootstrap contract | static guard
+LT-115 | CODE_READY | 925ae13 | - | removed ThreeppGlBootstrap implementation | static guard
+LT-116 | CODE_READY | 925ae13 | - | removed ThreeppInputAdapter contract | static guard
+LT-117 | CODE_READY | 925ae13 | - | removed ThreeppInputAdapter implementation | static guard
+LT-118 | CODE_READY | 925ae13 | - | removed ThreeppSceneRenderer contract | static guard
+LT-119 | CODE_READY | 925ae13 | - | removed ThreeppSceneRenderer implementation | static guard
+LT-120 | CODE_READY | 925ae13 | - | removed ThreeppUiPass contract | static guard
+LT-121 | CODE_READY | 925ae13 | - | removed ThreeppUiPass implementation | static guard
+LT-122 | CODE_READY | 925ae13 | - | removed threepp bootstrap identity | static guard
+LT-123 | CODE_READY | 925ae13 | - | removed threepp bootstrap CMake target | static guard
+LT-124 | CODE_READY | 925ae13 | - | removed threepp bootstrap entry point | static guard
+LT-125 | CODE_READY | 925ae13 | - | removed legacy threepp test registration | static guard
+LT-126 | CODE_READY | 925ae13 | - | removed legacy input adapter tests | static guard
+LT-127 | CODE_READY | 925ae13 | - | removed legacy primitive provider tests | static guard
+LT-128 | CODE_READY | 925ae13 | - | removed legacy window contract tests; neutral replacement is LT-139 | static guard
 LT-139 | CODE_READY | ab29a72 | - | neutral platform framebuffer/focus/window contract test source review | user headless CTest
 LT-141 | TODO | - | - | - | implement and review assigned path
 LT-144 | TODO | - | - | - | implement and review assigned path
