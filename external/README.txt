@@ -27,7 +27,8 @@ Lightweight toolkit pins
 * earcut.hpp `c68c8835ccff2b7532d31d8fa8dfcf398f629498`: polygon triangulation;
   upstream tests/benchmarks/viz are disabled.
 * fastgltf `0d1b67a28c4950ea2deb796702006dcbe31e02b3`: opt-in static glTF
-  importer with bundled simdjson, no tests/examples/docs.
+  importer with pinned simdjson `7382dc2be88e53fbc35cb50369b831855656f0fd`
+  single-header sources, no tests/examples/docs and no configure-time download.
 * Manifold `0edd9d54876f3135e431575214dd6d8a72866fee`: opt-in CSG; downloads,
   tests, bindings, and examples are disabled.
 

@@ -18,13 +18,14 @@ function(genomes_configure_earcut)
     if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_EARCUT_PIN)
         message(FATAL_ERROR "earcut.hpp must be pinned to ${GENOMES_EARCUT_PIN}; found '${actual_pin}'")
     endif()
-    set(EARCUT_BUILD_TESTS OFF CACHE BOOL "Disable earcut upstream tests" FORCE)
-    set(EARCUT_BUILD_BENCH OFF CACHE BOOL "Disable earcut upstream benchmarks" FORCE)
-    set(EARCUT_BUILD_VIZ OFF CACHE BOOL "Disable earcut upstream visualizer" FORCE)
-    add_subdirectory("${GENOMES_EARCUT_SOURCE_DIR}"
-        "${CMAKE_BINARY_DIR}/_deps/earcut-build" EXCLUDE_FROM_ALL)
-    if(TARGET earcut_hpp AND NOT TARGET genomes::earcut)
-        add_library(genomes::earcut ALIAS earcut_hpp)
+    # earcut.hpp is header-only. Do not add the upstream meta-project: its
+    # CMakeLists unconditionally declares FetchContent fixtures and benchmark
+    # dependencies, which would violate the no-network configure contract.
+    if(NOT TARGET genomes_earcut)
+        add_library(genomes_earcut INTERFACE)
+        target_include_directories(genomes_earcut INTERFACE
+            "${GENOMES_EARCUT_SOURCE_DIR}/include")
+        add_library(genomes::earcut ALIAS genomes_earcut)
     endif()
 endfunction()
 
@@ -64,6 +65,33 @@ endfunction()
 set(GENOMES_FASTGLTF_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/fastgltf"
     CACHE PATH "Pinned fastgltf source directory")
 set(GENOMES_FASTGLTF_PIN "0d1b67a28c4950ea2deb796702006dcbe31e02b3")
+set(GENOMES_SIMDJSON_SOURCE_DIR "${CMAKE_SOURCE_DIR}/external/simdjson"
+    CACHE PATH "Pinned simdjson source directory")
+set(GENOMES_SIMDJSON_PIN "7382dc2be88e53fbc35cb50369b831855656f0fd")
+
+function(genomes_configure_simdjson)
+    if(TARGET simdjson::simdjson)
+        return()
+    endif()
+    if(NOT EXISTS "${GENOMES_SIMDJSON_SOURCE_DIR}/singleheader/simdjson.h"
+       OR NOT EXISTS "${GENOMES_SIMDJSON_SOURCE_DIR}/singleheader/simdjson.cpp")
+        message(FATAL_ERROR "simdjson single-header sources are not initialized at '${GENOMES_SIMDJSON_SOURCE_DIR}'")
+    endif()
+    find_package(Git REQUIRED)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${GENOMES_SIMDJSON_SOURCE_DIR}" rev-parse HEAD
+        RESULT_VARIABLE pin_result OUTPUT_VARIABLE actual_pin OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(NOT pin_result EQUAL 0 OR NOT actual_pin STREQUAL GENOMES_SIMDJSON_PIN)
+        message(FATAL_ERROR "simdjson must be pinned to ${GENOMES_SIMDJSON_PIN}; found '${actual_pin}'")
+    endif()
+    add_library(genomes_simdjson STATIC
+        "${GENOMES_SIMDJSON_SOURCE_DIR}/singleheader/simdjson.cpp")
+    target_include_directories(genomes_simdjson PUBLIC
+        "${GENOMES_SIMDJSON_SOURCE_DIR}/singleheader")
+    target_compile_features(genomes_simdjson PUBLIC cxx_std_17)
+    set_target_properties(genomes_simdjson PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    add_library(simdjson::simdjson ALIAS genomes_simdjson)
+endfunction()
 
 function(genomes_configure_fastgltf)
     if(NOT GENOMES_ENABLE_ASSETS)
@@ -85,6 +113,7 @@ function(genomes_configure_fastgltf)
     set(FASTGLTF_ENABLE_GLTF_RS OFF CACHE BOOL "Disable fastgltf benchmarks" FORCE)
     set(FASTGLTF_ENABLE_ASSIMP OFF CACHE BOOL "Disable fastgltf assimp benchmark" FORCE)
     set(FASTGLTF_ENABLE_CPP_MODULES OFF CACHE BOOL "Disable fastgltf modules" FORCE)
+    genomes_configure_simdjson()
     add_subdirectory("${GENOMES_FASTGLTF_SOURCE_DIR}"
         "${CMAKE_BINARY_DIR}/_deps/fastgltf-build" EXCLUDE_FROM_ALL)
     if(TARGET fastgltf AND NOT TARGET genomes::fastgltf)
