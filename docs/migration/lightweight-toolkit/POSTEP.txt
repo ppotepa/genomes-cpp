@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=93 DOING=0 CODE_READY=74 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 74/167 = 44.31%; remaining 55.69%
+TODO=90 DOING=0 CODE_READY=77 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 77/167 = 46.11%; remaining 53.89%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -92,6 +92,9 @@ LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review
 LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
 LT-104 | CODE_READY | 20a7bb9 | - | WorldConfig snapshot ownership source review | runtime tests and build
 LT-149 | CODE_READY | 20a7bb9 | - | presentation metadata regression source review | user Debug/Release CTest
+LT-042 | CODE_READY | e635ee4 | - | mesh validation report contract source review | geometry tests and build
+LT-043 | CODE_READY | e635ee4 | - | mesh validation implementation source review | geometry tests and build
+LT-143 | CODE_READY | e635ee4 | - | expanded mesh validation regression source review | user Debug/Release CTest
 LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
 LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
@@ -107,8 +110,6 @@ LT-019 | TODO | - | - | - | implement and review assigned path
 LT-020 | TODO | - | - | - | implement and review assigned path
 LT-021 | TODO | - | - | - | implement and review assigned path
 LT-022 | TODO | - | - | - | implement and review assigned path
-LT-042 | TODO | - | - | - | implement and review assigned path
-LT-043 | TODO | - | - | - | implement and review assigned path
 LT-044 | TODO | - | - | - | implement and review assigned path
 LT-045 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
@@ -168,7 +169,6 @@ LT-134 | TODO | - | - | - | implement and review assigned path
 LT-138 | TODO | - | - | - | implement and review assigned path
 LT-139 | TODO | - | - | - | implement and review assigned path
 LT-141 | TODO | - | - | - | implement and review assigned path
-LT-143 | TODO | - | - | - | implement and review assigned path
 LT-144 | TODO | - | - | - | implement and review assigned path
 LT-145 | TODO | - | - | - | implement and review assigned path
 LT-146 | TODO | - | - | - | implement and review assigned path
