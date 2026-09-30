@@ -68,7 +68,7 @@ LT-059 | CODE_READY | d93f325 | - | earcut validation rejects invalid holes and 
 LT-132 | CODE_READY | d93f325 | - | polygon regression covers hole topology, winding and triangulation area conservation | user Debug/Release CTest
 LT-013 | CODE_READY | 114e4de | - | pinned Manifold submodule source review | optional CSG configure/build
 LT-060 | CODE_READY | 114e4de | - | SolidOps public contract source review | optional CSG tests and build
-LT-061 | CODE_READY | 9e6f24e | - | Manifold conversion preserves material runs and recalculates output normals without fabricating UVs | optional CSG tests and build
+LT-061 | CODE_READY | 9164b98 | - | Manifold conversion preserves material runs, bounds uint32 provenance/index ranges and recalculates output normals without fabricating UVs | optional CSG tests and build
 LT-012 | CODE_READY | f7af825 | - | pinned fastgltf submodule source review | optional assets configure/build
 LT-062 | CODE_READY | f7af825 | - | assets target source review | optional assets configure/build
 LT-063 | CODE_READY | f7af825 | - | ImportedScene neutral contract source review | asset tests and build
