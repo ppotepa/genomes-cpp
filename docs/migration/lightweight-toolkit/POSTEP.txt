@@ -73,7 +73,7 @@ LT-012 | CODE_READY | f7af825 | - | pinned fastgltf submodule source review | op
 LT-062 | CODE_READY | f7af825 | - | assets target source review | optional assets configure/build
 LT-063 | CODE_READY | f7af825 | - | ImportedScene neutral contract source review | asset tests and build
 LT-064 | CODE_READY | f7af825 | - | GltfImporter bounded API source review | asset tests and build
-LT-065 | CODE_READY | 734635b | - | fastgltf static importer source review | asset tests and build
+LT-065 | CODE_READY | 2f3b347 | - | fastgltf static importer supports tangent/color streams, indexed and non-indexed triangles, bounded nodes and typed unsupported cases | asset tests and build
 LT-066 | CODE_READY | 9298d50 | - | neutral asset presentation API source review | asset tests and build
 LT-067 | CODE_READY | 9298d50 | - | neutral asset presentation implementation source review | asset tests and build
 LT-010 | CODE_READY | 54ab30f | - | pinned MikkTSpace submodule source review | geometry configure/build
