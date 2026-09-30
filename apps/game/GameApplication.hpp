@@ -50,7 +50,8 @@ private:
         std::uint32_t width, std::uint32_t height);
 
     std::unique_ptr<platform::SdlPlatform> platform_;
-    // Legacy Diligent renderer keeps a reference to this object; threepp leaves it null.
+    // Diligent owns the GPU backend for the lifetime of the renderer. Camera
+    // control and input ordering belong to SceneDirector, not the renderer.
     std::unique_ptr<render::RenderBackend> backend_owner_;
     std::unique_ptr<render::IRenderer> renderer_;
     jobs::JobSystem jobs_;

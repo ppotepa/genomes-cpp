@@ -12,8 +12,4 @@ endif()
 
 if(GENOMES_RENDER_BACKEND STREQUAL "DILIGENT_LEGACY")
     add_subdirectory(game)
-elseif(GENOMES_RENDER_BACKEND STREQUAL "THREEPP_GL")
-    # The game remains the only application target; the legacy bootstrap is
-    # intentionally no longer part of the application composition.
-    add_subdirectory(game)
 endif()

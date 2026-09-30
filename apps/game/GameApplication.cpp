@@ -1,10 +1,6 @@
 #include "GameApplication.hpp"
-#if defined(GENOMES_GAME_DILIGENT)
 #include <DiligentBackend.hpp>
 #include <DiligentSceneRenderer.hpp>
-#elif defined(GENOMES_GAME_THREEPP)
-#include <ThreeppSceneRenderer.hpp>
-#endif
 #include <genomes/platform/Platform.hpp>
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/runtime/BuiltinScenes.hpp>
@@ -129,32 +125,15 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     using Result=foundation::Result<std::unique_ptr<GameApplication>,foundation::Error>;
     platform::WindowConfig window{};window.title="Genomes - Procedural World";
     window.width=1280;window.height=720;window.resizable=true;
-#if defined(GENOMES_GAME_THREEPP)
-    window.vulkan=false;window.graphics_api=platform::WindowGraphicsApi::OpenGL;
-#elif defined(GENOMES_GAME_DILIGENT)
-#if defined(_WIN32)
-    window.vulkan=false;window.graphics_api=platform::WindowGraphicsApi::NativeD3D;
-#else
-    window.vulkan=true;window.graphics_api=platform::WindowGraphicsApi::Vulkan;
-#endif
-#else
-#error "A presentation backend must be selected"
-#endif
+    // The production application is Windows/D3D12. NativeD3D is explicit so
+    // the platform layer cannot silently create an OpenGL/Vulkan window.
+    window.vulkan=false;
+    window.graphics_api=platform::WindowGraphicsApi::NativeD3D;
     auto created=platform::SdlPlatform::create(window);
     if (!created) return Result::failure(created.error());
     auto platform=std::move(created.value());
-#if defined(GENOMES_GAME_THREEPP)
-    auto created_renderer=render::ThreeppSceneRenderer::create(*platform);
-    if (!created_renderer) return Result::failure(created_renderer.error());
-    std::unique_ptr<render::IRenderer> renderer=std::move(created_renderer.value());
-    return Result::success(std::unique_ptr<GameApplication>{new GameApplication{std::move(platform),std::move(renderer)}});
-#else
     render::RenderConfig config{};
-#if defined(_WIN32)
     config.backend=render::RenderBackendKind::D3D12;
-#else
-    config.backend=render::RenderBackendKind::Vulkan;
-#endif
     config.headless=false;config.width=static_cast<std::uint32_t>(platform->width());config.height=static_cast<std::uint32_t>(platform->height());
 #ifndef NDEBUG
     config.validation=true;
@@ -164,14 +143,9 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     auto backend=std::move(created_backend.value());
     std::unique_ptr<render::IRenderer> renderer=std::make_unique<render::DiligentSceneRenderer>(*backend);
     return Result::success(std::unique_ptr<GameApplication>{new GameApplication{std::move(platform),std::move(renderer),std::move(backend)}});
-#endif
 }
 foundation::Result<void,foundation::Error> GameApplication::resize_renderer(std::uint32_t w,std::uint32_t h) {
-#if defined(GENOMES_GAME_THREEPP)
-    auto* backend=dynamic_cast<render::ThreeppSceneRenderer*>(renderer_.get());
-#else
     auto* backend=dynamic_cast<render::DiligentBackend*>(backend_owner_.get());
-#endif
     if (!backend) return foundation::Result<void,foundation::Error>::failure({foundation::ErrorCode::InvalidState,"renderer composition mismatch"});
     return backend->resize(w,h);
 }
