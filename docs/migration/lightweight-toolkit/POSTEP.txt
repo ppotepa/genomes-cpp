@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=129 DOING=0 CODE_READY=38 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 38/167 = 22.75%; remaining 77.25%
+TODO=125 DOING=0 CODE_READY=42 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 42/167 = 25.15%; remaining 74.85%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -61,6 +61,11 @@ LT-050 | CODE_READY | d073a47 | - | optimizer policy API source review | geometr
 LT-051 | CODE_READY | d073a47 | - | skinned-safe index optimizer source review | infantry optimizer tests and build
 LT-054 | CODE_READY | ef84e82 | - | immutable recipe contract source review | geometry tests and build
 LT-055 | CODE_READY | ef84e82 | - | deterministic recipe hash source review | geometry tests and build
+LT-011 | CODE_READY | 46aa8b9 | - | pinned earcut submodule source review | user full-toolkit configure/build
+LT-057 | CODE_READY | 46aa8b9 | - | Polygon2 contract source review | polygon tests and build
+LT-058 | CODE_READY | 46aa8b9 | - | polygon operations API source review | polygon tests and build
+LT-059 | CODE_READY | 46aa8b9 | - | earcut validation/triangulation source review | polygon tests and build
+LT-132 | CODE_READY | 46aa8b9 | - | polygon regression test source review | user Debug/Release CTest
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
