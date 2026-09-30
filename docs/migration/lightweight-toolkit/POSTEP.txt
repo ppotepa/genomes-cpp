@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=106 DOING=0 CODE_READY=61 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 61/167 = 36.53%; remaining 63.47%
+TODO=105 DOING=0 CODE_READY=62 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 62/167 = 37.13%; remaining 62.87%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -79,12 +79,12 @@ LT-067 | CODE_READY | 9298d50 | - | neutral asset presentation implementation so
 LT-010 | CODE_READY | 54ab30f | - | pinned MikkTSpace submodule source review | geometry configure/build
 LT-048 | CODE_READY | 54ab30f | - | tangent-space API source review | geometry tests and build
 LT-049 | CODE_READY | 54ab30f | - | MikkTSpace adapter source review | tangent tests and build
+LT-008 | CODE_READY | 54ab30f | - | dependency role/pin documentation source review | dependency audit
 LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
 LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
 LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
 LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
 LT-007 | TODO | - | - | - | implement and review assigned path
-LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
 LT-014 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
