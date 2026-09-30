@@ -17,8 +17,8 @@ f7af825/734635b/9298d50 (assets/importer/presentation),
 54ab30f (MikkTSpace), 1a718fd (sweep/parametric), 25d93d0 (tangent tests),
 55ae5b2 (camera), c141009 (controller), 9223936 (guard),
 ab4dd55 (runtime camera input and focus/cancel events, SDL metrics),
-e0c1e2a (Diligent resolved-camera matrix handoff)
-Current source progress: 81/167 = 48.50%
+e0c1e2a (Diligent resolved-camera matrix handoff), ebdc065 (dependency tracker)
+Current source progress: 83/167 = 49.70%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
