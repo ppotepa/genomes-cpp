@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=122 DOING=0 CODE_READY=45 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 45/167 = 26.95%; remaining 73.05%
+TODO=111 DOING=0 CODE_READY=56 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 56/167 = 33.53%; remaining 66.47%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -69,11 +69,19 @@ LT-132 | CODE_READY | 46aa8b9 | - | polygon regression test source review | user
 LT-013 | CODE_READY | 114e4de | - | pinned Manifold submodule source review | optional CSG configure/build
 LT-060 | CODE_READY | 114e4de | - | SolidOps public contract source review | optional CSG tests and build
 LT-061 | CODE_READY | 114e4de | - | Manifold conversion source review | optional CSG tests and build
+LT-012 | CODE_READY | f7af825 | - | pinned fastgltf submodule source review | optional assets configure/build
+LT-062 | CODE_READY | f7af825 | - | assets target source review | optional assets configure/build
+LT-063 | CODE_READY | f7af825 | - | ImportedScene neutral contract source review | asset tests and build
+LT-064 | CODE_READY | f7af825 | - | GltfImporter bounded API source review | asset tests and build
+LT-065 | CODE_READY | 734635b | - | fastgltf static importer source review | asset tests and build
+LT-069 | CODE_READY | f7af825 | - | asset_probe target source review | full-toolkit build
+LT-070 | CODE_READY | f7af825 | - | asset_probe manifest source review | asset probe execution
+LT-135 | CODE_READY | f7af825 | - | glTF importer regression test source review | user full-toolkit CTest
+LT-140 | CODE_READY | f7af825 | - | static triangle glTF fixture source review | asset probe/import evidence
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
 LT-010 | TODO | - | - | - | implement and review assigned path
-LT-012 | TODO | - | - | - | implement and review assigned path
 LT-014 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | TODO | - | - | - | implement and review assigned path
@@ -96,15 +104,9 @@ LT-049 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
-LT-062 | TODO | - | - | - | implement and review assigned path
-LT-063 | TODO | - | - | - | implement and review assigned path
-LT-064 | TODO | - | - | - | implement and review assigned path
-LT-065 | TODO | - | - | - | implement and review assigned path
 LT-066 | TODO | - | - | - | implement and review assigned path
 LT-067 | TODO | - | - | - | implement and review assigned path
 LT-068 | TODO | - | - | - | implement and review assigned path
-LT-069 | TODO | - | - | - | implement and review assigned path
-LT-070 | TODO | - | - | - | implement and review assigned path
 LT-076 | TODO | - | - | - | implement and review assigned path
 LT-077 | TODO | - | - | - | implement and review assigned path
 LT-078 | TODO | - | - | - | implement and review assigned path
@@ -162,10 +164,8 @@ LT-130 | TODO | - | - | - | implement and review assigned path
 LT-131 | TODO | - | - | - | implement and review assigned path
 LT-133 | TODO | - | - | - | implement and review assigned path
 LT-134 | TODO | - | - | - | implement and review assigned path
-LT-135 | TODO | - | - | - | implement and review assigned path
 LT-138 | TODO | - | - | - | implement and review assigned path
 LT-139 | TODO | - | - | - | implement and review assigned path
-LT-140 | TODO | - | - | - | implement and review assigned path
 LT-141 | TODO | - | - | - | implement and review assigned path
 LT-143 | TODO | - | - | - | implement and review assigned path
 LT-144 | TODO | - | - | - | implement and review assigned path
