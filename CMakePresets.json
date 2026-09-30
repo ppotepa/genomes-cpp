@@ -91,6 +91,21 @@
       "name": "headless-core-release", "inherits": "headless-core-debug",
       "binaryDir": "${sourceDir}/build/headless-core-release",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "toolkit-full-debug", "displayName": "Lightweight toolkit full Debug",
+      "inherits": "headless-core-debug",
+      "binaryDir": "${sourceDir}/build/toolkit-full-debug",
+      "cacheVariables": {
+        "GENOMES_ENABLE_ASSETS": "ON", "GENOMES_ENABLE_CSG": "ON",
+        "GENOMES_ENABLE_EARCUT": "ON", "GENOMES_BUILD_TOOLKIT_TOOLS": "ON",
+        "GENOMES_ENABLE_MESHOPTIMIZER": "ON"
+      }
+    },
+    {
+      "name": "toolkit-full-release", "inherits": "toolkit-full-debug",
+      "binaryDir": "${sourceDir}/build/toolkit-full-release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     }
   ],
   "buildPresets": [
@@ -105,7 +120,9 @@
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade" },
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt" },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug" },
-    { "name": "headless-core-release", "configurePreset": "headless-core-release" }
+    { "name": "headless-core-release", "configurePreset": "headless-core-release" },
+    { "name": "toolkit-full-debug", "configurePreset": "toolkit-full-debug" },
+    { "name": "toolkit-full-release", "configurePreset": "toolkit-full-release" }
   ],
   "testPresets": [
     { "name": "dev-debug", "configurePreset": "dev-debug", "output": { "outputOnFailure": true } },
@@ -118,6 +135,8 @@
     { "name": "headless-infantry-upgrade", "configurePreset": "headless-infantry-upgrade", "output": { "outputOnFailure": true } },
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt", "output": { "outputOnFailure": true } },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug", "output": { "outputOnFailure": true } },
-    { "name": "headless-core-release", "configurePreset": "headless-core-release", "output": { "outputOnFailure": true } }
+    { "name": "headless-core-release", "configurePreset": "headless-core-release", "output": { "outputOnFailure": true } },
+    { "name": "toolkit-full-debug", "configurePreset": "toolkit-full-debug", "output": { "outputOnFailure": true } },
+    { "name": "toolkit-full-release", "configurePreset": "toolkit-full-release", "output": { "outputOnFailure": true } }
   ]
 }

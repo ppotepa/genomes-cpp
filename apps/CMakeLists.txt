@@ -2,6 +2,10 @@ add_subdirectory(headless)
 add_subdirectory(menu)
 add_subdirectory(proc_viewer)
 
+if(GENOMES_ENABLE_ASSETS AND GENOMES_BUILD_TOOLKIT_TOOLS)
+    add_subdirectory(asset_probe)
+endif()
+
 if(GENOMES_ENABLE_DILIGENT)
     add_subdirectory(render_smoke)
 endif()

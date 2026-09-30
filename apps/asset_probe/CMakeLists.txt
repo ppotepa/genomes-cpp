@@ -1,0 +1,5 @@
+add_executable(genomes_asset_probe main.cpp)
+target_link_libraries(genomes_asset_probe PRIVATE genomes::assets)
+target_compile_features(genomes_asset_probe PRIVATE cxx_std_20)
+genomes_set_project_warnings(genomes_asset_probe)
+set_target_properties(genomes_asset_probe PROPERTIES OUTPUT_NAME "genomes_asset_probe")
