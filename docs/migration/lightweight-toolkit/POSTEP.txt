@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=56 DOING=0 CODE_READY=111 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 111/167 = 66.47%; remaining 33.53%
+TODO=55 DOING=0 CODE_READY=112 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 112/167 = 67.07%; remaining 32.93%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -119,10 +119,10 @@ LT-134 | CODE_READY | b74835f | - | optional CSG union/difference/intersection t
 LT-138 | CODE_READY | 2f83fb5 | - | primitive/optimize/tangent/RenderMesh/snapshot integration test source review | user headless/full CTest
 LT-085 | CODE_READY | d82c8c9 | - | DiligentSceneRenderer without controller/input and with neutral snapshot source review | user Diligent build
 LT-086 | CODE_READY | e0c1e2a | - | Diligent final snapshot handoff and transaction end/abort source review | user Diligent restoration tests
-LT-100 | CODE_READY | 20a7bb9 | - | BuildingLab snapshot ownership source review | runtime tests and build
-LT-102 | CODE_READY | 20a7bb9 | - | Battlefield snapshot ownership source review | runtime tests and build
-LT-103 | CODE_READY | 20a7bb9 | - | MainMenu snapshot ownership source review | runtime tests and build
-LT-104 | CODE_READY | 20a7bb9 | - | WorldConfig snapshot ownership source review | runtime tests and build
+LT-100 | CODE_READY | 48ee95d | - | BuildingLab geometry facade and snapshot ownership source review | runtime tests and build
+LT-102 | CODE_READY | 48ee95d | - | Battlefield snapshot ownership source review | runtime tests and build
+LT-103 | CODE_READY | 48ee95d | - | MainMenu snapshot ownership source review | runtime tests and build
+LT-104 | CODE_READY | 48ee95d | - | WorldConfig snapshot ownership source review | runtime tests and build
 LT-149 | CODE_READY | 20a7bb9 | - | presentation metadata regression source review | user Debug/Release CTest
 LT-042 | CODE_READY | e635ee4 | - | mesh validation report contract source review | geometry tests and build
 LT-043 | CODE_READY | e635ee4 | - | mesh validation implementation source review | geometry tests and build
@@ -154,7 +154,7 @@ LT-095 | TODO | - | - | - | implement and review assigned path
 LT-097 | TODO | - | - | - | implement and review assigned path
 LT-098 | TODO | - | - | - | implement and review assigned path
 LT-099 | TODO | - | - | - | implement and review assigned path
-LT-101 | TODO | - | - | - | implement and review assigned path
+LT-101 | CODE_READY | 48ee95d | - | UnitLab neutral camera preset and renderer-independent orbit policy source review | runtime tests and build
 LT-105 | TODO | - | - | - | implement and review assigned path
 LT-106 | TODO | - | - | - | implement and review assigned path
 LT-107 | TODO | - | - | - | implement and review assigned path
