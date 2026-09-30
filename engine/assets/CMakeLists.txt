@@ -1,4 +1,4 @@
-add_library(genomes_assets STATIC src/GltfImporter.cpp)
+add_library(genomes_assets STATIC src/GltfImporter.cpp src/AssetPresentation.cpp)
 target_include_directories(genomes_assets PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_assets PUBLIC genomes::geometry genomes::math genomes::foundation PRIVATE genomes::fastgltf)
 target_compile_features(genomes_assets PUBLIC cxx_std_20)
