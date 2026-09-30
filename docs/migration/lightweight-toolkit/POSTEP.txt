@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=125 DOING=0 CODE_READY=42 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 42/167 = 25.15%; remaining 74.85%
+TODO=122 DOING=0 CODE_READY=45 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 45/167 = 26.95%; remaining 73.05%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -66,12 +66,14 @@ LT-057 | CODE_READY | 46aa8b9 | - | Polygon2 contract source review | polygon te
 LT-058 | CODE_READY | 46aa8b9 | - | polygon operations API source review | polygon tests and build
 LT-059 | CODE_READY | 46aa8b9 | - | earcut validation/triangulation source review | polygon tests and build
 LT-132 | CODE_READY | 46aa8b9 | - | polygon regression test source review | user Debug/Release CTest
+LT-013 | CODE_READY | 2660846 | - | pinned Manifold submodule source review | optional CSG configure/build
+LT-060 | CODE_READY | 2660846 | - | SolidOps public contract source review | optional CSG tests and build
+LT-061 | CODE_READY | 2660846 | - | Manifold conversion source review | optional CSG tests and build
 LT-007 | TODO | - | - | - | implement and review assigned path
 LT-008 | TODO | - | - | - | implement and review assigned path
 LT-009 | TODO | - | - | - | implement and review assigned path
 LT-010 | TODO | - | - | - | implement and review assigned path
 LT-012 | TODO | - | - | - | implement and review assigned path
-LT-013 | TODO | - | - | - | implement and review assigned path
 LT-014 | TODO | - | - | - | implement and review assigned path
 LT-015 | TODO | - | - | - | implement and review assigned path
 LT-016 | TODO | - | - | - | implement and review assigned path
@@ -94,8 +96,6 @@ LT-049 | TODO | - | - | - | implement and review assigned path
 LT-052 | TODO | - | - | - | implement and review assigned path
 LT-053 | TODO | - | - | - | implement and review assigned path
 LT-056 | TODO | - | - | - | implement and review assigned path
-LT-060 | TODO | - | - | - | implement and review assigned path
-LT-061 | TODO | - | - | - | implement and review assigned path
 LT-062 | TODO | - | - | - | implement and review assigned path
 LT-063 | TODO | - | - | - | implement and review assigned path
 LT-064 | TODO | - | - | - | implement and review assigned path
