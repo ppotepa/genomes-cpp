@@ -1,0 +1,63 @@
+#include <genomes/geometry/MeshOptimizer.hpp>
+#include <genomes/geometry/PolygonOps.hpp>
+#include <genomes/geometry/PrimitiveBuilder.hpp>
+#include <genomes/geometry/TangentSpace.hpp>
+
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <iostream>
+#include <vector>
+
+namespace {
+
+using Clock = std::chrono::steady_clock;
+using Sample = std::chrono::duration<double, std::micro>;
+
+template <typename Work>
+double measure(Work&& work, std::size_t samples = 25U) {
+    std::vector<double> timings;
+    timings.reserve(samples);
+    for (std::size_t index = 0U; index < samples; ++index) {
+        const auto begin = Clock::now();
+        work();
+        timings.push_back(Sample(Clock::now() - begin).count());
+    }
+    std::sort(timings.begin(), timings.end());
+    const auto percentile = [&timings](double p) {
+        const auto index = static_cast<std::size_t>(p * static_cast<double>(timings.size() - 1U));
+        return timings[index];
+    };
+    std::cout << "median_us=" << percentile(0.50) << " p95_us=" << percentile(0.95)
+              << " samples=" << timings.size();
+    return percentile(0.50);
+}
+
+} // namespace
+
+int main() {
+    using namespace genomes;
+    const auto box = geometry::makeBoxResult({{2.0F, 3.0F, 1.5F}});
+    if (!box) {
+        return 1;
+    }
+
+    std::cout << "primitive ";
+    measure([&] { (void)geometry::makeBoxResult({{2.0F, 3.0F, 1.5F}}); });
+    std::cout << '\n';
+
+    geometry::Polygon2 polygon{};
+    polygon.outer = {{-1.0F, -1.0F}, {1.0F, -1.0F}, {1.0F, 1.0F}, {-1.0F, 1.0F}};
+    std::cout << "polygon ";
+    measure([&] { (void)geometry::triangulate(polygon); });
+    std::cout << '\n';
+
+    std::cout << "tangent ";
+    measure([&] { (void)geometry::generateTangents(box.value()); });
+    std::cout << '\n';
+
+    std::cout << "optimize ";
+    measure([&] { (void)geometry::optimizeMesh(box.value(), geometry::OptimizationPolicy::Static); });
+    std::cout << '\n';
+    return 0;
+}

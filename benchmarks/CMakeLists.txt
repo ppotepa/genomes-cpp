@@ -53,6 +53,10 @@ add_executable(genomes_bench_full_scene
 target_link_libraries(genomes_bench_full_scene PRIVATE genomes::render_core)
 genomes_set_project_warnings(genomes_bench_full_scene)
 
+add_executable(genomes_bench_toolkit toolkit_benchmark.cpp)
+target_link_libraries(genomes_bench_toolkit PRIVATE genomes::geometry)
+genomes_set_project_warnings(genomes_bench_toolkit)
+
 add_executable(genomes_bench_field_atlas
     render/field_atlas_benchmark.cpp)
 target_link_libraries(genomes_bench_field_atlas PRIVATE genomes::render_compute)
