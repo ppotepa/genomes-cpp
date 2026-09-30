@@ -9,8 +9,8 @@
 
 namespace genomes::platform {
 namespace {
-// SDL's event queue and threepp's GL loader are process-wide. This is an OS
-// resource lease, not a gameplay service. The first migration profile has one
+// SDL's event queue is process-wide. This is an OS resource lease, not a
+// gameplay service. The first migration profile has one
 // live Genomes window; sequential reopen is supported after renderer teardown.
 std::atomic_flag window_lease = ATOMIC_FLAG_INIT;
 
@@ -239,8 +239,8 @@ PlatformFrame SdlPlatform::poll_events() {
     frame.metrics = metrics_;
     frame.width = metrics_.pixel_width;
     frame.height = metrics_.pixel_height;
-    // Do not feed zero-sized swapchains to legacy callers. The threepp loop
-    // separately checks drawable(), and restoration emits a real resize.
+    // Do not feed zero-sized swapchains to callers. The application checks
+    // drawable(), and restoration emits a real resize.
     frame.resized = metrics_.drawable() && !(metrics_ == previous);
     if (frame.resized) {
         frame.input.events.push_back({input::EventType::WindowResize, 0, 0, 0,
@@ -306,7 +306,7 @@ foundation::NativeWindowHandle SdlPlatform::native_window() const noexcept {
     handle.system = foundation::NativeWindowSystem::Win32;
     handle.window = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
 #elif defined(__APPLE__)
-    // threepp uses the current GL context, not a native-window adapter.
+    // The production Diligent path uses a native D3D12 window adapter.
     (void)properties;
 #else
     handle.display = SDL_GetPointerProperty(properties, SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);

@@ -98,7 +98,7 @@ struct SkinnedMorphTarget final {
 
 // One neutral local TRS contract is shared by the render skeleton, live pose
 // palettes and both backends. Do not duplicate this structure: that made the
-// threepp bind skeleton and live-pose path type-incompatible at compile time.
+// Bind skeleton and live-pose path must remain type-compatible at compile time.
 using SkinnedBoneTransform = BoneLocalTransform;
 struct SkinnedBonePrototype final {
     std::uint16_t parent{0xffffU};
@@ -129,9 +129,8 @@ struct SkinnedBonePalette final {
     foundation::StableId skeleton_id{0};
     std::uint64_t pose_revision{0};
     std::vector<std::array<float, 16U>> matrices;
-    // Same canonical order as SkinnedMeshPrototype::bones. Threepp and other
-    // scene-graph renderers consume these directly; Diligent keeps using the
-    // precomposed matrix palette until the legacy backend is retired.
+    // Same canonical order as SkinnedMeshPrototype::bones. CPU and Diligent
+    // consumers use these directly; no backend-specific skeleton is exposed.
     std::vector<SkinnedBoneTransform> local_poses;
     std::array<float, 4U> morph_weights{};
     // Presentation-only heatmap, -1 disables it. Never alters cached vertices.

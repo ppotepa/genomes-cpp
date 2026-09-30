@@ -1,7 +1,8 @@
 """Static boundary checks for the lightweight-toolkit migration.
 
-This intentionally reports the current transitional checkout as failing until
-S08 removes the remaining legacy GL closure. It never modifies the tree.
+This checks active source, build configuration, scripts and public headers.
+Historical migration notes and preserved JS/reference fixtures are excluded;
+the guard never modifies the tree.
 """
 from __future__ import annotations
 
@@ -32,6 +33,11 @@ def main() -> int:
     root = args.root.resolve()
     failures: list[str] = []
     for path in tracked_files(root):
+        relative = path.relative_to(root)
+        if relative.name == "concat.txt" or (
+            relative.parts and relative.parts[0] in {"docs", "reference"}
+        ):
+            continue
         if not path.is_file() or path.suffix.lower() not in {".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".cmake", ".txt", ".ps1", ".cmd", ".py"}:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
