@@ -6,6 +6,7 @@
 #include <genomes/render/RenderFrameTransaction.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 namespace {
@@ -144,5 +145,22 @@ void resolvedCameraAndSnapshot() {
     check(snapshot.has_resolved_camera && snapshot.resolved_camera.viewport.width == 1920,
           "scene payload clear erased resolved camera");
 }
+
+void cameraOnlyPreservesPrototypeIdentity() {
+    render::PresentationSnapshot snapshot{};
+    auto prototype = std::make_shared<render::RenderMesh>(mesh());
+    snapshot.instance_prototypes.push_back(prototype);
+    snapshot.camera.revision = 3U;
+    const auto before = snapshot.instance_prototypes.front();
+    snapshot.camera.revision = 4U;
+    check(snapshot.instance_prototypes.size() == 1U &&
+              snapshot.instance_prototypes.front() == before,
+          "camera-only revision rebuilt or replaced an immutable prototype");
+    render::RenderUploadTelemetry telemetry{};
+    telemetry.mesh_uploads = 0U;
+    telemetry.palette_updates = 0U;
+    check(telemetry.mesh_uploads == 0U && telemetry.palette_updates == 0U,
+          "camera-only telemetry contract was not zeroed");
 }
-int main() {frameTransactions();materials();palette();orbit();resolvedCameraAndSnapshot();return 0;}
+}
+int main() {frameTransactions();materials();palette();orbit();resolvedCameraAndSnapshot();cameraOnlyPreservesPrototypeIdentity();return 0;}
