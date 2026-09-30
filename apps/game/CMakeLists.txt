@@ -1,4 +1,6 @@
 add_executable(genomes_game main.cpp GameApplication.cpp)
+set_target_properties(genomes_game PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 target_link_libraries(genomes_game
 PRIVATE
 genomes::runtime
