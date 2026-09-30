@@ -25,6 +25,12 @@ int main() {
     assert(!makeCylinderResult({1.0F, 1.0F, 2U, true}));
     SweepSpec sweep{{{0,0,0},{0,1,0},{0,2,0}},{{0.5F,0.5F},{0.5F,0.5F},{0.5F,0.5F}},8U,false,false};
     const auto swept=sweepProfile(sweep); assert(swept && swept.value().valid());
+    sweep.cap = true;
+    const auto capped_sweep=sweepProfile(sweep);
+    assert(capped_sweep && capped_sweep.value().valid() &&
+           validateMesh(capped_sweep.value()).valid());
+    SweepSpec degenerate_sweep{{{0,0,0},{0,0,0}},{{0.5F,0.5F},{0.5F,0.5F}},8U,false,false};
+    assert(!sweepProfile(degenerate_sweep));
     ParametricSurfaceSpec plane{}; plane.u_segments=2; plane.v_segments=2; plane.position=[](float u,float v){return genomes::foundation::Vec3{u,v,0};};
     const auto tessellated=tessellateParametric(plane); assert(tessellated && tessellated.value().indices.size()==24U);
     return 0;

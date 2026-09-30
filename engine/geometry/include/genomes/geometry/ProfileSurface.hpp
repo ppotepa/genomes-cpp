@@ -63,10 +63,8 @@ template <class VertexFactory>
                 spec.axis_v.y * spec.radius_v * s,
             spec.center.z + spec.axis_u.z * spec.radius_u * c +
                 spec.axis_v.z * spec.radius_v * s};
-        const foundation::Vec3 normal{
-            spec.axis_u.x * c + spec.axis_v.x * s,
-            spec.axis_u.y * c + spec.axis_v.y * s,
-            spec.axis_u.z * c + spec.axis_v.z * s};
+        foundation::Vec3 normal = math::normalized(
+            spec.axis_u * (c / spec.radius_u) + spec.axis_v * (s / spec.radius_v));
         const foundation::Vec2 uv{
             static_cast<float>(index) / static_cast<float>(spec.segments), spec.uv_v};
         ring.indices.push_back(vertex_factory(topology, position, normal, uv));
