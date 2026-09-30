@@ -26,7 +26,7 @@ a5889f4 (shared camera math in Diligent), d82c8c9 (neutral camera contract),
 539281b (Diligent scene renderer checkpoint), d760db5/a440b23 (S10 documentation),
 bddcbc4 (acceptance evidence and capture manifest), c51a2b1 (MeshData tests),
 b74835f (CSG tests), 2f83fb5 (lightweight toolkit integration smoke), 48ee95d (scene geometry/camera/snapshot ownership), ab29a72 (neutral platform contract), 523d721 (toolkit benchmark harness), 6f9914b (presentation phase benchmark), 23fedf5 (test labels)
-Current source progress: 116/167 = 69.46%
+Current source progress: 115/167 = 68.86%
 Current acceptance progress: 0/167 = 0.00%
 
 CPU ACCEPTANCE
