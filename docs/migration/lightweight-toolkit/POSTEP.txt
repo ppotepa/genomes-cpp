@@ -10,8 +10,8 @@ Acceptance progress = 100 * VERIFIED / 167
 
 Current summary
 ---------------
-TODO=52 DOING=0 CODE_READY=115 WAIT_USER=0 VERIFIED=0 BLOCKED=0
-Code progress: 115/167 = 68.86%; remaining 31.14%
+TODO=51 DOING=0 CODE_READY=116 WAIT_USER=0 VERIFIED=0 BLOCKED=0
+Code progress: 116/167 = 69.46%; remaining 30.54%
 Acceptance progress: 0/167 = 0.00%; remaining 100.00%
 
 A row may become CODE_READY only after its change and dependency review are
@@ -185,7 +185,7 @@ LT-144 | TODO | - | - | - | implement and review assigned path
 LT-145 | TODO | - | - | - | implement and review assigned path
 LT-146 | TODO | - | - | - | implement and review assigned path
 LT-147 | TODO | - | - | - | implement and review assigned path
-LT-148 | TODO | - | - | - | implement and review assigned path
+LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest
 LT-150 | TODO | - | - | - | implement and review assigned path
 LT-151 | CODE_READY | 523d721 | - | toolkit primitive/polygon/tangent/optimizer median-p95 benchmark source review | user benchmark execution
 LT-152 | CODE_READY | 6f9914b | - | full-scene generation/camera/snapshot phase benchmark source review | user benchmark execution
