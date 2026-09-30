@@ -18,36 +18,37 @@ function(genomes_configure_diligent)
         return()
     endif()
 
+    if(NOT WIN32)
+        message(FATAL_ERROR "Genomes Diligent production target is Windows/D3D12 only")
+    endif()
+
     genomes_require_file(
         "${GENOMES_DILIGENT_SOURCE_DIR}/CMakeLists.txt"
         "Diligent Engine")
     genomes_require_file(
         "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentTools/CMakeLists.txt"
-        "DiligentTools (required by DiligentFX)")
+        "DiligentTools (required for Genomes capture)")
     genomes_require_file(
         "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentFX/CMakeLists.txt"
         "DiligentFX")
 
     # These cache values are set before add_subdirectory because the upstream
     # meta-project reads them while it configures DiligentCore.
-    # DiligentFX 2.5.6 depends on DiligentTools. Both remain absent from
-    # configurations which do not enable Diligent.
+    # Genomes capture uses DiligentTools directly; DiligentFX is not part of
+    # the production renderer dependency closure.
     set(DILIGENT_BUILD_TOOLS ON CACHE BOOL "Build DiligentTools" FORCE)
-    set(DILIGENT_BUILD_FX ON CACHE BOOL "Build DiligentFX" FORCE)
+    set(DILIGENT_BUILD_FX OFF CACHE BOOL "Build DiligentFX" FORCE)
     set(DILIGENT_BUILD_SAMPLES OFF CACHE BOOL "Build DiligentSamples" FORCE)
     set(DILIGENT_BUILD_TESTS OFF CACHE BOOL "Build Diligent tests" FORCE)
 
-    # Genomes uses D3D12 as the Windows profile and Vulkan elsewhere.
-    # Unused backends are pruned explicitly to keep build times and
-    # the final dependency surface predictable.
+    # Genomes uses D3D12 as the only production backend. Unused backends are
+    # pruned explicitly to keep build times and the dependency surface small.
     set(DILIGENT_NO_DIRECT3D11 ON CACHE BOOL "Disable Diligent D3D11" FORCE)
+    set(DILIGENT_NO_DIRECT3D12 OFF CACHE BOOL "Disable Diligent D3D12" FORCE)
     set(DILIGENT_NO_OPENGL ON CACHE BOOL "Disable Diligent OpenGL" FORCE)
+    set(DILIGENT_NO_VULKAN ON CACHE BOOL "Disable Diligent Vulkan" FORCE)
     set(DILIGENT_NO_METAL ON CACHE BOOL "Disable Diligent Metal" FORCE)
     set(DILIGENT_NO_WEBGPU ON CACHE BOOL "Disable Diligent WebGPU" FORCE)
-
-    if(NOT WIN32)
-        set(DILIGENT_NO_DIRECT3D12 ON CACHE BOOL "Disable Diligent D3D12" FORCE)
-    endif()
 
     add_subdirectory(
         "${GENOMES_DILIGENT_SOURCE_DIR}"
