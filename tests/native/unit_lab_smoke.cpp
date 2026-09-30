@@ -56,6 +56,12 @@ int main() {
     assert(presentation.instance_prototypes.size() == 1U);
     assert(!presentation.instance_prototypes.front()->vertices.empty());
     assert(presentation.camera.valid());
+    assert(presentation.has_camera_request);
+    assert(presentation.has_resolved_camera);
+    assert(presentation.resolved_camera.viewport.width > 0 &&
+           presentation.resolved_camera.viewport.height > 0);
+    const auto initial_scene_epoch = presentation.scene_epoch;
+    assert(initial_scene_epoch != 0U);
     const auto stable_prototype = presentation.skinned_prototypes.front();
     bool has_explicit_uniform_color = false;
     for (const auto& vertex : stable_prototype->vertices) {
@@ -86,6 +92,7 @@ int main() {
                            .mouse_y = 276.0F, .events = {}}); // regenerate
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() != stable_prototype);
+    assert(presentation.scene_epoch == initial_scene_epoch);
     const auto regenerated_prototype = presentation.skinned_prototypes.front();
 
     director.handle_input({.right_pressed = true, .events = {}});

@@ -63,6 +63,20 @@ void checks() {
           "opaque range did not follow the selected optimization mode");
     upgrade_test::checkVertexStreams(source, prepared);
     upgrade_test::checkGroups(source, prepared);
+    check(prepared.vertices.size() == source.vertices.size() && prepared.vertices.size() == 7U,
+          "skinned preparation changed raw vertex numbering");
+    for (std::size_t index = 0U; index < source.vertices.size(); ++index) {
+        check(upgrade_test::equal(source.vertices[index].position, prepared.vertices[index].position),
+              "position stream moved during index-only optimization");
+        check(source.vertices[index].bone_indices == prepared.vertices[index].bone_indices &&
+                  source.vertices[index].bone_weights == prepared.vertices[index].bone_weights,
+              "skinning streams moved during index-only optimization");
+    }
+    for (const auto& morph : prepared.morphs) {
+        check(morph.position_deltas.size() == source.vertices.size() &&
+                  morph.normal_deltas.size() == source.vertices.size(),
+              "morph streams lost raw vertex numbering");
+    }
     check(prepared.mesh_id == source.mesh_id && prepared.revision == source.revision,
           "low-level optimizer must not assign resource identities");
     check(std::equal(source.indices.begin() + 12, source.indices.end(),

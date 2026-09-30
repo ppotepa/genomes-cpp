@@ -2,7 +2,9 @@
 #include <DiligentGpuContracts.hpp>
 #include <genomes/render/DrawMaterialPlan.hpp>
 #include <genomes/camera/CameraController.hpp>
+#include <genomes/camera/Camera.hpp>
 #include <genomes/render/RenderFrameTransaction.hpp>
+#include <genomes/render/PresentationSnapshot.hpp>
 #include <limits>
 #include <stdexcept>
 
@@ -117,5 +119,30 @@ void orbit() {
     controller.update(requested,{0,0,0,0,0,1,false,false,false},1.0F/60.0F);
     check(requested.position.y>0.0F,"RTS camera lost positive height");
 }
+
+void resolvedCameraAndSnapshot() {
+    camera::CameraRequest request{};
+    request.position = {0.0F, 2.0F, 6.0F};
+    request.target = {0.0F, 1.0F, 0.0F};
+    request.lens = {0.8F, 0.1F, 100.0F};
+    const auto resolved = camera::resolve(request, 1920, 1080);
+    check(resolved, "camera request did not resolve");
+    check(resolved.value().viewport.width == 1920 && resolved.value().viewport.height == 1080,
+          "resolved camera lost framebuffer viewport");
+    const auto projected = camera::project(resolved.value(), {0.0F, 1.0F, 0.0F});
+    check(projected && projected.value().z >= 0.0F && projected.value().z <= 1.0F,
+          "D3D camera projection escaped [0,1]");
+
+    render::PresentationSnapshot snapshot{};
+    snapshot.simulation_tick = 41U;
+    snapshot.scene_epoch = 9U;
+    snapshot.resolved_camera = resolved.value();
+    snapshot.has_resolved_camera = true;
+    snapshot.clear_scene_payload();
+    check(snapshot.simulation_tick == 41U && snapshot.scene_epoch == 9U,
+          "scene payload clear erased frame metadata");
+    check(snapshot.has_resolved_camera && snapshot.resolved_camera.viewport.width == 1920,
+          "scene payload clear erased resolved camera");
 }
-int main() {frameTransactions();materials();palette();orbit();return 0;}
+}
+int main() {frameTransactions();materials();palette();orbit();resolvedCameraAndSnapshot();return 0;}

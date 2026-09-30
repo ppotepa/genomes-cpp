@@ -1,5 +1,5 @@
 add_executable(genomes_test_index_order index_order_tests.cpp)
-target_link_libraries(genomes_test_index_order PRIVATE genomes::render)
+target_link_libraries(genomes_test_index_order PRIVATE genomes::render genomes::geometry)
 target_compile_definitions(genomes_test_index_order PRIVATE
     GENOMES_EXPECT_MESHOPTIMIZER=$<BOOL:${GENOMES_ENABLE_MESHOPTIMIZER}>)
 genomes_set_project_warnings(genomes_test_index_order)
