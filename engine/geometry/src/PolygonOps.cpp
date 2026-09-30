@@ -23,6 +23,8 @@ bool onSegment(math::Vec2 a, math::Vec2 b, math::Vec2 p, float e) { return std::
 bool segmentsCross(math::Vec2 a,math::Vec2 b,math::Vec2 c,math::Vec2 d,float e) { const float ab_c=cross(a,b,c),ab_d=cross(a,b,d),cd_a=cross(c,d,a),cd_b=cross(c,d,b); if(((ab_c>e&&ab_d<-e)||(ab_c<-e&&ab_d>e))&&((cd_a>e&&cd_b<-e)||(cd_a<-e&&cd_b>e)))return true; return std::fabs(ab_c)<=e&&onSegment(a,b,c,e)||std::fabs(ab_d)<=e&&onSegment(a,b,d,e)||std::fabs(cd_a)<=e&&onSegment(c,d,a,e)||std::fabs(cd_b)<=e&&onSegment(c,d,b,e); }
 bool ringSelfIntersects(std::span<const math::Vec2> ring,float e) { for(std::size_t i=0;i<ring.size();++i)for(std::size_t j=i+1;j<ring.size();++j){if(i==j||(i+1)%ring.size()==j||(j+1)%ring.size()==i)continue;if(segmentsCross(ring[i],ring[(i+1)%ring.size()],ring[j],ring[(j+1)%ring.size()],e))return true;}return false; }
 bool ringContains(std::span<const math::Vec2> ring,math::Vec2 p) { bool inside=false; for(std::size_t i=0,j=ring.size()-1;i<ring.size();j=i++){const auto a=ring[i],b=ring[j];if(((a.y>p.y)!=(b.y>p.y))&&(p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x))inside=!inside;}return inside; }
+bool ringTouches(std::span<const math::Vec2> ring,math::Vec2 p,float e) { for(std::size_t i=0;i<ring.size();++i)if(onSegment(ring[i],ring[(i+1)%ring.size()],p,e))return true;return false; }
+bool ringsIntersect(std::span<const math::Vec2> first,std::span<const math::Vec2> second,float e) { for(std::size_t i=0;i<first.size();++i)for(std::size_t j=0;j<second.size();++j)if(segmentsCross(first[i],first[(i+1)%first.size()],second[j],second[(j+1)%second.size()],e))return true;return false; }
 }
 float signedArea(std::span<const math::Vec2> ring) noexcept { double area=0; for(std::size_t i=0;i<ring.size();++i){const auto a=ring[i],b=ring[(i+1)%ring.size()];area+=static_cast<double>(a.x)*b.y-static_cast<double>(b.x)*a.y;} return static_cast<float>(area*0.5); }
 foundation::Result<void, foundation::Error> validatePolygon(const Polygon2& polygon) {
@@ -30,7 +32,18 @@ foundation::Result<void, foundation::Error> validatePolygon(const Polygon2& poly
     if(polygon.outer.size()<3)return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon outer ring needs three points"));
     auto validateRing=[&](std::span<const math::Vec2> ring){for(const auto p:ring)if(!finite(p))return false;return std::fabs(signedArea(ring))>polygon.epsilon&& !ringSelfIntersects(ring,polygon.epsilon);};
     if(!validateRing(polygon.outer))return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon outer ring is degenerate or self-intersecting"));
-    for(const auto& hole:polygon.holes){if(hole.size()<3||!validateRing(hole)||!ringContains(polygon.outer,hole.front()))return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon hole is invalid or outside outer ring"));}
+    for(std::size_t hole_index=0;hole_index<polygon.holes.size();++hole_index){
+        const auto& hole=polygon.holes[hole_index];
+        if(hole.size()<3||!validateRing(hole))return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon hole is invalid"));
+        for(const auto point:hole)
+            if(!ringContains(polygon.outer,point)||ringTouches(polygon.outer,point,polygon.epsilon)||ringsIntersect(polygon.outer,hole,polygon.epsilon))
+                return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon hole is outside or crosses outer ring"));
+        for(std::size_t other_index=0;other_index<hole_index;++other_index){
+            const auto& other=polygon.holes[other_index];
+            if(ringsIntersect(other,hole,polygon.epsilon)||ringContains(other,hole.front())||ringContains(hole,other.front())||ringTouches(other,hole.front(),polygon.epsilon))
+                return foundation::Result<void,foundation::Error>::failure(failure(foundation::ErrorCode::InvalidArgument,"polygon holes overlap or touch"));
+        }
+    }
     return foundation::Result<void,foundation::Error>::success();
 }
 foundation::Result<Polygon2, foundation::Error> normalizeWinding(const Polygon2& polygon,PolygonWinding desired) {
