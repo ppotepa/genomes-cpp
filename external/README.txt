@@ -3,12 +3,12 @@ This directory contains third-party source trees only.
 Dependencies are pinned by the parent repository's gitlinks.  Initialize them
 with:
 
-    git submodule update --init --recursive external/DiligentEngine/DiligentCore
+    git submodule update --init --recursive external/DiligentEngine
 
-The normal Genomes configuration only needs DiligentCore.  DiligentTools,
-DiligentFX and DiligentSamples remain uninitialized because they are disabled
-by CMake; initialize the complete upstream tree only when working on those
-upstream modules.
+The normal Genomes configuration uses DiligentCore and DiligentTools for the
+Windows/D3D12 renderer and capture encoder. DiligentFX, samples and upstream
+tests remain disabled by CMake; initialize the complete upstream tree only when
+working on those upstream modules.
 
 Do not implement Genomes features by editing vendor files in place.  An
 upstream patch must be documented and preferably kept as an upstreamable
