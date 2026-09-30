@@ -10,7 +10,6 @@ public:
     void begin_frame() override;
     void submit(const PresentationSnapshot&,const ui::UiRenderFrame&) override;
     void end_frame() override;
-    void handle_input(const input::InputFrame&) override {}
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override { return backend_.capabilities(); }
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override { return backend_.uploadTelemetry(); }
     [[nodiscard]] bool healthy() const noexcept override { return frame_.healthy(); }

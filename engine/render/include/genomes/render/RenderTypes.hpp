@@ -3,7 +3,7 @@
 #include <genomes/foundation/Types.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
-#include <genomes/input/InputFrame.hpp>
+#include <genomes/camera/Camera.hpp>
 #include <genomes/render/RenderCapabilities.hpp>
 #include <genomes/render/MaterialDescriptor.hpp>
 #include <genomes/render/SkeletonPrototype.hpp>
@@ -178,6 +178,22 @@ struct RenderCamera final {
                viewport_left + viewport_width <= 1.00001F &&
                viewport_top + viewport_height <= 1.00001F;
     }
+
+    [[nodiscard]] camera::CameraRequest toRequest() const noexcept {
+        camera::CameraRequest request{};
+        request.position=position; request.target=target; request.up=up;
+        request.lens.vertical_fov=vertical_fov;
+        request.lens.near_plane=near_plane; request.lens.far_plane=far_plane;
+        request.viewport={viewport_left,viewport_top,viewport_width,viewport_height};
+        return request;
+    }
+    void applyRequest(const camera::CameraRequest& request) noexcept {
+        position=request.position; target=request.target; up=request.up;
+        vertical_fov=request.lens.vertical_fov;
+        near_plane=request.lens.near_plane; far_plane=request.lens.far_plane;
+        viewport_left=request.viewport.x; viewport_top=request.viewport.y;
+        viewport_width=request.viewport.width; viewport_height=request.viewport.height;
+    }
 };
 
 struct DebugLine final {
@@ -207,7 +223,6 @@ public:
     virtual void begin_frame() = 0;
     virtual void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) = 0;
     virtual void end_frame() = 0;
-    virtual void handle_input(const input::InputFrame&) {}
     [[nodiscard]] virtual foundation::Result<void, foundation::Error> capture(
         const std::filesystem::path&) {
         return foundation::Result<void, foundation::Error>::failure(

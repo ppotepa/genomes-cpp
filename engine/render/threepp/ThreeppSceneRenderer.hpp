@@ -3,6 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
+#include <genomes/input/InputFrame.hpp>
 
 #include <filesystem>
 #include <memory>
@@ -26,7 +27,8 @@ public:
     void begin_frame() override;
     void submit(const PresentationSnapshot&, const ui::UiRenderFrame&) override;
     void end_frame() override;
-    void handle_input(const input::InputFrame&) override;
+    // Legacy adapter-local input hook; IRenderer no longer owns input.
+    void handle_input(const input::InputFrame&);
 
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override;
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override;
