@@ -106,3 +106,10 @@ Release build:
 Visual parity review:
 Performance observations:
 Wynik: NOT RUN
+
+LT v1.0 lightweight-toolkit amendment:
+Aktualny normatywny tracker to docs/migration/lightweight-toolkit/POSTEP.txt
+(167 ścieżek). Domyślne dev-debug/dev-release wskazują Diligent/D3D12;
+headless-core-* nie wymagają SDK graficznego. Fixture'y JS, seedy, tolerancje
+infantry i surowa numeracja wierzchołków pozostają bez zmian. Configure, build,
+CTest, GPU i capture nadal mają status NOT RUN przez agenta.

@@ -228,3 +228,9 @@ Dopiero po udokumentowanym odbiorze promuj dev-diligent/release-diligent na
 zwykle dev-debug/dev-release i zmien RunNative. To osobna, mala zmiana konfiguracji.
 Nie usuwaj punktu porownania GL ani bibliotek na podstawie samego utworzenia PNG.
 Dalsze prace nad anatomia/ubraniem/gear i LOD maja wlasny zakres, poza tym pakietem.
+
+LT v1.0 amendment:
+Ten historyczny odbiór nie jest bramką Linux/Vulkan. Bieżąca bramka platformowa
+to Windows/D3D12: `dev-debug`, `dev-release`, `headless-core-*` i
+`toolkit-full-*` z CMakePresets.json. Do czasu wykonania przez użytkownika
+configure/build/CTest/GPU wszystkie pola dowodowe pozostają `NOT RUN`.

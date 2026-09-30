@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('dev-diligent','release-diligent','dev-diligent-hybrid')][string]$Preset='dev-diligent',
+    [ValidateSet('dev-debug','dev-release','dev-diligent','release-diligent','dev-diligent-hybrid')][string]$Preset='dev-debug',
     [string]$OutputDirectory=''
 )
 $ErrorActionPreference='Stop'
@@ -10,12 +10,14 @@ if ($null -ne (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction
 $root=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $executable=Join-Path $root "build/$Preset/apps/game/genomes_game.exe"
 if (-not (Test-Path $executable)) { throw "Build genomes_game first: $executable" }
+$runId=Get-Date -Format 'yyyyMMdd-HHmmssfff'
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-    $OutputDirectory=Join-Path $root ('artifacts/diligent-'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
+    $OutputDirectory=Join-Path $root ('artifacts/diligent-'+$Preset+'-'+$runId)
 }
 if (Test-Path $OutputDirectory) { throw 'Use a new output directory; evidence is never overwritten.' }
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 $OutputDirectory=(Resolve-Path $OutputDirectory).Path
+$manifest=[System.Collections.Generic.List[object]]::new()
 $cases=@(
     @{ Name='three-quarter'; Camera='3q'; Pose='idle'; Expression='neutral'; Frame='180' },
     @{ Name='front'; Camera='front'; Pose='idle'; Expression='neutral'; Frame='180' },
@@ -33,11 +35,18 @@ Push-Location $root
 try {
     foreach ($case in $cases) {
         $image=Join-Path $OutputDirectory ($case.Name+'.png')
-        $log=Join-Path $OutputDirectory ($case.Name+'.log')
+        $stdout=Join-Path $OutputDirectory ($case.Name+'.stdout.log')
+        $stderr=Join-Path $OutputDirectory ($case.Name+'.stderr.log')
+        $exitFile=Join-Path $OutputDirectory ($case.Name+'.exit-code.txt')
         & $executable '--unit-lab' '--unitlab-camera' $case.Camera '--unitlab-locomotion' $case.Pose `
             '--unitlab-expression' $case.Expression '--deterministic' '--frames' $case.Frame `
-            '--capture' $image '--capture-frame' $case.Frame *> $log
-        if ($LASTEXITCODE -ne 0) { throw "Capture failed: $($case.Name). Read $log" }
+            '--capture' $image '--capture-frame' $case.Frame 1> $stdout 2> $stderr
+        $exitCode=[int]$LASTEXITCODE
+        $exitCode | Set-Content $exitFile
+        $metadataPath=$image+'.json'
+        $manifest.Add([ordered]@{ name=$case.Name; image=$image; metadata=$metadataPath;
+            stdout=$stdout; stderr=$stderr; exit_code=$exitCode; frame=[int]$case.Frame })
+        if ($exitCode -ne 0) { throw "Capture failed: $($case.Name). Read $stdout and $stderr" }
         if (-not (Test-Path $image) -or -not (Test-Path ($image+'.json'))) {
             throw "Capture is incomplete: $($case.Name)"
         }
@@ -47,4 +56,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Could not record tested Git revision.' }
     git status --short | Set-Content (Join-Path $OutputDirectory 'working-tree.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Could not record working tree status.' }
+    [ordered]@{ run_id=$runId; preset=$Preset; executable=$executable;
+        git_sha=(Get-Content (Join-Path $OutputDirectory 'tested-sha.txt'));
+        captures=$manifest } | ConvertTo-Json -Depth 6 |
+        Set-Content (Join-Path $OutputDirectory 'capture-manifest.json')
 } finally { Pop-Location }

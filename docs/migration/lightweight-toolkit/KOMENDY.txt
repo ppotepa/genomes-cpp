@@ -1,33 +1,58 @@
-LT v1.0 - KOMENDY ODBIORU (uruchamia użytkownik)
-=================================================
+LT v1.0 — KOMENDY WERYFIKACYJNE
+================================
 
-Nie uruchamiaj tych komend jako substytutu dowodu w source review. Każdy wynik
-ma być zapisany z dokładnym `git rev-parse HEAD`; lokalne zmiany DiligentEngine
-muszą pozostać zachowane.
+Agent prepares code and commands. User runs configure, build, CTest and GPU
+acceptance on the supported Windows/D3D12 toolchain. Do not run these commands
+against a dirty build directory from another preset.
 
-Core headless:
-  cmake --preset headless-core-debug
-  cmake --build --preset headless-core-debug
-  ctest --preset headless-core-debug --output-on-failure
-  cmake --preset headless-core-release
-  cmake --build --preset headless-core-release
-  ctest --preset headless-core-release --output-on-failure
+BASELINE / STATUS
+-----------------
+git status --short
+git rev-parse HEAD
+git -C external/DiligentEngine status --short
 
-Full toolkit (po podłączeniu opt-in assets/CSG):
-  cmake --preset toolkit-full-debug
-  cmake --build --preset toolkit-full-debug
-  ctest --preset toolkit-full-debug --output-on-failure
+HEADLESS CORE (Debug and Release)
+---------------------------------
+cmake --preset headless-core-debug
+cmake --build --preset headless-core-debug
+ctest --preset headless-core-debug --output-on-failure
 
-Diligent Windows/D3D12:
-  cmake --preset dev-diligent
-  cmake --build --preset dev-diligent
-  ctest --preset dev-diligent --output-on-failure
-  cmake --preset release-diligent
-  cmake --build --preset release-diligent
-  ctest --preset release-diligent --output-on-failure
+cmake --preset headless-core-release
+cmake --build --preset headless-core-release
+ctest --preset headless-core-release --output-on-failure
 
-Static guard (expected to fail before S08 removes the old closure):
-  python tools/migration/check_lightweight_toolkit.py --root . --build build/dev-diligent
+FULL TOOLKIT (Debug and Release)
+--------------------------------
+cmake --preset toolkit-full-debug
+cmake --build --preset toolkit-full-debug
+ctest --preset toolkit-full-debug --output-on-failure
 
-GPU/capture acceptance remains user-run. A queued capture is not a pass without
-PNG, metadata, stdout/stderr, exit code, and visual review.
+cmake --preset toolkit-full-release
+cmake --build --preset toolkit-full-release
+ctest --preset toolkit-full-release --output-on-failure
+
+DILIGENT / D3D12 (Windows)
+---------------------------
+cmake --preset dev-debug
+cmake --build --preset dev-debug
+ctest --preset dev-debug --output-on-failure
+.\build\dev-debug\apps\game\genomes_game.exe --unit-lab
+
+cmake --preset dev-release
+cmake --build --preset dev-release
+ctest --preset dev-release --output-on-failure
+.\scripts\RunNative.ps1 -Configuration Release -BuildOnly
+.\run-release.cmd
+
+STATIC GUARD
+------------
+python tools/migration/check_lightweight_toolkit.py --root . --build build/dev-debug
+
+CAPTURE
+-------
+.\tools\validation\capture_diligent_unitlab.ps1 -Preset dev-debug
+.\tools\validation\capture_diligent_unitlab.ps1 -Preset dev-release
+
+Record tested SHA, configure/build/CTest exit codes, stdout/stderr, PNG,
+metadata JSON, capture logs and visual acceptance separately. A queued capture
+or an existing PNG is not evidence of success.
