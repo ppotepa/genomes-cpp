@@ -48,8 +48,8 @@ LT-037 | CODE_READY | 995f873 | - | box validation/winding source review | primi
 LT-142 | CODE_READY | ce77a0c | - | shared geometry regression covers stream-preserving combine/append, non-uniform scale and reflection winding | geometry tests and build
 LT-071 | CODE_READY | 55ae5b2 | - | camera target/source review | camera tests and build
 LT-072 | CODE_READY | 99c4ee2 | - | request/resolved camera contract includes neutral control mode | camera tests and build
-LT-073 | CODE_READY | 5d53b10 | - | projection/picking and bounded fit implementation rejects degenerate inputs | camera tests and build
-LT-136 | CODE_READY | 5d53b10 | - | camera regression test covers project/unproject/ray/fit bounds and degenerate pose | user Debug/Release CTest
+LT-073 | CODE_READY | 0975b4a | - | projection/picking and bounded fit implementation rejects degenerate and nonfinite inputs | camera tests and build
+LT-136 | CODE_READY | 0975b4a | - | camera regression test covers project/unproject/ray/fit bounds, degenerate pose and nonfinite input | user Debug/Release CTest
 LT-074 | CODE_READY | ed351d6 | - | camera controller contract carries request mode and scene-target rebasing without renderer ownership | controller tests and build
 LT-075 | CODE_READY | ed351d6 | - | orbit/fly/RTS mode selection and runtime input mapping preserve scene extraction pose | controller tests and build
 LT-137 | CODE_READY | ed351d6 | - | controller mode/reset/rebase regression test source review | user Debug/Release CTest
