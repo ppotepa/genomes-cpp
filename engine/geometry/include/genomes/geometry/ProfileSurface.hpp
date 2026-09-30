@@ -2,9 +2,12 @@
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/geometry/MeshBuilder.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 namespace genomes::geometry {
 
@@ -26,6 +29,17 @@ struct ProfileRingSpec final {
     std::uint32_t segments{8U};
     float uv_v{0.0F};
 };
+
+struct SweepSpec final {
+    std::vector<foundation::Vec3> centers;
+    std::vector<foundation::Vec2> radii;
+    std::uint32_t profile_segments{16U};
+    bool closed{false};
+    bool cap{false};
+};
+
+[[nodiscard]] foundation::Result<MeshData, foundation::Error>
+sweepProfile(const SweepSpec&);
 
 template <class VertexFactory>
 [[nodiscard]] Ring appendProfileRing(MeshBuilder& topology,
