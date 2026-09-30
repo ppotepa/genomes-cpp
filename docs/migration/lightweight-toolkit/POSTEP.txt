@@ -137,7 +137,7 @@ LT-009 | CODE_READY | 925ae13 | - | removed threepp gitlink after active referen
 LT-015 | CODE_READY | a286823 | - | exact meshoptimizer pin/checkout, safe-directory validation and isolated upstream options | user meshoptimizer configure/build
 LT-016 | CODE_READY | 1500e1c | - | removed active threepp CMake configuration helper source review | user configure/static guard
 LT-018 | CODE_READY | c7e38c4 | - | renderer options restricted to HEADLESS/DILIGENT source review | user configure boundary test
-LT-019 | CODE_READY | 1500e1c | - | root CMake toolkit/dependency composition without active threepp source review | user configure/build
+LT-019 | CODE_READY | f266cfc | - | root CMake enables C/C++ for the pinned MikkTSpace C source and composes the toolkit without active threepp | user configure/build
 LT-021 | CODE_READY | e47554d | - | engine target order documented by header dependency DAG | user headless configure/build
 LT-052 | CODE_READY | 9ae96d1 | - | legacy index optimizer API delegates to MeshOptimizer policy core | user geometry CTest with meshoptimizer OFF/ON
 LT-053 | CODE_READY | 9ae96d1 | - | index optimizer implementation deduplicated behind deterministic policy core | user geometry CTest with meshoptimizer OFF/ON
@@ -183,7 +183,7 @@ LT-139 | CODE_READY | 9fea04c | - | neutral platform framebuffer/focus/NativeD3D
 LT-141 | CODE_READY | 68a2035 | - | binary static triangle GLB fixture and importer regression source review | user full-toolkit CTest
 LT-144 | CODE_READY | c62ada6 | - | skinned index-only stream and morph numbering regression source review | user infantry CTest
 LT-145 | CODE_READY | 9b2d8fc | - | frame abort, resolved camera and camera-only prototype retention source tests | user Diligent restoration CTest/GPU
-LT-146 | CODE_READY | 670d35f | - | native CMake configuration boundary guard asserts HEADLESS/DILIGENT profiles, no legacy profiles and dev-release test preset | user headless CTest
+LT-146 | CODE_READY | f266cfc | - | native CMake boundary guard asserts HEADLESS/DILIGENT profiles, no legacy profiles, dev-release test preset and C language support for MikkTSpace | user headless CTest
 LT-147 | CODE_READY | c62ada6 | - | infantry index-order test links neutral geometry API source review | user infantry CTest
 LT-148 | CODE_READY | 23fedf5 | - | native test registration labels for math/geometry/camera/assets/csg/diligent source review | user CTest
 LT-150 | CODE_READY | 99c4ee2 | - | UnitLab mode-aware final/resolved camera and scene epoch smoke assertions source review | user runtime CTest
