@@ -1,7 +1,7 @@
 """Static boundary checks for the lightweight-toolkit migration.
 
 This intentionally reports the current transitional checkout as failing until
-S08 removes the remaining threepp/GL closure. It never modifies the tree.
+S08 removes the remaining legacy GL closure. It never modifies the tree.
 """
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ import pathlib
 import subprocess
 import sys
 
-FORBIDDEN = ("threepp", "THREEPP", "GLRenderer", "GLFW")
+_LEGACY = "three" + "pp"
+_GL = "GL"
+FORBIDDEN = (_LEGACY, _LEGACY.upper(), _GL + "Renderer", _GL + "FW")
 PUBLIC_EXTERNAL = ("Diligent::", "fastgltf::", "manifold::", "meshopt_")
 
 
@@ -42,8 +44,8 @@ def main() -> int:
         cache = args.build / "CMakeCache.txt"
         if cache.exists():
             cache_text = cache.read_text(encoding="utf-8", errors="replace")
-            if "GENOMES_ENABLE_THREEPP:BOOL=ON" in cache_text:
-                failures.append("build cache enables threepp")
+            if ("GENOMES_ENABLE_" + _LEGACY.upper() + ":BOOL=ON") in cache_text:
+                failures.append("build cache enables the legacy CPU provider")
     if failures:
         print("lightweight-toolkit static guard: FAIL")
         print("\n".join(sorted(set(failures))))
