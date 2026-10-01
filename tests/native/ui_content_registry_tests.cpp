@@ -3,6 +3,89 @@
 
 #include <cassert>
 #include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
+
+namespace {
+
+void writeText(const std::filesystem::path& path, const std::string& text) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    assert(output);
+    output << text;
+    assert(output.good());
+}
+
+void writeMod(const std::filesystem::path& root, const std::string& id, int priority,
+              const std::vector<std::string>& dependencies) {
+    const auto mod_root = root / id;
+    const auto scene_root = mod_root / "scenes" / id;
+    std::filesystem::create_directories(scene_root);
+    std::string dependency_json = "[";
+    for (std::size_t index = 0U; index < dependencies.size(); ++index) {
+        if (index != 0U) dependency_json += ",";
+        dependency_json += "\"" + dependencies[index] + "\"";
+    }
+    dependency_json += "]";
+    writeText(mod_root / "mod.json",
+              "{\"schema_version\":1,\"id\":\"" + id +
+                  "\",\"version\":\"1.0.0\",\"load_priority\":" +
+                  std::to_string(priority) + ",\"dependencies\":" + dependency_json +
+                  ",\"scenes\":[\"scenes/" + id + "\"]}");
+    writeText(scene_root / "scene.json",
+              "{\"schema_version\":1,\"id\":\"scene." + id +
+                  "\",\"controller\":\"controller." + id +
+                  "\",\"document\":\"screen.rml\"}");
+    writeText(scene_root / "screen.rml", "<rml><body></body></rml>");
+}
+
+void registryOrdersDependenciesAndPriorities() {
+    const auto root = std::filesystem::temp_directory_path() /
+                      "genomes-ui-content-registry-contract";
+    std::error_code cleanup_error;
+    std::filesystem::remove_all(root, cleanup_error);
+    std::filesystem::create_directories(root);
+    writeMod(root, "base", 20, {});
+    writeMod(root, "side", -10, {});
+    writeMod(root, "addon", -100, {"base"});
+
+    const auto result = genomes::ui::UiContentRegistry::discover(root);
+    assert(result);
+    const auto& mods = result.value().mods();
+    assert(mods.size() == 3U);
+    // Dependency order wins over priority: addon cannot precede base even
+    // though addon has the numerically lowest priority.
+    assert(mods[0].id == "side");
+    assert(mods[1].id == "base");
+    assert(mods[2].id == "addon");
+    assert(result.value().find_scene("scene.addon") != nullptr);
+    std::filesystem::remove_all(root, cleanup_error);
+}
+
+void duplicateCandidateDoesNotReplacePublishedRegistry() {
+    const auto root = std::filesystem::temp_directory_path() /
+                      "genomes-ui-content-registry-duplicate";
+    std::error_code cleanup_error;
+    std::filesystem::remove_all(root, cleanup_error);
+    std::filesystem::create_directories(root);
+    writeMod(root, "stable", 0, {});
+    const auto published = genomes::ui::UiContentRegistry::discover(root);
+    assert(published);
+    assert(published.value().mods().size() == 1U);
+
+    writeMod(root, "duplicate", 1, {});
+    // Make the second candidate collide with the already-known scene ID.
+    writeText(root / "duplicate" / "scenes" / "duplicate" / "scene.json",
+              "{\"schema_version\":1,\"id\":\"scene.stable\",\"controller\":\"x\",\"document\":\"screen.rml\"}");
+    const auto rejected = genomes::ui::UiContentRegistry::discover(root);
+    assert(!rejected);
+    assert(published.value().mods().size() == 1U);
+    assert(published.value().find_scene("scene.stable") != nullptr);
+    assert(published.value().find_scene("scene.duplicate") == nullptr);
+    std::filesystem::remove_all(root, cleanup_error);
+}
+
+} // namespace
 
 int main() {
     const auto result = genomes::ui::UiContentRegistry::discover(
@@ -32,5 +115,7 @@ int main() {
     assert(plugins.load(registry, false, &plugin_error));
     assert(plugins.registered_scene_controllers().empty());
     assert(plugins.registered_ui_actions().empty());
+    registryOrdersDependenciesAndPriorities();
+    duplicateCandidateDoesNotReplacePublishedRegistry();
     return 0;
 }
