@@ -1,7 +1,7 @@
 # Architecture refactor acceptance commands
 
 These commands are the user-owned verification handoff for source baseline
-`a23c0a7` (the session clock, authoritative tick phases, resolved-world revision binding, target closure guard, narrow public-header consumers, infantry-off parser and remaining Unit Lab namespace clients are included). They do not turn source
+`7b97268` (the session clock, authoritative tick phases, resolved-world revision binding, target closure guard, narrow public-header consumers, infantry-off parser and remaining Unit Lab namespace clients are included). They do not turn source
 guards into `VERIFIED`; each result must be recorded with the exact tested SHA
 in `ARCHITECTURE_REFACTOR_TRACKER.md`.
 
