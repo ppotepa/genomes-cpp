@@ -652,7 +652,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     const auto spawn_infantry = [&](infantry::Team team, foundation::Vec3 position,
                                     const infantry::InfantryGenome& genome,
                                     std::uint32_t squad_id) {
-        const auto result = infantry_->spawn({team, position, genome, squad_id});
+        const auto result = infantry_->spawn({team, position, genome,
+                                              {{team, squad_id}},
+                                              weapons::weapon_id("infantry_default")});
         if (!result) {
             generation_error_ = std::string(result.error().message);
         }

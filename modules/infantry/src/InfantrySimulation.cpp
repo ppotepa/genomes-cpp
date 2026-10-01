@@ -82,7 +82,16 @@ foundation::Result<simulation::EntityId, foundation::Error> InfantrySimulation::
     record.team = spawn_data.team;
     record.entity = entity.value();
     record.body = body;
-    record.weapon = {2.0F, 700.0F, 4.0F, spawn_data.genome.attack_range, 1000};
+    const weapons::WeaponDefinition* weapon = weapons::WeaponCatalog::find(spawn_data.weapon_id);
+    if (weapon == nullptr || !weapon->firearm) {
+        if (body.isValid() && physics_ != nullptr) physics_->destroyBody(body);
+        entities_.destroy(entity.value());
+        return foundation::Result<simulation::EntityId, foundation::Error>::failure(
+            {foundation::ErrorCode::NotFound, "infantry spawn weapon is missing or not a firearm"});
+    }
+    record.weapon_id = weapon->id;
+    record.weapon = {weapon->rounds_per_second, weapon->muzzle_velocity_mps, weapon->damage,
+                     std::min(weapon->range_m, spawn_data.genome.attack_range), 1000U};
     record.weapon_state = {1000, {}};
     record.state = AgentState::Idle;
     record.active = true;

@@ -14,6 +14,7 @@
 #include <genomes/simulation/Cadence.hpp>
 #include <genomes/spatial/SpatialGrid.hpp>
 #include <genomes/weapons/WeaponController.hpp>
+#include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <cstdint>
 #include <map>
@@ -47,6 +48,7 @@ struct InfantrySpawn final {
     foundation::Vec3 position{};
     InfantryGenome genome{};
     std::optional<SquadKey> squad;
+    weapons::WeaponId weapon_id{weapons::weapon_id("infantry_default")};
 };
 
 struct InfantryRenderState final {
@@ -84,6 +86,7 @@ private:
         simulation::EntityId target{};
         physics::BodyHandle body{};
         simulation::CadenceState perception_cadence{};
+        weapons::WeaponId weapon_id{0};
         weapons::WeaponSpec weapon{};
         weapons::WeaponState weapon_state{};
         AgentState state{AgentState::Idle};

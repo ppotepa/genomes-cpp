@@ -10,7 +10,7 @@ namespace {
 
 [[nodiscard]] foundation::Vec3 dimensions(float x, float y, float z) noexcept { return {x, y, z}; }
 
-const std::array<WeaponDefinition, 8> kCatalog{{
+const std::array<WeaponDefinition, 9> kCatalog{{
     {weapon_id("knife"), "knife", WeaponCategory::OneHanded, WeaponGrip::OneHanded,
      WeaponMount::Melee, false, 0U, dimensions(0.42F, 0.035F, 0.07F), {0.18F, 0.0F, 0.0F},
      {-0.12F, 0.0F, 0.0F}, {}, {-0.08F, -0.08F, 0.0F}, 0.0F, 0.0F, 4.0F, 28.0F, 1U,
@@ -24,6 +24,13 @@ const std::array<WeaponDefinition, 8> kCatalog{{
      dimensions(0.20F, 0.14F, 0.035F), {0.20F, 0.0F, 0.0F}, {0.0F, -0.07F, 0.0F}, {},
      {-0.08F, -0.08F, 0.0F}, 10.0F, 360.0F, 120.0F, 20.0F, 1U,
      WeaponFamily::OneHanded, WeaponVisualKind::Pistol, 3U, .215F, 1.05F, 1.12F, .23F, .20F},
+    // Compatibility profile for the existing infantry simulation. Its range
+    // is further bounded by InfantryGenome::attack_range at spawn time.
+    {weapon_id("infantry_default"), "infantry_default", WeaponCategory::Carbine,
+     WeaponGrip::TwoHanded, WeaponMount::Primary, true, foundation::stable_id("ammo_556"),
+     dimensions(0.82F, 0.18F, 0.065F), {0.40F, 0.0F, 0.0F}, {-0.14F, -0.03F, 0.0F},
+     {0.15F, -0.02F, 0.0F}, {-0.16F, -0.10F, 0.0F}, 2.0F, 700.0F, 300.0F, 4.0F, 1U,
+     WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, .70F, 1.38F, 1.45F, .17F, .23F},
     {weapon_id("carbine"), "carbine", WeaponCategory::Carbine, WeaponGrip::TwoHanded,
      WeaponMount::Primary, true, foundation::stable_id("ammo_556"),
      dimensions(0.82F, 0.18F, 0.065F), {0.40F, 0.0F, 0.0F}, {-0.14F, -0.03F, 0.0F},

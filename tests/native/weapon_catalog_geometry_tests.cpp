@@ -4,14 +4,17 @@
 
 int main() {
     using namespace genomes::weapons;
-    assert(WeaponCatalog::entries().size() == 8U);
+    assert(WeaponCatalog::entries().size() == 9U);
     assert(WeaponCatalog::validate());
     const auto* knife = WeaponCatalog::find("knife");
     const auto* grenade = WeaponCatalog::find("grenade");
     const auto* rifle = WeaponCatalog::find("rifle");
-    assert(knife != nullptr && grenade != nullptr && rifle != nullptr);
+    const auto* infantry_default = WeaponCatalog::find("infantry_default");
+    assert(knife != nullptr && grenade != nullptr && rifle != nullptr && infantry_default != nullptr);
     assert(!knife->firearm && !grenade->firearm);
     assert(rifle->firearm && rifle->ammunition_id != 0U);
+    assert(infantry_default->firearm && infantry_default->rounds_per_second == 2.0F &&
+           infantry_default->muzzle_velocity_mps == 700.0F && infantry_default->damage == 4.0F);
     const auto knife_geometry=WeaponGeometryGenerator::build(*knife);
     const auto grenade_geometry=WeaponGeometryGenerator::build(*grenade);
     assert(knife_geometry && grenade_geometry);

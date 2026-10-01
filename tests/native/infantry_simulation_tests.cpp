@@ -30,6 +30,10 @@ void nearbyWaypointDoesNotMakeDistantTargetEngage() {
     genome.perception_radius = 200.0F;
     genome.attack_range = 35.0F;
 
+    const auto missing_weapon = infantry.spawn(
+        {genomes::infantry::Team::Blue, {}, genome, {}, genomes::weapons::weapon_id("missing")});
+    assert(!missing_weapon);
+
     const auto observer = infantry.spawn(
         {genomes::infantry::Team::Blue, {}, genome, {{genomes::infantry::Team::Blue, 1}}});
     const auto target = infantry.spawn(
