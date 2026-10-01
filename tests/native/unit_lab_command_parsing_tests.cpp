@@ -6,6 +6,19 @@
 
 int main() {
     using namespace genomes::runtime;
+    UnitLabDirtyState dirty;
+    assert(dirty.contains(UnitLabDirtyFlag::Geometry));
+    dirty.clearAll();
+    dirty.mark(UnitLabDirtyFlag::Material);
+    assert(!dirty.contains(UnitLabDirtyFlag::Geometry));
+    assert(dirty.contains(UnitLabDirtyFlag::Material));
+    dirty.mark(UnitLabDirtyFlag::Pose);
+    dirty.clear(UnitLabDirtyFlag::Material);
+    assert(dirty.contains(UnitLabDirtyFlag::Pose));
+    assert(!dirty.contains(UnitLabDirtyFlag::Material));
+    dirty.markAll();
+    assert(dirty.contains(UnitLabDirtyFlag::Ui));
+
     assert(parseSetVariation("1.75"));
     assert(!parseSetVariation("1.750 trailing"));
     assert(parseSetVariation("1.750 trailing").error().command == "set-variation");

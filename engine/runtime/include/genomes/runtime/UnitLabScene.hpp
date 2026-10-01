@@ -46,6 +46,38 @@ enum class UnitLabDirtyFlag : std::uint8_t {
     Ui,
 };
 
+// One owner for all Unit Lab invalidation categories. Keeping the mask typed
+// prevents a new output from silently acquiring an unrelated rebuild path.
+class UnitLabDirtyState final {
+public:
+    UnitLabDirtyState() noexcept = default;
+
+    void mark(UnitLabDirtyFlag flag) noexcept {
+        mask_ |= bit(flag);
+    }
+    void markAll() noexcept { mask_ = kAll; }
+    void clear(UnitLabDirtyFlag flag) noexcept {
+        mask_ &= static_cast<std::uint8_t>(~bit(flag));
+    }
+    void clearAll() noexcept { mask_ = 0U; }
+    [[nodiscard]] bool contains(UnitLabDirtyFlag flag) const noexcept {
+        return (mask_ & bit(flag)) != 0U;
+    }
+
+private:
+    [[nodiscard]] static constexpr std::uint8_t bit(UnitLabDirtyFlag flag) noexcept {
+        return static_cast<std::uint8_t>(1U << static_cast<std::uint8_t>(flag));
+    }
+
+    static constexpr std::uint8_t kAll =
+        bit(UnitLabDirtyFlag::Geometry) |
+        bit(UnitLabDirtyFlag::Material) |
+        bit(UnitLabDirtyFlag::Pose) |
+        bit(UnitLabDirtyFlag::Presentation) |
+        bit(UnitLabDirtyFlag::Ui);
+    std::uint8_t mask_{kAll};
+};
+
 struct SetVariation final {
     float value{1.0F};
 };
@@ -144,11 +176,7 @@ private:
     std::optional<infantry::BoneId> debug_weight_bone_;
     bool animation_paused_{false};
     float animation_speed_{1.0F};
-    bool geometry_dirty_{true};
-    bool material_dirty_{true};
-    bool pose_dirty_{true};
-    bool presentation_dirty_{true};
-    bool ui_dirty_{true};
+    UnitLabDirtyState dirty_{};
     std::shared_ptr<const render::RenderMesh> unit_prototype_;
     std::shared_ptr<const render::SkinnedMeshPrototype> skinned_prototype_;
     std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;

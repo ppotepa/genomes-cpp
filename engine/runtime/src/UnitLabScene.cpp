@@ -135,13 +135,7 @@ foundation::SceneId UnitLabScene::id() const noexcept {
 }
 
 void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
-    switch (flag) {
-    case UnitLabDirtyFlag::Geometry: geometry_dirty_ = true; break;
-    case UnitLabDirtyFlag::Material: material_dirty_ = true; break;
-    case UnitLabDirtyFlag::Pose: pose_dirty_ = true; break;
-    case UnitLabDirtyFlag::Presentation: presentation_dirty_ = true; break;
-    case UnitLabDirtyFlag::Ui: ui_dirty_ = true; break;
-    }
+    dirty_.mark(flag);
 }
 
 bool UnitLabScene::applyCommand(SceneContext& context, SetVariation command) {
@@ -457,17 +451,13 @@ void UnitLabScene::on_enter(SceneContext& context) {
     animation_system_.reset();
     animation_pose_.reset();
     last_generation_error_.reset();
-    geometry_dirty_ = true;
-    material_dirty_ = true;
-    pose_dirty_ = true;
-    presentation_dirty_ = true;
-    ui_dirty_ = true;
+    dirty_.markAll();
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
     rebuildModel(&context);
-    geometry_dirty_ = false;
-    material_dirty_ = false;
-    presentation_dirty_ = false;
+    dirty_.clear(UnitLabDirtyFlag::Geometry);
+    dirty_.clear(UnitLabDirtyFlag::Material);
+    dirty_.clear(UnitLabDirtyFlag::Presentation);
     context.ui.clear();
 }
 
@@ -793,8 +783,8 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         model_job_ = {};
         pending_model_result_.reset();
     }
-    if (!ui_dirty_) return;
-    ui_dirty_ = false;
+    if (!dirty_.contains(UnitLabDirtyFlag::Ui)) return;
+    dirty_.clear(UnitLabDirtyFlag::Ui);
     context.ui.clear();
     std::string metrics = model_artifact_
         ? "MODEL READY | SEED " + numberText(preview_seed_) +
@@ -987,12 +977,13 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 
 void UnitLabScene::build_presentation(SceneContext& context) {
     if (model_artifact_) {
-        if (geometry_dirty_ || material_dirty_ || !skinned_prototype_ ||
+        if (dirty_.contains(UnitLabDirtyFlag::Geometry) ||
+            dirty_.contains(UnitLabDirtyFlag::Material) || !skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
             skinned_prototype_ = infantry_presentation::makePrototype(*model_artifact_);
             skinned_prototype_model_key_ = model_artifact_->cache_key;
-            geometry_dirty_ = false;
-            material_dirty_ = false;
+            dirty_.clear(UnitLabDirtyFlag::Geometry);
+            dirty_.clear(UnitLabDirtyFlag::Material);
         }
         context.presentation.skinned_prototypes.push_back(skinned_prototype_);
         render::SkinnedBonePalette palette{};
@@ -1013,7 +1004,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         palette.local_poses = infantry_presentation::makeLocalPoses(model_artifact_->skeleton,
                                                                     pose_bones);
         context.presentation.skinned_palettes.push_back(std::move(palette));
-        pose_dirty_ = false;
+        dirty_.clear(UnitLabDirtyFlag::Pose);
         if (!context.render_capabilities.gpu_skinning) {
             auto render_mesh = std::make_shared<render::RenderMesh>(
                 render::deformSkinnedCPU(*skinned_prototype_,
@@ -1216,7 +1207,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
                     render::RenderInstanceFlagCastShadow |
                     render::RenderInstanceFlagReceiveShadow});
         }
-        presentation_dirty_ = false;
+        dirty_.clear(UnitLabDirtyFlag::Presentation);
         return;
     }
     if (!unit_prototype_) {
@@ -1245,7 +1236,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             mesh_id, materials[index], positions[index], scales[index], rotation,
             0, render::RenderInstanceFlagPreview});
     }
-    presentation_dirty_ = false;
+    dirty_.clear(UnitLabDirtyFlag::Presentation);
 }
 
 } // namespace genomes::runtime
