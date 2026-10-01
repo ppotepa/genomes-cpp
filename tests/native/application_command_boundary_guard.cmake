@@ -76,6 +76,21 @@ foreach(_canonical_product_header IN ITEMS
     if(NOT EXISTS "${_canonical_product_header}")
         message(FATAL_ERROR "canonical product header is missing: ${_canonical_product_header}")
     endif()
+    file(READ "${_canonical_product_header}" _canonical_product_text)
+    if(_canonical_product_text MATCHES "namespace genomes::runtime")
+        message(FATAL_ERROR
+                "product header still declares ownership in neutral runtime: ${_canonical_product_header}")
+    endif()
+endforeach()
+
+foreach(_product_source IN ITEMS
+        BattlefieldScene.cpp BuildingLabScene.cpp InfantryPresentation.cpp
+        MainMenuScene.cpp UnitLabScene.cpp WorldConfigScene.cpp WorldLabScene.cpp)
+    file(READ "${_game_scenes_dir}/src/${_product_source}" _product_source_text)
+    if(_product_source_text MATCHES "namespace genomes::runtime")
+        message(FATAL_ERROR
+                "product scene source still declares ownership in neutral runtime: ${_product_source}")
+    endif()
 endforeach()
 
 foreach(_product_header IN ITEMS
