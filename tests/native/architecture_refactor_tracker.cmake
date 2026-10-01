@@ -72,6 +72,18 @@ foreach(required_world_target IN ITEMS
         message(FATAL_ERROR "World target split is missing ${required_world_target}")
     endif()
 endforeach()
+string(REGEX MATCH "target_link_libraries\\(genomes_world_core PUBLIC([^)]*)\\)" world_core_links "${world_targets}")
+if(world_core_links STREQUAL "")
+    message(FATAL_ERROR "World core link closure is not declared")
+endif()
+foreach(required_core_dependency IN ITEMS "genomes::foundation" "genomes::proc" "genomes::io")
+    if(NOT world_core_links MATCHES "${required_core_dependency}")
+        message(FATAL_ERROR "World core is missing ${required_core_dependency}")
+    endif()
+endforeach()
+if(world_core_links MATCHES "genomes(_|::)(hydrology|roads)")
+    message(FATAL_ERROR "World core must not link generation hydrology/roads targets")
+endif()
 
 file(READ "${tracker}" tracker_text)
 
