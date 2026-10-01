@@ -26,6 +26,10 @@ int main() {
     assert(parseSetVariation("1.750 trailing").error().field == "variation");
     assert(parseSetVariation("1.750 trailing").error().input == "1.750 trailing");
     assert(!parseSetVariation("nan"));
+    const auto variation_overflow = parseSetVariation("1e9999");
+    assert(!variation_overflow);
+    assert(variation_overflow.error().command == "set-variation");
+    assert(variation_overflow.error().field == "variation");
     assert(!parseSetVariation("2.0"));
 
     assert(parseSetCameraMode("3q").value().value == UnitLabCameraMode::ThreeQuarter);
@@ -54,6 +58,10 @@ int main() {
     assert(!invalid_gene_value);
     assert(invalid_gene_value.error().command == "set-gene-override");
     assert(invalid_gene_value.error().field == "gene-value");
+    const auto gene_overflow = parseSetGeneOverride("height", "1e9999");
+    assert(!gene_overflow);
+    assert(gene_overflow.error().command == "set-gene-override");
+    assert(gene_overflow.error().field == "gene-value");
     const auto out_of_range_gene_value = parseSetGeneOverride("height", "1.1");
     assert(!out_of_range_gene_value);
     assert(out_of_range_gene_value.error().field == "gene-value");
