@@ -11,7 +11,7 @@
 
 namespace genomes::buildings {
 
-inline constexpr std::uint32_t BuildingGeneratorVersion = 1;
+inline constexpr std::uint32_t BuildingGeneratorVersion = 2;
 
 struct BuildingSpec final {
     foundation::StableId building_id{0};
@@ -33,6 +33,26 @@ enum class BuildingPartKind : std::uint8_t {
     Door,
 };
 
+enum class BuildingPartRole : std::uint8_t {
+    Foundation,
+    FloorSlab,
+    ExteriorNorthWall,
+    ExteriorSouthWall,
+    ExteriorWestWall,
+    ExteriorEastWall,
+    InteriorPartition,
+    EntranceDoor,
+    Roof,
+};
+
+struct BuildingPartKey final {
+    foundation::StableId building_id{0};
+    std::uint32_t floor{0};
+    BuildingPartKind kind{BuildingPartKind::Wall};
+    BuildingPartRole role{BuildingPartRole::InteriorPartition};
+    std::uint32_t ordinal{0};
+};
+
 struct BuildingRoom final {
     foundation::StableId id{0};
     std::uint32_t floor{0};
@@ -42,6 +62,7 @@ struct BuildingRoom final {
 
 struct BuildingPart final {
     foundation::StableId id{0};
+    BuildingPartKey key{};
     BuildingPartKind kind{BuildingPartKind::Wall};
     foundation::Vec3 center{};
     foundation::Vec3 extent{1.0F, 1.0F, 1.0F};
@@ -57,6 +78,10 @@ struct BuildingPlan final {
     std::vector<BuildingRoom> rooms;
     std::vector<BuildingPart> parts;
     std::uint64_t content_hash{0};
+
+    [[nodiscard]] bool compatible() const noexcept {
+        return generator_version == BuildingGeneratorVersion;
+    }
 };
 
 struct BuildingGenerationResult final {

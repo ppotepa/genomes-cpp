@@ -1,6 +1,7 @@
 #include <genomes/buildings/BuildingModel.hpp>
 
 #include <cassert>
+#include <cstddef>
 #include <cmath>
 
 namespace {
@@ -68,11 +69,38 @@ void siteRequiresCenteredRotationAlignedRectangle() {
     assert(!genomes::buildings::BuildingGenerator::generateSite(five_points));
 }
 
+void partIdentityIsSemanticAndGeneratorVersioned() {
+    const auto first = genomes::buildings::BuildingGenerator::generate(validSpec());
+    assert(first);
+    auto changed_seed = validSpec();
+    changed_seed.seed = 8;
+    const auto second = genomes::buildings::BuildingGenerator::generate(changed_seed);
+    assert(second);
+    assert(first.value().generator_version == genomes::buildings::BuildingGeneratorVersion);
+    assert(first.value().compatible());
+    assert(first.value().content_hash != second.value().content_hash);
+    assert(first.value().parts.size() == second.value().parts.size());
+    for (std::size_t index = 0; index < first.value().parts.size(); ++index) {
+        const auto& left = first.value().parts[index];
+        const auto& right = second.value().parts[index];
+        assert(left.id == right.id);
+        assert(left.key.building_id == 42);
+        assert(left.key.floor == right.key.floor);
+        assert(left.key.kind == right.key.kind);
+        assert(left.key.role == right.key.role);
+        assert(left.key.ordinal == right.key.ordinal);
+    }
+    genomes::buildings::BuildingPlan legacy{};
+    legacy.generator_version = 1;
+    assert(!legacy.compatible());
+}
+
 } // namespace
 
 int main() {
     roomsUsePositiveFullXyzExtents();
     narrowManyRoomPlanIsRejectedBeforeReservation();
     siteRequiresCenteredRotationAlignedRectangle();
+    partIdentityIsSemanticAndGeneratorVersioned();
     return 0;
 }
