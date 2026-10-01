@@ -1,7 +1,7 @@
 # Architecture refactor acceptance commands
 
 These commands are the user-owned verification handoff for source baseline
-`0d68619`, published in handoff commit `235c29d`. They do not turn source
+`871dd88` (the namespace compile-fix is included). They do not turn source
 guards into `VERIFIED`; each result must be recorded with the exact tested SHA
 in `ARCHITECTURE_REFACTOR_TRACKER.md`.
 
