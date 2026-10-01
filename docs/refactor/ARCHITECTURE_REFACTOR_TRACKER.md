@@ -161,7 +161,7 @@ used by this program.
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | a7814b3 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
-| PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 26d4609 | NOT_RUN | - |
+| PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 7cb06af | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 871dd88 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | 635313c | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | CODE_READY | 8908d43 | NOT_RUN | - |
