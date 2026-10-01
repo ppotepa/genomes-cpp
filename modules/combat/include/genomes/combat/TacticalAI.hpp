@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/ConfigHash.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -32,7 +33,7 @@ struct TacticalAIProfileSnapshot final {
     TacticalAIProfile profile{};
     std::string id;
     std::filesystem::path source;
-    std::uint64_t fingerprint{0U};
+    foundation::SimConfigHash fingerprint{};
 };
 
 [[nodiscard]] foundation::Result<TacticalAIProfileSnapshot, foundation::Error>

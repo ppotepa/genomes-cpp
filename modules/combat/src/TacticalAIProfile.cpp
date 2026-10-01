@@ -58,8 +58,8 @@ foundation::Result<TacticalAIProfileSnapshot, foundation::Error> loadTacticalAIP
         hash = foundation::stableHashCombine(hash, result.profile.memory_ticks);
         hash = foundation::stableHashCombine(
             hash, foundation::stableHashFloat(result.profile.target_switch_ratio));
-        result.fingerprint = foundation::stableHashCombine(
-            hash, foundation::stableHashFloat(result.profile.fire_alignment_cos));
+        result.fingerprint = {foundation::stableHashCombine(
+            hash, foundation::stableHashFloat(result.profile.fire_alignment_cos))};
         return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::success(
             std::move(result));
     } catch (const std::exception&) {
