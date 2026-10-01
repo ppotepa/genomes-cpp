@@ -1,10 +1,10 @@
 #include <genomes/ui/UiContentRegistry.hpp>
 
+#include <genomes/content/ContentSnapshot.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cstdint>
-#include <fstream>
 #include <functional>
 #include <optional>
 #include <set>
@@ -79,12 +79,12 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                 continue;
             }
             const auto manifest_path = resolve_safe_path(entry.path(), "mod.json");
-            if (entry.is_symlink() || !manifest_path || !std::filesystem::is_regular_file(*manifest_path) ||
-                std::filesystem::file_size(*manifest_path) > MaximumManifestBytes) {
+            if (entry.is_symlink() || !manifest_path) {
                 return fail("mod is missing mod.json: " + entry.path().string());
             }
-            std::ifstream stream{*manifest_path};
-            const Json json = Json::parse(stream);
+            auto manifest = content::readContentText(*manifest_path, {MaximumManifestBytes});
+            if (!manifest) return fail("mod is missing mod.json: " + entry.path().string());
+            const Json json = Json::parse(manifest.value().text);
             if (!json.contains("schema_version") || json.at("schema_version") != 1 ||
                 !required_string(json, "id") || !required_string(json, "version")) {
                 return fail("invalid mod manifest: " + manifest_path->string());
@@ -122,12 +122,15 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                         return fail("scene path escapes mod root: " + mod.id);
                     }
                     const auto scene_manifest_path = resolve_safe_path(*scene_root, "scene.json");
-                    if (!scene_manifest_path ||
-                        std::filesystem::file_size(*scene_manifest_path) > MaximumManifestBytes) {
+                    if (!scene_manifest_path) {
                         return fail("scene manifest path escapes mod root: " + mod.id);
                     }
-                    std::ifstream scene_stream{*scene_manifest_path};
-                    const Json scene_json = Json::parse(scene_stream);
+                    auto scene_manifest = content::readContentText(
+                        *scene_manifest_path, {MaximumManifestBytes});
+                    if (!scene_manifest) {
+                        return fail("scene manifest path escapes mod root: " + mod.id);
+                    }
+                    const Json scene_json = Json::parse(scene_manifest.value().text);
                     if (!scene_json.contains("schema_version") || scene_json.at("schema_version") != 1 ||
                         !required_string(scene_json, "id") || !required_string(scene_json, "controller") ||
                         !required_string(scene_json, "document")) {
@@ -240,26 +243,9 @@ const UiSceneManifest* UiContentRegistry::find_scene(const std::string& id) cons
 
 [[nodiscard]] std::optional<std::filesystem::path> resolve_safe_path(
     const std::filesystem::path& root, const std::filesystem::path& relative) noexcept {
-    if (!traversal_free(relative)) return std::nullopt;
-    std::error_code error;
-    if (std::filesystem::is_symlink(std::filesystem::symlink_status(root, error)) || error) {
-        return std::nullopt;
-    }
-    const auto canonical_root = std::filesystem::weakly_canonical(root, error);
-    if (error || canonical_root.empty()) return std::nullopt;
-    if (std::filesystem::is_symlink(std::filesystem::symlink_status(canonical_root, error)) || error) {
-        return std::nullopt;
-    }
-    auto candidate = canonical_root;
-    for (const auto& component : relative) {
-        candidate /= component;
-        if (std::filesystem::is_symlink(std::filesystem::symlink_status(candidate, error)) || error) {
-            return std::nullopt;
-        }
-    }
-    candidate = std::filesystem::weakly_canonical(candidate, error);
-    if (error || !traversal_free(candidate.lexically_relative(canonical_root))) return std::nullopt;
-    return candidate;
+    auto resolved = content::resolveContentPath(root, relative);
+    if (!resolved) return std::nullopt;
+    return std::move(resolved.value());
 }
 
 const UiSceneManifest* UiContentRegistry::find_scene(foundation::SceneId id) const noexcept {
