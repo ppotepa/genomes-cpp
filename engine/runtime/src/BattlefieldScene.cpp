@@ -79,6 +79,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     elapsed_seconds_ = 0.0;
     generation_error_.clear();
     plan_.reset();
+    resolved_buildings_.clear();
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
     viability_scenario_.reset();
@@ -146,6 +147,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
 
 void BattlefieldScene::on_exit(SceneContext&) {
     plan_.reset();
+    resolved_buildings_.clear();
     terrain_.reset();
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
@@ -519,6 +521,17 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
 
 void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     plan_ = std::move(plan);
+    resolved_buildings_.clear();
+    resolved_buildings_.reserve(plan_->building_sites.size());
+    for (const world::BuildingSiteRequest& site : plan_->building_sites) {
+        auto resolved = buildings::BuildingGenerator::generateSite(site);
+        if (!resolved) {
+            generation_error_ = std::string(resolved.error().message);
+            plan_.reset();
+            return;
+        }
+        resolved_buildings_.push_back(std::move(resolved.value()));
+    }
     terrain_.reset();
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
@@ -576,7 +589,8 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
                                          {0.19F, 0.42F, 0.22F, 1.0F}});
     }
     render_terrain_mesh_ = std::move(render_mesh);
-    const auto world_mesh_result = world_render::WorldMeshCompiler::compile(*plan_, *terrain_);
+    const auto world_mesh_result = world_render::WorldMeshCompiler::compile(
+        *plan_, *terrain_, resolved_buildings_);
     if (!world_mesh_result) {
         generation_error_ = std::string(world_mesh_result.error().message);
         plan_.reset();

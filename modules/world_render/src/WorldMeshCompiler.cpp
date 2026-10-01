@@ -170,7 +170,8 @@ void append_river(render::RenderMesh& mesh,
 } // namespace
 
 foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>
-WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightField& terrain) {
+WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightField& terrain,
+                           std::span<const buildings::BuildingGenerationResult> resolved_buildings) {
     if (plan.map_size_m == 0 || plan.features.empty() || terrain.width() < 2 ||
         terrain.height() < 2 || !std::isfinite(terrain.cellSize()) || terrain.cellSize() <= 0.0F) {
         return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::failure(
@@ -235,17 +236,14 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         append_river(*mesh, plan.hydrology, river, terrain);
     }
 
-    // Compile the semantic building descriptors through the building module.
-    // This keeps rooms, structural parts and stable part IDs available to
-    // future collision/destruction compilers instead of collapsing buildings
-    // into one opaque box at the world-generator boundary.
-    for (const world::BuildingSiteRequest& site : plan.building_sites) {
-        const auto building_result = buildings::BuildingGenerator::generateSite(site);
-        if (!building_result) {
-            return foundation::Result<std::shared_ptr<const render::RenderMesh>,
-                                      foundation::Error>::failure(building_result.error());
-        }
-        const buildings::BuildingGenerationResult& generated = building_result.value();
+    // Presentation consumes plans resolved by world orchestration. It must
+    // never re-run the building generator: collision, navigation and render
+    // need the same semantic BuildingPart IDs and resolutions.
+    if (resolved_buildings.size() != plan.building_sites.size()) {
+        return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "building resolution count does not match world plan"});
+    }
+    for (const buildings::BuildingGenerationResult& generated : resolved_buildings) {
         const float terrain_height =
             terrain.sampleBilinear(generated.resolution.world_position.x,
                                    generated.resolution.world_position.z);

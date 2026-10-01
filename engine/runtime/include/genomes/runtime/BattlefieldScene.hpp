@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/combat/CombatSystem.hpp>
+#include <genomes/buildings/BuildingModel.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/gameplay/BattlefieldScenario.hpp>
 #endif
@@ -60,6 +61,7 @@ private:
 
     WorldGenerationConfig config_{};
     std::optional<world::WorldPlan> plan_;
+    std::vector<buildings::BuildingGenerationResult> resolved_buildings_;
     std::unique_ptr<gameplay::WorldScenario> scenario_;
     std::optional<terrain::HeightField> terrain_;
     std::optional<terrain::TerrainMesh> terrain_mesh_;
