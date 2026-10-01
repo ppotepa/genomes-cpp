@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **45/55 decisions CODE_READY; 10/18 packages complete**.
+Current source progress: **46/55 decisions CODE_READY; 11/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -57,7 +57,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | PLANNED | 1d7d1e4 | NOT_RUN | - | Product scene sources live under `engine/game_scenes`; runtime core no longer links world generation, while typed `WorldGenerationConfig`/`ApplicationCommand` ownership remains open. |
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | 68af563 | NOT_RUN | - | Application-scene target now owns an immutable built-in scene catalog and routing boundary; complete catalog/backend ownership remains open. |
 | R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | CODE_READY | 361b36c | NOT_RUN | - | `menu_smoke` covers duplicate/frozen registration and an unavailable scene that leaves no current scene and reports `UnavailableFeature`; infantry-off builtin registration uses that path. |
-| R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | PLANNED | f4c5cbb | NOT_RUN | - | Canonical `genomes::world_core` now owns coordinates, region IDs, query snapshots/services, save codec and `BuildingSiteRequest/Resolution`; legacy headers forward while preserving the old world type closure, and generation remains in migration. |
+| R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | CODE_READY | f4c5cbb | NOT_RUN | - | `genomes::world_core` owns the canonical coordinate/ID, query, save and site contracts; `genomes::world_generation` compiles City/World generators and streaming orchestration without hydrology/roads in core; legacy `genomes::world` headers forward as compatibility aliases. `architecture.refactor_tracker` and `world_core.namespace_boundary` cover the boundary; user CTest remains pending. |
 | R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 0803931 | NOT_RUN | - | `WorldScenario` and Battlefield terrain/navigation now derive samples, cells, spacing and origin from the same layout; `world.grid_layout` covers valid bounds and 129/601 rejection, with artifact dimensions asserted in `native_world_assembly`. |
 | R039 | PR09 | world | REF | One immutable `ResolvedWorldArtifacts` revision feeds render/collision/navigation/destruction. | CODE_READY | 730705b | NOT_RUN | - | Deterministic/headless Battlefield finalization now calls the same `WorldScenario::compileArtifact` handoff as asynchronous generation, removing the duplicate hardcoded terrain/building path; all consumers remain revision-bound. |
 | R040 | PR09 | world render | REF | Mesh compiler consumes resolved building plans and `PartId` draw ranges; it never invokes the generator. | CODE_READY | b939538 | NOT_RUN | - | `world.mesh_compiler` covers missing resolutions and stable part range output; user CTest pending. |
@@ -94,7 +94,7 @@ new explicitly versioned capability or contract.
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | 41bbf2b | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | 1d7d1e4 | NOT_RUN | - |
-| PR09 | World core and resolved artifacts | R037-R041 | PLANNED | f4c5cbb | NOT_RUN | - |
+| PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | f4c5cbb | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | PLANNED | c29b346 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
 | PR12 | Unified typed command path | R047-R049 | PLANNED | 10c9c6e | NOT_RUN | - |

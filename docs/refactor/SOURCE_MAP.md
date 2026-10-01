@@ -99,7 +99,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | UNREVIEWED |
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
-| PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | world target split reviewed; remaining consumer/namespace migration UNREVIEWED |
+| PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | ammo/equipment parity loaders reviewed at `c29b346`; remaining domain migration UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | UNREVIEWED |
