@@ -99,8 +99,7 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request,
                color.g >= 0.0F && color.g <= 1.0F && color.b >= 0.0F &&
                color.b <= 1.0F && color.a >= 0.0F && color.a <= 1.0F;
     };
-    if (!std::isfinite(request.variation) || request.variation < 0.0 ||
-        request.variation > 1.75 || detail_level < 1U || detail_level > 3U ||
+    if (!isValidVariation(request.variation) || detail_level < 1U || detail_level > 3U ||
         !std::isfinite(request.wear) || request.wear < 0.0 || request.wear > 1.0 ||
         static_cast<std::uint8_t>(request.side) > static_cast<std::uint8_t>(InfantrySide::Neutral) ||
         !valid_color(request.uniform_color) || !valid_color(request.palette.uniform) ||

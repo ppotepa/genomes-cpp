@@ -16,6 +16,14 @@ int main() {
     assert(first && second);
     assert(first.value().identityHash() == second.value().identityHash());
     assert(first.value().valid());
+    assert(isValidVariation(0.0));
+    assert(isValidVariation(1.75));
+    assert(!isValidVariation(-0.001));
+    assert(!isValidVariation(1.750001));
+    assert(!isValidVariation(std::numeric_limits<double>::quiet_NaN()));
+    assert(InfantryGenome::generate(0x12345678U, 1.75F));
+    assert(!InfantryGenome::generate(0x12345678U, 1.750001F));
+    assert(!first.value().applyVariation(1.750001F));
 
     const auto zero_variation = first.value().applyVariation(0.0F);
     assert(zero_variation);

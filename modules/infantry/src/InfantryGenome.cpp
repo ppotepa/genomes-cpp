@@ -254,9 +254,13 @@ bool InfantryGenome::valid() const noexcept {
            body.valid() && face.valid();
 }
 
+bool isValidVariation(double value) noexcept {
+    return std::isfinite(value) && value >= 0.0 && value <= 1.75;
+}
+
 foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
     proc::Seed seed, float diversity_scale) {
-    if (!std::isfinite(diversity_scale) || diversity_scale < 0.0F || diversity_scale > 1.75F) {
+    if (!isValidVariation(diversity_scale)) {
         return foundation::Result<InfantryGenome, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid infantry diversity scale"});
     }
@@ -362,7 +366,7 @@ foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::generate(
 
 foundation::Result<InfantryGenome, foundation::Error> InfantryGenome::applyVariation(
     float scale) const {
-    if (!valid() || !std::isfinite(scale) || scale < 0.0F || scale > 1.75F) {
+    if (!valid() || !isValidVariation(scale)) {
         return foundation::Result<InfantryGenome, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid infantry genome variation"});
     }

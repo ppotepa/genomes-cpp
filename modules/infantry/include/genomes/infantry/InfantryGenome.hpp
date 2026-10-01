@@ -13,6 +13,8 @@
 namespace genomes::infantry {
 
 inline constexpr std::uint32_t InfantryGenomeVersion = 1;
+
+[[nodiscard]] bool isValidVariation(double value) noexcept;
 inline constexpr std::uint32_t InfantryGeneratorVersion = 1;
 inline constexpr std::uint32_t InfantryArtifactVersion = 1;
 

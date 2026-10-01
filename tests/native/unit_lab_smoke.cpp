@@ -258,6 +258,9 @@ int main() {
         gpu_context, genomes::foundation::stable_id("unit.variation"),
         {{"value", "1.75"}}) == genomes::ui::UiActionResult::Handled);
     assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.variation"),
+        {{"value", "2.0"}}) == genomes::ui::UiActionResult::Rejected);
+    assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.weight"),
         {{"value", "68"}}) == genomes::ui::UiActionResult::Handled);
     assert(gpu_scene.handle_ui_action(

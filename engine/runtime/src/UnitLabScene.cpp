@@ -166,7 +166,11 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             ? static_cast<infantry::BoneId>((static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) % infantry::kRigBoneCount)
             : infantry::BoneId::Hips;
         markDirty(UnitLabDirtyFlag::Ui); break;
-    case 11: variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 2.0F : 0.5F; rebuildModel(&context); break;
+    case 11:
+        variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
+                     : variation_ < 1.75F ? 1.75F : 0.5F;
+        rebuildModel(&context);
+        break;
     case 12:
         if (!infantry::infantryLoadouts().empty()) {
             loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
@@ -598,8 +602,9 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         double value = 0.0;
         const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
                                             std::chars_format::general);
-        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value)) return ui::UiActionResult::Rejected;
-        variation_ = std::clamp(static_cast<float>(value), 0.0F, 1.75F);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !infantry::isValidVariation(value)) return ui::UiActionResult::Rejected;
+        variation_ = static_cast<float>(value);
         rebuildModel(&context);
         return ui::UiActionResult::Handled;
     }
