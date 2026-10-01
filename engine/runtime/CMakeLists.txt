@@ -9,8 +9,7 @@ target_link_libraries(genomes_runtime_core PUBLIC
     genomes::camera
     genomes::render
     genomes::ui
-    genomes::input
-    genomes::world)
+    genomes::input)
 target_compile_features(genomes_runtime_core PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_runtime_core)
 
