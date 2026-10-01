@@ -318,7 +318,11 @@ foreach(removed_battlefield_fallback IN ITEMS
         "infantry_->fixedUpdate"
         "infantry_->stepPhysics"
         "infantry_->emitCombatEvents"
-        "simulation::CommandCommitter")
+        "simulation::CommandCommitter"
+        "std::make_unique<infantry::InfantrySimulation>"
+        "EntityStore entities_"
+        "SimplePhysicsWorld physics_"
+        "GridNavigationWorld")
     if(battlefield_scene_source MATCHES "${removed_battlefield_fallback}")
         message(FATAL_ERROR
                 "BattlefieldScene still contains removed legacy fallback: ${removed_battlefield_fallback}")
@@ -327,6 +331,10 @@ endforeach()
 if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->fixedUpdate")
     message(FATAL_ERROR
             "BattlefieldScene does not dispatch its authoritative BattlefieldRuntime")
+endif()
+if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->renderStates\(\)")
+    message(FATAL_ERROR
+            "BattlefieldScene presentation must consume BattlefieldRuntime render states")
 endif()
 if(NOT battlefield_scene_source MATCHES "simulation_failed_ = true")
     message(FATAL_ERROR
