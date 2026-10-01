@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **36/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **37/55 decisions CODE_READY; 6/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -66,7 +66,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R043 | PR10 | infantry | FIX | Equipment size derives from data, capacity is validated, spawn resolves WeaponId through the shared catalog, and loaded text owns storage. | PLANNED | - | NOT_RUN | - | - |
 | R044 | PR11 | infantry | REF | Model compiler accepts a canonical immutable request and returns shared immutable artifact plus key without preview state. | CODE_READY | ea738c7 | NOT_RUN | - | `infantry.model_compiler` covers canonical legacy-color normalization, artifact-key identity and shared-pointer cache hits; Unit Lab owns latest-wins revision gating. |
 | R045 | PR11 | proc cache | FIX | Artifact cache requires deep memory usage, distinguishes retained/shared/pinned bytes and does not cache oversize artifacts. | CODE_READY | 01d170f | NOT_RUN | - | `proc.artifact_cache` covers deep-size-required storage, pinned-entry eviction, retained/shared/external-pinned accounting, oversize bypass and clear. |
-| R046 | PR11 | Unit Lab | FIX | Latest-wins controller keeps one active and one replaceable pending request; revision/request gates publication and scene exit drains. | PLANNED | - | NOT_RUN | - | - |
+| R046 | PR11 | Unit Lab | FIX | Latest-wins controller keeps one active and one replaceable pending request; revision/request gates publication and scene exit drains. | CODE_READY | 3260064 | NOT_RUN | - | `runtime.unit_lab_request_gate` deterministically covers A→B→C replacement, stale completion, promotion, publication and cancel; `UnitLabScene` uses the same gate and drains its job on exit. |
 | R047 | PR12 | UI/application | REF | RmlUi, CLI and tests parse at their boundaries into the same typed command variants; numeric parsing is strict and diagnosed. | PLANNED | - | NOT_RUN | - | - |
 | R048 | PR12 | Unit Lab | REF | View model tracks Geometry/Material/Pose/Presentation/UI dirtiness and only rebuilds affected outputs. | PLANNED | - | NOT_RUN | - | - |
 | R049 | PR12 | UI/presentation | FIX | Camera, picking and capture use current RmlUi viewport metrics or the last valid rectangle. | CODE_READY | 24e7f84 | NOT_RUN | - | `ui.rml` measures the `unit-viewport` layout at 75/100/150%; `unit_lab` covers normalization and last-valid retention. |
