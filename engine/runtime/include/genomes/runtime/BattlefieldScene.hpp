@@ -66,10 +66,11 @@ private:
 
     WorldGenerationConfig config_{};
     std::optional<world::WorldPlan> plan_;
-    std::vector<buildings::BuildingGenerationResult> resolved_buildings_;
+    std::shared_ptr<const std::vector<buildings::BuildingGenerationResult>> resolved_buildings_;
     std::unique_ptr<gameplay::WorldScenario> scenario_;
-    std::optional<terrain::HeightField> terrain_;
-    std::optional<terrain::TerrainMesh> terrain_mesh_;
+    std::shared_ptr<const terrain::HeightField> terrain_;
+    std::shared_ptr<const terrain::TerrainMesh> terrain_mesh_;
+    std::shared_ptr<const gameplay::WorldScenarioArtifact> world_artifacts_;
     std::shared_ptr<const render::RenderMesh> render_terrain_mesh_;
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::optional<world_render::WorldMeshArtifact> world_mesh_artifact_;

@@ -42,25 +42,30 @@ struct WorldSemanticSnapshot final {
 // data remains authoritative in WorldPlan; terrain is generated from the same
 // request/seed and is kept here so consumers cannot accidentally render one
 // world while querying another.
-struct WorldScenarioArtifact final {
+struct ResolvedWorldArtifacts final {
     world::WorldArtifactRevision revision{0U};
     world::WorldPlan plan{};
-    std::optional<terrain::HeightField> terrain;
-    std::optional<terrain::TerrainMesh> terrain_mesh;
-    std::vector<buildings::BuildingGenerationResult> resolved_buildings;
+    std::shared_ptr<const terrain::HeightField> terrain;
+    std::shared_ptr<const terrain::TerrainMesh> terrain_mesh;
+    std::shared_ptr<const std::vector<buildings::BuildingGenerationResult>> resolved_buildings;
     // Canonical empty-entity save package. Keeping this beside the generated
     // plan makes persistence and streaming consume the same content hash.
-    std::vector<std::byte> save_package;
+    std::shared_ptr<const std::vector<std::byte>> save_package;
 
     [[nodiscard]] bool valid() const noexcept {
         return revision == world::artifactRevision(plan) && plan.content_hash != 0U &&
-               !plan.features.empty() && terrain.has_value() &&
-               terrain_mesh.has_value() && terrain->width() >= 2U &&
+               !plan.features.empty() && terrain != nullptr &&
+               terrain_mesh != nullptr && resolved_buildings != nullptr &&
+               save_package != nullptr && terrain->width() >= 2U &&
                terrain->height() >= 2U && !terrain_mesh->vertices.empty() &&
                !terrain_mesh->indices.empty() &&
-               resolved_buildings.size() == plan.building_sites.size() && !save_package.empty();
+               resolved_buildings->size() == plan.building_sites.size() && !save_package->empty();
     }
 };
+
+// Compatibility name for existing scene/application callers. New code should
+// use the neutral resolved-artifact name.
+using WorldScenarioArtifact = ResolvedWorldArtifacts;
 
 struct WorldScenarioStatus final {
     bool has_active_world{false};
@@ -92,13 +97,16 @@ public:
 
     [[nodiscard]] const world::WorldPlan* activePlan() const noexcept;
     [[nodiscard]] const WorldScenarioArtifact* activeArtifact() const noexcept;
+    [[nodiscard]] std::shared_ptr<const WorldScenarioArtifact> activeArtifactHandle() const noexcept {
+        return active_artifact_;
+    }
     [[nodiscard]] const world::WorldGenerationRequest* activeRequest() const noexcept;
     [[nodiscard]] WorldSemanticSnapshot semanticSnapshot() const noexcept;
     [[nodiscard]] const WorldScenarioStatus& status() const noexcept { return status_; }
 
 private:
     [[nodiscard]] static bool validCandidate(const world::WorldPlan& plan) noexcept;
-    [[nodiscard]] static foundation::Result<WorldScenarioArtifact, foundation::Error>
+    [[nodiscard]] static foundation::Result<ResolvedWorldArtifacts, foundation::Error>
     compileArtifact(world::WorldPlan plan,
                     const world::WorldGenerationRequest& request);
 
@@ -110,7 +118,7 @@ private:
     std::optional<world::WorldGenerationTask> pending_;
     std::optional<world::WorldGenerationRequest> pending_request_;
     std::optional<world::WorldGenerationRequest> active_request_;
-    std::shared_ptr<const WorldScenarioArtifact> active_artifact_;
+    std::shared_ptr<const ResolvedWorldArtifacts> active_artifact_;
     WorldScenarioStatus status_{};
 };
 

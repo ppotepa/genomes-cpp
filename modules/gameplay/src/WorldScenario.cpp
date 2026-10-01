@@ -212,20 +212,23 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             mesh_result.error());
     }
 
-    WorldScenarioArtifact artifact{};
+    ResolvedWorldArtifacts artifact{};
     artifact.plan = std::move(plan);
     artifact.revision = world::artifactRevision(artifact.plan);
-    artifact.resolved_buildings.reserve(artifact.plan.building_sites.size());
+    auto resolved_buildings = std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
+    resolved_buildings->reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
         auto building = buildings::BuildingGenerator::generateSite(site);
         if (!building) {
-            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
                 building.error());
         }
-        artifact.resolved_buildings.push_back(std::move(building.value()));
+        resolved_buildings->push_back(std::move(building.value()));
     }
-    artifact.terrain = std::move(terrain_field);
-    artifact.terrain_mesh = std::move(mesh_result.value());
+    artifact.resolved_buildings = std::move(resolved_buildings);
+    artifact.terrain = std::make_shared<const terrain::HeightField>(std::move(terrain_field));
+    artifact.terrain_mesh = std::make_shared<const terrain::TerrainMesh>(
+        std::move(mesh_result.value()));
     world::WorldSaveModel save{};
     save.metadata.generator_version = artifact.plan.generator_version;
     save.metadata.seed = artifact.plan.seed;
@@ -238,7 +241,8 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             serialized_save.error());
     }
-    artifact.save_package = std::move(serialized_save.value());
+    artifact.save_package = std::make_shared<const std::vector<std::byte>>(
+        std::move(serialized_save.value()));
     if (!artifact.valid()) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::Internal, "world artifact compilation produced no data"});

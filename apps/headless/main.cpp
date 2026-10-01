@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
                   << " vegetation=" << semantic.vegetation_count
                   << " streamed_resident=" << world.status().streaming_resident
                   << " streamed_pending=" << world.status().streaming_pending
-                  << " save_bytes=" << artifact->save_package.size()
+                  << " save_bytes=" << artifact->save_package->size()
                   << " terrain_mesh_vertices=" << artifact->terrain_mesh->vertices.size()
                   << " terrain_mesh_triangles=" << artifact->terrain_mesh->triangle_count()
                   << '\n';

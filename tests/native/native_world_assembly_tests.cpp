@@ -15,10 +15,12 @@ int main() {
     assert(first_hash != 0U && scenario.activeRequest() != nullptr);
     assert(scenario.activeRequest()->seed == request.seed);
     const auto* artifact = scenario.activeArtifact();
+    const auto artifact_handle = scenario.activeArtifactHandle();
     assert(artifact != nullptr && artifact->valid());
+    assert(artifact_handle.get() == artifact);
     assert(artifact->revision == world::artifactRevision(artifact->plan));
     assert(scenario.activePlan() == &artifact->plan);
-    assert(artifact->resolved_buildings.size() == artifact->plan.building_sites.size());
+    assert(artifact->resolved_buildings->size() == artifact->plan.building_sites.size());
 
     world::WorldGenerationRequest invalid = request;
     invalid.map_size_m = 64U;

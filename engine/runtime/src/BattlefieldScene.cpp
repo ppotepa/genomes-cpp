@@ -79,7 +79,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     elapsed_seconds_ = 0.0;
     generation_error_.clear();
     plan_.reset();
-    resolved_buildings_.clear();
+    resolved_buildings_.reset();
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
     viability_scenario_.reset();
@@ -96,6 +96,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
 #endif
     terrain_.reset();
     terrain_mesh_.reset();
+    world_artifacts_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     world_mesh_artifact_.reset();
@@ -148,9 +149,10 @@ void BattlefieldScene::on_enter(SceneContext& context) {
 
 void BattlefieldScene::on_exit(SceneContext&) {
     plan_.reset();
-    resolved_buildings_.clear();
+    resolved_buildings_.reset();
     terrain_.reset();
     terrain_mesh_.reset();
+    world_artifacts_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     world_mesh_artifact_.reset();
@@ -523,20 +525,25 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
 
 void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     plan_ = std::move(plan);
-    resolved_buildings_.clear();
+    resolved_buildings_.reset();
     terrain_.reset();
     terrain_mesh_.reset();
+    world_artifacts_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
     world_mesh_artifact_.reset();
     render_infantry_mesh_.reset();
     camera_request_ = {};
-    const gameplay::WorldScenarioArtifact* shared_artifact =
-        scenario_ != nullptr ? scenario_->activeArtifact() : nullptr;
+    const auto shared_artifact_handle =
+        scenario_ != nullptr ? scenario_->activeArtifactHandle()
+                              : std::shared_ptr<const gameplay::WorldScenarioArtifact>{};
+    const gameplay::WorldScenarioArtifact* shared_artifact = shared_artifact_handle.get();
     if (shared_artifact != nullptr && shared_artifact->plan.content_hash == plan_->content_hash &&
         shared_artifact->revision == world::artifactRevision(*plan_) &&
-        shared_artifact->terrain.has_value() && shared_artifact->terrain_mesh.has_value() &&
-        shared_artifact->resolved_buildings.size() == plan_->building_sites.size()) {
+        shared_artifact->terrain != nullptr && shared_artifact->terrain_mesh != nullptr &&
+        shared_artifact->resolved_buildings != nullptr &&
+        shared_artifact->resolved_buildings->size() == plan_->building_sites.size()) {
+        world_artifacts_ = shared_artifact_handle;
         terrain_ = shared_artifact->terrain;
         terrain_mesh_ = shared_artifact->terrain_mesh;
         resolved_buildings_ = shared_artifact->resolved_buildings;
@@ -545,7 +552,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         plan_.reset();
         return;
     } else {
-        resolved_buildings_.reserve(plan_->building_sites.size());
+        auto resolved_buildings =
+            std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
+        resolved_buildings->reserve(plan_->building_sites.size());
         for (const world::BuildingSiteRequest& site : plan_->building_sites) {
             auto resolved = buildings::BuildingGenerator::generateSite(site);
             if (!resolved) {
@@ -553,8 +562,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
                 plan_.reset();
                 return;
             }
-            resolved_buildings_.push_back(std::move(resolved.value()));
+            resolved_buildings->push_back(std::move(resolved.value()));
         }
+        resolved_buildings_ = std::move(resolved_buildings);
         terrain::TerrainSpec terrain_spec{};
         terrain_spec.world_id = world::WorldId(foundation::stableHashU64(config_.seed));
         terrain_spec.region = {0, 0, 0};
@@ -571,7 +581,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
             plan_.reset();
             return;
         }
-        terrain_ = std::move(terrain_result.value());
+        terrain_ = std::make_shared<const terrain::HeightField>(std::move(terrain_result.value()));
         const auto mesh_result = terrain::TerrainMeshBuilder::build(*terrain_);
         if (!mesh_result) {
             generation_error_ = std::string(mesh_result.error().message);
@@ -579,7 +589,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
             terrain_.reset();
             return;
         }
-        terrain_mesh_ = std::move(mesh_result.value());
+        terrain_mesh_ = std::make_shared<const terrain::TerrainMesh>(std::move(mesh_result.value()));
     }
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
@@ -600,7 +610,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
     render_terrain_mesh_ = std::move(render_mesh);
     const auto world_mesh_result = world_render::WorldMeshCompiler::compile(
-        *plan_, *terrain_, resolved_buildings_, world::artifactRevision(*plan_));
+        *plan_, *terrain_, *resolved_buildings_, world::artifactRevision(*plan_));
     if (!world_mesh_result) {
         generation_error_ = std::string(world_mesh_result.error().message);
         plan_.reset();
@@ -630,7 +640,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
                 }
             }
         }
-        for (const buildings::BuildingGenerationResult& building : resolved_buildings_) {
+        for (const buildings::BuildingGenerationResult& building : *resolved_buildings_) {
             const world::BuildingSiteResolution& site = building.resolution;
             const float radius_x = site.resolved_footprint.x * 0.55F;
             const float radius_z = site.resolved_footprint.z * 0.55F;
