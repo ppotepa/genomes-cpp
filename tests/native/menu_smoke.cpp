@@ -36,6 +36,21 @@ int main() {
     const auto invalid_explicit_seed =
         genomes::runtime::WorldSeedInput::explicitValue(0U).resolve(123U);
     assert(!invalid_explicit_seed);
+    {
+        genomes::render::NullRenderer unavailable_renderer;
+        genomes::ui::UiRuntime unavailable_ui;
+        genomes::render::PresentationSnapshot unavailable_presentation;
+        genomes::runtime::SceneDirector unavailable_director(
+            unavailable_renderer, unavailable_ui, unavailable_presentation);
+        const auto unavailable_id = genomes::foundation::scene_id("scene.optional-feature");
+        assert(unavailable_director.register_unavailable_scene(
+            unavailable_id, {genomes::foundation::ErrorCode::UnavailableFeature,
+                             "optional feature is disabled"}));
+        assert(!unavailable_director.start(unavailable_id));
+        assert(unavailable_director.current() == nullptr);
+        assert(unavailable_director.last_error().code ==
+               genomes::foundation::ErrorCode::UnavailableFeature);
+    }
     genomes::jobs::JobSystem jobs{2};
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;

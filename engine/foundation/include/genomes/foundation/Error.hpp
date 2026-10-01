@@ -12,6 +12,7 @@ enum class ErrorCode : std::uint32_t {
     NotFound,
     OutOfRange,
     Unsupported,
+    UnavailableFeature,
     Internal
 };
 

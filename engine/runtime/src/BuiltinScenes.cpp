@@ -73,9 +73,9 @@ void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
 #if GENOMES_HAS_INFANTRY
     director.register_scene(unit_lab_id, [] { return std::make_unique<UnitLabScene>(); });
 #else
-    director.register_scene(unit_lab_id, [unit_lab_id] {
-        return std::make_unique<PlaceholderScene>(unit_lab_id, "Unit laboratory unavailable");
-    });
+    director.register_unavailable_scene(
+        unit_lab_id, {foundation::ErrorCode::UnavailableFeature,
+                      "unit laboratory requires the infantry module"});
 #endif
     director.register_scene(building_lab_id,
                             [] { return std::make_unique<BuildingLabScene>(); });

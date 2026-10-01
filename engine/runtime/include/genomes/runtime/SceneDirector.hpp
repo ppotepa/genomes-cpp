@@ -27,6 +27,8 @@ public:
 
     foundation::Result<void, foundation::Error>
     register_scene(foundation::SceneId id, Factory factory);
+    foundation::Result<void, foundation::Error>
+    register_unavailable_scene(foundation::SceneId id, foundation::Error error);
     bool start(foundation::SceneId id);
     void handle_input(const input::InputFrame&);
     [[nodiscard]] ui::UiActionResult dispatch_ui_action(
@@ -55,6 +57,10 @@ public:
         return active_world_config_ ? &*active_world_config_ : nullptr;
     }
 
+    [[nodiscard]] const foundation::Error& last_error() const noexcept {
+        return last_error_;
+    }
+
 private:
     [[nodiscard]] SceneContext make_context() noexcept;
     void process_commands();
@@ -65,11 +71,13 @@ private:
     render::PresentationSnapshot& presentation_;
     SceneCommandQueue commands_;
     std::unordered_map<foundation::SceneId, Factory> factories_;
+    std::unordered_map<foundation::SceneId, foundation::Error> unavailable_scenes_;
     bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
     std::optional<WorldGenerationConfig> active_world_config_;
     jobs::JobSystem* jobs_{nullptr};
     bool quit_requested_{false};
+    foundation::Error last_error_{};
     bool deterministic_capture_{false};
     std::uint64_t frame_number_{0};
     foundation::SimulationTick previous_presentation_tick_{};

@@ -69,11 +69,26 @@ SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "scene registry is frozen"});
     }
-    if (factories_.contains(id)) {
+    if (factories_.contains(id) || unavailable_scenes_.contains(id)) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "scene ID already registered"});
     }
     factories_.emplace(id, std::move(factory));
+    return foundation::Result<void, foundation::Error>::success();
+}
+
+foundation::Result<void, foundation::Error>
+SceneDirector::register_unavailable_scene(foundation::SceneId id, foundation::Error error) {
+    if (scene_registry_frozen_) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "scene registry is frozen"});
+    }
+    if (error.code != foundation::ErrorCode::UnavailableFeature || factories_.contains(id) ||
+        unavailable_scenes_.contains(id)) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid unavailable scene registration"});
+    }
+    unavailable_scenes_.emplace(id, error);
     return foundation::Result<void, foundation::Error>::success();
 }
 
@@ -246,8 +261,14 @@ ui::UiActionResult SceneDirector::dispatch_ui_action(
 }
 
 bool SceneDirector::change_to(foundation::SceneId id) {
+    if (const auto unavailable = unavailable_scenes_.find(id);
+        unavailable != unavailable_scenes_.end()) {
+        last_error_ = unavailable->second;
+        return false;
+    }
     const auto factory = factories_.find(id);
     if (factory == factories_.end()) {
+        last_error_ = {foundation::ErrorCode::NotFound, "scene ID is not registered"};
         return false;
     }
 
@@ -262,6 +283,7 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     ui_.reset_model();
     current_ = factory->second();
     current_->on_enter(context);
+    last_error_ = {};
     return true;
 }
 
