@@ -1,5 +1,6 @@
 #pragma once
 
+#include <genomes/world/WorldPosition.hpp>
 #include <genomes/world_core/WorldSave.hpp>
 
 namespace genomes::world {

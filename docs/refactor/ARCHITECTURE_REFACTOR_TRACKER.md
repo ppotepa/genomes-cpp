@@ -51,8 +51,8 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R028 | PR06 | combat AI | DATA | Tactical AI profile moves without tuning to typed core content; runtime stores no parser/DOM. | CODE_READY | ec69179 | NOT_RUN | - | `tactical-ai.json` is strict-loaded in the game composition root; `BattlefieldScenarioConfig` receives only `TacticalAIProfile`; combat and battlefield profile tests cover parity and injection. |
 | R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers tick context. |
 | R030 | PR07 | simulation | REF | Seconds/RPM conversion uses one deterministic ceil-to-next-tick function and preserves 60 Hz behavior. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers 60 Hz and alternate-rate ceil conversion. |
-| R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | PLANNED | 4b94f1e | NOT_RUN | - | BattlefieldScene now delegates each tick exclusively to BattlefieldRuntime whenever it exists; full presentation/state extraction remains open. |
-| R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | PLANNED | c1158d4 | NOT_RUN | - | Production Battlefield no longer owns or invokes `FixtureHitscan`; the adapter is isolated to fixtures and a source guard blocks reintroduction. The authoritative weapon→ballistics→damage handoff remains open. |
+| R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | PLANNED | 41bbf2b | NOT_RUN | - | BattlefieldScene delegates each tick exclusively to BattlefieldRuntime whenever it exists, and battlefield world clients now use canonical `world_core`; full presentation/state extraction remains open. |
+| R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | PLANNED | b85ed75 | NOT_RUN | - | Production Battlefield owns the explicit apply→single PhysicsWorld step→sync sequence and declares damage resource writes; authoritative weapon→ballistics→damage evidence remains open. |
 | R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | PLANNED | 63fcbac | NOT_RUN | - | Eight product scene sources now live under `engine/game_scenes`; runtime retains only neutral core and forwarding headers. Full neutral-link closure remains open. |
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | 68af563 | NOT_RUN | - | Application-scene target now owns an immutable built-in scene catalog and routing boundary; complete catalog/backend ownership remains open. |
@@ -92,12 +92,12 @@ new explicitly versioned capability or contract.
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
-| PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | c1158d4 | NOT_RUN | - |
+| PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | 41bbf2b | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | 68af563 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | PLANNED | 4bdf532 | NOT_RUN | - |
-| PR10 | Domain catalog migration | R042-R043 | PLANNED | 9962750 | NOT_RUN | - |
+| PR10 | Domain catalog migration | R042-R043 | PLANNED | 4d08dc5 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | PLANNED | - | NOT_RUN | - |
-| PR12 | Unified typed command path | R047-R049 | PLANNED | b49fc8c | NOT_RUN | - |
+| PR12 | Unified typed command path | R047-R049 | PLANNED | 10c9c6e | NOT_RUN | - |
 | PR13 | Versioned GPU profile and ownership | R050-R051 | PLANNED | 4f973cf | NOT_RUN | - |
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
