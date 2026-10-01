@@ -214,6 +214,14 @@ genomes_set_project_warnings(genomes_test_jobs_smoke)
 genomes_enable_test_assertions(genomes_test_jobs_smoke)
 add_test(NAME jobs.core COMMAND genomes_test_jobs_smoke)
 
+add_executable(genomes_test_job_fence
+    jobs/job_fence_tests.cpp)
+target_link_libraries(genomes_test_job_fence PRIVATE genomes::jobs)
+genomes_set_project_warnings(genomes_test_job_fence)
+genomes_enable_test_assertions(genomes_test_job_fence)
+add_test(NAME jobs.fence COMMAND genomes_test_job_fence)
+set_tests_properties(jobs.fence PROPERTIES LABELS "cpu;jobs")
+
 add_executable(genomes_test_thread_scaling_gate
     stress/thread_scaling_smoke.cpp)
 target_link_libraries(genomes_test_thread_scaling_gate PRIVATE

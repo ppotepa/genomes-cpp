@@ -11,12 +11,11 @@ namespace {
 
 void run(std::uint32_t worker_count, std::uint32_t job_count) {
     genomes::jobs::JobSystem jobs(worker_count);
-    genomes::jobs::JobFence fence;
-    fence.add(job_count);
+    genomes::jobs::JobFence fence(job_count);
 
     const auto start = std::chrono::steady_clock::now();
     for (std::uint32_t index = 0; index < job_count; ++index) {
-        (void)jobs.submit([&fence](genomes::jobs::JobContext&) { fence.signal(); });
+        (void)jobs.submit([&fence](genomes::jobs::JobContext&) { (void)fence.signal(); });
     }
     fence.wait();
     const auto elapsed = std::chrono::duration<double, std::milli>(

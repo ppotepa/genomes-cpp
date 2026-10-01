@@ -22,16 +22,19 @@ enum class ShutdownMode {
 
 class JobFence final {
 public:
-    void add(std::uint32_t count = 1) noexcept;
-    void signal(std::uint32_t count = 1) noexcept;
+    // A fence is armed once. Construct a new instance for each batch rather
+    // than reusing a completed fence for unrelated work.
+    explicit JobFence(std::uint32_t expected_count = 0) noexcept : pending_(expected_count) {}
+
+    // Returns false without changing pending work when the request would
+    // over-signal the fence.
+    [[nodiscard]] bool signal(std::uint32_t count = 1) noexcept;
     void wait() const noexcept;
 
-    [[nodiscard]] std::uint32_t pending() const noexcept {
-        return pending_.load(std::memory_order_acquire);
-    }
+    [[nodiscard]] std::uint32_t pending() const noexcept;
 
 private:
-    std::atomic<std::uint32_t> pending_{0};
+    std::uint32_t pending_{0};
     mutable std::mutex mutex_;
     mutable std::condition_variable condition_;
 };

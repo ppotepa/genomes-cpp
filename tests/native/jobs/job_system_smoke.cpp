@@ -37,10 +37,9 @@ int main() {
     assert(outer.isComplete());
     assert(nested_completed.load(std::memory_order_relaxed) == 1);
 
-    genomes::jobs::JobFence fence;
-    fence.add(32);
+    genomes::jobs::JobFence fence(32);
     for (std::uint32_t index = 0; index < 32; ++index) {
-        (void)jobs.submit([&fence](genomes::jobs::JobContext&) { fence.signal(); });
+        (void)jobs.submit([&fence](genomes::jobs::JobContext&) { (void)fence.signal(); });
     }
     fence.wait();
     assert(fence.pending() == 0);

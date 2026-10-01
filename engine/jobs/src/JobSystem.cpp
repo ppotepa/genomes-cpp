@@ -9,24 +9,30 @@ namespace genomes::jobs {
 thread_local JobSystem* JobSystem::current_worker_system_ = nullptr;
 thread_local std::uint32_t JobSystem::current_worker_index_ = 0;
 
-void JobFence::add(std::uint32_t count) noexcept {
-    pending_.fetch_add(count, std::memory_order_release);
-}
-
-void JobFence::signal(std::uint32_t count) noexcept {
-    const std::uint32_t previous = pending_.fetch_sub(count, std::memory_order_acq_rel);
-    if (previous <= count) {
-        pending_.store(0, std::memory_order_release);
+bool JobFence::signal(std::uint32_t count) noexcept {
+    bool completed = false;
+    {
+        std::lock_guard lock(mutex_);
+        if (count > pending_) {
+            return false;
+        }
+        pending_ -= count;
+        completed = pending_ == 0;
+    }
+    if (completed) {
         condition_.notify_all();
     }
+    return true;
+}
+
+std::uint32_t JobFence::pending() const noexcept {
+    std::lock_guard lock(mutex_);
+    return pending_;
 }
 
 void JobFence::wait() const noexcept {
-    if (pending() == 0) {
-        return;
-    }
     std::unique_lock lock(mutex_);
-    condition_.wait(lock, [this] { return pending() == 0; });
+    condition_.wait(lock, [this] { return pending_ == 0; });
 }
 
 JobSystem::JobSystem(std::uint32_t worker_count, std::uint32_t reserved_main_threads) {

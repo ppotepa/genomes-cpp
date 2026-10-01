@@ -18,7 +18,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 
 | ID | Package | Owner | Kind | Decision / acceptance condition | Implementation | Code SHA | Verification | Verified SHA | Evidence |
 |---|---|---|---|---|---|---|---|---|---|
-| R001 | PR01 | jobs | FIX | `JobFence(expected_count)` is one-shot; over-signal fails without mutation; counter and wait predicate share one mutex. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline has `add()`, atomic decrement and saturating over-signal. |
+| R001 | PR01 | jobs | FIX | `JobFence(expected_count)` is one-shot; over-signal fails without mutation; counter and wait predicate share one mutex. | CODE_READY | WORKTREE | NOT_RUN | - | `jobs.fence` covers over-signal, pending preservation and multiple waiters without sleeps. |
 | R002 | PR01 | jobs | FIX | Job lifecycle is one mutex-protected `Running/ClosingDrain/ClosingCancel/Stopped` state; submit and close are atomic relative to the queue. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline uses independent `stopping_` and `accepting_` atomics. |
 | R003 | PR01 | jobs | FIX | Shutdown is idempotent and owner-thread-only; worker destruction fails fast; launcher failure rolls back and joins started workers. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline directly emplaces threads and has no owner/rollback contract. |
 | R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | CODE_READY | WORKTREE | NOT_RUN | - | `simulation.system_graph_batch` covers main-thread failure with active worker and reverse completion worker failure. |
