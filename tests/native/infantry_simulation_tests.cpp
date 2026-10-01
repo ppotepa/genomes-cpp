@@ -84,10 +84,30 @@ void squadContactsRequireMatchingSideAndExplicitMembership() {
     assert(state_of(no_squad_observer.value()) == genomes::infantry::AgentState::Idle);
 }
 
+void staleAgentSidecarCannotAttachToReusedEntityIndex() {
+    genomes::simulation::EntityStore entities;
+    genomes::infantry::InfantrySimulation infantry(entities);
+    const auto generated = genomes::infantry::InfantryGenome::generate(3);
+    assert(generated);
+    const auto original = infantry.spawn({genomes::infantry::Team::Blue, {}, generated.value(), {}});
+    assert(original);
+    entities.destroy(original.value());
+    const auto replacement = entities.create({{25.0F, 0.0F, 0.0F}, {}, 0.0F, 100.0F,
+                                              genomes::simulation::EntityAlive});
+    assert(replacement);
+    assert(replacement.value().index == original.value().index);
+    assert(replacement.value().generation != original.value().generation);
+
+    infantry.fixedUpdate(1.0 / 60.0, {});
+    assert(infantry.activeCount() == 0);
+    assert(infantry.renderStates().empty());
+}
+
 } // namespace
 
 int main() {
     nearbyWaypointDoesNotMakeDistantTargetEngage();
     squadContactsRequireMatchingSideAndExplicitMembership();
+    staleAgentSidecarCannotAttachToReusedEntityIndex();
     return 0;
 }

@@ -80,6 +80,7 @@ private:
     struct Agent final {
         InfantryGenome genome{};
         Team team{Team::Blue};
+        simulation::EntityId entity{};
         simulation::EntityId target{};
         physics::BodyHandle body{};
         simulation::CadenceState perception_cadence{};
@@ -120,6 +121,7 @@ private:
     void buildRenderStates() noexcept;
     [[nodiscard]] static bool contactMemoryFresh(const Agent&,
                                                  foundation::SimulationTick) noexcept;
+    void clearAgent(Agent&) noexcept;
     [[nodiscard]] Agent* agent(simulation::EntityId) noexcept;
     [[nodiscard]] const Agent* agent(simulation::EntityId) const noexcept;
 

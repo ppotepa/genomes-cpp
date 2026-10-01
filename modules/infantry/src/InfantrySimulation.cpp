@@ -77,18 +77,15 @@ foundation::Result<simulation::EntityId, foundation::Error> InfantrySimulation::
         agents_.resize(static_cast<std::size_t>(entity.value().index) + 1);
     }
     Agent& record = agents_[entity.value().index];
-    record = Agent{spawn_data.genome,
-                   spawn_data.team,
-                   {},
-                   body,
-                   {},
-                   {2.0F, 700.0F, 4.0F, spawn_data.genome.attack_range, 1000},
-                   {1000, {}},
-                   AgentState::Idle,
-                   true,
-                   {},
-                   0,
-                   {}};
+    record = {};
+    record.genome = spawn_data.genome;
+    record.team = spawn_data.team;
+    record.entity = entity.value();
+    record.body = body;
+    record.weapon = {2.0F, 700.0F, 4.0F, spawn_data.genome.attack_range, 1000};
+    record.weapon_state = {1000, {}};
+    record.state = AgentState::Idle;
+    record.active = true;
     record.squad = spawn_data.squad;
     if (record.squad.has_value()) {
         squad_contacts_.try_emplace(*record.squad);
@@ -102,25 +99,18 @@ void InfantrySimulation::remove(simulation::EntityId entity) noexcept {
     if (record == nullptr) {
         return;
     }
-    record->active = false;
-    record->state = AgentState::Dead;
-    record->target = {};
-    record->route.clear();
-    record->route_cursor = 0;
-    record->last_known_target_position = {};
-    record->last_contact_tick = {};
-    record->has_contact_memory = false;
-    if (physics_ != nullptr && record->body.isValid()) {
-        physics_->destroyBody(record->body);
-    }
-    record->body = {};
+    clearAgent(*record);
     entities_.destroy(entity);
-    --active_count_;
 }
 
 void InfantrySimulation::fixedUpdate(double dt, foundation::SimulationTick tick) noexcept {
     if (!std::isfinite(dt) || dt <= 0.0) {
         return;
+    }
+    for (Agent& record : agents_) {
+        if (record.active && !entities_.contains(record.entity)) {
+            clearAgent(record);
+        }
     }
     rebuildSpatialIndex();
     perceive(tick);
@@ -470,9 +460,30 @@ void InfantrySimulation::buildRenderStates() noexcept {
     });
 }
 
+void InfantrySimulation::clearAgent(Agent& record) noexcept {
+    const std::optional<SquadKey> squad = record.squad;
+    if (physics_ != nullptr && record.body.isValid()) {
+        physics_->destroyBody(record.body);
+    }
+    const bool was_active = record.active;
+    record = {};
+    if (was_active && active_count_ > 0) {
+        --active_count_;
+    }
+    if (squad.has_value()) {
+        const bool has_member = std::any_of(agents_.begin(), agents_.end(),
+                                            [&squad](const Agent& candidate) {
+                                                return candidate.active && candidate.squad == squad;
+                                            });
+        if (!has_member) {
+            squad_contacts_.erase(*squad);
+        }
+    }
+}
+
 InfantrySimulation::Agent* InfantrySimulation::agent(simulation::EntityId entity) noexcept {
     if (!entity.isValid() || entity.index >= agents_.size() || !entities_.contains(entity) ||
-        !agents_[entity.index].active) {
+        !agents_[entity.index].active || agents_[entity.index].entity != entity) {
         return nullptr;
     }
     return &agents_[entity.index];
@@ -480,7 +491,7 @@ InfantrySimulation::Agent* InfantrySimulation::agent(simulation::EntityId entity
 
 const InfantrySimulation::Agent* InfantrySimulation::agent(simulation::EntityId entity) const noexcept {
     if (!entity.isValid() || entity.index >= agents_.size() || !entities_.contains(entity) ||
-        !agents_[entity.index].active) {
+        !agents_[entity.index].active || agents_[entity.index].entity != entity) {
         return nullptr;
     }
     return &agents_[entity.index];
