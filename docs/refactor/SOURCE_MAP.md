@@ -95,7 +95,14 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 
 ## Implementation review queue
 
-`UNREVIEWED` means not yet reviewed for this refactor, not known-bad.
+The table below originated as the historical baseline inventory recorded during
+PR00. Entries marked `UNREVIEWED` describe that original source-map queue, not
+a current implementation failure; later rows may contain review updates. The
+current implementation status is authoritative in
+`ARCHITECTURE_REFACTOR_TRACKER.md`.
+
+`UNREVIEWED` means not yet reviewed for this refactor at the PR00 baseline, not
+known-bad.
 
 | Package | Primary implementation roots | Baseline review state |
 |---|---|---|

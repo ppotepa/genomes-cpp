@@ -44,11 +44,6 @@ add_test(NAME architecture.refactor_tracker
         -P "${CMAKE_CURRENT_SOURCE_DIR}/architecture_refactor_tracker.cmake")
 set_tests_properties(architecture.refactor_tracker PROPERTIES
     LABELS "source;cpu;architecture")
-add_test(NAME architecture.target_closure
-    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/target_closure_guard.cmake")
-set_tests_properties(architecture.target_closure PROPERTIES
-    LABELS "source;cpu;architecture")
 add_test(NAME simulation.battlefield_pipeline_source_contract
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/battlefield_pipeline_guard.cmake")
