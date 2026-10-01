@@ -34,7 +34,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R014 | PR04 | save | REF | Domain save metadata excludes encoder counts, payload size and checksum; those belong to `EncodedSaveHeader`. | CODE_READY | 5e11834 | NOT_RUN | - | `world.save` uses metadata-only model and a private encoder header. |
 | R015 | PR04 | save | REF | Existing byte layout/schema remains canonical when parity proves identical; encode(decode(bytes)) is byte-identical. | CODE_READY | 5e11834 | NOT_RUN | - | `world.save` re-encodes decoded data byte-identically. |
 | R016 | PR04 | save | FIX | `WorldSaveLimits` bounds file, collections and working memory with checked sums/products before allocation. | CODE_READY | 5e11834 | NOT_RUN | - | `world.save` covers memory-limit rejection before serialization/decoding. |
-| R017 | PR04 | proc/application | FIX | Resolved seed zero is invalid; application Auto is a distinct state resolved to a persisted nonzero seed. | PLANNED | - | NOT_RUN | - | - |
+| R017 | PR04 | proc/application | FIX | Resolved seed zero is invalid; application Auto is a distinct state resolved to a persisted nonzero seed. | CODE_READY | d686ba7 | NOT_RUN | - | `menu.smoke` covers Auto resolution and explicit-zero rejection; world generator rejects unresolved zero. |
 | R018 | PR04 | I/O | FIX | Atomic-file failures retain I/O categories; only invalid serialization is corrupt data. | CODE_READY | 5e11834 | NOT_RUN | - | `world.save` checks missing-file `NotFound` is preserved. |
 | R019 | PR05 | content | FIX | Shared asset resolver rejects absolute/rooted/traversal/noncanonical paths and reparse points before bounded reads. | PLANNED | - | NOT_RUN | - | - |
 | R020 | PR05 | mods | FIX | Mod order is stable topological order: dependencies, then ready-node priority, then ID. | PLANNED | - | NOT_RUN | - | - |
@@ -86,7 +86,7 @@ new explicitly versioned capability or contract.
 | PR01 | Jobs and SystemGraph lifetime | R001-R004 | CODE_READY | bf46621 | NOT_RUN | - |
 | PR02 | Infantry state and Unit Lab input | R005-R008 | CODE_READY | 3204f38 | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | CODE_READY | 2194765 | NOT_RUN | - |
-| PR04 | Bounded canonical save | R014-R018 | PLANNED | - | NOT_RUN | - |
+| PR04 | Bounded canonical save | R014-R018 | CODE_READY | d686ba7 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | PLANNED | - | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | PLANNED | - | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | - | NOT_RUN | - |
