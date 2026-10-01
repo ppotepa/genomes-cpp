@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **33/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **34/55 decisions CODE_READY; 6/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -47,7 +47,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R024 | PR06 | content | REF | Content module owns bounded read, manifests, provenance, canonical hashing and frozen snapshots; domains own fields. | PLANNED | - | NOT_RUN | - | - |
 | R025 | PR06 | configuration | REF | Configuration flow is defaults/core/profile/topological overrides/allowed CLI, then validate, resolve, canonicalize, fingerprint and freeze. | PLANNED | - | NOT_RUN | - | - |
 | R026 | PR06 | configuration | FIX | Core unknown fields and missing references fail; IDs differ from display names; snapshots own stable text independent of JSON DOM. | PLANNED | - | NOT_RUN | - | - |
-| R027 | PR06 | configuration | EXT | Typed simulation, presentation and execution hashes derive from canonical values. | PLANNED | - | NOT_RUN | - | - |
+| R027 | PR06 | configuration | EXT | Typed simulation, presentation and execution hashes derive from canonical values. | CODE_READY | 559ba9f | NOT_RUN | - | `foundation.config_hash` covers canonical field ordering and distinct typed hash spaces; Tactical AI uses the simulation hash after parsing and validation. |
 | R028 | PR06 | combat AI | DATA | Tactical AI profile moves without tuning to typed core content; runtime stores no parser/DOM. | CODE_READY | ec69179 | NOT_RUN | - | `tactical-ai.json` is strict-loaded in the game composition root; `BattlefieldScenarioConfig` receives only `TacticalAIProfile`; combat and battlefield profile tests cover parity and injection. |
 | R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers tick context. |
 | R030 | PR07 | simulation | REF | Seconds/RPM conversion uses one deterministic ceil-to-next-tick function and preserves 60 Hz behavior. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers 60 Hz and alternate-rate ceil conversion. |
