@@ -27,5 +27,20 @@ int main() {
     runtime.value()->fixedUpdate();
     assert(runtime.value()->snapshot().tick == 1U);
     assert(runtime.value()->snapshot().physics_steps == 1U);
+    runtime.value()->fixedUpdate(simulation::TickContext{
+        foundation::SimulationTick{2U}, 1.0 / 60.0,
+        simulation::SessionSimulationTickRateHz});
+    assert(runtime.value()->snapshot().tick == 2U);
+    runtime.value()->fixedUpdate(simulation::TickContext{
+        foundation::SimulationTick{2U}, 1.0 / 60.0,
+        simulation::SessionSimulationTickRateHz});
+    assert(runtime.value()->snapshot().tick == 2U);
+    runtime.value()->fixedUpdate(simulation::TickContext{
+        foundation::SimulationTick{1U}, 1.0 / 60.0,
+        simulation::SessionSimulationTickRateHz});
+    assert(runtime.value()->snapshot().tick == 2U);
+    runtime.value()->fixedUpdate(simulation::TickContext{
+        foundation::SimulationTick{3U}, 1.0 / 60.0, 0U});
+    assert(runtime.value()->snapshot().tick == 2U);
     return 0;
 }

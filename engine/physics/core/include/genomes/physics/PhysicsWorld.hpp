@@ -71,10 +71,10 @@ struct RaycastHit final {
     bool ground{false};
 };
 
-using GroundHeightFunction = float (*)(void* context, float x, float z) noexcept;
+using GroundHeightFunction = float (*)(const void* context, float x, float z) noexcept;
 
 struct GroundHeightQuery final {
-    void* context{nullptr};
+    const void* context{nullptr};
     GroundHeightFunction sample{nullptr};
 
     [[nodiscard]] bool valid() const noexcept { return context != nullptr && sample != nullptr; }

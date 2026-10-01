@@ -14,6 +14,7 @@
 #include <genomes/foundation/Time.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
+#include <genomes/simulation/SessionSimulationClock.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantrySimulation.hpp>
 #endif
@@ -81,6 +82,9 @@ public:
                              jobs::JobSystem* jobs = nullptr);
 
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept;
+    // Production callers provide the session-owned tick context.  The double
+    // overload remains a fixture convenience and advances the local tick.
+    void fixedUpdate(const simulation::TickContext& context) noexcept;
 
     [[nodiscard]] const BattlefieldScenarioSnapshot& snapshot() const noexcept {
         return snapshot_;

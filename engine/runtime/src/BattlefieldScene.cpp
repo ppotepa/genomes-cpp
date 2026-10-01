@@ -21,7 +21,7 @@ namespace genomes::runtime {
 
 namespace {
 
-[[nodiscard]] float sample_ground(void* context, float x, float z) noexcept {
+[[nodiscard]] float sample_ground(const void* context, float x, float z) noexcept {
     if (context == nullptr) {
         return 0.0F;
     }
@@ -317,7 +317,9 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
     return;
 #else
     if (battlefield_runtime_ != nullptr && !battlefield_runtime_->complete()) {
-        battlefield_runtime_->fixedUpdate(dt);
+        battlefield_runtime_->fixedUpdate(
+            simulation::TickContext{simulation_tick_, dt,
+                                    simulation::SessionSimulationTickRateHz});
     }
     if (!infantry_) {
         return;

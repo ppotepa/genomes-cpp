@@ -71,9 +71,9 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::initialize() {
         entities_, navigation_.get(), &physics_, jobs_, true);
     const infantry::InfantryGenome genome{1.75F, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
     const auto blue = infantry_->spawn({infantry::Team::Blue, {0.0F, 0.0F, -kSpawnOffset},
-                                        genome, 1U});
+                                        genome, infantry::SquadKey{infantry::Team::Blue, 1U}});
     const auto red = infantry_->spawn({infantry::Team::Red, {0.0F, 0.0F, kSpawnOffset},
-                                       genome, 2U});
+                                       genome, infantry::SquadKey{infantry::Team::Red, 2U}});
     if (!blue || !red) {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::Internal, "battlefield infantry spawn failed"));
@@ -357,12 +357,26 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
 }
 
 void BattlefieldScenario::fixedUpdate(double dt) noexcept {
-    if (snapshot_.complete || !std::isfinite(dt) || dt <= 0.0) {
+    if (!std::isfinite(dt) || dt <= 0.0) {
         return;
     }
-    simulation_tick_.increment();
-    snapshot_.tick = simulation_tick_.value;
-    const auto result = graph_.run(simulation_tick_, dt, nullptr, nullptr);
+    simulation::TickContext context{};
+    context.tick = simulation_tick_;
+    context.tick.increment();
+    context.fixed_dt_seconds = dt;
+    context.tick_rate_hz = simulation::SessionSimulationTickRateHz;
+    fixedUpdate(context);
+}
+
+void BattlefieldScenario::fixedUpdate(const simulation::TickContext& context) noexcept {
+    if (snapshot_.complete || !std::isfinite(context.fixed_dt_seconds) ||
+        context.fixed_dt_seconds <= 0.0 || context.tick_rate_hz == 0U ||
+        context.tick.value <= simulation_tick_.value) {
+        return;
+    }
+    simulation_tick_ = context.tick;
+    snapshot_.tick = context.tick.value;
+    const auto result = graph_.run(simulation_tick_, context.fixed_dt_seconds, nullptr, nullptr);
     if (!result) {
         snapshot_.error = result.error().message;
         snapshot_.complete = true;

@@ -21,6 +21,9 @@ public:
     start(const BattlefieldScenarioConfig& config = {}, jobs::JobSystem* jobs = nullptr);
 
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept { scenario_->fixedUpdate(dt); }
+    void fixedUpdate(const simulation::TickContext& context) noexcept {
+        scenario_->fixedUpdate(context);
+    }
     [[nodiscard]] const BattlefieldScenarioSnapshot& snapshot() const noexcept {
         return scenario_->snapshot();
     }
