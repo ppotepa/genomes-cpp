@@ -83,7 +83,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
 #if GENOMES_HAS_INFANTRY
     viability_scenario_.reset();
     auto viability = gameplay::startBattlefieldScenario(
-        {.seed = config_.seed == 0U ? 0xC0FFEEU : config_.seed,
+        {.seed = config_.seed,
          .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
          .max_ticks = 240U},
         jobs_);
@@ -102,7 +102,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     infantry_skinned_prototype_.reset();
     infantry_model_artifact_.reset();
     infantry::InfantryModelRequest model_request{};
-    model_request.seed = config_.seed == 0U ? 0xC0FFEEU : config_.seed;
+    model_request.seed = config_.seed;
     model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
     if (auto model = infantry_model_compiler_.compile(model_request); model) {
         infantry_model_artifact_ = std::move(model.value());

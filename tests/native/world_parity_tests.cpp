@@ -9,6 +9,9 @@ int main() {
     gameplay::WorldScenario headless(headless_jobs);
     gameplay::WorldScenario graphical(graphical_jobs);
     world::WorldGenerationRequest request{};
+    auto zero_seed = request;
+    zero_seed.seed = 0U;
+    assert(!zero_seed.valid());
     request.seed = 0xCAFEBABEULL;
     assert(headless.startNew(request));
     assert(graphical.startNew(request));
