@@ -39,6 +39,11 @@ add_test(NAME config.boundaries
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/config_boundaries.cmake")
 set_tests_properties(config.boundaries PROPERTIES LABELS "source;cpu;configuration")
+add_test(NAME architecture.refactor_tracker
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/architecture_refactor_tracker.cmake")
+set_tests_properties(architecture.refactor_tracker PROPERTIES
+    LABELS "source;cpu;architecture")
 add_test(NAME ui.scene_guard
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_ui_guard.cmake")
