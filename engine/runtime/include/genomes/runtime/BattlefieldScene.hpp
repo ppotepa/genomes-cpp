@@ -48,6 +48,7 @@ public:
     [[nodiscard]] const world::WorldPlan* plan() const noexcept {
         return plan_ ? &*plan_ : nullptr;
     }
+    [[nodiscard]] bool simulationFailed() const noexcept { return simulation_failed_; }
 
 private:
     void finalize_plan(world::WorldPlan plan);
