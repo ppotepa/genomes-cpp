@@ -166,24 +166,37 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                 }
             }
         }
-        std::vector<std::uint8_t> marks(registry.mods_.size(), 0);
-        std::function<bool(std::size_t)> visit = [&](std::size_t index) {
-            if (marks[index] == 1) return false;
-            if (marks[index] == 2) return true;
-            marks[index] = 1;
+        std::vector<std::uint32_t> indegree(registry.mods_.size(), 0U);
+        std::vector<std::vector<std::size_t>> dependents(registry.mods_.size());
+        for (std::size_t index = 0; index < registry.mods_.size(); ++index) {
             for (const auto& dependency : registry.mods_[index].dependencies) {
-                if (!visit(by_id.at(dependency))) return false;
+                ++indegree[index];
+                dependents[by_id.at(dependency)].push_back(index);
             }
-            marks[index] = 2;
-            return true;
-        };
-        for (std::size_t i = 0; i < registry.mods_.size(); ++i) {
-            if (!visit(i)) return fail("cyclic mod dependency");
         }
-        std::sort(registry.mods_.begin(), registry.mods_.end(), [](const auto& left, const auto& right) {
-            if (left.load_priority != right.load_priority) return left.load_priority < right.load_priority;
-            return left.id < right.id;
-        });
+        const auto ready_less = [&registry](std::size_t left, std::size_t right) {
+            const auto& left_mod = registry.mods_[left];
+            const auto& right_mod = registry.mods_[right];
+            return left_mod.load_priority != right_mod.load_priority ?
+                       left_mod.load_priority < right_mod.load_priority : left_mod.id < right_mod.id;
+        };
+        std::vector<std::size_t> ready;
+        for (std::size_t index = 0; index < indegree.size(); ++index) {
+            if (indegree[index] == 0U) ready.push_back(index);
+        }
+        std::vector<UiModManifest> ordered;
+        ordered.reserve(registry.mods_.size());
+        while (!ready.empty()) {
+            std::sort(ready.begin(), ready.end(), ready_less);
+            const std::size_t index = ready.front();
+            ready.erase(ready.begin());
+            ordered.push_back(std::move(registry.mods_[index]));
+            for (const std::size_t dependent : dependents[index]) {
+                if (--indegree[dependent] == 0U) ready.push_back(dependent);
+            }
+        }
+        if (ordered.size() != registry.mods_.size()) return fail("cyclic mod dependency");
+        registry.mods_ = std::move(ordered);
     } catch (const std::exception& error) {
         return fail(error.what());
     }
