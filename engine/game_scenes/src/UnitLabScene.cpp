@@ -544,8 +544,7 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.genome") && !key_of().empty()) {
-        const std::array<std::string_view, 2> arguments{key_of(), text};
-        const auto command = parseUnitLabCommand("set-gene-override", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.genome", key_of(), text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -583,8 +582,7 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.equipment-item") && !key_of().empty()) {
-        const std::array<std::string_view, 2> arguments{key_of(), text};
-        const auto command = parseUnitLabCommand("set-equipment-slot", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.equipment-item", key_of(), text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -638,8 +636,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.appearance-preset")) {
-        const auto command = parseUnitLabCommand(
-            "set-appearance-preset", std::array<std::string_view, 1>{text});
+        const auto command = parseUnitLabRmlCommand(
+            "unit.appearance-preset", {}, text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -661,8 +659,7 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.variation")) {
-        const std::array<std::string_view, 1> arguments{text};
-        const auto command = parseUnitLabCommand("set-variation", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.variation", {}, text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -676,23 +673,20 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
     if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
     if (action == foundation::stable_id("unit.camera-reset")) return applyCommand(context, {UnitLabCameraMode::ThreeQuarter}) ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     if (action == foundation::stable_id("unit.camera") && !text.empty()) {
-        const std::array<std::string_view, 1> arguments{text};
-        const auto command = parseUnitLabCommand("set-camera-mode", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.camera", {}, text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.locomotion") && !text.empty()) {
         if (!locomotion_ || !locomotion_state_) return ui::UiActionResult::Rejected;
-        const std::array<std::string_view, 1> arguments{text};
-        const auto command = parseUnitLabCommand("set-locomotion-preset", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.locomotion", {}, text);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.expression")) {
-        const std::array<std::string_view, 1> arguments{text};
-        const auto command = parseUnitLabCommand("set-expression", arguments);
+        const auto command = parseUnitLabRmlCommand("unit.expression", {}, text);
         return command && applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }

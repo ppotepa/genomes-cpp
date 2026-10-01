@@ -67,6 +67,26 @@ int main() {
     assert(!parseSetAppearancePreset("random"));
     assert(parseSetAppearancePreset("random").error().field == "preset");
 
+    // RmlUi's string-only document attributes are converted at the boundary
+    // to the same typed variants consumed by the scene and CLI paths.
+    const auto rml_variation = parseUnitLabRmlCommand("unit.variation", {}, "1.25");
+    assert(rml_variation && std::holds_alternative<SetVariation>(rml_variation.value()));
+    assert(std::get<SetVariation>(rml_variation.value()).value == 1.25F);
+    const auto rml_equipment = parseUnitLabRmlCommand(
+        "unit.equipment-item", "head", "helmet_light");
+    assert(rml_equipment && std::holds_alternative<SetEquipmentSlot>(rml_equipment.value()));
+    const auto rml_gene = parseUnitLabRmlCommand("unit.genome", "height", "0.82");
+    assert(rml_gene && std::holds_alternative<SetGeneOverride>(rml_gene.value()));
+    const auto rml_camera = parseUnitLabRmlCommand("unit.camera", {}, "Front");
+    assert(rml_camera && std::holds_alternative<SetCameraMode>(rml_camera.value()));
+    const auto rml_bad_number = parseUnitLabRmlCommand("unit.variation", {}, "1.25 trailing");
+    assert(!rml_bad_number && rml_bad_number.error().command == "set-variation");
+    assert(rml_bad_number.error().field == "variation");
+    const auto rml_unknown = parseUnitLabRmlCommand("unit.variation", {}, "NaN");
+    assert(!rml_unknown && rml_unknown.error().input == "NaN");
+    const auto rml_bad_control = parseUnitLabRmlCommand("unit.unknown", {}, "1.0");
+    assert(!rml_bad_control && rml_bad_control.error().field == "control");
+
     const std::array<std::string_view, 1> variation_args{"1.25"};
     const auto typed_variation = parseUnitLabCommand("set-variation", variation_args);
     assert(typed_variation);

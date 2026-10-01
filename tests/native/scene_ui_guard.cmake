@@ -50,6 +50,31 @@ foreach(_required IN ITEMS "scene.open-building-lab" "scene.open-world-lab" "dis
     endif()
 endforeach()
 
+# T11/T28: the Unit Lab's RmlUi controls must have one typed-command adapter.
+# The document remains a string boundary, but scene code must not dispatch a
+# control by independently parsing its value or rebuilding geometry here.
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp" _unit_commands)
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/UnitLabScene.cpp" _unit_scene)
+foreach(_control IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
+                          "unit.expression" "unit.equipment-item" "unit.genome")
+    string(FIND "${_unit_rml}" "data-control=\"${_control}\"" _rml_control)
+    if(_rml_control LESS 0)
+        message(FATAL_ERROR "Unit Lab RmlUi control missing: ${_control}")
+    endif()
+    string(FIND "${_unit_commands}" "control == \"${_control}\"" _typed_control)
+    if(_typed_control LESS 0)
+        message(FATAL_ERROR "Unit Lab typed RmlUi adapter missing: ${_control}")
+    endif()
+endforeach()
+string(FIND "${_unit_scene}" "parseUnitLabRmlCommand" _rml_adapter_use)
+if(_rml_adapter_use LESS 0)
+    message(FATAL_ERROR "Unit Lab scene does not use the RmlUi typed-command adapter")
+endif()
+string(FIND "${_unit_scene}" "parseUnitLabCommand(" _legacy_parser_use)
+if(NOT _legacy_parser_use LESS 0)
+    message(FATAL_ERROR "Unit Lab scene still parses RmlUi values through the CLI adapter")
+endif()
+
 if(NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/ui/include/genomes/ui/UiDataModel.hpp" OR
    NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/ui/include/genomes/ui/UiEvent.hpp" OR
    NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/ui/include/genomes/ui/UiServices.hpp")

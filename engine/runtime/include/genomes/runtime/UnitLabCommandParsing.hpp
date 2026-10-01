@@ -6,6 +6,7 @@
 #include <genomes/runtime/UnitLabScene.hpp>
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <iterator>
@@ -269,6 +270,36 @@ parseSetAppearancePreset(std::string_view text) {
     }
     return UnitLabCommandResult<UnitLabCommand>::failure(unitLabDiagnostic(
         command, "command", command, "unknown unit lab command"));
+}
+
+// RmlUi keeps data-control/data-key/data-value as strings at the document
+// boundary. Convert that boundary tuple immediately to the same typed command
+// variant used by the CLI; scene handlers do not parse control values again.
+[[nodiscard]] inline UnitLabCommandResult<UnitLabCommand> parseUnitLabRmlCommand(
+    std::string_view control, std::string_view key, std::string_view value) {
+    if (control == "unit.variation") {
+        return parseUnitLabCommand("set-variation", std::array{value});
+    }
+    if (control == "unit.camera") {
+        return parseUnitLabCommand("set-camera-mode", std::array{value});
+    }
+    if (control == "unit.locomotion") {
+        return parseUnitLabCommand("set-locomotion-preset", std::array{value});
+    }
+    if (control == "unit.expression") {
+        return parseUnitLabCommand("set-expression", std::array{value});
+    }
+    if (control == "unit.appearance-preset") {
+        return parseUnitLabCommand("set-appearance-preset", std::array{value});
+    }
+    if (control == "unit.equipment-item") {
+        return parseUnitLabCommand("set-equipment-slot", std::array{key, value});
+    }
+    if (control == "unit.genome") {
+        return parseUnitLabCommand("set-gene-override", std::array{key, value});
+    }
+    return UnitLabCommandResult<UnitLabCommand>::failure(unitLabDiagnostic(
+        "unit-lab", "control", control, "unknown RmlUi unit lab control"));
 }
 
 // Command-line adapters pass the executable's already-tokenized arguments to
