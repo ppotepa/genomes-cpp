@@ -12,6 +12,8 @@ cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/architecture_refactor_tracker.cm
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/application_command_boundary_guard.cmake
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/scene_ui_guard.cmake
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/battlefield_pipeline_guard.cmake
+cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/session_simulation_clock_guard.cmake
+cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/resolved_world_artifact_guard.cmake
 ```
 
 ## Configure, build and CTest
