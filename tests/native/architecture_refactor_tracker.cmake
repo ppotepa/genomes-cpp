@@ -85,6 +85,29 @@ if(world_core_links MATCHES "genomes(_|::)(hydrology|roads)")
     message(FATAL_ERROR "World core must not link generation hydrology/roads targets")
 endif()
 
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/CMakeLists.txt" runtime_targets)
+foreach(required_runtime_target IN ITEMS
+        "add_library(genomes_runtime_core STATIC"
+        "add_library(genomes_game_scenes STATIC"
+        "add_library(genomes::runtime_core ALIAS genomes_runtime_core"
+        "add_library(genomes::game_scenes ALIAS genomes_game_scenes")
+    string(FIND "${runtime_targets}" "${required_runtime_target}" target_position)
+    if(target_position EQUAL -1)
+        message(FATAL_ERROR "Runtime target split is missing ${required_runtime_target}")
+    endif()
+endforeach()
+string(REGEX MATCH "target_link_libraries\\(genomes_runtime_core PUBLIC([^)]*)\\)" runtime_core_links "${runtime_targets}")
+if(runtime_core_links STREQUAL "")
+    message(FATAL_ERROR "Runtime core link closure is not declared")
+endif()
+if(runtime_core_links MATCHES "genomes::(gameplay|infantry|buildings|world_render|combat|physics)")
+    message(FATAL_ERROR "Runtime core must not link product gameplay targets")
+endif()
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_director_source)
+if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene")
+    message(FATAL_ERROR "Neutral SceneDirector still includes a product scene")
+endif()
+
 file(READ "${tracker}" tracker_text)
 
 if(NOT tracker_text MATCHES "4735977aa8b839c8ef53cd7631d8f15dbc0068f1")

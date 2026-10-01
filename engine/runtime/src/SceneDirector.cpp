@@ -1,7 +1,5 @@
 #include <genomes/runtime/SceneDirector.hpp>
 
-#include <genomes/runtime/MainMenuScene.hpp>
-
 #include <algorithm>
 #include <array>
 #include <charconv>
