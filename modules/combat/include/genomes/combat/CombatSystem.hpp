@@ -49,6 +49,22 @@ private:
     simulation::EntityStore& entities_;
 };
 
+// Deliberately named fixture-only damage path. Production weapon flow must
+// use CombatCommandFlow and ballistics; this adapter exists for the legacy
+// BattlefieldScene fallback until that path is fully migrated.
+class FixtureHitscan final {
+public:
+    explicit FixtureHitscan(simulation::EntityStore& entities) noexcept
+        : system_{entities} {}
+
+    [[nodiscard]] CombatApplyResult apply(DamageBuffer& buffer) noexcept {
+        return system_.apply(buffer);
+    }
+
+private:
+    CombatSystem system_;
+};
+
 // Typed command/event bridge. It has no renderer or physics ownership; each
 // phase returns a stable value buffer for the next authoritative stage.
 class CombatCommandFlow final {

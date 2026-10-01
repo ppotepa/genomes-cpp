@@ -96,7 +96,7 @@ private:
     std::vector<InfantryAnimationAgent> animation_agents_;
     std::vector<infantry::AnimationPose> animation_poses_;
 #endif
-    std::unique_ptr<combat::CombatSystem> combat_;
+    std::unique_ptr<combat::FixtureHitscan> fixture_hitscan_;
     combat::DamageBuffer damage_buffer_;
     simulation::SystemGraph simulation_graph_;
     simulation::CommandBufferSet command_buffers_;
