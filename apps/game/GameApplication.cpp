@@ -62,19 +62,32 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             if (!parse_u64(*value,count) || (arg=="--capture-frame"&&count==0)) return {};
         } else if (arg=="--unitlab-camera") {
             const auto value=next();if (!value) return {};
-            const auto parsed = runtime::parseSetCameraMode(*value);
-            if (!parsed) return {};
-            result.unitlab_camera_steps = static_cast<std::uint8_t>(parsed.value().value);
+            const std::array<std::string_view, 2> tokens{
+                "set-camera-mode", *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetCameraMode>(parsed.value()))
+                return {};
+            result.unitlab_camera_steps = static_cast<std::uint8_t>(
+                std::get<runtime::SetCameraMode>(parsed.value()).value);
         } else if (arg=="--unitlab-locomotion") {
             const auto value=next();if (!value) return {};
-            const auto parsed = runtime::parseSetLocomotionPreset(*value);
-            if (!parsed) return {};
-            result.unitlab_locomotion_steps = static_cast<std::uint8_t>(parsed.value().value);
+            const std::array<std::string_view, 2> tokens{
+                "set-locomotion-preset", *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed ||
+                !std::holds_alternative<runtime::SetLocomotionPreset>(parsed.value()))
+                return {};
+            result.unitlab_locomotion_steps = static_cast<std::uint8_t>(
+                std::get<runtime::SetLocomotionPreset>(parsed.value()).value);
         } else if (arg=="--unitlab-expression") {
             const auto value=next();if (!value) return {};
-            const auto parsed = runtime::parseSetExpression(*value);
-            if (!parsed) return {};
-            result.unitlab_expression_steps = static_cast<std::uint8_t>(parsed.value().value);
+            const std::array<std::string_view, 2> tokens{
+                "set-expression", *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetExpression>(parsed.value()))
+                return {};
+            result.unitlab_expression_steps = static_cast<std::uint8_t>(
+                std::get<runtime::SetExpression>(parsed.value()).value);
 #if GENOMES_HAS_INFANTRY
         } else if (arg=="--unitlab-appearance") {
             const auto value=next();if (!value) return {};

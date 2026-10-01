@@ -96,6 +96,34 @@ int main() {
     const std::array<std::string_view, 2> cli_tokens{"set-camera-mode", "front"};
     const auto cli_command = parseUnitLabCommandLine(cli_tokens);
     assert(cli_command && std::holds_alternative<SetCameraMode>(cli_command.value()));
+    assert(std::get<SetCameraMode>(cli_command.value()).value == UnitLabCameraMode::Front);
+    const std::array<std::string_view, 2> cli_locomotion_tokens{
+        "set-locomotion-preset", "run"};
+    const auto cli_locomotion = parseUnitLabCommandLine(cli_locomotion_tokens);
+    assert(cli_locomotion &&
+           std::holds_alternative<SetLocomotionPreset>(cli_locomotion.value()));
+    assert(std::get<SetLocomotionPreset>(cli_locomotion.value()).value ==
+           infantry::BipedPreset::Run);
+    const std::array<std::string_view, 2> cli_expression_tokens{
+        "set-expression", "anger"};
+    const auto cli_expression = parseUnitLabCommandLine(cli_expression_tokens);
+    assert(cli_expression &&
+           std::holds_alternative<SetExpression>(cli_expression.value()));
+    assert(std::get<SetExpression>(cli_expression.value()).value ==
+           infantry::FaceExpression::Anger);
+    const std::array<std::string_view, 3> cli_equipment_tokens{
+        "set-equipment-slot", "head", "helmet_light"};
+    const auto cli_equipment = parseUnitLabCommandLine(cli_equipment_tokens);
+    assert(cli_equipment &&
+           std::holds_alternative<SetEquipmentSlot>(cli_equipment.value()));
+    assert(std::get<SetEquipmentSlot>(cli_equipment.value()).slot ==
+           infantry::EquipmentSlot::Head);
+    const std::array<std::string_view, 3> cli_gene_tokens{
+        "set-gene-override", "height", "0.82"};
+    const auto cli_gene = parseUnitLabCommandLine(cli_gene_tokens);
+    assert(cli_gene && std::holds_alternative<SetGeneOverride>(cli_gene.value()));
+    assert(std::get<SetGeneOverride>(cli_gene.value()).gene == infantry::GenomeGene::Height);
+    assert(std::get<SetGeneOverride>(cli_gene.value()).value == 0.82);
     const std::array<std::string_view, 2> cli_appearance_tokens{
         "set-appearance-preset", "inspection-olive"};
     const auto cli_appearance = parseUnitLabCommandLine(cli_appearance_tokens);
@@ -103,6 +131,36 @@ int main() {
            std::holds_alternative<SetAppearancePreset>(cli_appearance.value()));
     assert(std::get<SetAppearancePreset>(cli_appearance.value()).value ==
            appearance.value().value);
+    const std::array<std::string_view, 2> cli_variation_tokens{
+        "set-variation", "1.75"};
+    const auto cli_variation = parseUnitLabCommandLine(cli_variation_tokens);
+    assert(cli_variation && std::holds_alternative<SetVariation>(cli_variation.value()));
+    assert(std::get<SetVariation>(cli_variation.value()).value == 1.75F);
+    const std::array<std::string_view, 2> cli_variation_trailing{
+        "set-variation", "1.75 trailing"};
+    const auto cli_variation_trailing_result =
+        parseUnitLabCommandLine(cli_variation_trailing);
+    assert(!cli_variation_trailing_result);
+    assert(cli_variation_trailing_result.error().command == "set-variation");
+    assert(cli_variation_trailing_result.error().field == "variation");
+    const std::array<std::string_view, 2> cli_variation_nan{
+        "set-variation", "nan"};
+    assert(!parseUnitLabCommandLine(cli_variation_nan));
+    const std::array<std::string_view, 2> cli_variation_inf{
+        "set-variation", "inf"};
+    assert(!parseUnitLabCommandLine(cli_variation_inf));
+    const std::array<std::string_view, 3> cli_gene_trailing{
+        "set-gene-override", "height", "0.82 trailing"};
+    const auto cli_gene_trailing_result = parseUnitLabCommandLine(cli_gene_trailing);
+    assert(!cli_gene_trailing_result);
+    assert(cli_gene_trailing_result.error().command == "set-gene-override");
+    assert(cli_gene_trailing_result.error().field == "gene-value");
+    const std::array<std::string_view, 3> cli_gene_nan{
+        "set-gene-override", "height", "NaN"};
+    assert(!parseUnitLabCommandLine(cli_gene_nan));
+    const std::array<std::string_view, 3> cli_gene_inf{
+        "set-gene-override", "height", "Inf"};
+    assert(!parseUnitLabCommandLine(cli_gene_inf));
     const std::array<std::string_view, 2> cli_appearance_trailing{
         "set-appearance-preset", "inspection-olive trailing"};
     assert(!parseUnitLabCommandLine(cli_appearance_trailing));
