@@ -21,7 +21,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R001 | PR01 | jobs | FIX | `JobFence(expected_count)` is one-shot; over-signal fails without mutation; counter and wait predicate share one mutex. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline has `add()`, atomic decrement and saturating over-signal. |
 | R002 | PR01 | jobs | FIX | Job lifecycle is one mutex-protected `Running/ClosingDrain/ClosingCancel/Stopped` state; submit and close are atomic relative to the queue. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline uses independent `stopping_` and `accepting_` atomics. |
 | R003 | PR01 | jobs | FIX | Shutdown is idempotent and owner-thread-only; worker destruction fails fast; launcher failure rolls back and joins started workers. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline directly emplaces threads and has no owner/rollback contract. |
-| R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | BASELINE_CONFIRMED | - | NOT_RUN | - | Baseline returns immediately when a main-thread callback throws. |
+| R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | CODE_READY | WORKTREE | NOT_RUN | - | `simulation.system_graph_batch` covers main-thread failure with active worker and reverse completion worker failure. |
 | R005 | PR02 | infantry AI | FIX | Steering measures waypoint and enemy independently; engagement/fire depends only on current target range and visibility contract. | PLANNED | - | NOT_RUN | - | - |
 | R006 | PR02 | infantry AI | FIX | Squad contact identity is `SquadKey{side, squad_id}`; no squad is `optional`, never implicit zero. | PLANNED | - | NOT_RUN | - | - |
 | R007 | PR02 | infantry/ECS adapter | FIX | Agent stores the full generational `EntityId`; removal centrally clears all sidecars and references. | PLANNED | - | NOT_RUN | - | - |
@@ -161,4 +161,3 @@ each final row must cite the exact test name and tested SHA.
 5. Configure, compilation, CTest, benchmarks and GPU acceptance are performed
    by the user. Record failures in ignored `build-error.log`; clear it only
    after a matching successful build.
-

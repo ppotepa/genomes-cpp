@@ -199,6 +199,14 @@ genomes_set_project_warnings(genomes_test_simulation_fixed_step)
 genomes_enable_test_assertions(genomes_test_simulation_fixed_step)
 add_test(NAME simulation.fixed_step COMMAND genomes_test_simulation_fixed_step)
 
+add_executable(genomes_test_system_graph_batch
+    simulation/system_graph_batch_tests.cpp)
+target_link_libraries(genomes_test_system_graph_batch PRIVATE genomes::simulation)
+genomes_set_project_warnings(genomes_test_system_graph_batch)
+genomes_enable_test_assertions(genomes_test_system_graph_batch)
+add_test(NAME simulation.system_graph_batch COMMAND genomes_test_system_graph_batch)
+set_tests_properties(simulation.system_graph_batch PROPERTIES LABELS "cpu;simulation;jobs")
+
 add_executable(genomes_test_jobs_smoke
     jobs/job_system_smoke.cpp)
 target_link_libraries(genomes_test_jobs_smoke PRIVATE genomes::jobs)

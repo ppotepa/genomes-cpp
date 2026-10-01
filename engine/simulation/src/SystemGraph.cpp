@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <exception>
 #include <limits>
+#include <mutex>
+#include <optional>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
@@ -272,6 +274,28 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
     }
     std::size_t completed = 0;
     while (completed < graph_.size()) {
+        struct BatchFailure final {
+            void record(foundation::Error value) {
+                std::lock_guard lock(mutex);
+                if (!error.has_value()) {
+                    error = std::move(value);
+                }
+            }
+
+            [[nodiscard]] bool hasError() const {
+                std::lock_guard lock(mutex);
+                return error.has_value();
+            }
+
+            [[nodiscard]] std::optional<foundation::Error> take() {
+                std::lock_guard lock(mutex);
+                return std::move(error);
+            }
+
+            mutable std::mutex mutex;
+            std::optional<foundation::Error> error;
+        } batch_failure;
+
         std::vector<std::size_t> ready;
         for (std::size_t index = 0; index < graph_.size(); ++index) {
             if (indegrees[index] == 0) {
@@ -293,6 +317,9 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
         std::vector<jobs::JobHandle> handles;
         handles.reserve(ready.size());
         for (const std::size_t index : ready) {
+            if (batch_failure.hasError()) {
+                break;
+            }
             CompiledNode& node = graph_[index];
             const auto decision = evaluateCadence(node.descriptor.cadence,
                                                   node.cadence_state,
@@ -313,16 +340,25 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
                                   jobs,
                                   commands};
             if (jobs != nullptr && !descriptor.main_thread_only) {
-                handles.push_back(jobs->submit(
-                    [callback = descriptor.callback, context](jobs::JobContext&) mutable {
-                        callback(context);
-                    }));
+                jobs::JobHandle handle = jobs->submit(
+                    [callback = descriptor.callback, context, &batch_failure](jobs::JobContext&) mutable {
+                        try {
+                            callback(context);
+                        } catch (...) {
+                            batch_failure.record(graphError("simulation system callback failed"));
+                            throw;
+                        }
+                    });
+                if (handle.wasCanceled()) {
+                    batch_failure.record({foundation::ErrorCode::Internal,
+                                          "simulation system job was canceled during submission"});
+                }
+                handles.push_back(std::move(handle));
             } else {
                 try {
                     descriptor.callback(context);
                 } catch (...) {
-                    return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-                        graphError("simulation system callback failed"));
+                    batch_failure.record(graphError("simulation system callback failed"));
                 }
             }
         }
@@ -331,9 +367,17 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
                 jobs->wait(handle);
             }
             if (handle.failed() || handle.wasCanceled()) {
-                return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-                    {foundation::ErrorCode::Internal, "simulation system job failed"});
+                batch_failure.record({foundation::ErrorCode::Internal, "simulation system job failed"});
             }
+        }
+        if (const auto error = batch_failure.take(); error.has_value()) {
+            // Command buffers are an unpublished batch-local result. A failed
+            // batch must not leak partial commands to the next commit owner.
+            if (command_buffers != nullptr) {
+                command_buffers->reset(0);
+            }
+            return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
+                std::move(*error));
         }
 
         for (const std::size_t index : ready) {
