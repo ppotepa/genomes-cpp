@@ -57,7 +57,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | PLANNED | - | NOT_RUN | - | - |
 | R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 31f820e | NOT_RUN | - | `world.grid_layout` covers valid bounds and 129/601 rejection. |
 | R039 | PR09 | world | REF | One immutable `ResolvedWorldArtifacts` revision feeds render/collision/navigation/destruction. | PLANNED | - | NOT_RUN | - | - |
-| R040 | PR09 | world render | REF | Mesh compiler consumes resolved building plans and `PartId` draw ranges; it never invokes the generator. | CODE_READY | b939538 | NOT_RUN | `world.mesh_compiler` covers missing resolutions and stable part range output; user CTest pending | - |
+| R040 | PR09 | world render | REF | Mesh compiler consumes resolved building plans and `PartId` draw ranges; it never invokes the generator. | CODE_READY | b939538 | NOT_RUN | - | `world.mesh_compiler` covers missing resolutions and stable part range output; user CTest pending. |
 | R041 | PR09 | world generation | REF | Each generation stage has its own SeedPath, version and dependency fingerprint. | PLANNED | - | NOT_RUN | - | - |
 | R042 | PR10 | domain catalogs | DATA | Equipment, weapon/ammo, material, AI, world/building and appearance migrate in that order to typed frozen catalogs. | PLANNED | - | NOT_RUN | - | - |
 | R043 | PR10 | infantry | FIX | Equipment size derives from data, capacity is validated, spawn resolves WeaponId through the shared catalog, and loaded text owns storage. | PLANNED | - | NOT_RUN | - | - |
@@ -67,7 +67,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R047 | PR12 | UI/application | REF | RmlUi, CLI and tests parse at their boundaries into the same typed command variants; numeric parsing is strict and diagnosed. | PLANNED | - | NOT_RUN | - | - |
 | R048 | PR12 | Unit Lab | REF | View model tracks Geometry/Material/Pose/Presentation/UI dirtiness and only rebuilds affected outputs. | PLANNED | - | NOT_RUN | - | - |
 | R049 | PR12 | UI/presentation | FIX | Camera, picking and capture use current RmlUi viewport metrics or the last valid rectangle. | PLANNED | - | NOT_RUN | - | - |
-| R050 | PR13 | render ABI | REF | Existing 69-bone/four-influence/four-morph ABI is named and versioned `SkinnedLayoutProfileV1` in shared C++/HLSL definitions. | CODE_READY | pending | NOT_RUN | T26 source coverage; user D3D12/GPU acceptance pending | - |
+| R050 | PR13 | render ABI | REF | Existing 69-bone/four-influence/four-morph ABI is named and versioned `SkinnedLayoutProfileV1` in shared C++/HLSL definitions. | CODE_READY | 8ddf046 | NOT_RUN | - | T26 source coverage; user D3D12/GPU acceptance pending. |
 | R051 | PR13 | presentation | FIX | GPU upload retains immutable artifact ownership through submission, retires by fence and publishes revisions atomically after all resources succeed. | PLANNED | - | NOT_RUN | - | - |
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | PLANNED | - | NOT_RUN | - | - |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | PLANNED | - | NOT_RUN | - | - |
