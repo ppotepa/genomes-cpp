@@ -1,23 +1,46 @@
 #pragma once
 
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 #include <genomes/runtime/UnitLabScene.hpp>
 
 #include <charconv>
 #include <cmath>
 #include <iterator>
+#include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 namespace genomes::runtime {
+
+struct UnitLabCommandDiagnostic final {
+    foundation::ErrorCode code{foundation::ErrorCode::InvalidArgument};
+    std::string command;
+    std::string field;
+    std::string input;
+    std::string message;
+};
+
+template <typename T>
+using UnitLabCommandResult = foundation::Result<T, UnitLabCommandDiagnostic>;
+
+[[nodiscard]] inline UnitLabCommandDiagnostic unitLabDiagnostic(
+    std::string_view command, std::string_view field, std::string_view input,
+    std::string_view message,
+    foundation::ErrorCode code = foundation::ErrorCode::InvalidArgument) {
+    return {code, std::string{command}, std::string{field}, std::string{input},
+            std::string{message}};
+}
 
 namespace detail {
 
 template <typename Number>
-[[nodiscard]] foundation::Result<Number, foundation::Error> parseUnitLabNumber(
-    std::string_view text) {
+[[nodiscard]] UnitLabCommandResult<Number> parseUnitLabNumber(
+    std::string_view text, std::string_view field = "value") {
     if (text.empty()) {
-        return foundation::Result<Number, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "unit lab command value is empty"});
+        return UnitLabCommandResult<Number>::failure(unitLabDiagnostic(
+            "unit-lab", field, text, "unit lab command value is empty"));
     }
     Number value{};
     const auto converted = [&] {
@@ -29,51 +52,56 @@ template <typename Number>
     }();
     if (converted.ec != std::errc{} || converted.ptr != text.data() + text.size() ||
         (std::is_floating_point_v<Number> && !std::isfinite(value))) {
-        return foundation::Result<Number, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "invalid unit lab command number"});
+        return UnitLabCommandResult<Number>::failure(unitLabDiagnostic(
+            "unit-lab", field, text, "invalid unit lab command number"));
     }
-    return foundation::Result<Number, foundation::Error>::success(value);
+    return UnitLabCommandResult<Number>::success(value);
 }
 
 } // namespace detail
 
-[[nodiscard]] inline foundation::Result<SetVariation, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<SetVariation>
 parseSetVariation(std::string_view text) {
-    const auto value = detail::parseUnitLabNumber<double>(text);
-    if (!value || !infantry::isValidVariation(value.value())) {
-        return foundation::Result<SetVariation, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "variation is outside 0.0..1.75"});
+    const auto value = detail::parseUnitLabNumber<double>(text, "variation");
+    if (!value) {
+        auto diagnostic = value.error();
+        diagnostic.command = "set-variation";
+        return UnitLabCommandResult<SetVariation>::failure(std::move(diagnostic));
     }
-    return foundation::Result<SetVariation, foundation::Error>::success(
+    if (!infantry::isValidVariation(value.value())) {
+        return UnitLabCommandResult<SetVariation>::failure(unitLabDiagnostic(
+            "set-variation", "variation", text, "variation is outside 0.0..1.75"));
+    }
+    return UnitLabCommandResult<SetVariation>::success(
         {static_cast<float>(value.value())});
 }
 
-[[nodiscard]] inline foundation::Result<SetCameraMode, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<SetCameraMode>
 parseSetCameraMode(std::string_view text) {
     static constexpr std::string_view names[] = {
         "3q", "three-quarter", "three quarter", "Three quarter", "front", "Front",
         "side", "Side", "back", "Back", "face", "Face", "hands", "Hands"};
     if (text == names[0] || text == names[1] || text == names[2] || text == names[3])
-        return foundation::Result<SetCameraMode, foundation::Error>::success(
+        return UnitLabCommandResult<SetCameraMode>::success(
             {UnitLabCameraMode::ThreeQuarter});
     for (std::size_t index = 4U; index < std::size(names); index += 2U) {
         if (text == names[index]) {
-            return foundation::Result<SetCameraMode, foundation::Error>::success(
+            return UnitLabCommandResult<SetCameraMode>::success(
                 {static_cast<UnitLabCameraMode>((index - 2U) / 2U)});
         }
         if (text == names[index + 1U]) {
-            return foundation::Result<SetCameraMode, foundation::Error>::success(
+            return UnitLabCommandResult<SetCameraMode>::success(
                 {static_cast<UnitLabCameraMode>((index - 2U) / 2U)});
         }
     }
-    return foundation::Result<SetCameraMode, foundation::Error>::failure(
-        {foundation::ErrorCode::InvalidArgument, "unknown unit lab camera mode"});
+    return UnitLabCommandResult<SetCameraMode>::failure(unitLabDiagnostic(
+        "set-camera-mode", "camera", text, "unknown unit lab camera mode"));
 }
 
-[[nodiscard]] inline foundation::Result<SetLocomotionPreset, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<SetLocomotionPreset>
 parseSetLocomotionPreset(std::string_view text) {
     if (text == "crouch-walk") {
-        return foundation::Result<SetLocomotionPreset, foundation::Error>::success(
+        return UnitLabCommandResult<SetLocomotionPreset>::success(
             {infantry::BipedPreset::CrouchWalk});
     }
     static constexpr std::string_view names[] = {
@@ -81,51 +109,63 @@ parseSetLocomotionPreset(std::string_view text) {
         "crouch walk", "Crouch Walk", "crouch-walk"};
     for (std::size_t index = 0U; index < std::size(names) - 1U; index += 2U) {
         if (text == names[index]) {
-            return foundation::Result<SetLocomotionPreset, foundation::Error>::success(
+            return UnitLabCommandResult<SetLocomotionPreset>::success(
                 {static_cast<infantry::BipedPreset>(index / 2U)});
         }
         if (text == names[index + 1U]) {
-            return foundation::Result<SetLocomotionPreset, foundation::Error>::success(
+            return UnitLabCommandResult<SetLocomotionPreset>::success(
                 {static_cast<infantry::BipedPreset>(index / 2U)});
-            }
+        }
     }
-    return foundation::Result<SetLocomotionPreset, foundation::Error>::failure(
-        {foundation::ErrorCode::InvalidArgument, "unknown unit lab locomotion preset"});
+    return UnitLabCommandResult<SetLocomotionPreset>::failure(unitLabDiagnostic(
+        "set-locomotion-preset", "locomotion", text,
+        "unknown unit lab locomotion preset"));
 }
 
-[[nodiscard]] inline foundation::Result<infantry::FaceExpression, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<infantry::FaceExpression>
 parseUnitLabExpression(std::string_view text) {
     static constexpr std::string_view names[] = {
         "neutral", "Neutral", "alert", "Alert", "fear", "Fear", "anger", "Anger",
         "pain", "Pain", "fatigue", "Fatigue", "eyes-closed", "Eyes closed"};
     for (std::size_t index = 0U; index < std::size(names); index += 2U) {
         if (text == names[index] || text == names[index + 1U]) {
-            return foundation::Result<infantry::FaceExpression, foundation::Error>::success(
+            return UnitLabCommandResult<infantry::FaceExpression>::success(
                 static_cast<infantry::FaceExpression>(index / 2U));
         }
     }
-    return foundation::Result<infantry::FaceExpression, foundation::Error>::failure(
-        {foundation::ErrorCode::InvalidArgument, "unknown unit lab expression"});
+    return UnitLabCommandResult<infantry::FaceExpression>::failure(unitLabDiagnostic(
+        "set-expression", "expression", text, "unknown unit lab expression"));
 }
 
-[[nodiscard]] inline foundation::Result<SetExpression, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<SetExpression>
 parseSetExpression(std::string_view text) {
     const auto expression = parseUnitLabExpression(text);
     if (!expression) {
-        return foundation::Result<SetExpression, foundation::Error>::failure(expression.error());
+        return UnitLabCommandResult<SetExpression>::failure(expression.error());
     }
-    return foundation::Result<SetExpression, foundation::Error>::success({expression.value()});
+    return UnitLabCommandResult<SetExpression>::success({expression.value()});
 }
 
-[[nodiscard]] inline foundation::Result<SetGeneOverride, foundation::Error>
+[[nodiscard]] inline UnitLabCommandResult<SetGeneOverride>
 parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
     const auto gene = infantry::genomeGeneFromName(gene_text);
-    const auto value = detail::parseUnitLabNumber<double>(value_text);
-    if (!gene || !value || value.value() < 0.0 || value.value() > 1.0) {
-        return foundation::Result<SetGeneOverride, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "invalid unit lab gene override"});
+    const auto value = detail::parseUnitLabNumber<double>(value_text, "gene-value");
+    if (!gene) {
+        return UnitLabCommandResult<SetGeneOverride>::failure(unitLabDiagnostic(
+            "set-gene-override", "gene", gene_text,
+            "invalid unit lab gene override"));
     }
-    return foundation::Result<SetGeneOverride, foundation::Error>::success(
+    if (!value) {
+        auto diagnostic = value.error();
+        diagnostic.command = "set-gene-override";
+        return UnitLabCommandResult<SetGeneOverride>::failure(std::move(diagnostic));
+    }
+    if (value.value() < 0.0 || value.value() > 1.0) {
+        return UnitLabCommandResult<SetGeneOverride>::failure(unitLabDiagnostic(
+            "set-gene-override", "gene-value", value_text,
+            "gene override is outside 0.0..1.0"));
+    }
+    return UnitLabCommandResult<SetGeneOverride>::success(
         {*gene, value.value()});
 }
 
