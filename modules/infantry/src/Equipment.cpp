@@ -222,9 +222,12 @@ private:
         const auto id = [](std::string_view name) { return foundation::stable_id(name); };
         const auto set = [&result](std::size_t loadout, EquipmentSlot slot,
                                    std::initializer_list<std::string_view> choices) {
+            if (choices.size() > LoadoutChoice{}.definitions.size()) {
+                throw std::logic_error("infantry loadout exceeds choice capacity");
+            }
             LoadoutChoice choice{};
             for (const std::string_view item : choices) {
-                if (choice.count < choice.definitions.size() && !item.empty()) {
+                if (!item.empty()) {
                     choice.definitions[choice.count++] = foundation::stable_id(item);
                 } else if (choice.count < choice.definitions.size()) {
                     ++choice.count;
@@ -344,6 +347,112 @@ bool EquipmentItemDefinition::allows(EquipmentSlot slot) const noexcept {
     return false;
 }
 
+foundation::Result<void, foundation::Error> EquipmentCatalog::validate() {
+    const auto slot_values = slots();
+    if (slot_values.size() != kEquipmentSlotCount) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "equipment slot catalog size mismatch"});
+    }
+    for (std::size_t index = 0U; index < slot_values.size(); ++index) {
+        const auto& slot = slot_values[index];
+        if (slot.identifier.empty() || static_cast<std::size_t>(slot.slot) != index ||
+            foundation::stable_id(slot.identifier) == 0U) {
+            return foundation::Result<void, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState, "invalid equipment slot definition"});
+        }
+        for (std::size_t previous = 0U; previous < index; ++previous) {
+            if (slot.identifier == slot_values[previous].identifier ||
+                foundation::stable_id(slot.identifier) == foundation::stable_id(slot_values[previous].identifier)) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "duplicate equipment slot identifier"});
+            }
+        }
+        if (!slot.required_item.empty()) {
+            const auto* required_item = findItem(slot.required_item);
+            if (required_item == nullptr) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::NotFound, "equipment slot references unknown required item"});
+            }
+            if (!required_item->allows(slot.slot)) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidArgument, "equipment slot required item is incompatible"});
+            }
+        }
+    }
+
+    const auto item_values = items();
+    for (std::size_t index = 0U; index < item_values.size(); ++index) {
+        const auto& item = item_values[index];
+        if (item.id == 0U || item.identifier.empty() ||
+            item.id != foundation::stable_id(item.identifier) || item.allowed_slot_count == 0U ||
+            item.allowed_slot_count > item.allowed_slots.size() || !std::isfinite(item.weight_kg) ||
+            item.weight_kg < 0.0F || !std::isfinite(item.fit_scale) || item.fit_scale <= 0.0F ||
+            !std::isfinite(item.fit_thickness) || item.fit_thickness < 0.0F) {
+            return foundation::Result<void, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState, "invalid equipment item definition"});
+        }
+        for (std::size_t previous = 0U; previous < index; ++previous) {
+            if (item.id == item_values[previous].id || item.identifier == item_values[previous].identifier) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "duplicate equipment item identifier"});
+            }
+        }
+        for (std::size_t slot_index = 0U; slot_index < item.allowed_slot_count; ++slot_index) {
+            const auto slot = item.allowed_slots[slot_index];
+            if (equipmentSlotIndex(slot) >= kEquipmentSlotCount) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "equipment item references unknown slot"});
+            }
+            for (std::size_t previous = 0U; previous < slot_index; ++previous) {
+                if (item.allowed_slots[previous] == slot) {
+                    return foundation::Result<void, foundation::Error>::failure(
+                        {foundation::ErrorCode::InvalidState, "equipment item repeats an allowed slot"});
+                }
+            }
+        }
+    }
+
+    const auto loadout_values = infantryLoadouts();
+    if (loadout_values.size() != kInfantryLoadoutCount) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "infantry loadout catalog size mismatch"});
+    }
+    for (std::size_t index = 0U; index < loadout_values.size(); ++index) {
+        const auto& loadout = loadout_values[index];
+        if (loadout.id == 0U || loadout.identifier.empty() ||
+            loadout.id != foundation::stable_id(loadout.identifier)) {
+            return foundation::Result<void, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState, "invalid infantry loadout definition"});
+        }
+        for (std::size_t previous = 0U; previous < index; ++previous) {
+            if (loadout.id == loadout_values[previous].id ||
+                loadout.identifier == loadout_values[previous].identifier) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "duplicate infantry loadout identifier"});
+            }
+        }
+        for (std::size_t slot_index = 0U; slot_index < loadout.choices.size(); ++slot_index) {
+            const auto& choice = loadout.choices[slot_index];
+            if (choice.count > choice.definitions.size()) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "infantry loadout exceeds choice capacity"});
+            }
+            for (std::size_t choice_index = 0U; choice_index < choice.count; ++choice_index) {
+                const auto definition_id = choice.definitions[choice_index];
+                if (definition_id == 0U) {
+                    continue;
+                }
+                const auto* definition = findItem(definition_id);
+                if (definition == nullptr || !definition->allows(static_cast<EquipmentSlot>(slot_index))) {
+                    return foundation::Result<void, foundation::Error>::failure(
+                        {foundation::ErrorCode::InvalidArgument, "infantry loadout item is incompatible with slot"});
+                }
+            }
+        }
+    }
+    return foundation::Result<void, foundation::Error>::success();
+}
+
 std::span<const EquipmentSlotDefinition> EquipmentCatalog::slots() noexcept {
     const auto& value = slotDefinitions();
     return {value.data(), value.size()};
@@ -438,6 +547,10 @@ foundation::Result<EquipmentState, foundation::Error> EquipmentResolver::resolve
     proc::Seed unit_seed,
     StableId loadout_id,
     const EquipmentOverrideSet& overrides) {
+    const auto catalog_valid = EquipmentCatalog::validate();
+    if (!catalog_valid) {
+        return foundation::Result<EquipmentState, foundation::Error>::failure(catalog_valid.error());
+    }
     const InfantryLoadout* loadout = loadout_id == 0 ? nullptr : findInfantryLoadout(loadout_id);
     if (loadout_id != 0 && loadout == nullptr) {
         return foundation::Result<EquipmentState, foundation::Error>::failure(

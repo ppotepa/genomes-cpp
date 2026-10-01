@@ -8,6 +8,7 @@ namespace genomes::infantry {
 
 class EquipmentCatalog final {
 public:
+    [[nodiscard]] static foundation::Result<void, foundation::Error> validate();
     [[nodiscard]] static std::span<const EquipmentSlotDefinition> slots() noexcept;
     [[nodiscard]] static std::span<const EquipmentItemDefinition> items() noexcept;
     [[nodiscard]] static const EquipmentSlotDefinition* findSlot(
