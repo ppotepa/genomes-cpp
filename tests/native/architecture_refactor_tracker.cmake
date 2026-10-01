@@ -163,6 +163,27 @@ foreach(product_consumer IN ITEMS
     endif()
 endforeach()
 
+# PR17 closure audit: the runtime compatibility aggregate had no in-tree
+# target consumer. Keep the narrow aliases explicit and prevent the removed
+# aggregate from returning through a new CMake consumer.
+if(runtime_targets MATCHES "genomes_runtime|genomes::runtime([^_A-Za-z0-9]|$)")
+    message(FATAL_ERROR "Runtime compatibility aggregate must stay removed")
+endif()
+foreach(runtime_consumer_cmake IN ITEMS
+        "${GENOMES_SOURCE_DIR}/engine/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/modules/gameplay/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/apps/game/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/apps/menu/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/tests/native/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/tests/infantry_upgrade/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/benchmarks/CMakeLists.txt")
+    file(READ "${GENOMES_SOURCE_DIR}/engine/CMakeLists.txt" runtime_consumer_text)
+    if(runtime_consumer_text MATCHES "genomes::runtime([^_A-Za-z0-9]|$)")
+        message(FATAL_ERROR
+                "Removed runtime compatibility aggregate has a CMake consumer: ${runtime_consumer_cmake}")
+    endif()
+endforeach()
+
 # The production scene may still carry its legacy graph while the ownership
 # migration is in progress, but one session tick must dispatch exactly one
 # authoritative pipeline. Keep the runtime handoff ahead of the compatibility

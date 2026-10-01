@@ -55,12 +55,5 @@ endif()
 target_compile_features(genomes_game_scenes PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_game_scenes)
 
-# Compatibility aggregate. New composition roots may depend on the narrow
-# runtime core or product-scene target explicitly; existing consumers keep
-# the established genomes::runtime link contract during PR08.
-add_library(genomes_runtime INTERFACE)
-target_link_libraries(genomes_runtime INTERFACE genomes_game_scenes)
-
 add_library(genomes::runtime_core ALIAS genomes_runtime_core)
 add_library(genomes::game_scenes ALIAS genomes_game_scenes)
-add_library(genomes::runtime ALIAS genomes_runtime)
