@@ -294,6 +294,7 @@ int GameApplication::run(int argc,char** argv) {
             rml_ui_->set_density_ratio(static_cast<float>(std::get<double>(*scale)));
         }
         ui_.replace_frame(rml_ui_->update(dt));
+        ui_.set_viewport_metrics(rml_ui_->element_viewport_metrics("unit-viewport"));
 #endif
         const bool capture_now=options.capture_path&&frames+1U==options.capture_frame;
         if (capture_now) if (auto result=renderer_->capture(*options.capture_path);!result) {

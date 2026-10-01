@@ -539,6 +539,17 @@ void Runtime::unload_documents() {
     modal_document_ = nullptr;
 }
 
+std::optional<UiViewportMetrics> Runtime::element_viewport_metrics(
+    std::string_view element_id) const noexcept {
+    if (modal_document_ == nullptr || element_id.empty()) return std::nullopt;
+    auto* element = modal_document_->GetElementById(std::string{element_id});
+    if (element == nullptr || !element->IsVisible(true)) return std::nullopt;
+    const auto position = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+    const auto size = element->GetBox().GetSize(Rml::BoxArea::Border);
+    UiViewportMetrics result{position.x, position.y, size.x, size.y};
+    return result.valid() ? std::optional<UiViewportMetrics>{result} : std::nullopt;
+}
+
 void Runtime::set_model(const UiDataModel& model) {
     model.for_each_field([this](std::string_view key, const UiFieldState& field) {
         (void)set_text(key, scalar_text(field.value));

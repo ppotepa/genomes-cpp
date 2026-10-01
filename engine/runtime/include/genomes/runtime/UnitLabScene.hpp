@@ -136,6 +136,7 @@ private:
     bool ui_dirty_{true};
     std::shared_ptr<const render::RenderMesh> unit_prototype_;
     std::shared_ptr<const render::SkinnedMeshPrototype> skinned_prototype_;
+    std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
     std::optional<infantry::InfantryModelArtifact> model_artifact_;

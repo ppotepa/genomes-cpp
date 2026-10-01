@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -98,6 +99,8 @@ public:
     [[nodiscard]] Rml::Context* context() noexcept {return context_;}
     [[nodiscard]] const UiRenderFrame& update(double);
     [[nodiscard]] UiRenderFrame& frame() noexcept {return frame_;}
+    [[nodiscard]] std::optional<UiViewportMetrics> element_viewport_metrics(
+        std::string_view element_id) const noexcept;
     [[nodiscard]] input::InputFrame filter_input(const input::InputFrame&);
     bool process_input(const input::InputFrame&);
     void set_action_router(IUiActionRouter*) noexcept;

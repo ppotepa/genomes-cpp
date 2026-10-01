@@ -66,6 +66,7 @@ const UiRoute* UiRouteStack::top() const noexcept {
 
 void UiRuntime::clear() {
     frame_dirty_ = true;
+    viewport_metrics_.reset();
 }
 
 void UiRuntime::sync_route_lifecycle() {

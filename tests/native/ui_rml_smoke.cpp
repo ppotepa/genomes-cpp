@@ -170,9 +170,17 @@ int main() {
         const std::array regions{
             measure("unit-header"), measure("unit-rail"), measure("unit-toolbar"),
             measure("unit-inspector"), measure("unit-caption")};
+        const auto viewport = measure("unit-viewport");
+        const auto measured_viewport = runtime.element_viewport_metrics("unit-viewport");
+        assert(measured_viewport);
+        assert(std::abs(measured_viewport->left - viewport.x) < 1.0e-4F);
+        assert(std::abs(measured_viewport->top - viewport.y) < 1.0e-4F);
+        assert(std::abs(measured_viewport->width - viewport.width) < 1.0e-4F);
+        assert(std::abs(measured_viewport->height - viewport.height) < 1.0e-4F);
         for (std::size_t a = 0; a < regions.size(); ++a)
             for (std::size_t b = a + 1; b < regions.size(); ++b)
                 assert(!overlaps(regions[a], regions[b]));
+        for (const auto& region : regions) assert(!overlaps(viewport, region));
         assert(!runtime.has_diagnostics_errors());
     }
 

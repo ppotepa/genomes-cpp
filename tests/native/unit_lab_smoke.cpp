@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <tuple>
 #include <string>
@@ -201,6 +202,19 @@ int main() {
     assert(gpu_presentation.camera.viewport_height == 1.0F);
     assert(std::abs(gpu_presentation.camera.projection_offset_x -
                     expected_viewport.projection_offset_x) < 1.0e-6F);
+    gpu_ui.set_viewport_metrics(
+        genomes::ui::UiViewportMetrics{68.0F, 104.0F, 872.0F, 582.0F});
+    gpu_presentation.clear_scene_payload();
+    gpu_scene.build_presentation(gpu_context);
+    assert(std::abs(gpu_presentation.camera.viewport_left - 68.0F / 1280.0F) < 1.0e-6F);
+    assert(std::abs(gpu_presentation.camera.viewport_top - 104.0F / 720.0F) < 1.0e-6F);
+    assert(std::abs(gpu_presentation.camera.viewport_width - 872.0F / 1280.0F) < 1.0e-6F);
+    assert(std::abs(gpu_presentation.camera.viewport_height - 582.0F / 720.0F) < 1.0e-6F);
+    assert(gpu_presentation.camera.projection_offset_x == 0.0F);
+    gpu_ui.set_viewport_metrics(std::nullopt);
+    gpu_presentation.clear_scene_payload();
+    gpu_scene.build_presentation(gpu_context);
+    assert(std::abs(gpu_presentation.camera.viewport_left - 68.0F / 1280.0F) < 1.0e-6F);
     const auto composed = genomes::camera::resolve(gpu_presentation.camera.toRequest(), 1280, 720);
     assert(composed);
     const auto subject = genomes::camera::project(composed.value(),

@@ -5,8 +5,10 @@
 #include <genomes/input/InputFrame.hpp>
 
 #include <cstdint>
+#include <cmath>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -62,6 +64,20 @@ struct UiRoute final {
     std::uint64_t revision{0};
 };
 
+// Framebuffer-pixel rectangle measured by the active UI layout. It is optional
+// because neutral/headless UI has no layout engine to provide one.
+struct UiViewportMetrics final {
+    float left{0.0F};
+    float top{0.0F};
+    float width{0.0F};
+    float height{0.0F};
+
+    [[nodiscard]] bool valid() const noexcept {
+        return std::isfinite(left) && std::isfinite(top) && std::isfinite(width) &&
+               std::isfinite(height) && width > 0.0F && height > 0.0F;
+    }
+};
+
 class UiRouteStack final {
 public:
     void replace(UiRoute route);
@@ -112,6 +128,12 @@ public:
     [[nodiscard]] const UiDataModel& model() const noexcept { return model_; }
     [[nodiscard]] const UiRenderFrame& frame() const noexcept;
     void replace_frame(const UiRenderFrame& frame) { frame_ = frame; frame_dirty_ = false; }
+    void set_viewport_metrics(std::optional<UiViewportMetrics> metrics) noexcept {
+        viewport_metrics_ = metrics && metrics->valid() ? std::move(metrics) : std::nullopt;
+    }
+    [[nodiscard]] const std::optional<UiViewportMetrics>& viewport_metrics() const noexcept {
+        return viewport_metrics_;
+    }
 
     // Route controllers are synchronized at the frame boundary. The callback
     // fills manifest-owned document/controller/action fields before a route is
@@ -136,6 +158,7 @@ private:
     IUiActionRouter* action_router_{nullptr};
     mutable UiRenderFrame frame_;
     mutable bool frame_dirty_{true};
+    std::optional<UiViewportMetrics> viewport_metrics_;
     double elapsed_seconds_{0.0};
     std::unordered_map<std::string, ControllerFactory> controller_factories_;
     std::unique_ptr<IUiScreenController> controller_;

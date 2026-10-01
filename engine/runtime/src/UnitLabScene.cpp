@@ -1065,9 +1065,23 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             camera_mode_ == UnitLabCameraMode::Face ? 0.62F : 0.72F,
             0.025F,
             100.0F};
-        const auto viewport = unitLabViewport(context.framebuffer_width,
-                                              context.framebuffer_height,
-                                              context.ui_scale);
+        if (const auto& metrics = context.ui.viewport_metrics(); metrics && metrics->valid()) {
+            last_ui_viewport_metrics_ = *metrics;
+        }
+        const auto viewport = [&] {
+            if (!last_ui_viewport_metrics_) {
+                return unitLabViewport(context.framebuffer_width, context.framebuffer_height,
+                                       context.ui_scale);
+            }
+            const float width = static_cast<float>(std::max(1, context.framebuffer_width));
+            const float height = static_cast<float>(std::max(1, context.framebuffer_height));
+            const auto& metrics = *last_ui_viewport_metrics_;
+            return UnitLabViewport{std::clamp(metrics.left / width, 0.0F, 1.0F),
+                                   std::clamp(metrics.top / height, 0.0F, 1.0F),
+                                   std::clamp(metrics.width / width, 0.0F, 1.0F),
+                                   std::clamp(metrics.height / height, 0.0F, 1.0F),
+                                   0.0F, 0.0F};
+        }();
         context.presentation.camera.viewport_left = viewport.left;
         context.presentation.camera.viewport_top = viewport.top;
         context.presentation.camera.viewport_width = viewport.width;
