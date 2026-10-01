@@ -445,7 +445,7 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                         : current == infantry::BipedPreset::Crouch
                             ? infantry::BipedPreset::CrouchWalk
                         : infantry::BipedPreset::Idle;
-            (void)locomotion_->setPreset(*locomotion_state_, next);
+            (void)applyCommand(context, {next});
         } else if (input.left_pressed) {
             const auto current = locomotion_state_->preset;
             const auto previous = current == infantry::BipedPreset::Idle
@@ -457,9 +457,8 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                     : current == infantry::BipedPreset::Run
                         ? infantry::BipedPreset::Walk
                         : infantry::BipedPreset::Idle;
-            (void)locomotion_->setPreset(*locomotion_state_, previous);
+            (void)applyCommand(context, {previous});
         }
-        markDirty(UnitLabDirtyFlag::Pose);
     }
     if (input.cancel_pressed || input.confirm_pressed) {
         context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
