@@ -10,6 +10,7 @@
 #include <mutex>
 #include <typeindex>
 #include <unordered_map>
+#include <vector>
 
 namespace genomes::proc {
 
@@ -35,6 +36,8 @@ struct ArtifactCacheStats final {
     std::uint64_t evictions{0};
     std::size_t entries{0};
     std::size_t retained_bytes{0};
+    std::size_t shared_bytes{0};
+    std::size_t externally_pinned_bytes{0};
 };
 
 struct ArtifactCacheOptions final {
@@ -73,9 +76,9 @@ public:
         storeRaw(key, std::type_index(typeid(T)), std::move(value), usage.retained_bytes);
     }
 
-    void setByteBudget(std::size_t byte_budget) noexcept;
-    void erase(const ArtifactKey& key) noexcept;
-    void clear() noexcept;
+    void setByteBudget(std::size_t byte_budget);
+    void erase(const ArtifactKey& key);
+    void clear();
     [[nodiscard]] ArtifactCacheStats stats() const noexcept;
 
 private:
@@ -83,7 +86,9 @@ private:
 
     [[nodiscard]] ErasedValue findRaw(const ArtifactKey&, std::type_index) const;
     void storeRaw(const ArtifactKey&, std::type_index, ErasedValue, std::size_t bytes);
-    void evictLocked() noexcept;
+    void evictLocked();
+    void trackExternalPinLocked(const ErasedValue&, std::size_t bytes);
+    void collectExpiredPinsLocked() const noexcept;
 
     struct Entry final {
         std::type_index type{typeid(void)};
@@ -91,9 +96,14 @@ private:
         std::size_t bytes{0};
         std::uint64_t last_use{0};
     };
+    struct EvictedPin final {
+        std::weak_ptr<const void> value;
+        std::size_t bytes{0};
+    };
 
     mutable std::mutex mutex_;
     mutable std::unordered_map<ArtifactKey, Entry, ArtifactKeyHash> entries_;
+    mutable std::vector<EvictedPin> evicted_pins_;
     std::size_t byte_budget_{0};
     std::size_t retained_bytes_{0};
     foundation::MemoryTelemetry* telemetry_{nullptr};

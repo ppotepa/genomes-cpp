@@ -1,5 +1,6 @@
 #include <genomes/proc/ArtifactCache.hpp>
 
+#include <algorithm>
 #include <utility>
 
 namespace genomes::proc {
@@ -36,6 +37,7 @@ void ArtifactCache::storeRaw(const ArtifactKey& key,
     std::lock_guard lock(mutex_);
     const auto existing = entries_.find(key);
     if (existing != entries_.end()) {
+        trackExternalPinLocked(existing->second.value, existing->second.bytes);
         if (telemetry_ != nullptr) {
             (void)telemetry_->release(foundation::MemoryCategory::ArtifactCache,
                                       existing->second.bytes);
@@ -56,21 +58,17 @@ void ArtifactCache::storeRaw(const ArtifactKey& key,
     evictLocked();
 }
 
-void ArtifactCache::setByteBudget(std::size_t byte_budget) noexcept {
+void ArtifactCache::setByteBudget(std::size_t byte_budget) {
     std::lock_guard lock(mutex_);
     byte_budget_ = byte_budget;
     evictLocked();
 }
 
-void ArtifactCache::evictLocked() noexcept {
+void ArtifactCache::evictLocked() {
+    collectExpiredPinsLocked();
     while (retained_bytes_ > byte_budget_) {
         auto candidate = entries_.end();
         for (auto iterator = entries_.begin(); iterator != entries_.end(); ++iterator) {
-            // A value held by a caller is pinned until that shared pointer is
-            // released; eviction never invalidates an in-use artifact.
-            if (iterator->second.value.use_count() > 1) {
-                continue;
-            }
             if (candidate == entries_.end() ||
                 iterator->second.last_use < candidate->second.last_use ||
                 (iterator->second.last_use == candidate->second.last_use &&
@@ -78,9 +76,8 @@ void ArtifactCache::evictLocked() noexcept {
                 candidate = iterator;
             }
         }
-        if (candidate == entries_.end()) {
-            break;
-        }
+        if (candidate == entries_.end()) break;
+        trackExternalPinLocked(candidate->second.value, candidate->second.bytes);
         retained_bytes_ -= candidate->second.bytes;
         if (telemetry_ != nullptr) {
             (void)telemetry_->release(foundation::MemoryCategory::ArtifactCache,
@@ -91,12 +88,23 @@ void ArtifactCache::evictLocked() noexcept {
     }
 }
 
-void ArtifactCache::erase(const ArtifactKey& key) noexcept {
+void ArtifactCache::trackExternalPinLocked(const ErasedValue& value, std::size_t bytes) {
+    if (value && value.use_count() > 1U) {
+        evicted_pins_.push_back({value, bytes});
+    }
+}
+
+void ArtifactCache::collectExpiredPinsLocked() const noexcept {
+    std::erase_if(evicted_pins_, [](const EvictedPin& pin) { return pin.value.expired(); });
+}
+
+void ArtifactCache::erase(const ArtifactKey& key) {
     std::lock_guard lock(mutex_);
     const auto iterator = entries_.find(key);
     if (iterator == entries_.end()) {
         return;
     }
+    trackExternalPinLocked(iterator->second.value, iterator->second.bytes);
     retained_bytes_ -= iterator->second.bytes;
     if (telemetry_ != nullptr) {
         (void)telemetry_->release(foundation::MemoryCategory::ArtifactCache,
@@ -105,8 +113,12 @@ void ArtifactCache::erase(const ArtifactKey& key) noexcept {
     entries_.erase(iterator);
 }
 
-void ArtifactCache::clear() noexcept {
+void ArtifactCache::clear() {
     std::lock_guard lock(mutex_);
+    for (const auto& [key, entry] : entries_) {
+        (void)key;
+        trackExternalPinLocked(entry.value, entry.bytes);
+    }
     if (telemetry_ != nullptr) {
         for (const auto& [key, entry] : entries_) {
             (void)key;
@@ -120,7 +132,16 @@ void ArtifactCache::clear() noexcept {
 
 ArtifactCacheStats ArtifactCache::stats() const noexcept {
     std::lock_guard lock(mutex_);
-    return {hits_, misses_, evictions_, entries_.size(), retained_bytes_};
+    collectExpiredPinsLocked();
+    std::size_t shared_bytes = 0U;
+    for (const auto& [key, entry] : entries_) {
+        (void)key;
+        if (entry.value.use_count() > 1U) shared_bytes += entry.bytes;
+    }
+    std::size_t externally_pinned_bytes = 0U;
+    for (const auto& pin : evicted_pins_) externally_pinned_bytes += pin.bytes;
+    return {hits_, misses_, evictions_, entries_.size(), retained_bytes_, shared_bytes,
+            externally_pinned_bytes};
 }
 
 } // namespace genomes::proc
