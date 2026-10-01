@@ -246,6 +246,10 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor sense{};
     sense.id = foundation::stable_id("battlefield.sense");
     sense.phase = simulation::SystemPhase::Sense;
+    sense.access.reads = {
+        foundation::stable_id("component.entity.position"),
+        foundation::stable_id("component.entity.heading"),
+        foundation::stable_id("component.entity.flags")};
     sense.access.resource_writes = {foundation::stable_id("battlefield.perception")};
     sense.cadence = every_tick;
     sense.main_thread_only = true;
@@ -258,6 +262,9 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor decide{};
     decide.id = foundation::stable_id("battlefield.decide");
     decide.phase = simulation::SystemPhase::Decide;
+    decide.access.reads = {foundation::stable_id("component.entity.position"),
+                           foundation::stable_id("component.entity.heading")};
+    decide.access.writes = {foundation::stable_id("component.ai.state")};
     decide.access.resource_reads = {foundation::stable_id("battlefield.perception")};
     decide.access.resource_writes = {foundation::stable_id("battlefield.intent")};
     decide.cadence = every_tick;
@@ -271,6 +278,10 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor move{};
     move.id = foundation::stable_id("battlefield.move");
     move.phase = simulation::SystemPhase::MoveIntent;
+    move.access.reads = {foundation::stable_id("component.entity.health"),
+                         foundation::stable_id("component.entity.position")};
+    move.access.writes = {foundation::stable_id("component.entity.position"),
+                          foundation::stable_id("component.entity.velocity")};
     move.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
     move.cadence = every_tick;
     move.main_thread_only = true;
@@ -285,6 +296,9 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor physics_step{};
     physics_step.id = foundation::stable_id("battlefield.physics-step");
     physics_step.phase = simulation::SystemPhase::PhysicsStep;
+    physics_step.access.reads = {foundation::stable_id("component.entity.velocity")};
+    physics_step.access.writes = {foundation::stable_id("component.entity.position"),
+                                  foundation::stable_id("component.entity.velocity")};
     physics_step.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_step.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_step.cadence = every_tick;
@@ -303,6 +317,8 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor combat{};
     combat.id = foundation::stable_id("battlefield.combat-ballistics");
     combat.phase = simulation::SystemPhase::CombatBallistics;
+    combat.access.reads = {foundation::stable_id("component.entity.position"),
+                           foundation::stable_id("component.entity.health")};
     combat.access.resource_reads = {foundation::stable_id("battlefield.intent")};
     combat.access.resource_writes = {foundation::stable_id("battlefield.projectiles")};
     combat.cadence = every_tick;
@@ -320,6 +336,9 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     simulation::SystemDescriptor damage{};
     damage.id = foundation::stable_id("battlefield.damage-destruction");
     damage.phase = simulation::SystemPhase::DamageDestruction;
+    damage.access.reads = {foundation::stable_id("component.entity.position")};
+    damage.access.writes = {foundation::stable_id("component.entity.health"),
+                            foundation::stable_id("component.entity.flags")};
     damage.access.resource_reads = {foundation::stable_id("battlefield.projectiles")};
     damage.access.writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
