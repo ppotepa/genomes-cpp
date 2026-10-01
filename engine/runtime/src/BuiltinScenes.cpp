@@ -1,4 +1,4 @@
-#include <genomes/runtime/BuiltinScenes.hpp>
+#include <genomes/game_scenes/BuiltinScenes.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/runtime/BattlefieldScene.hpp>

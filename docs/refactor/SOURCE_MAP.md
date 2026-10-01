@@ -42,7 +42,9 @@ as equally public:
 - application composition headers: `apps/**/*.hpp`; these are consumers, not
   engine API;
 - compatibility candidates to audit in PR08/PR09/PR17:
-  `engine/runtime/include/genomes/runtime/{BattlefieldScene,BuildingLabScene,MainMenuScene,UnitLabScene,WorldConfigScene,WorldLabScene,BuiltinScenes}.hpp`
+  `engine/runtime/include/genomes/runtime/{BattlefieldScene,BuildingLabScene,MainMenuScene,UnitLabScene,WorldConfigScene,WorldLabScene}.hpp`,
+  plus the application-owned `engine/game_scenes/include/genomes/game_scenes/BuiltinScenes.hpp`
+  and its runtime compatibility forwarding header,
   and the broad `modules/world/include/genomes/world/**` surface.
 
 High-risk public contracts and their first review packages:

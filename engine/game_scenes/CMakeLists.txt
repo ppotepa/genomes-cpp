@@ -5,6 +5,7 @@ add_library(genomes_application_scenes STATIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../runtime/src/BuiltinScenes.cpp")
 
 target_include_directories(genomes_application_scenes PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../runtime/include")
 target_link_libraries(genomes_application_scenes PUBLIC
     genomes::game_scenes

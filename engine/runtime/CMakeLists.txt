@@ -25,7 +25,8 @@ add_library(genomes_game_scenes STATIC
     src/WorldLabScene.cpp)
 
 target_include_directories(genomes_game_scenes PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../game_scenes/include")
 target_link_libraries(genomes_game_scenes PUBLIC
     genomes_runtime_core
     genomes::foundation
