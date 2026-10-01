@@ -41,6 +41,7 @@ enum class UnitLabDirtyFlag : std::uint8_t {
     Geometry,
     Material,
     Pose,
+    Presentation,
     Ui,
 };
 
@@ -135,6 +136,7 @@ private:
     bool geometry_dirty_{true};
     bool material_dirty_{true};
     bool pose_dirty_{true};
+    bool presentation_dirty_{true};
     bool ui_dirty_{true};
     std::shared_ptr<const render::RenderMesh> unit_prototype_;
     std::shared_ptr<const render::SkinnedMeshPrototype> skinned_prototype_;

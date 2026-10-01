@@ -139,6 +139,7 @@ void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
     case UnitLabDirtyFlag::Geometry: geometry_dirty_ = true; break;
     case UnitLabDirtyFlag::Material: material_dirty_ = true; break;
     case UnitLabDirtyFlag::Pose: pose_dirty_ = true; break;
+    case UnitLabDirtyFlag::Presentation: presentation_dirty_ = true; break;
     case UnitLabDirtyFlag::Ui: ui_dirty_ = true; break;
     }
 }
@@ -154,6 +155,7 @@ bool UnitLabScene::applyCommand(SceneContext&, SetCameraMode command) {
     if (static_cast<std::uint8_t>(command.value) >
         static_cast<std::uint8_t>(UnitLabCameraMode::Hands)) return false;
     camera_mode_ = command.value;
+    markDirty(UnitLabDirtyFlag::Presentation);
     markDirty(UnitLabDirtyFlag::Ui);
     return true;
 }
@@ -205,11 +207,11 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
     case Control::CycleCamera:
         return applyCommand(context, {static_cast<UnitLabCameraMode>(
             (static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U)});
-    case Control::ToggleSurface: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case Control::ToggleWireframe: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case Control::ToggleSkeleton: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case Control::ToggleBounds: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case Control::ToggleNormals: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleSurface: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleWireframe: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleSkeleton: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleBounds: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleNormals: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::TogglePause: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
     case Control::CycleExpression:
         expression_ = static_cast<infantry::FaceExpression>(
@@ -221,7 +223,7 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
         debug_weight_bone_ = debug_weight_bone_
             ? static_cast<infantry::BoneId>((static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) % infantry::kRigBoneCount)
             : infantry::BoneId::Hips;
-        markDirty(UnitLabDirtyFlag::Ui); break;
+        markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::CycleVariation:
         return applyCommand(context, {variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
                                       : variation_ < 1.75F ? 1.75F : 0.5F});
@@ -364,6 +366,7 @@ void UnitLabScene::publishModelResult(
     markDirty(UnitLabDirtyFlag::Geometry);
     markDirty(UnitLabDirtyFlag::Material);
     markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Presentation);
     markDirty(UnitLabDirtyFlag::Ui);
 }
 
@@ -441,12 +444,14 @@ void UnitLabScene::on_enter(SceneContext& context) {
     geometry_dirty_ = true;
     material_dirty_ = true;
     pose_dirty_ = true;
+    presentation_dirty_ = true;
     ui_dirty_ = true;
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
     rebuildModel(&context);
     geometry_dirty_ = false;
     material_dirty_ = false;
+    presentation_dirty_ = false;
     context.ui.clear();
 }
 
@@ -538,6 +543,7 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
                 index >= infantry::kRigBoneCount) return ui::UiActionResult::Rejected;
             debug_weight_bone_ = static_cast<infantry::BoneId>(index);
         }
+        markDirty(UnitLabDirtyFlag::Presentation);
         markDirty(UnitLabDirtyFlag::Ui);
         return ui::UiActionResult::Handled;
     }
@@ -646,12 +652,12 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     const auto bool_value = [&]() -> bool { return text == "true" || text == "1"; };
-    if (action == foundation::stable_id("unit.surface")) { show_surface_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.wireframe")) { show_wireframe_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.skeleton")) { show_skeleton_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.bounds")) { show_bounds_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.normals")) { show_normals_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.surface")) { show_surface_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.wireframe")) { show_wireframe_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.skeleton")) { show_skeleton_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.bounds")) { show_bounds_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.normals")) { show_normals_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
     if (action == foundation::stable_id("unit.camera-reset")) return applyCommand(context, {UnitLabCameraMode::ThreeQuarter}) ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     if (action == foundation::stable_id("unit.camera") && !text.empty()) {
         const auto command = parseSetCameraMode(text);
@@ -1203,6 +1209,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
                     render::RenderInstanceFlagCastShadow |
                     render::RenderInstanceFlagReceiveShadow});
         }
+        presentation_dirty_ = false;
         return;
     }
     if (!unit_prototype_) {
@@ -1231,6 +1238,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             mesh_id, materials[index], positions[index], scales[index], rotation,
             0, render::RenderInstanceFlagPreview});
     }
+    presentation_dirty_ = false;
 }
 
 } // namespace genomes::runtime
