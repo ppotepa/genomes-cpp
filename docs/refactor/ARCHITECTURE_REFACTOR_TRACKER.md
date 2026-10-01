@@ -22,10 +22,10 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R002 | PR01 | jobs | FIX | Job lifecycle is one mutex-protected `Running/ClosingDrain/ClosingCancel/Stopped` state; submit and close are atomic relative to the queue. | CODE_READY | bf46621 | NOT_RUN | - | `jobs.lifecycle` covers Drain, CancelPending, rejected post-close submission and final state. |
 | R003 | PR01 | jobs | FIX | Shutdown is idempotent and owner-thread-only; worker destruction fails fast; launcher failure rolls back and joins started workers. | CODE_READY | bf46621 | NOT_RUN | - | `jobs.lifecycle` covers auto workers and deterministic injected-launcher rollback; source review covers owner/worker fail-fast. |
 | R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | CODE_READY | 70ba38c | NOT_RUN | - | `simulation.system_graph_batch` covers main-thread failure with active worker and reverse completion worker failure. |
-| R005 | PR02 | infantry AI | FIX | Steering measures waypoint and enemy independently; engagement/fire depends only on current target range and visibility contract. | CODE_READY | WORKTREE | NOT_RUN | - | `infantry.simulation` covers a 2 m waypoint with a 100 m live target. |
-| R006 | PR02 | infantry AI | FIX | Squad contact identity is `SquadKey{side, squad_id}`; no squad is `optional`, never implicit zero. | CODE_READY | WORKTREE | NOT_RUN | - | `infantry.simulation` covers same local ID across sides and two no-squad units. |
-| R007 | PR02 | infantry/ECS adapter | FIX | Agent stores the full generational `EntityId`; removal centrally clears all sidecars and references. | CODE_READY | WORKTREE | NOT_RUN | - | `infantry.simulation` covers external destruction and reuse of an index by another entity generation. |
-| R008 | PR02 | Unit Lab | FIX | Shared variation validation accepts finite `0.0..1.75`; legacy controls cannot produce `2.0`. | CODE_READY | WORKTREE | NOT_RUN | - | Genome, compiler and Unit Lab boundary tests cover limits and reject 2.0. |
+| R005 | PR02 | infantry AI | FIX | Steering measures waypoint and enemy independently; engagement/fire depends only on current target range and visibility contract. | CODE_READY | db10398 | NOT_RUN | - | `infantry.simulation` covers a 2 m waypoint with a 100 m live target. |
+| R006 | PR02 | infantry AI | FIX | Squad contact identity is `SquadKey{side, squad_id}`; no squad is `optional`, never implicit zero. | CODE_READY | 47f82bd | NOT_RUN | - | `infantry.simulation` covers same local ID across sides and two no-squad units. |
+| R007 | PR02 | infantry/ECS adapter | FIX | Agent stores the full generational `EntityId`; removal centrally clears all sidecars and references. | CODE_READY | 4b705c4 | NOT_RUN | - | `infantry.simulation` covers external destruction and reuse of an index by another entity generation. |
+| R008 | PR02 | Unit Lab | FIX | Shared variation validation accepts finite `0.0..1.75`; legacy controls cannot produce `2.0`. | CODE_READY | 3204f38 | NOT_RUN | - | Genome, compiler and Unit Lab boundary tests cover limits and reject 2.0. |
 | R009 | PR03 | buildings | FIX | Building `center` is the center and `extent` is full XYZ size; net room dimensions are positive and axes are consistent. | PLANNED | - | NOT_RUN | - | - |
 | R010 | PR03 | buildings | FIX | Room validation covers finite values and checked reservation arithmetic before allocation. | PLANNED | - | NOT_RUN | - | - |
 | R011 | PR03 | buildings | FIX | Current site solver accepts only four-point rectangles centered/rotated as requested; other polygons fail explicitly. | PLANNED | - | NOT_RUN | - | - |
@@ -84,7 +84,7 @@ new explicitly versioned capability or contract.
 |---|---|---:|---|---|---|---|
 | PR00 | Baseline, tracker and source map | R001-R055 | CODE_READY | WORKTREE | NOT_RUN | - |
 | PR01 | Jobs and SystemGraph lifetime | R001-R004 | CODE_READY | bf46621 | NOT_RUN | - |
-| PR02 | Infantry state and Unit Lab input | R005-R008 | PLANNED | - | NOT_RUN | - |
+| PR02 | Infantry state and Unit Lab input | R005-R008 | CODE_READY | 3204f38 | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | PLANNED | - | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | PLANNED | - | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | PLANNED | - | NOT_RUN | - |
