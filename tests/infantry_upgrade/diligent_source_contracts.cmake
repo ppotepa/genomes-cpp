@@ -49,6 +49,61 @@ foreach(_token "IFence" "retired_meshes" "retireCompleted" "active_fence")
         message(FATAL_ERROR "GPU ownership fence contract missing: ${_token}")
     endif()
 endforeach()
+
+# A replacement must be fully built before it becomes resident.  Keep this a
+# source contract because the Diligent path cannot be exercised by headless
+# tests: neither a failed IB allocation nor a concurrent reader may observe a
+# half-published pair of GPU handles.
+file(READ "${_root}/DiligentMeshUpload.cpp" _upload)
+string(FIND "${_upload}" "RenderResult DiligentBackend::Impl::ensureRegular" _regular_start)
+string(FIND "${_upload}" "RenderResult DiligentBackend::Impl::ensureSkin" _skin_start)
+if(_regular_start LESS 0 OR _skin_start LESS 0 OR _skin_start LESS_EQUAL _regular_start)
+    message(FATAL_ERROR "GPU upload publication functions are missing or reordered")
+endif()
+string(SUBSTRING "${_upload}" ${_regular_start} ${_skin_start} _regular_upload)
+string(SUBSTRING "${_upload}" ${_skin_start} -1 _skin_upload)
+foreach(_upload_name _regular_upload _skin_upload)
+    set(_last -1)
+    foreach(_token "auto v=buffer(" "if (!v)" "auto i=buffer(" "if (!i)"
+                   "retireMesh(gpu);" "gpu.vertices=std::move(v);gpu.indices=std::move(i)"
+                   "gpu.ranges=std::move(plan.value());gpu.owner=source")
+        string(FIND "${${_upload_name}}" "${_token}" _offset)
+        if(_offset LESS 0)
+            message(FATAL_ERROR "Atomic GPU publication token missing from ${_upload_name}: ${_token}")
+        endif()
+        if(_offset LESS_EQUAL _last)
+            message(FATAL_ERROR "Atomic GPU publication order violated in ${_upload_name}: ${_token}")
+        endif()
+        set(_last ${_offset})
+    endforeach()
+endforeach()
+
+# The CPU prototype and the GPU resident record retain immutable source
+# ownership.  This prevents a published draw from borrowing mutable scratch
+# data while the renderer or a retired fence still references the buffers.
+foreach(_token "std::shared_ptr<const void> owner;"
+               "const std::shared_ptr<const RenderMesh>& source"
+               "const std::shared_ptr<const SkinnedMeshPrototype>& source"
+               "gpu.owner=source;")
+    string(FIND "${_impl}${_upload}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Immutable GPU ownership contract missing: ${_token}")
+    endif()
+endforeach()
+
+# Retired resources carry both handles and their immutable owner until the
+# device fence reports completion; retirement must not be an immediate release.
+file(READ "${_root}/DiligentScenePasses.cpp" _passes)
+foreach(_token "std::move(mesh.vertices),std::move(mesh.indices),"
+               "std::move(mesh.owner),active_fence != 0U ? active_fence : last_submitted_fence"
+               "const auto completed=frame_fence->GetCompletedValue()"
+               "return mesh.fence <= completed;"
+               "retired_meshes.erase(std::remove_if")
+    string(FIND "${_passes}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Fence retirement contract missing: ${_token}")
+    endif()
+endforeach()
 file(READ "${_root}/DiligentBackend.cpp" _backend_fence)
 foreach(_token "EnqueueSignal" "last_submitted_fence")
     string(FIND "${_backend_fence}" "${_token}" _offset)
