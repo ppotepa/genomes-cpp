@@ -14,6 +14,7 @@ cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/scene_ui_guard.cmake
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/battlefield_pipeline_guard.cmake
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/session_simulation_clock_guard.cmake
 cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/resolved_world_artifact_guard.cmake
+cmake -DGENOMES_SOURCE_DIR=$PWD -P tests/native/target_closure_guard.cmake
 ```
 
 ## Configure, build and CTest

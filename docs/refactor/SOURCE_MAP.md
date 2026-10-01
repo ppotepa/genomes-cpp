@@ -38,8 +38,11 @@ runtime core and application-scene aliases remain explicit. The
 clients were split between `genomes::world_core` and
 `genomes::world_generation`. The source guard in
 `tests/native/architecture_refactor_tracker.cmake` prevents the aggregate from
-returning. This closes the target-link source-review slice only; configure,
-build, CTest and external-consumer compatibility are still pending.
+returning. `tests/native/target_closure_guard.cmake` additionally checks the
+neutral runtime/product-scene split, narrow world links, optional backend
+boundaries and public-header consumers. This closes the in-tree target-link
+source-review slice; configure, build, CTest and external-consumer compatibility
+are still pending.
 
 ## Public-header inventory
 
@@ -108,7 +111,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `d3bb543`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | R050-R051 source guards and CPU restoration tests reviewed at `7b075a0`; D3D12/GPU acceptance remains user-owned and unverified |
-| PR14 | all project CMake and source/config guards | preset matrix, target visibility, public-header consumers and structural guards reviewed at `ceda2e6`; target configure/build closure remains user verification |
+| PR14 | all project CMake and source/config guards | preset matrix, target visibility, public-header consumers and structural guards reviewed at `458e1f1`; target configure/build closure remains user verification |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema and fixture-consuming infantry benchmarks reviewed at `8908d43`; reports retain raw samples and explicitly show `BASELINE_REQUIRED`; WAIT_BASELINE for user evidence |
 | PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime namespace/header boundary, authoritative Battlefield fallback removal, final CLI migration, infantry-off parser and Unit Lab namespace clients, disposition register and all in-tree `genomes::world` CMake links reviewed at `6d402eb`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
