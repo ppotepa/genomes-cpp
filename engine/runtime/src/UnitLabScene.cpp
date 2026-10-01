@@ -149,13 +149,30 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetVariation command) {
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext&, SetCameraMode command) {
+    if (static_cast<std::uint8_t>(command.value) >
+        static_cast<std::uint8_t>(UnitLabCameraMode::Hands)) return false;
+    camera_mode_ = command.value;
+    markDirty(UnitLabDirtyFlag::Ui);
+    return true;
+}
+
+bool UnitLabScene::applyCommand(SceneContext&, SetLocomotionPreset command) {
+    if (static_cast<std::uint8_t>(command.value) >
+        static_cast<std::uint8_t>(infantry::BipedPreset::CrouchWalk) ||
+        !locomotion_ || !locomotion_state_) return false;
+    if (!locomotion_->setPreset(*locomotion_state_, command.value)) return false;
+    markDirty(UnitLabDirtyFlag::Pose);
+    return true;
+}
+
 bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
     switch (control) {
     case 0: ++preview_seed_; rebuildModel(&context); break;
     case 1: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
     case 2:
-        camera_mode_ = static_cast<UnitLabCameraMode>((static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U);
-        markDirty(UnitLabDirtyFlag::Ui); break;
+        return applyCommand(context, {static_cast<UnitLabCameraMode>(
+            (static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U)});
     case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
     case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
     case 5: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
@@ -203,8 +220,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
                 : p == infantry::BipedPreset::Run ? infantry::BipedPreset::Crouch
                 : p == infantry::BipedPreset::Crouch ? infantry::BipedPreset::CrouchWalk
                 : infantry::BipedPreset::Idle;
-            (void)locomotion_->setPreset(*locomotion_state_, next);
-            markDirty(UnitLabDirtyFlag::Pose);
+            return applyCommand(context, {next});
         }
         break;
     case 16:
@@ -619,23 +635,21 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
     if (action == foundation::stable_id("unit.bounds")) { show_bounds_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
     if (action == foundation::stable_id("unit.normals")) { show_normals_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
     if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
-    if (action == foundation::stable_id("unit.camera-reset")) { camera_mode_ = UnitLabCameraMode::ThreeQuarter; markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.camera-reset")) return applyCommand(context, {UnitLabCameraMode::ThreeQuarter}) ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     if (action == foundation::stable_id("unit.camera")) {
         static constexpr std::array<std::string_view, 6> names{"Three quarter", "Front", "Side", "Back", "Face", "Hands"};
         const auto it = std::find(names.begin(), names.end(), text);
         if (it == names.end()) return ui::UiActionResult::Rejected;
-        camera_mode_ = static_cast<UnitLabCameraMode>(std::distance(names.begin(), it));
-        markDirty(UnitLabDirtyFlag::Ui);
-        return ui::UiActionResult::Handled;
+        return applyCommand(context, {static_cast<UnitLabCameraMode>(std::distance(names.begin(), it))})
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.locomotion")) {
         if (!locomotion_ || !locomotion_state_) return ui::UiActionResult::Rejected;
         static constexpr std::array<std::string_view, 5> names{"Idle", "Walk", "Run", "Crouch", "Crouch Walk"};
         const auto it = std::find(names.begin(), names.end(), text);
         if (it == names.end()) return ui::UiActionResult::Rejected;
-        (void)locomotion_->setPreset(*locomotion_state_, static_cast<infantry::BipedPreset>(std::distance(names.begin(), it)));
-        markDirty(UnitLabDirtyFlag::Pose);
-        return ui::UiActionResult::Handled;
+        return applyCommand(context, {static_cast<infantry::BipedPreset>(std::distance(names.begin(), it))})
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.expression")) {
         static constexpr std::array<std::string_view, 7> names{"Neutral", "Alert", "Fear", "Anger", "Pain", "Fatigue", "Eyes closed"};

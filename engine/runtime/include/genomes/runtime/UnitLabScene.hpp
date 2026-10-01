@@ -47,6 +47,14 @@ struct SetVariation final {
     float value{1.0F};
 };
 
+struct SetCameraMode final {
+    UnitLabCameraMode value{UnitLabCameraMode::ThreeQuarter};
+};
+
+struct SetLocomotionPreset final {
+    infantry::BipedPreset value{infantry::BipedPreset::Idle};
+};
+
 class UnitLabScene final : public Scene {
 public:
     ~UnitLabScene() override;
@@ -65,6 +73,8 @@ public:
 private:
     void markDirty(UnitLabDirtyFlag flag) noexcept;
     bool applyCommand(SceneContext&, SetVariation);
+    bool applyCommand(SceneContext&, SetCameraMode);
+    bool applyCommand(SceneContext&, SetLocomotionPreset);
     bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
