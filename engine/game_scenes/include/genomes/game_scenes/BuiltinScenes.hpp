@@ -1,6 +1,12 @@
 #pragma once
 
+#include <genomes/foundation/Types.hpp>
+
+#include <functional>
+#include <memory>
 #include <optional>
+#include <span>
+#include <vector>
 
 #if GENOMES_HAS_INFANTRY
 #include <genomes/combat/TacticalAI.hpp>
@@ -8,6 +14,7 @@
 
 namespace genomes::runtime {
 
+class Scene;
 class SceneDirector;
 
 struct BuiltinSceneConfig final {
@@ -15,6 +22,30 @@ struct BuiltinSceneConfig final {
 #if GENOMES_HAS_INFANTRY
     std::optional<combat::TacticalAIProfile> tactical_ai_profile;
 #endif
+};
+
+using BuiltinSceneFactory = std::function<std::unique_ptr<Scene>()>;
+
+struct BuiltinSceneEntry final {
+    foundation::SceneId id;
+    BuiltinSceneFactory factory;
+};
+
+// Application composition owns this immutable set of product factories. The
+// runtime only receives the resulting registrations and keeps scene lifecycle
+// (start/change/update) independent from the product catalog.
+class BuiltinSceneCatalog final {
+public:
+    explicit BuiltinSceneCatalog(BuiltinSceneConfig config = {});
+
+    [[nodiscard]] std::span<const BuiltinSceneEntry> entries() const noexcept {
+        return entries_;
+    }
+
+    void install(SceneDirector&) const;
+
+private:
+    std::vector<BuiltinSceneEntry> entries_;
 };
 
 // The application composition root owns the built-in scene catalog.  The

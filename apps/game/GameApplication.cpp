@@ -4,7 +4,7 @@
 #include <genomes/platform/Platform.hpp>
 #include <genomes/platform/SdlFileDialogService.hpp>
 #include <genomes/render/RenderBackend.hpp>
-#include <genomes/runtime/BuiltinScenes.hpp>
+#include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -125,7 +125,7 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
 #if GENOMES_HAS_INFANTRY
     scene_config.tactical_ai_profile = tactical_ai_profile;
 #endif
-    runtime::registerBuiltinScenes(director_, std::move(scene_config));
+    runtime::BuiltinSceneCatalog{std::move(scene_config)}.install(director_);
     if (auto content=ui::UiContentRegistry::discover("mods")) {
         content_=std::move(content.value());ui::UiPluginError plugin_error;
 if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';

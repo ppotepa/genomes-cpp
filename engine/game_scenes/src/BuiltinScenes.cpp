@@ -202,8 +202,7 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
 
 }
 
-void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
-    configureBuiltinSceneRouting(director);
+BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
     const auto menu_id = foundation::scene_id("scene.main-menu");
     const auto world_config_id = foundation::scene_id("scene.world-config");
     const auto battlefield_id = foundation::scene_id("scene.battlefield");
@@ -213,41 +212,55 @@ void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
     const auto settings_id = foundation::scene_id("scene.settings");
     const auto pause_id = foundation::scene_id("scene.pause");
 
-    director.register_scene(menu_id, [] { return std::make_unique<MainMenuScene>(); });
-    director.register_scene(world_config_id,
-                            [] { return std::make_unique<WorldConfigScene>(); });
+    entries_.push_back({menu_id, [] { return std::make_unique<MainMenuScene>(); }});
+    entries_.push_back({world_config_id,
+                        [] { return std::make_unique<WorldConfigScene>(); }});
     if (config.real_battlefield) {
 #if GENOMES_HAS_INFANTRY
-        const auto tactical_ai_profile = config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
-        director.register_scene(battlefield_id, [tactical_ai_profile] {
+        const auto tactical_ai_profile =
+            config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
+        entries_.push_back({battlefield_id, [tactical_ai_profile] {
             return std::make_unique<BattlefieldScene>(tactical_ai_profile);
-        });
+        }});
 #else
-        director.register_scene(battlefield_id,
-                                [] { return std::make_unique<BattlefieldScene>(); });
+        entries_.push_back({battlefield_id,
+                            [] { return std::make_unique<BattlefieldScene>(); }});
 #endif
     } else {
-        director.register_scene(battlefield_id, [battlefield_id] {
+        entries_.push_back({battlefield_id, [battlefield_id] {
             return std::make_unique<PlaceholderScene>(battlefield_id,
                                                       "Battlefield loading boundary");
-        });
+        }});
     }
 #if GENOMES_HAS_INFANTRY
-    director.register_scene(unit_lab_id, [] { return std::make_unique<UnitLabScene>(); });
+    entries_.push_back({unit_lab_id, [] { return std::make_unique<UnitLabScene>(); }});
 #else
-    director.register_unavailable_scene(
-        unit_lab_id, {foundation::ErrorCode::UnavailableFeature,
-                      "unit laboratory requires the infantry module"});
+    (void)unit_lab_id;
 #endif
-    director.register_scene(building_lab_id,
-                            [] { return std::make_unique<BuildingLabScene>(); });
-    director.register_scene(world_lab_id, [] { return std::make_unique<WorldLabScene>(); });
-    director.register_scene(settings_id, [settings_id] {
+    entries_.push_back({building_lab_id,
+                        [] { return std::make_unique<BuildingLabScene>(); }});
+    entries_.push_back({world_lab_id, [] { return std::make_unique<WorldLabScene>(); }});
+    entries_.push_back({settings_id, [settings_id] {
         return std::make_unique<PlaceholderScene>(settings_id, "Settings");
-    });
-    director.register_scene(pause_id, [pause_id] {
+    }});
+    entries_.push_back({pause_id, [pause_id] {
         return std::make_unique<PlaceholderScene>(pause_id, "Pause");
-    });
+    }});
+}
+
+void BuiltinSceneCatalog::install(SceneDirector& director) const {
+    configureBuiltinSceneRouting(director);
+    for (const auto& entry : entries_) director.register_scene(entry.id, entry.factory);
+#if !GENOMES_HAS_INFANTRY
+    director.register_unavailable_scene(
+        foundation::scene_id("scene.unit-lab"),
+        {foundation::ErrorCode::UnavailableFeature,
+         "unit laboratory requires the infantry module"});
+#endif
+}
+
+void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
+    BuiltinSceneCatalog{std::move(config)}.install(director);
 }
 
 void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {

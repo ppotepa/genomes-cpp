@@ -1,5 +1,5 @@
 #include <genomes/render/NullRenderer.hpp>
-#include <genomes/runtime/BuiltinScenes.hpp>
+#include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/simulation/FixedStepClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
@@ -16,7 +16,9 @@ int main() {
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
-    genomes::runtime::registerBuiltinScenes(director, false);
+    genomes::runtime::BuiltinSceneCatalog{
+        genomes::runtime::BuiltinSceneConfig{.real_battlefield = false}}
+        .install(director);
 
     if (!director.start(menu_id)) {
         std::cerr << "Could not start main menu\n";

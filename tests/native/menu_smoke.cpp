@@ -1,7 +1,7 @@
 #include <genomes/render/NullRenderer.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/runtime/BattlefieldScene.hpp>
-#include <genomes/runtime/BuiltinScenes.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/runtime/WorldConfigScene.hpp>
@@ -51,6 +51,18 @@ int main() {
         assert(unavailable_director.current() == nullptr);
         assert(unavailable_director.last_error().code ==
                genomes::foundation::ErrorCode::UnavailableFeature);
+    }
+    {
+        genomes::render::NullRenderer catalog_renderer;
+        genomes::ui::UiRuntime catalog_ui;
+        genomes::render::PresentationSnapshot catalog_presentation;
+        genomes::runtime::SceneDirector catalog_director(
+            catalog_renderer, catalog_ui, catalog_presentation);
+        genomes::runtime::BuiltinSceneCatalog catalog{
+            genomes::runtime::BuiltinSceneConfig{.real_battlefield = false}};
+        assert(!catalog.entries().empty());
+        catalog.install(catalog_director);
+        assert(catalog_director.start(genomes::foundation::scene_id("scene.main-menu")));
     }
     genomes::jobs::JobSystem jobs{2};
     genomes::render::NullRenderer renderer;
