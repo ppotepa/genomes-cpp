@@ -56,6 +56,7 @@ RenderResult DiligentBackend::Impl::ensureRegular(const std::shared_ptr<const Re
             auto i=buffer("Genomes persistent mesh indices",ib,Diligent::BIND_INDEX_BUFFER,false,source->indices.data());
             if (!i) return error("could not allocate regular IB",foundation::ErrorCode::Internal);
             // Both candidates exist before any resident handle or key changes.
+            retireMesh(gpu);
             gpu.vertices=std::move(v);gpu.indices=std::move(i);gpu.vertex_bytes=vb;gpu.index_bytes=ib;gpu.revision=source->revision;
             ++telemetry.mesh_uploads;++telemetry.total_mesh_uploads;
             telemetry.mesh_upload_bytes+=vb+ib;telemetry.total_mesh_upload_bytes+=vb+ib;
@@ -97,6 +98,7 @@ RenderResult DiligentBackend::Impl::ensureSkin(const std::shared_ptr<const Skinn
             if (!v) return error("could not allocate skinned VB",foundation::ErrorCode::Internal);
             auto i=buffer("Genomes persistent skin indices",ib,Diligent::BIND_INDEX_BUFFER,false,source->indices.data());
             if (!i) return error("could not allocate skinned IB",foundation::ErrorCode::Internal);
+            retireMesh(gpu);
             gpu.vertices=std::move(v);gpu.indices=std::move(i);gpu.vertex_bytes=vb;gpu.index_bytes=ib;gpu.revision=source->revision;
             ++telemetry.mesh_uploads;++telemetry.total_mesh_uploads;
             telemetry.mesh_upload_bytes+=vb+ib;telemetry.total_mesh_upload_bytes+=vb+ib;

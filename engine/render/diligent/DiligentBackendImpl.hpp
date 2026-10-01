@@ -11,6 +11,7 @@
 #include <DiligentCore/Graphics/GraphicsEngine/interface/TextureView.h>
 #include <DiligentCore/Graphics/GraphicsEngine/interface/PipelineState.h>
 #include <DiligentCore/Graphics/GraphicsEngine/interface/ShaderResourceBinding.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/Fence.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -66,6 +67,11 @@ struct DiligentBackend::Impl final {
         std::vector<MaterialDrawRange> ranges;
         foundation::Vec3 center{},half_extent{};
     };
+    struct RetiredMesh final {
+        Ptr<Diligent::IBuffer> vertices,indices;
+        std::shared_ptr<const void> owner;
+        std::uint64_t fence{0};
+    };
     struct Item {
         Mesh* gpu{nullptr};
         RenderInstance instance{};
@@ -93,10 +99,12 @@ struct DiligentBackend::Impl final {
     Ptr<Diligent::ITextureView> depth_view,shadow_depth,shadow_view;
     Ptr<Diligent::IBuffer> scene_buffer,skin_buffer,material_buffer,ui_parameters;
     Ptr<Diligent::IBuffer> instance_buffer,debug_buffer,ui_vertices_buffer,ui_indices_buffer;
+    Ptr<Diligent::IFence> frame_fence;
     std::size_t instance_capacity{0},debug_capacity{0},ui_vertex_capacity{0},ui_index_capacity{0};
     std::map<unsigned,Pipeline> pipelines;
     Pipeline debug_pipeline,ui_pipeline;
     std::unordered_map<foundation::StableId,Mesh> regular_cache,skin_cache;
+    std::vector<RetiredMesh> retired_meshes;
     std::unordered_map<std::uint64_t,UiTextureGpu> ui_textures;
     std::vector<Item> items;
     std::vector<diligent_contract::InstanceGpuVertex> instance_scratch;
@@ -109,6 +117,7 @@ struct DiligentBackend::Impl final {
     RenderUploadTelemetry telemetry{};
     std::optional<std::filesystem::path> pending_capture;
     std::string capture_metadata;
+    std::uint64_t next_fence{1},active_fence{0},last_submitted_fence{0};
     // Valid only within one pass. Never reuse transient allocations across frames.
     foundation::StableId last_skin_instance{0};
     static constexpr std::uint32_t shadow_size=2048U;
@@ -128,6 +137,8 @@ struct DiligentBackend::Impl final {
     void viewport(const camera::PixelViewport&);
     void restoreTargets();
     void prune();
+    void retireMesh(Mesh&) noexcept;
+    void retireCompleted() noexcept;
     Ptr<Diligent::IBuffer> buffer(const char*,std::size_t,Diligent::BIND_FLAGS,bool,const void* data=nullptr);
     RenderResult mapCopy(Diligent::IBuffer*,const void*,std::size_t);
     RenderResult grow(Ptr<Diligent::IBuffer>&,std::size_t&,std::size_t,Diligent::BIND_FLAGS,const char*);

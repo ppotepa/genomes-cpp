@@ -234,13 +234,25 @@ RenderResult DiligentBackend::Impl::renderItems(bool /*direct*/,bool shadow_pass
     }
     return RenderResult::success();
 }
+void DiligentBackend::Impl::retireMesh(Mesh& mesh) noexcept {
+    if (!mesh.vertices && !mesh.indices && !mesh.owner) return;
+    retired_meshes.push_back({std::move(mesh.vertices),std::move(mesh.indices),
+                              std::move(mesh.owner),active_fence != 0U ? active_fence : last_submitted_fence});
+    mesh.revision=0U;mesh.vertex_bytes=mesh.index_bytes=0U;
+}
+void DiligentBackend::Impl::retireCompleted() noexcept {
+    if (!frame_fence) return;
+    const auto completed=frame_fence->GetCompletedValue();
+    retired_meshes.erase(std::remove_if(retired_meshes.begin(),retired_meshes.end(),
+        [completed](const RetiredMesh& mesh) { return mesh.fence <= completed; }),retired_meshes.end());
+}
 void DiligentBackend::Impl::prune() {
     const auto old=telemetry.frame>600U?telemetry.frame-600U:0U;items.clear();last_skin_instance=0;
     for (auto it=regular_cache.begin();it!=regular_cache.end();) {
-        if (it->second.last_seen<old) it=regular_cache.erase(it);else ++it;
+        if (it->second.last_seen<old) { retireMesh(it->second);it=regular_cache.erase(it); } else ++it;
     }
     for (auto it=skin_cache.begin();it!=skin_cache.end();) {
-        if (it->second.last_seen<old) it=skin_cache.erase(it);else ++it;
+        if (it->second.last_seen<old) { retireMesh(it->second);it=skin_cache.erase(it); } else ++it;
     }
 }
 } // namespace genomes::render

@@ -124,6 +124,11 @@ RenderResult DiligentBackend::Impl::resizeDepth(std::uint32_t w,std::uint32_t h)
     depth_view=view;depth=std::move(candidate);return RenderResult::success();
 }
 RenderResult DiligentBackend::Impl::initializeResources() {
+    Diligent::FenceDesc fence_desc{};
+    fence_desc.Name = "Genomes presentation fence";
+    fence_desc.Type = Diligent::FENCE_TYPE_GENERAL;
+    device->CreateFence(fence_desc, &frame_fence);
+    if (!frame_fence) return error("could not allocate presentation fence",foundation::ErrorCode::Internal);
     scene_buffer=buffer("Genomes scene constants",sizeof(SceneConstants),Diligent::BIND_UNIFORM_BUFFER,true);
     skin_buffer=buffer("Genomes skin constants",(sizeof(SkinnedPassConstants)+255U)&~std::size_t{255U},Diligent::BIND_UNIFORM_BUFFER,true);
     material_buffer=buffer("Genomes material constants",256U,Diligent::BIND_UNIFORM_BUFFER,true);

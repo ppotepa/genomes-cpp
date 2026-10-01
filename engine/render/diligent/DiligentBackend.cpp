@@ -54,6 +54,8 @@ RenderResult DiligentBackend::begin_frame() noexcept {
     if (!impl_ || !impl_->caps.initialized || impl_->open) return error("Diligent begin in invalid state");
     try {
         auto& p=*impl_;
+        p.active_fence=p.next_fence;
+        p.retireCompleted();
         ++p.telemetry.frame;p.telemetry.mesh_uploads=0;p.telemetry.mesh_upload_bytes=0;p.telemetry.palette_updates=0;
         p.telemetry.draw_calls=0;p.telemetry.ui_draw_calls=0;p.telemetry.ui_texture_uploads=0;
         p.telemetry.ui_texture_upload_bytes=0;p.telemetry.ui_buffer_grows=0;
@@ -98,8 +100,13 @@ RenderResult DiligentBackend::abort_frame() noexcept {
     if (!impl_ || !impl_->open) return error("Diligent abort outside frame");
     impl_->open=false;impl_->pending_capture.reset();impl_->prepared=false;
     try {
+        if (impl_->frame_fence) {
+            impl_->context->EnqueueSignal(impl_->frame_fence,impl_->active_fence);
+            impl_->last_submitted_fence=impl_->active_fence;
+            impl_->next_fence=impl_->active_fence+1U;
+        }
         impl_->context->SetRenderTargets(0U,nullptr,nullptr,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
-        impl_->context->Flush();impl_->context->FinishFrame();impl_->items.clear();
+        impl_->context->Flush();impl_->context->FinishFrame();impl_->active_fence=0U;impl_->items.clear();
         return RenderResult::success();
     } catch (...) { return error("Diligent abort exception",foundation::ErrorCode::Internal); }
 }
@@ -109,9 +116,14 @@ RenderResult DiligentBackend::end_frame() noexcept {
         if (impl_->pending_capture) {
             if (auto r=impl_->writeCapture();!r) { (void)abort_frame();return r; }
         }
+        if (impl_->frame_fence) {
+            impl_->context->EnqueueSignal(impl_->frame_fence,impl_->active_fence);
+            impl_->last_submitted_fence=impl_->active_fence;
+            impl_->next_fence=impl_->active_fence+1U;
+        }
         impl_->context->Flush();
         if (impl_->swap) impl_->swap->Present(1U);else impl_->context->FinishFrame();
-        impl_->open=false;impl_->prune();return RenderResult::success();
+        impl_->open=false;impl_->active_fence=0U;impl_->prune();return RenderResult::success();
     } catch (...) {
         if (impl_->open) (void)abort_frame();
         return error("Diligent end exception",foundation::ErrorCode::Internal);
