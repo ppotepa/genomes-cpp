@@ -64,6 +64,11 @@ add_test(NAME architecture.composition_root
         -P "${CMAKE_CURRENT_SOURCE_DIR}/composition_root_guard.cmake")
 set_tests_properties(architecture.composition_root PROPERTIES
     LABELS "source;cpu;architecture")
+add_test(NAME architecture.target_closure
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/target_closure_guard.cmake")
+set_tests_properties(architecture.target_closure PROPERTIES
+    LABELS "source;cpu;architecture;build")
 add_test(NAME architecture.application_command_boundary
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/application_command_boundary_guard.cmake")
