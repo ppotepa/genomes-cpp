@@ -510,6 +510,12 @@ target_compile_definitions(genomes_test_destruction_materials PRIVATE
 genomes_set_project_warnings(genomes_test_destruction_materials)
 genomes_enable_test_assertions(genomes_test_destruction_materials)
 add_test(NAME destruction.materials COMMAND genomes_test_destruction_materials)
+add_test(NAME destruction.materials_source_contract
+    COMMAND ${CMAKE_COMMAND}
+        -DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/destruction_material_catalog_guard.cmake")
+set_tests_properties(destruction.materials_source_contract PROPERTIES
+    LABELS "source;cpu;destruction")
 
 add_executable(genomes_test_destruction_impact
     destruction/impact_solver_tests.cpp)
