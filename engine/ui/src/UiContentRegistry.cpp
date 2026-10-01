@@ -18,8 +18,11 @@ namespace {
 using Json = nlohmann::json;
 constexpr std::uintmax_t MaximumManifestBytes = 1024U * 1024U;
 
-[[nodiscard]] UiContentRegistry::Result fail(std::string message) {
-    return UiContentRegistry::Result::failure({std::move(message)});
+[[nodiscard]] UiContentRegistry::Result fail(std::string message,
+                                              std::filesystem::path path = {},
+                                              std::string field = {}) {
+    return UiContentRegistry::Result::failure(
+        {std::move(message), std::move(path), std::move(field), "ui-content"});
 }
 
 [[nodiscard]] bool required_string(const Json& value, const char* key) {
@@ -69,6 +72,7 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
     UiContentRegistry registry;
     std::set<std::string> mod_ids;
     std::set<std::string> scene_ids;
+    std::set<foundation::SceneId> scene_hashes;
     try {
         for (const auto& entry : std::filesystem::directory_iterator{mods_root}) {
             if (!entry.is_directory()) {
@@ -140,6 +144,10 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                     scene.root = *scene_root;
                     if (!scene_ids.insert(scene.id).second) {
                         return fail("duplicate scene id: " + scene.id);
+                    }
+                    if (!scene_hashes.insert(foundation::scene_id(scene.id)).second) {
+                        return fail("scene id hash collision: " + scene.id, *scene_manifest_path,
+                                    "id");
                     }
                     if (!traversal_free(scene_root->lexically_relative(mod.root)) ||
                         !traversal_free(scene.document)) {

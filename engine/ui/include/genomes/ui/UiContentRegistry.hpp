@@ -34,6 +34,9 @@ struct UiModManifest final {
 
 struct UiContentError final {
     std::string message;
+    std::filesystem::path path;
+    std::string field;
+    std::string source{"ui-content"};
 };
 
 class UiContentRegistry final {
