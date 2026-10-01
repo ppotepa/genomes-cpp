@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **34/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **35/55 decisions CODE_READY; 6/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -44,7 +44,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R021 | PR05 | content | REF | Registries validate duplicates/name/hash collisions in a candidate and atomically publish a frozen snapshot. | CODE_READY | 76cd265 | NOT_RUN | - | Discovery builds a candidate, rejects duplicate strings and scene-ID hash collisions, then returns it as a snapshot. |
 | R022 | PR05 | foundation/content | EXT | Owning `Diagnostic` carries dynamic path/field/source text; lightweight `foundation::Error` remains static. | CODE_READY | 76cd265 | NOT_RUN | - | `UiContentError` owns message/path/field/source; `foundation::Error` remains unchanged. |
 | R023 | PR05 | plugins | FIX | Native plugins require user permission plus `trusted_native`; C ABI is exception-safe with rollback and reverse dependency unload. | CODE_READY | 10601b2 | NOT_RUN | - | Plugin manager keeps host API alive through unload and rolls back failed loads. |
-| R024 | PR06 | content | REF | Content module owns bounded read, manifests, provenance, canonical hashing and frozen snapshots; domains own fields. | PLANNED | - | NOT_RUN | - | - |
+| R024 | PR06 | content | REF | Content module owns bounded read, manifests, provenance, canonical hashing and frozen snapshots; domains own fields. | CODE_READY | c69491c | NOT_RUN | - | `content.snapshot` covers bounded read, root-safe resolution, manifest core fields and frozen provenance; Tactical AI and UI registry consume the shared content boundaries. |
 | R025 | PR06 | configuration | REF | Configuration flow is defaults/core/profile/topological overrides/allowed CLI, then validate, resolve, canonicalize, fingerprint and freeze. | PLANNED | - | NOT_RUN | - | - |
 | R026 | PR06 | configuration | FIX | Core unknown fields and missing references fail; IDs differ from display names; snapshots own stable text independent of JSON DOM. | PLANNED | - | NOT_RUN | - | - |
 | R027 | PR06 | configuration | EXT | Typed simulation, presentation and execution hashes derive from canonical values. | CODE_READY | 559ba9f | NOT_RUN | - | `foundation.config_hash` covers canonical field ordering and distinct typed hash spaces; Tactical AI uses the simulation hash after parsing and validation. |
