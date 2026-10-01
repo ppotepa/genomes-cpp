@@ -17,6 +17,8 @@
 
 #include <cstdint>
 #include <map>
+#include <optional>
+#include <compare>
 #include <vector>
 
 namespace genomes::infantry {
@@ -24,6 +26,13 @@ namespace genomes::infantry {
 enum class Team : std::uint8_t {
     Blue,
     Red,
+};
+
+struct SquadKey final {
+    Team side{Team::Blue};
+    std::uint32_t squad_id{0};
+
+    friend constexpr auto operator<=>(const SquadKey&, const SquadKey&) noexcept = default;
 };
 
 enum class AgentState : std::uint8_t {
@@ -37,7 +46,7 @@ struct InfantrySpawn final {
     Team team{Team::Blue};
     foundation::Vec3 position{};
     InfantryGenome genome{};
-    std::uint32_t squad_id{0};
+    std::optional<SquadKey> squad;
 };
 
 struct InfantryRenderState final {
@@ -87,7 +96,7 @@ private:
         foundation::Vec3 last_known_target_position{};
         foundation::SimulationTick last_contact_tick{};
         bool has_contact_memory{false};
-        std::uint32_t squad_id{0};
+        std::optional<SquadKey> squad;
     };
 
     struct SquadContact final {
@@ -120,7 +129,7 @@ private:
     spatial::UniformGrid spatial_index_{16.0F};
     jobs::JobSystem* jobs_{nullptr};
     std::vector<Agent> agents_;
-    std::map<std::uint32_t, SquadContact> squad_contacts_;
+    std::map<SquadKey, SquadContact> squad_contacts_;
     std::vector<InfantryRenderState> render_states_;
     std::size_t active_count_{0};
 };

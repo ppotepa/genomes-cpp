@@ -89,8 +89,10 @@ foundation::Result<simulation::EntityId, foundation::Error> InfantrySimulation::
                    {},
                    0,
                    {}};
-    record.squad_id = spawn_data.squad_id;
-    squad_contacts_.try_emplace(record.squad_id);
+    record.squad = spawn_data.squad;
+    if (record.squad.has_value()) {
+        squad_contacts_.try_emplace(*record.squad);
+    }
     ++active_count_;
     return entity;
 }
@@ -197,7 +199,10 @@ void InfantrySimulation::publishSquadContacts(foundation::SimulationTick tick) n
             !contactMemoryFresh(*record, tick)) {
             return;
         }
-        const auto contact_iterator = squad_contacts_.find(record->squad_id);
+        if (!record->squad.has_value()) {
+            return;
+        }
+        const auto contact_iterator = squad_contacts_.find(*record->squad);
         if (contact_iterator == squad_contacts_.end()) {
             return;
         }
@@ -292,11 +297,14 @@ void InfantrySimulation::perceiveRange(const std::vector<simulation::EntityId>& 
         } else {
             observer->target = {};
             if (!contactMemoryFresh(*observer, tick)) {
-                const auto squad_contact = squad_contacts_.find(observer->squad_id);
-                const bool shared_contact =
-                    squad_contact != squad_contacts_.end() && squad_contact->second.valid &&
-                    tick.value >= squad_contact->second.last_seen.value &&
-                    tick.value - squad_contact->second.last_seen.value <= kContactMemoryTicks;
+                const auto squad_contact = observer->squad.has_value()
+                                               ? squad_contacts_.find(*observer->squad)
+                                               : squad_contacts_.end();
+                const bool shared_contact = squad_contact != squad_contacts_.end() &&
+                                            squad_contact->second.valid &&
+                                            tick.value >= squad_contact->second.last_seen.value &&
+                                            tick.value - squad_contact->second.last_seen.value <=
+                                                kContactMemoryTicks;
                 if (shared_contact) {
                     observer->last_known_target_position = squad_contact->second.position;
                     observer->last_contact_tick = squad_contact->second.last_seen;

@@ -30,9 +30,13 @@ void nearbyWaypointDoesNotMakeDistantTargetEngage() {
     genome.perception_radius = 200.0F;
     genome.attack_range = 35.0F;
 
-    const auto observer = infantry.spawn({genomes::infantry::Team::Blue, {}, genome, 1});
+    const auto observer = infantry.spawn(
+        {genomes::infantry::Team::Blue, {}, genome, {{genomes::infantry::Team::Blue, 1}}});
     const auto target = infantry.spawn(
-        {genomes::infantry::Team::Red, {100.0F, 0.0F, 0.0F}, genome, 2});
+        {genomes::infantry::Team::Red,
+         {100.0F, 0.0F, 0.0F},
+         genome,
+         {{genomes::infantry::Team::Red, 2}}});
     assert(observer && target);
 
     infantry.fixedUpdate(1.0 / 60.0, {});
@@ -42,9 +46,48 @@ void nearbyWaypointDoesNotMakeDistantTargetEngage() {
     assert(observer_state.state == genomes::infantry::AgentState::Advance);
 }
 
+void squadContactsRequireMatchingSideAndExplicitMembership() {
+    genomes::simulation::EntityStore entities;
+    genomes::infantry::InfantrySimulation infantry(entities);
+    const auto generated = genomes::infantry::InfantryGenome::generate(2);
+    assert(generated);
+    auto genome = generated.value();
+    genome.perception_radius = 20.0F;
+
+    const auto squad_leader = infantry.spawn(
+        {genomes::infantry::Team::Blue, {}, genome, {{genomes::infantry::Team::Blue, 1}}});
+    assert(infantry.spawn({genomes::infantry::Team::Red, {10.0F, 0.0F, 0.0F}, genome, {}}));
+    const auto squad_member = infantry.spawn(
+        {genomes::infantry::Team::Blue, {100.0F, 0.0F, 0.0F}, genome, {{genomes::infantry::Team::Blue, 1}}});
+    const auto opposing_local_one = infantry.spawn(
+        {genomes::infantry::Team::Red, {200.0F, 0.0F, 0.0F}, genome, {{genomes::infantry::Team::Red, 1}}});
+    assert(infantry.spawn({genomes::infantry::Team::Blue, {300.0F, 0.0F, 0.0F}, genome, {}}));
+    assert(infantry.spawn({genomes::infantry::Team::Red, {310.0F, 0.0F, 0.0F}, genome, {}}));
+    const auto no_squad_observer = infantry.spawn(
+        {genomes::infantry::Team::Blue, {400.0F, 0.0F, 0.0F}, genome, {}});
+    assert(squad_leader && squad_member && opposing_local_one && no_squad_observer);
+
+    infantry.fixedUpdate(1.0 / 60.0, {});
+    infantry.fixedUpdate(1.0 / 60.0, {1});
+    const auto& states = infantry.renderStates();
+    const auto state_of = [&states](genomes::simulation::EntityId entity) {
+        for (const auto& state : states) {
+            if (state.entity == entity) {
+                return state.state;
+            }
+        }
+        assert(false && "spawned entity has no render state");
+        return genomes::infantry::AgentState::Dead;
+    };
+    assert(state_of(squad_member.value()) == genomes::infantry::AgentState::Advance);
+    assert(state_of(opposing_local_one.value()) == genomes::infantry::AgentState::Idle);
+    assert(state_of(no_squad_observer.value()) == genomes::infantry::AgentState::Idle);
+}
+
 } // namespace
 
 int main() {
     nearbyWaypointDoesNotMakeDistantTargetEngage();
+    squadContactsRequireMatchingSideAndExplicitMembership();
     return 0;
 }
