@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.21)
+
+if(NOT DEFINED GENOMES_SOURCE_DIR)
+    message(FATAL_ERROR "GENOMES_SOURCE_DIR is required")
+endif()
+
+set(header "${GENOMES_SOURCE_DIR}/modules/infantry/include/genomes/infantry/EquipmentCatalog.hpp")
+set(source "${GENOMES_SOURCE_DIR}/modules/infantry/src/EquipmentCatalogLoader.cpp")
+set(fixture "${GENOMES_SOURCE_DIR}/reference/fixtures/infantry/equipment_catalog_v1.json")
+foreach(required IN ITEMS "${header}" "${source}" "${fixture}")
+    if(NOT EXISTS "${required}")
+        message(FATAL_ERROR "Missing infantry equipment catalog source: ${required}")
+    endif()
+endforeach()
+
+file(READ "${header}" header_text)
+file(READ "${source}" source_text)
+file(READ "${fixture}" fixture_text)
+foreach(required IN ITEMS "FrozenEquipmentCatalog" "FrozenContentSnapshot" "SimConfigHash"
+                           "sourceCommit()" "loadEquipmentCatalog" "contentSnapshot()")
+    string(FIND "${header_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Infantry equipment catalog header misses ${required}")
+    endif()
+endforeach()
+foreach(required IN ITEMS "readContentText" "ContentSnapshotBuilder" "equipmentFingerprint"
+                           "result.frozen_ = true" "infantry equipment item parity mismatch")
+    string(FIND "${source_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Infantry equipment catalog loader misses ${required}")
+    endif()
+endforeach()
+foreach(required IN ITEMS "genomes.infantry.reference.v1" "equipmentCatalog.js"
+                           "field_cap" "RIFLEMAN" "sourceCommit")
+    string(FIND "${fixture_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Infantry equipment catalog fixture misses ${required}")
+    endif()
+endforeach()
+
+message(STATUS "Infantry equipment catalog source contract inspected")

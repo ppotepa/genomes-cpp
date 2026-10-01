@@ -791,6 +791,19 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_infantry_equipment)
     add_test(NAME infantry.equipment COMMAND genomes_test_infantry_equipment)
 
+    add_executable(genomes_test_infantry_equipment_catalog
+        infantry_equipment_catalog_tests.cpp)
+    target_link_libraries(genomes_test_infantry_equipment_catalog PRIVATE genomes::infantry)
+    target_compile_definitions(genomes_test_infantry_equipment_catalog PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    genomes_set_project_warnings(genomes_test_infantry_equipment_catalog)
+    genomes_enable_test_assertions(genomes_test_infantry_equipment_catalog)
+    add_test(NAME infantry.equipment_catalog COMMAND genomes_test_infantry_equipment_catalog)
+    add_test(NAME infantry.equipment_catalog_source_contract
+        COMMAND ${CMAKE_COMMAND}
+            -DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/infantry_equipment_catalog_guard.cmake")
+
     add_executable(genomes_test_infantry_locomotion
         infantry_locomotion_posture_tests.cpp)
     target_link_libraries(genomes_test_infantry_locomotion PRIVATE genomes::infantry)

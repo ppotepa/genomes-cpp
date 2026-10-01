@@ -16,6 +16,7 @@ src/AppearanceMorphBuilder.cpp
     src/FaceSurfaceGenerator.cpp
     src/GearSurfaceGenerator.cpp
     src/Equipment.cpp
+    src/EquipmentCatalogLoader.cpp
     src/GearGenerator.cpp
     src/PostureProfile.cpp
     src/LocomotionController.cpp
@@ -30,6 +31,8 @@ src/AppearanceMorphBuilder.cpp
 
 target_include_directories(genomes_infantry PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(genomes_infantry PRIVATE
+    "${CMAKE_SOURCE_DIR}/external/json/single_include")
 target_link_libraries(genomes_infantry PUBLIC
 genomes::foundation
 genomes::geometry
