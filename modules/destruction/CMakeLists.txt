@@ -16,7 +16,7 @@ target_link_libraries(genomes_destruction PUBLIC
     genomes::content
     genomes::proc
     genomes::physics
-    genomes::world)
+    genomes::world_core)
 target_include_directories(genomes_destruction PRIVATE
     "${CMAKE_SOURCE_DIR}/external/json/single_include")
 target_compile_features(genomes_destruction PUBLIC cxx_std_20)

@@ -45,7 +45,7 @@ genomes_set_project_warnings(genomes_bench_ai_pipeline)
 
 add_executable(genomes_bench_world_streaming
     world/streaming_benchmark.cpp)
-target_link_libraries(genomes_bench_world_streaming PRIVATE genomes::world)
+target_link_libraries(genomes_bench_world_streaming PRIVATE genomes::world_generation)
 genomes_set_project_warnings(genomes_bench_world_streaming)
 
 add_executable(genomes_bench_full_scene

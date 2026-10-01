@@ -8,7 +8,7 @@ target_link_libraries(genomes_world_render PUBLIC
     genomes::geometry
     genomes::render
     genomes::terrain
-    genomes::world
+    genomes::world_generation
     genomes::buildings)
 target_compile_features(genomes_world_render PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_world_render)

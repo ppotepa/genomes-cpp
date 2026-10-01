@@ -30,14 +30,5 @@ target_link_libraries(genomes_world_generation PUBLIC
 target_compile_features(genomes_world_generation PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_world_generation)
 
-# Compatibility aggregate. New code should depend on the narrow core or the
-# generation service explicitly; existing clients retain genomes::world while
-# the migration is completed.
-add_library(genomes_world INTERFACE)
-target_link_libraries(genomes_world INTERFACE
-    genomes_world_core
-    genomes_world_generation)
-
 add_library(genomes::world_core ALIAS genomes_world_core)
 add_library(genomes::world_generation ALIAS genomes_world_generation)
-add_library(genomes::world ALIAS genomes_world)

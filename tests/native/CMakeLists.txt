@@ -329,7 +329,7 @@ genomes_enable_test_assertions(genomes_test_session_simulation_clock)
 add_test(NAME simulation.session_clock COMMAND genomes_test_session_simulation_clock)
 
 add_executable(genomes_test_world_grid_layout world_grid_layout_tests.cpp)
-target_link_libraries(genomes_test_world_grid_layout PRIVATE genomes::world)
+target_link_libraries(genomes_test_world_grid_layout PRIVATE genomes::world_core)
 genomes_set_project_warnings(genomes_test_world_grid_layout)
 genomes_enable_test_assertions(genomes_test_world_grid_layout)
 add_test(NAME world.grid_layout COMMAND genomes_test_world_grid_layout)
@@ -397,7 +397,7 @@ add_test(NAME proc.registry COMMAND genomes_test_proc_registry)
 
 add_executable(genomes_test_world_coordinates
     world/world_coordinates_smoke.cpp)
-target_link_libraries(genomes_test_world_coordinates PRIVATE genomes::world)
+target_link_libraries(genomes_test_world_coordinates PRIVATE genomes::world_core)
 genomes_set_project_warnings(genomes_test_world_coordinates)
 genomes_enable_test_assertions(genomes_test_world_coordinates)
 add_test(NAME world.coordinates COMMAND genomes_test_world_coordinates)
@@ -419,7 +419,7 @@ add_test(NAME navigation.flow_field COMMAND genomes_test_flow_field)
 
 add_executable(genomes_test_world_query
     world/world_query_tests.cpp)
-target_link_libraries(genomes_test_world_query PRIVATE genomes::world)
+target_link_libraries(genomes_test_world_query PRIVATE genomes::world_core)
 genomes_set_project_warnings(genomes_test_world_query)
 genomes_enable_test_assertions(genomes_test_world_query)
 add_test(NAME world.query COMMAND genomes_test_world_query)
@@ -743,14 +743,14 @@ add_test(NAME integration.world_parity COMMAND genomes_test_world_parity)
 
 add_executable(genomes_test_world_streaming
     world_streaming_tests.cpp)
-target_link_libraries(genomes_test_world_streaming PRIVATE genomes::world)
+target_link_libraries(genomes_test_world_streaming PRIVATE genomes::world_generation)
 genomes_set_project_warnings(genomes_test_world_streaming)
 genomes_enable_test_assertions(genomes_test_world_streaming)
 add_test(NAME integration.world_streaming COMMAND genomes_test_world_streaming)
 
 add_executable(genomes_test_world_save
     world_save_tests.cpp)
-target_link_libraries(genomes_test_world_save PRIVATE genomes::world)
+target_link_libraries(genomes_test_world_save PRIVATE genomes::world_core)
 genomes_set_project_warnings(genomes_test_world_save)
 genomes_enable_test_assertions(genomes_test_world_save)
 add_test(NAME integration.world_save COMMAND genomes_test_world_save)

@@ -18,7 +18,7 @@ target_link_libraries(genomes_game_scenes PUBLIC
     genomes::render
     genomes::ui
     genomes::input
-    genomes::world
+    genomes::world_generation
     genomes::gameplay
     genomes::terrain
     genomes::simulation

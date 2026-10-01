@@ -12,7 +12,7 @@ target_include_directories(genomes_gameplay PUBLIC
 target_link_libraries(genomes_gameplay PUBLIC
     genomes::foundation
     genomes::jobs
-    genomes::world
+    genomes::world_generation
     genomes::buildings
     genomes::terrain
     genomes::simulation)

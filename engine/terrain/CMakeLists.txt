@@ -5,7 +5,7 @@ add_library(genomes_terrain STATIC
 
 target_include_directories(genomes_terrain PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(genomes_terrain PUBLIC genomes::foundation genomes::world genomes::proc)
+target_link_libraries(genomes_terrain PUBLIC genomes::foundation genomes::world_core genomes::proc)
 target_compile_features(genomes_terrain PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_terrain)
 

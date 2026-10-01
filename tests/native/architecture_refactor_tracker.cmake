@@ -188,6 +188,31 @@ endif()
 if(runtime_core_links MATCHES "genomes::(gameplay|infantry|buildings|world_render|combat|physics)")
     message(FATAL_ERROR "Runtime core must not link product gameplay targets")
 endif()
+
+# R055 target closure: every in-tree world target now names the narrow core or
+# generation target. The old aggregate is removed only after this source scan
+# proves that no project CMake consumer still requests it.
+file(GLOB_RECURSE project_cmake_files LIST_DIRECTORIES FALSE
+     "${GENOMES_SOURCE_DIR}/*/CMakeLists.txt")
+foreach(project_cmake IN LISTS project_cmake_files)
+    if(project_cmake MATCHES "[\\/]external[\\/]|[\\/]build[\\/]")
+        continue()
+    endif()
+    file(READ "${project_cmake}" project_cmake_text)
+    if(project_cmake MATCHES "[\\/]engine[\\/]world[\\/]CMakeLists[.]txt$")
+        continue()
+    endif()
+    if(project_cmake_text MATCHES "genomes::world([^_A-Za-z0-9]|$)")
+        message(FATAL_ERROR
+                "Removed genomes::world aggregate has a CMake consumer: ${project_cmake}")
+    endif()
+endforeach()
+set(world_cmake_file "${GENOMES_SOURCE_DIR}/engine/world/CMakeLists.txt")
+file(READ "${world_cmake_file}" world_cmake_text)
+if(world_cmake_text MATCHES "genomes_world[ \\t\\r\\n)]" OR
+   world_cmake_text MATCHES "genomes::world([^_A-Za-z0-9]|$)")
+    message(FATAL_ERROR "World aggregate target must remain removed")
+endif()
 if(runtime_core_links MATCHES "genomes::world([^_A-Za-z0-9]|$)" OR
    runtime_core_links MATCHES "genomes::world_generation([^_A-Za-z0-9]|$)")
     message(FATAL_ERROR "Neutral runtime core must not link the world compatibility or generation targets")

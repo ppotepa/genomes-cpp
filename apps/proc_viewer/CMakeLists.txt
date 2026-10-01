@@ -2,7 +2,7 @@ add_library(genomes_proc_viewer_core STATIC
     ProcViewerApp.cpp)
 target_include_directories(genomes_proc_viewer_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(genomes_proc_viewer_core PUBLIC genomes::gameplay genomes::world)
+target_link_libraries(genomes_proc_viewer_core PUBLIC genomes::gameplay genomes::world_generation)
 genomes_set_project_warnings(genomes_proc_viewer_core)
 
 add_library(genomes::proc_viewer_core ALIAS genomes_proc_viewer_core)
