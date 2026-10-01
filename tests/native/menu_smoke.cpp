@@ -49,6 +49,11 @@ int main() {
     director.register_scene(menu_id, [] {
         return std::make_unique<genomes::runtime::MainMenuScene>();
     });
+    const auto duplicate_menu = director.register_scene(menu_id, [] {
+        return std::make_unique<DummyScene>(genomes::foundation::scene_id("scene.main-menu"));
+    });
+    assert(!duplicate_menu);
+    assert(duplicate_menu.error().code == genomes::foundation::ErrorCode::InvalidState);
     director.register_scene(unit_lab_id, [unit_lab_id] {
         return std::make_unique<DummyScene>(unit_lab_id);
     });

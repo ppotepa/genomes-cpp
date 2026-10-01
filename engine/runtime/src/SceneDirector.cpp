@@ -63,8 +63,14 @@ SceneContext SceneDirector::make_context() noexcept {
             &presentation_.has_camera_request};
 }
 
-void SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
-    factories_[id] = std::move(factory);
+foundation::Result<void, foundation::Error>
+SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
+    if (factories_.contains(id)) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "scene ID already registered"});
+    }
+    factories_.emplace(id, std::move(factory));
+    return foundation::Result<void, foundation::Error>::success();
 }
 
 bool SceneDirector::start(foundation::SceneId id) {

@@ -4,6 +4,8 @@
 #include <genomes/render/RenderExtraction.hpp>
 #include <genomes/runtime/Scene.hpp>
 #include <genomes/foundation/Time.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 #include <genomes/camera/Camera.hpp>
 #include <genomes/camera/CameraController.hpp>
 
@@ -23,7 +25,8 @@ public:
                   render::PresentationSnapshot& presentation,
                   jobs::JobSystem* jobs = nullptr);
 
-    void register_scene(foundation::SceneId id, Factory factory);
+    foundation::Result<void, foundation::Error>
+    register_scene(foundation::SceneId id, Factory factory);
     bool start(foundation::SceneId id);
     void handle_input(const input::InputFrame&);
     [[nodiscard]] ui::UiActionResult dispatch_ui_action(
