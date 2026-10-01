@@ -128,11 +128,11 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::initialize() {
 }
 
 foundation::Result<void, foundation::Error> BattlefieldScenario::configureWorldQuery() {
-    const world::WorldId world_id{foundation::stableHashCombine(config_.seed, 25U)};
-    const world::WorldCoordinateConfig coordinates{static_cast<double>(config_.map_size_m)};
-    const world::RegionCoord coordinate{};
-    const world::RegionId region_id = world::regionId(world_id, coordinate);
-    world::QueryRegion region{};
+    const world_core::WorldId world_id{foundation::stableHashCombine(config_.seed, 25U)};
+    const world_core::WorldCoordinateConfig coordinates{static_cast<double>(config_.map_size_m)};
+    const world_core::RegionCoord coordinate{};
+    const world_core::RegionId region_id = world_core::regionId(world_id, coordinate);
+    world_core::QueryRegion region{};
     region.coordinate = coordinate;
     region.id = region_id;
     region.revision = 1U;
@@ -149,9 +149,9 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureWorldQ
                position->z - kTargetHalfExtent},
               {position->x + kTargetHalfExtent, position->y + 1.0F,
                position->z + kTargetHalfExtent}},
-             world::QuerySourceKind::Static, region_id, 1U});
+             world_core::QuerySourceKind::Static, region_id, 1U});
     });
-    const auto snapshot = world::WorldQuerySnapshot::create(world_id, coordinates, {region});
+    const auto snapshot = world_core::WorldQuerySnapshot::create(world_id, coordinates, {region});
     if (!snapshot) {
         return foundation::Result<void, foundation::Error>::failure(snapshot.error());
     }
@@ -628,7 +628,7 @@ const BattlefieldScenario::TargetRuntime* BattlefieldScenario::target(
     return iterator == targets_.end() ? nullptr : &*iterator;
 }
 
-bool BattlefieldScenario::provideContact(void* context, const world::QuerySegmentHit& hit,
+bool BattlefieldScenario::provideContact(void* context, const world_core::QuerySegmentHit& hit,
                                          ballistics::ContactCandidate& candidate) noexcept {
     auto* scenario = static_cast<BattlefieldScenario*>(context);
     if (scenario == nullptr) {

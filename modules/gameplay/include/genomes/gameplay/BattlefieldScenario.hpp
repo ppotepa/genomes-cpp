@@ -22,7 +22,7 @@
 #include <genomes/simulation/EntityStore.hpp>
 #include <genomes/simulation/SystemGraph.hpp>
 #include <genomes/spatial/SpatialGrid.hpp>
-#include <genomes/world/WorldQuerySnapshot.hpp>
+#include <genomes/world_core/WorldQuerySnapshot.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 #include <genomes/weapons/WeaponController.hpp>
 
@@ -119,7 +119,7 @@ private:
     void applyImpactDamage() noexcept;
     [[nodiscard]] TargetRuntime* target(simulation::EntityId entity) noexcept;
     [[nodiscard]] const TargetRuntime* target(simulation::EntityId entity) const noexcept;
-    [[nodiscard]] static bool provideContact(void*, const world::QuerySegmentHit&,
+    [[nodiscard]] static bool provideContact(void*, const world_core::QuerySegmentHit&,
                                               ballistics::ContactCandidate&) noexcept;
 
     BattlefieldScenarioConfig config_{};
@@ -151,7 +151,7 @@ private:
     weapons::WeaponSpec weapon_spec_{};
     weapons::WeaponId weapon_id_{0};
 
-    world::WorldQuerySnapshot query_snapshot_{};
+    world_core::WorldQuerySnapshot query_snapshot_{};
     std::vector<TargetRuntime> targets_;
     ballistics::BallisticsWorld* ballistics_{nullptr};
     std::unique_ptr<ballistics::BallisticsWorld> owned_ballistics_;
