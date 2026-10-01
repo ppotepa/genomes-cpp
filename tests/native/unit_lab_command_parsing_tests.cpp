@@ -24,6 +24,14 @@ int main() {
     assert(parseUnitLabExpression("Eyes closed"));
     assert(parseSetExpression("anger").value().value == infantry::FaceExpression::Anger);
 
+    const auto equipment = parseSetEquipmentSlot("head", "helmet_light");
+    assert(equipment && equipment.value().slot == infantry::EquipmentSlot::Head);
+    assert(equipment.value().value.specified && !equipment.value().value.empty);
+    assert(!parseSetEquipmentSlot("head", "not-an-item"));
+    assert(parseSetEquipmentSlot("head", "not-an-item").error().field == "item");
+    assert(!parseSetEquipmentSlot("not-a-slot", "auto"));
+    assert(parseSetEquipmentSlot("not-a-slot", "auto").error().field == "slot");
+
     const auto gene = parseSetGeneOverride("height", "0.82");
     assert(gene && gene.value().gene == infantry::GenomeGene::Height);
     const auto invalid_gene_value = parseSetGeneOverride("height", "inf");

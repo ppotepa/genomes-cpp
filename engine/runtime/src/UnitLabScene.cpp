@@ -576,19 +576,9 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.equipment-item") && !key_of().empty()) {
-        const auto slots = infantry::EquipmentCatalog::slots();
-        const auto slot = std::find_if(slots.begin(), slots.end(), [&](const auto& candidate) {
-            return candidate.identifier == key_of();
-        });
-        if (slot == slots.end()) return ui::UiActionResult::Rejected;
-        infantry::EquipmentOverride override{};
-        if (text == "auto") override = infantry::EquipmentOverride::absent();
-        else if (text == "none") override = infantry::EquipmentOverride::nullValue();
-        else if (const auto* item = infantry::EquipmentCatalog::findItem(text);
-                 item != nullptr && item->allows(slot->slot))
-            override = infantry::EquipmentOverride::item(item->id);
-        else return ui::UiActionResult::Rejected;
-        return applyCommand(context, {slot->slot, override})
+        const auto command = parseSetEquipmentSlot(key_of(), text);
+        if (!command) return ui::UiActionResult::Rejected;
+        return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.loadout-select")) {

@@ -2,8 +2,10 @@
 
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
+#include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/runtime/UnitLabScene.hpp>
 
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <iterator>
@@ -144,6 +146,32 @@ parseSetExpression(std::string_view text) {
         return UnitLabCommandResult<SetExpression>::failure(expression.error());
     }
     return UnitLabCommandResult<SetExpression>::success({expression.value()});
+}
+
+[[nodiscard]] inline UnitLabCommandResult<SetEquipmentSlot>
+parseSetEquipmentSlot(std::string_view slot_text, std::string_view item_text) {
+    const auto slot = std::find_if(
+        infantry::EquipmentCatalog::slots().begin(), infantry::EquipmentCatalog::slots().end(),
+        [slot_text](const auto& candidate) { return candidate.identifier == slot_text; });
+    if (slot == infantry::EquipmentCatalog::slots().end()) {
+        return UnitLabCommandResult<SetEquipmentSlot>::failure(unitLabDiagnostic(
+            "set-equipment-slot", "slot", slot_text, "unknown unit lab equipment slot"));
+    }
+    infantry::EquipmentOverride override{};
+    if (item_text == "auto") {
+        override = infantry::EquipmentOverride::absent();
+    } else if (item_text == "none") {
+        override = infantry::EquipmentOverride::nullValue();
+    } else {
+        const auto* item = infantry::EquipmentCatalog::findItem(item_text);
+        if (item == nullptr || !item->allows(slot->slot)) {
+            return UnitLabCommandResult<SetEquipmentSlot>::failure(unitLabDiagnostic(
+                "set-equipment-slot", "item", item_text,
+                "equipment item is missing or incompatible with the slot"));
+        }
+        override = infantry::EquipmentOverride::item(item->id);
+    }
+    return UnitLabCommandResult<SetEquipmentSlot>::success({slot->slot, override});
 }
 
 [[nodiscard]] inline UnitLabCommandResult<SetGeneOverride>
