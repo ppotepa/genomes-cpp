@@ -38,8 +38,8 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R018 | PR04 | I/O | FIX | Atomic-file failures retain I/O categories; only invalid serialization is corrupt data. | CODE_READY | 5e11834 | NOT_RUN | - | `world.save` checks missing-file `NotFound` is preserved. |
 | R019 | PR05 | content | FIX | Shared asset resolver rejects absolute/rooted/traversal/noncanonical paths and reparse points before bounded reads. | CODE_READY | b69670d | NOT_RUN | - | UI resolver checks canonical roots/reparse points and bounds manifests to 1 MiB. |
 | R020 | PR05 | mods | FIX | Mod order is stable topological order: dependencies, then ready-node priority, then ID. | CODE_READY | 56b05e5 | NOT_RUN | - | `UiContentRegistry` uses ready-set topological ordering. |
-| R021 | PR05 | content | REF | Registries validate duplicates/name/hash collisions in a candidate and atomically publish a frozen snapshot. | PLANNED | - | NOT_RUN | - | - |
-| R022 | PR05 | foundation/content | EXT | Owning `Diagnostic` carries dynamic path/field/source text; lightweight `foundation::Error` remains static. | PLANNED | - | NOT_RUN | - | - |
+| R021 | PR05 | content | REF | Registries validate duplicates/name/hash collisions in a candidate and atomically publish a frozen snapshot. | CODE_READY | 76cd265 | NOT_RUN | - | Discovery builds a candidate, rejects duplicate strings and scene-ID hash collisions, then returns it as a snapshot. |
+| R022 | PR05 | foundation/content | EXT | Owning `Diagnostic` carries dynamic path/field/source text; lightweight `foundation::Error` remains static. | CODE_READY | 76cd265 | NOT_RUN | - | `UiContentError` owns message/path/field/source; `foundation::Error` remains unchanged. |
 | R023 | PR05 | plugins | FIX | Native plugins require user permission plus `trusted_native`; C ABI is exception-safe with rollback and reverse dependency unload. | CODE_READY | 10601b2 | NOT_RUN | - | Plugin manager keeps host API alive through unload and rolls back failed loads. |
 | R024 | PR06 | content | REF | Content module owns bounded read, manifests, provenance, canonical hashing and frozen snapshots; domains own fields. | PLANNED | - | NOT_RUN | - | - |
 | R025 | PR06 | configuration | REF | Configuration flow is defaults/core/profile/topological overrides/allowed CLI, then validate, resolve, canonicalize, fingerprint and freeze. | PLANNED | - | NOT_RUN | - | - |
@@ -87,7 +87,7 @@ new explicitly versioned capability or contract.
 | PR02 | Infantry state and Unit Lab input | R005-R008 | CODE_READY | 3204f38 | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | CODE_READY | 2194765 | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | d686ba7 | NOT_RUN | - |
-| PR05 | Packages and native plugins | R019-R023 | PLANNED | - | NOT_RUN | - |
+| PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | PLANNED | - | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | - | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | - | NOT_RUN | - |
