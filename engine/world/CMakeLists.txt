@@ -8,9 +8,7 @@ target_include_directories(genomes_world_core PUBLIC
 target_link_libraries(genomes_world_core PUBLIC
     genomes::foundation
     genomes::proc
-    genomes::io
-    genomes_hydrology
-    genomes_roads)
+    genomes::io)
 target_compile_features(genomes_world_core PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_world_core)
 
