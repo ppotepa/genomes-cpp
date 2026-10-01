@@ -232,6 +232,9 @@ int main() {
         gpu_context, genomes::foundation::stable_id("unit.genome"),
         {{"key", "height"}, {"value", "0.82"}}) == genomes::ui::UiActionResult::Handled);
     assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.genome"),
+        {{"key", "height"}, {"value", "nan"}}) == genomes::ui::UiActionResult::Rejected);
+    assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.genome-plus"), {}) ==
         genomes::ui::UiActionResult::Handled);
     gpu_presentation.clear_scene_payload();

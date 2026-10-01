@@ -60,6 +60,11 @@ struct SetEquipmentSlot final {
     infantry::EquipmentOverride value{};
 };
 
+struct SetGeneOverride final {
+    infantry::GenomeGene gene{infantry::GenomeGene::Height};
+    double value{0.5};
+};
+
 class UnitLabScene final : public Scene {
 public:
     ~UnitLabScene() override;
@@ -81,6 +86,7 @@ private:
     bool applyCommand(SceneContext&, SetCameraMode);
     bool applyCommand(SceneContext&, SetLocomotionPreset);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
+    bool applyCommand(SceneContext&, SetGeneOverride);
     bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);

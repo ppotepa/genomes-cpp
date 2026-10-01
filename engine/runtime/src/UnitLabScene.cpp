@@ -188,6 +188,15 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetEquipmentSlot command)
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext& context, SetGeneOverride command) {
+    if (static_cast<std::size_t>(command.gene) >= infantry::GenomeGeneCount ||
+        !std::isfinite(command.value)) return false;
+    if (!genome_overrides_.set(command.gene, std::clamp(command.value, 0.0, 1.0))) return false;
+    selected_genome_gene_ = command.gene;
+    rebuildModel(&context);
+    return true;
+}
+
 bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
     switch (control) {
     case 0: ++preview_seed_; rebuildModel(&context); break;
@@ -269,10 +278,8 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             value = model_artifact_->genome.geneValue(selected_genome_gene_);
         }
         value = std::clamp(value + (control == 18 ? -0.10 : 0.10), 0.0, 1.0);
-        (void)genome_overrides_.set(selected_genome_gene_, value);
         genome_override_mode_ = 0U;
-        rebuildModel(&context);
-        break;
+        return applyCommand(context, {selected_genome_gene_, value});
     }
     case 20: {
         const auto index = static_cast<std::size_t>(selected_genome_gene_);
@@ -526,10 +533,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
                                             std::chars_format::general);
         if (!gene || parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
             !std::isfinite(value)) return ui::UiActionResult::Rejected;
-        (void)genome_overrides_.set(*gene, std::clamp(value, 0.0, 1.0));
-        selected_genome_gene_ = *gene;
-        rebuildModel(&context);
-        return ui::UiActionResult::Handled;
+        return applyCommand(context, {*gene, value})
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.weight") && !text.empty()) {
         if (text == "off") {
