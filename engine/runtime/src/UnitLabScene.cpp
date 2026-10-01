@@ -166,6 +166,28 @@ bool UnitLabScene::applyCommand(SceneContext&, SetLocomotionPreset command) {
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext& context, SetEquipmentSlot command) {
+    const auto slots = infantry::EquipmentCatalog::slots();
+    const auto slot = std::find_if(slots.begin(), slots.end(), [&](const auto& candidate) {
+        return candidate.slot == command.slot;
+    });
+    if (slot == slots.end()) return false;
+    if (command.value.specified) {
+        if (command.value.empty) {
+            if (command.value.definition_id != 0U) return false;
+        } else {
+            const auto* item = infantry::EquipmentCatalog::findItem(command.value.definition_id);
+            if (item == nullptr || !item->allows(command.slot)) return false;
+        }
+    } else if (command.value.empty || command.value.definition_id != 0U) {
+        return false;
+    }
+    equipment_overrides_.slots[infantry::equipmentSlotIndex(command.slot)] = command.value;
+    selected_equipment_slot_ = static_cast<std::size_t>(std::distance(slots.begin(), slot));
+    rebuildModel(&context);
+    return true;
+}
+
 bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
     switch (control) {
     case 0: ++preview_seed_; rebuildModel(&context); break;
@@ -547,16 +569,15 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
             return candidate.identifier == key_of();
         });
         if (slot == slots.end()) return ui::UiActionResult::Rejected;
-        auto& target = equipment_overrides_.slots[infantry::equipmentSlotIndex(slot->slot)];
-        if (text == "auto") target = infantry::EquipmentOverride::absent();
-        else if (text == "none") target = infantry::EquipmentOverride::nullValue();
+        infantry::EquipmentOverride override{};
+        if (text == "auto") override = infantry::EquipmentOverride::absent();
+        else if (text == "none") override = infantry::EquipmentOverride::nullValue();
         else if (const auto* item = infantry::EquipmentCatalog::findItem(text);
                  item != nullptr && item->allows(slot->slot))
-            target = infantry::EquipmentOverride::item(item->id);
+            override = infantry::EquipmentOverride::item(item->id);
         else return ui::UiActionResult::Rejected;
-        selected_equipment_slot_ = infantry::equipmentSlotIndex(slot->slot);
-        rebuildModel(&context);
-        return ui::UiActionResult::Handled;
+        return applyCommand(context, {slot->slot, override})
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.loadout-select")) {
         const auto loadouts = infantry::infantryLoadouts();

@@ -55,6 +55,11 @@ struct SetLocomotionPreset final {
     infantry::BipedPreset value{infantry::BipedPreset::Idle};
 };
 
+struct SetEquipmentSlot final {
+    infantry::EquipmentSlot slot{infantry::EquipmentSlot::Head};
+    infantry::EquipmentOverride value{};
+};
+
 class UnitLabScene final : public Scene {
 public:
     ~UnitLabScene() override;
@@ -75,6 +80,7 @@ private:
     bool applyCommand(SceneContext&, SetVariation);
     bool applyCommand(SceneContext&, SetCameraMode);
     bool applyCommand(SceneContext&, SetLocomotionPreset);
+    bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
