@@ -65,6 +65,10 @@ SceneContext SceneDirector::make_context() noexcept {
 
 foundation::Result<void, foundation::Error>
 SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
+    if (scene_registry_frozen_) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "scene registry is frozen"});
+    }
     if (factories_.contains(id)) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "scene ID already registered"});
@@ -74,6 +78,7 @@ SceneDirector::register_scene(foundation::SceneId id, Factory factory) {
 }
 
 bool SceneDirector::start(foundation::SceneId id) {
+    scene_registry_frozen_ = true;
     return change_to(id);
 }
 

@@ -65,6 +65,7 @@ private:
     render::PresentationSnapshot& presentation_;
     SceneCommandQueue commands_;
     std::unordered_map<foundation::SceneId, Factory> factories_;
+    bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
     std::optional<WorldGenerationConfig> active_world_config_;
     jobs::JobSystem* jobs_{nullptr};

@@ -65,6 +65,13 @@ int main() {
     });
 
     assert(director.start(menu_id));
+    const auto late_scene = director.register_scene(
+        genomes::foundation::scene_id("scene.late-registration"), [] {
+            return std::make_unique<DummyScene>(
+                genomes::foundation::scene_id("scene.late-registration"));
+        });
+    assert(!late_scene);
+    assert(late_scene.error().code == genomes::foundation::ErrorCode::InvalidState);
     director.fixed_update(1.0 / 60.0);
     director.frame_update(1.0 / 60.0);
     director.present();
