@@ -216,10 +216,10 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     artifact.terrain = std::move(terrain_field);
     artifact.terrain_mesh = std::move(mesh_result.value());
     world::WorldSaveModel save{};
-    save.header.generator_version = artifact.plan.generator_version;
-    save.header.seed = artifact.plan.seed;
-    save.header.content_hash = artifact.plan.content_hash;
-    save.header.catalog_hash = foundation::stable_id("catalog.world");
+    save.metadata.generator_version = artifact.plan.generator_version;
+    save.metadata.seed = artifact.plan.seed;
+    save.metadata.content_hash = artifact.plan.content_hash;
+    save.metadata.catalog_hash = foundation::stable_id("catalog.world");
     save.regions.push_back({world::regionId(terrain_spec.world_id, {0, 0, 0}),
                             artifact.plan.content_hash, {}});
     const auto serialized_save = world::WorldSaveCodec::serialize(save);

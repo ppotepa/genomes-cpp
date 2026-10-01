@@ -91,18 +91,59 @@ private:
     return {foundation::ErrorCode::InvalidArgument, "corrupt world save package"};
 }
 
+struct EncodedSaveHeader final {
+    std::uint32_t magic{WorldSaveMagic};
+    std::uint32_t schema_version{WorldSaveSchemaVersion};
+    std::uint32_t generator_version{0U};
+    proc::Seed seed{0U};
+    foundation::SimulationTick tick{};
+    std::uint64_t content_hash{0U};
+    std::uint64_t catalog_hash{0U};
+    std::uint32_t region_count{0U};
+    std::uint32_t entity_count{0U};
+    std::uint32_t payload_bytes{0U};
+    std::uint64_t payload_checksum{0U};
+
+    [[nodiscard]] bool valid() const noexcept {
+        return magic == WorldSaveMagic && schema_version == WorldSaveSchemaVersion &&
+               generator_version != 0U && seed != 0U && content_hash != 0U;
+    }
+};
+
+[[nodiscard]] bool checkedAdd(std::size_t left, std::size_t right, std::size_t& result) noexcept {
+    if (left > std::numeric_limits<std::size_t>::max() - right) {
+        return false;
+    }
+    result = left + right;
+    return true;
+}
+
+[[nodiscard]] bool checkedMultiply(std::size_t left, std::size_t right,
+                                   std::size_t& result) noexcept {
+    if (left != 0U && right > std::numeric_limits<std::size_t>::max() / left) {
+        return false;
+    }
+    result = left * right;
+    return true;
+}
+
+[[nodiscard]] bool withinLimit(std::size_t value, std::size_t limit) noexcept {
+    return value <= limit;
+}
+
 } // namespace
 
-bool WorldSaveHeader::valid() const noexcept {
-    return magic == WorldSaveMagic && schema_version == WorldSaveSchemaVersion &&
-           generator_version != 0U && seed != 0U && content_hash != 0U &&
-           payload_bytes <= WorldSaveMaximumBytes && region_count <= 1'000'000U &&
-           entity_count <= 1'000'000U;
+bool WorldSaveMetadata::valid() const noexcept {
+    return generator_version != 0U && seed != 0U && content_hash != 0U;
+}
+
+bool WorldSaveLimits::valid() const noexcept {
+    return max_file_bytes >= WorldSaveHeaderBytes && max_regions > 0U && max_entities > 0U &&
+           max_destroyed_objects > 0U && max_working_bytes > 0U;
 }
 
 bool WorldSaveModel::valid() const noexcept {
-    if (!header.valid() || header.region_count != regions.size() ||
-        header.entity_count != entities.size()) {
+    if (!metadata.valid()) {
         return false;
     }
     for (std::size_t index = 0U; index < regions.size(); ++index) {
@@ -129,11 +170,34 @@ bool WorldSaveModel::valid() const noexcept {
 }
 
 foundation::Result<std::vector<std::byte>, foundation::Error> WorldSaveCodec::serialize(
-    const WorldSaveModel& model) {
-    if (!model.header.valid() || model.header.region_count != 0U ||
-        model.header.entity_count != 0U) {
+    const WorldSaveModel& model, WorldSaveLimits limits) {
+    if (!limits.valid() || !model.metadata.valid() || model.regions.size() > limits.max_regions ||
+        model.entities.size() > limits.max_entities ||
+        model.regions.size() > std::numeric_limits<std::uint32_t>::max() ||
+        model.entities.size() > std::numeric_limits<std::uint32_t>::max()) {
         return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid world save metadata"});
+    }
+    std::size_t destroyed_total = 0U;
+    for (const WorldSaveRegion& region : model.regions) {
+        if (!checkedAdd(destroyed_total, region.destroyed_objects.size(), destroyed_total) ||
+            destroyed_total > limits.max_destroyed_objects) {
+            return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange, "world save destroyed-object limit exceeded"});
+        }
+    }
+    std::size_t region_work = 0U;
+    std::size_t entity_work = 0U;
+    std::size_t destroyed_work = 0U;
+    std::size_t working_bytes = 0U;
+    if (!checkedMultiply(model.regions.size(), sizeof(WorldSaveRegion), region_work) ||
+        !checkedMultiply(model.entities.size(), sizeof(WorldSaveEntity), entity_work) ||
+        !checkedMultiply(destroyed_total, sizeof(foundation::StableId), destroyed_work) ||
+        !checkedAdd(region_work, entity_work, working_bytes) ||
+        !checkedAdd(working_bytes, destroyed_work, working_bytes) ||
+        !withinLimit(working_bytes, limits.max_working_bytes)) {
+        return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
+            {foundation::ErrorCode::OutOfRange, "world save working-memory limit exceeded"});
     }
     std::vector<WorldSaveRegion> regions = model.regions;
     std::vector<WorldSaveEntity> entities = model.entities;
@@ -149,15 +213,22 @@ foundation::Result<std::vector<std::byte>, foundation::Error> WorldSaveCodec::se
     WorldSaveModel canonical = model;
     canonical.regions = std::move(regions);
     canonical.entities = std::move(entities);
-    canonical.header.region_count = static_cast<std::uint32_t>(canonical.regions.size());
-    canonical.header.entity_count = static_cast<std::uint32_t>(canonical.entities.size());
     if (!canonical.valid()) {
         return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid world save state"});
     }
 
+    std::size_t payload_reserve = 0U;
+    if (!checkedMultiply(canonical.regions.size(), 20U, payload_reserve) ||
+        !checkedAdd(payload_reserve, destroyed_work, payload_reserve) ||
+        !checkedMultiply(canonical.entities.size(), 32U, entity_work) ||
+        !checkedAdd(payload_reserve, entity_work, payload_reserve) ||
+        !withinLimit(payload_reserve, limits.max_file_bytes - WorldSaveHeaderBytes)) {
+        return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
+            {foundation::ErrorCode::OutOfRange, "world save payload is too large"});
+    }
     std::vector<std::byte> payload;
-    payload.reserve(64U + canonical.regions.size() * 32U + canonical.entities.size() * 32U);
+    payload.reserve(payload_reserve);
     for (const WorldSaveRegion& region : canonical.regions) {
         appendU64(payload, region.id.value());
         appendU64(payload, region.content_hash);
@@ -175,58 +246,90 @@ foundation::Result<std::vector<std::byte>, foundation::Error> WorldSaveCodec::se
         appendU32(payload, entity.flags);
         appendU64(payload, entity.equipment_id);
     }
-    if (payload.size() > WorldSaveMaximumBytes || payload.size() > std::numeric_limits<std::uint32_t>::max()) {
+    if (payload.size() > limits.max_file_bytes - WorldSaveHeaderBytes ||
+        payload.size() > std::numeric_limits<std::uint32_t>::max()) {
         return foundation::Result<std::vector<std::byte>, foundation::Error>::failure(
             {foundation::ErrorCode::OutOfRange, "world save payload is too large"});
     }
-    canonical.header.payload_bytes = static_cast<std::uint32_t>(payload.size());
-    canonical.header.payload_checksum = checksum(payload);
+    const EncodedSaveHeader header{WorldSaveMagic,
+                                   WorldSaveSchemaVersion,
+                                   canonical.metadata.generator_version,
+                                   canonical.metadata.seed,
+                                   canonical.metadata.tick,
+                                   canonical.metadata.content_hash,
+                                   canonical.metadata.catalog_hash,
+                                   static_cast<std::uint32_t>(canonical.regions.size()),
+                                   static_cast<std::uint32_t>(canonical.entities.size()),
+                                   static_cast<std::uint32_t>(payload.size()),
+                                   checksum(payload)};
 
     std::vector<std::byte> output;
     output.reserve(WorldSaveHeaderBytes + payload.size());
-    appendU32(output, canonical.header.magic);
-    appendU32(output, canonical.header.schema_version);
-    appendU32(output, canonical.header.generator_version);
-    appendU64(output, canonical.header.seed);
-    appendU64(output, canonical.header.tick.value);
-    appendU64(output, canonical.header.content_hash);
-    appendU64(output, canonical.header.catalog_hash);
-    appendU32(output, canonical.header.region_count);
-    appendU32(output, canonical.header.entity_count);
-    appendU32(output, canonical.header.payload_bytes);
-    appendU64(output, canonical.header.payload_checksum);
+    appendU32(output, header.magic);
+    appendU32(output, header.schema_version);
+    appendU32(output, header.generator_version);
+    appendU64(output, header.seed);
+    appendU64(output, header.tick.value);
+    appendU64(output, header.content_hash);
+    appendU64(output, header.catalog_hash);
+    appendU32(output, header.region_count);
+    appendU32(output, header.entity_count);
+    appendU32(output, header.payload_bytes);
+    appendU64(output, header.payload_checksum);
     output.insert(output.end(), payload.begin(), payload.end());
     return foundation::Result<std::vector<std::byte>, foundation::Error>::success(std::move(output));
 }
 
 foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::deserialize(
-    std::span<const std::byte> bytes) {
-    if (bytes.size() < WorldSaveHeaderBytes || bytes.size() > WorldSaveMaximumBytes + WorldSaveHeaderBytes) {
+    std::span<const std::byte> bytes, WorldSaveLimits limits) {
+    if (!limits.valid()) {
+        return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid world save limits"});
+    }
+    if (bytes.size() < WorldSaveHeaderBytes) {
         return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
+    }
+    if (bytes.size() > limits.max_file_bytes) {
+        return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+            {foundation::ErrorCode::OutOfRange, "world save file exceeds configured limit"});
     }
     Cursor header_cursor(bytes.first(WorldSaveHeaderBytes));
     WorldSaveModel model{};
-    std::uint64_t seed = 0U;
-    if (!header_cursor.readU32(model.header.magic) || !header_cursor.readU32(model.header.schema_version) ||
-        !header_cursor.readU32(model.header.generator_version) || !header_cursor.readU64(seed) ||
-        !header_cursor.readU64(model.header.tick.value) ||
-        !header_cursor.readU64(model.header.content_hash) ||
-        !header_cursor.readU64(model.header.catalog_hash) ||
-        !header_cursor.readU32(model.header.region_count) ||
-        !header_cursor.readU32(model.header.entity_count) ||
-        !header_cursor.readU32(model.header.payload_bytes) ||
-        !header_cursor.readU64(model.header.payload_checksum) || !header_cursor.empty()) {
+    EncodedSaveHeader header{};
+    if (!header_cursor.readU32(header.magic) || !header_cursor.readU32(header.schema_version) ||
+        !header_cursor.readU32(header.generator_version) || !header_cursor.readU64(header.seed) ||
+        !header_cursor.readU64(header.tick.value) || !header_cursor.readU64(header.content_hash) ||
+        !header_cursor.readU64(header.catalog_hash) || !header_cursor.readU32(header.region_count) ||
+        !header_cursor.readU32(header.entity_count) || !header_cursor.readU32(header.payload_bytes) ||
+        !header_cursor.readU64(header.payload_checksum) || !header_cursor.empty()) {
         return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
     }
-    model.header.seed = seed;
-    if (!model.header.valid() || bytes.size() != WorldSaveHeaderBytes + model.header.payload_bytes ||
-        checksum(bytes.subspan(WorldSaveHeaderBytes)) != model.header.payload_checksum) {
+    model.metadata = {header.generator_version, header.seed, header.tick, header.content_hash,
+                      header.catalog_hash};
+    if (!header.valid() || !model.metadata.valid() ||
+        bytes.size() != WorldSaveHeaderBytes + header.payload_bytes ||
+        checksum(bytes.subspan(WorldSaveHeaderBytes)) != header.payload_checksum) {
         return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
+    }
+    if (header.region_count > limits.max_regions || header.entity_count > limits.max_entities) {
+        return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+            {foundation::ErrorCode::OutOfRange, "world save collection limit exceeded"});
     }
     Cursor cursor(bytes.subspan(WorldSaveHeaderBytes));
-    model.regions.reserve(model.header.region_count);
-    model.entities.reserve(model.header.entity_count);
-    for (std::uint32_t index = 0U; index < model.header.region_count; ++index) {
+    std::size_t region_work = 0U;
+    std::size_t entity_work = 0U;
+    std::size_t working_bytes = 0U;
+    if (!checkedMultiply(header.region_count, sizeof(WorldSaveRegion), region_work) ||
+        !checkedMultiply(header.entity_count, sizeof(WorldSaveEntity), entity_work) ||
+        !checkedAdd(region_work, entity_work, working_bytes) ||
+        !withinLimit(working_bytes, limits.max_working_bytes)) {
+        return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+            {foundation::ErrorCode::OutOfRange, "world save working-memory limit exceeded"});
+    }
+    model.regions.reserve(header.region_count);
+    model.entities.reserve(header.entity_count);
+    std::size_t destroyed_total = 0U;
+    for (std::uint32_t index = 0U; index < header.region_count; ++index) {
         std::uint64_t id = 0U;
         std::uint64_t content_hash = 0U;
         std::uint32_t destroyed_count = 0U;
@@ -235,6 +338,18 @@ foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::deserializ
             return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
         }
         WorldSaveRegion region{RegionId(id), content_hash, {}};
+        if (!checkedAdd(destroyed_total, destroyed_count, destroyed_total) ||
+            destroyed_total > limits.max_destroyed_objects) {
+            return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange, "world save destroyed-object limit exceeded"});
+        }
+        std::size_t destroyed_work = 0U;
+        if (!checkedMultiply(destroyed_total, sizeof(foundation::StableId), destroyed_work) ||
+            !checkedAdd(working_bytes, destroyed_work, destroyed_work) ||
+            !withinLimit(destroyed_work, limits.max_working_bytes)) {
+            return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange, "world save working-memory limit exceeded"});
+        }
         region.destroyed_objects.reserve(destroyed_count);
         for (std::uint32_t destroyed = 0U; destroyed < destroyed_count; ++destroyed) {
             std::uint64_t object = 0U;
@@ -246,10 +361,10 @@ foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::deserializ
         model.regions.push_back(std::move(region));
     }
     constexpr std::size_t entity_bytes = 32U;
-    if (model.header.entity_count > cursor.remaining() / entity_bytes) {
+    if (header.entity_count > cursor.remaining() / entity_bytes) {
         return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
     }
-    for (std::uint32_t index = 0U; index < model.header.entity_count; ++index) {
+    for (std::uint32_t index = 0U; index < header.entity_count; ++index) {
         WorldSaveEntity entity{};
         std::uint32_t generation = 0U;
         if (!cursor.readU32(entity.id.index) || !cursor.readU32(generation) ||
@@ -268,28 +383,26 @@ foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::deserializ
 }
 
 foundation::Result<void, foundation::Error> WorldSaveCodec::saveFile(
-    const std::filesystem::path& path, const WorldSaveModel& model) {
-    const auto serialized = serialize(model);
+    const std::filesystem::path& path, const WorldSaveModel& model, WorldSaveLimits limits) {
+    const auto serialized = serialize(model, limits);
     if (!serialized) {
         return foundation::Result<void, foundation::Error>::failure(serialized.error());
     }
     const auto& bytes = serialized.value();
-    return io::AtomicFile::write(
-        path, bytes, io::AtomicFileConfig{WorldSaveMaximumBytes + WorldSaveHeaderBytes});
+    return io::AtomicFile::write(path, bytes, io::AtomicFileConfig{limits.max_file_bytes});
 }
 
 foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::loadFile(
-    const std::filesystem::path& path) {
-    const auto bytes = io::AtomicFile::read(
-        path, io::AtomicFileConfig{WorldSaveMaximumBytes + WorldSaveHeaderBytes});
+    const std::filesystem::path& path, WorldSaveLimits limits) {
+    if (!limits.valid()) {
+        return foundation::Result<WorldSaveModel, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid world save limits"});
+    }
+    const auto bytes = io::AtomicFile::read(path, io::AtomicFileConfig{limits.max_file_bytes});
     if (!bytes) {
-        if (bytes.error().code == foundation::ErrorCode::OutOfRange ||
-            bytes.error().code == foundation::ErrorCode::Internal) {
-            return foundation::Result<WorldSaveModel, foundation::Error>::failure(corrupt());
-        }
         return foundation::Result<WorldSaveModel, foundation::Error>::failure(bytes.error());
     }
-    return deserialize(bytes.value());
+    return deserialize(bytes.value(), limits);
 }
 
 } // namespace genomes::world

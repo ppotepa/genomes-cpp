@@ -21,18 +21,22 @@ inline constexpr std::uint32_t WorldSaveSchemaVersion = 1U;
 inline constexpr std::size_t WorldSaveHeaderBytes = 64U;
 inline constexpr std::size_t WorldSaveMaximumBytes = 64U * 1024U * 1024U;
 
-struct WorldSaveHeader final {
-    std::uint32_t magic{WorldSaveMagic};
-    std::uint32_t schema_version{WorldSaveSchemaVersion};
+struct WorldSaveMetadata final {
     std::uint32_t generator_version{0U};
     proc::Seed seed{0U};
     foundation::SimulationTick tick{};
     std::uint64_t content_hash{0U};
     std::uint64_t catalog_hash{0U};
-    std::uint32_t region_count{0U};
-    std::uint32_t entity_count{0U};
-    std::uint32_t payload_bytes{0U};
-    std::uint64_t payload_checksum{0U};
+
+    [[nodiscard]] bool valid() const noexcept;
+};
+
+struct WorldSaveLimits final {
+    std::size_t max_file_bytes{WorldSaveMaximumBytes + WorldSaveHeaderBytes};
+    std::uint32_t max_regions{1'000'000U};
+    std::uint32_t max_entities{1'000'000U};
+    std::uint32_t max_destroyed_objects{1'000'000U};
+    std::size_t max_working_bytes{WorldSaveMaximumBytes * 2U};
 
     [[nodiscard]] bool valid() const noexcept;
 };
@@ -51,7 +55,7 @@ struct WorldSaveEntity final {
 };
 
 struct WorldSaveModel final {
-    WorldSaveHeader header{};
+    WorldSaveMetadata metadata{};
     std::vector<WorldSaveRegion> regions;
     std::vector<WorldSaveEntity> entities;
 
@@ -61,13 +65,14 @@ struct WorldSaveModel final {
 class WorldSaveCodec final {
 public:
     [[nodiscard]] static foundation::Result<std::vector<std::byte>, foundation::Error> serialize(
-        const WorldSaveModel& model);
+        const WorldSaveModel& model, WorldSaveLimits limits = {});
     [[nodiscard]] static foundation::Result<WorldSaveModel, foundation::Error> deserialize(
-        std::span<const std::byte> bytes);
+        std::span<const std::byte> bytes, WorldSaveLimits limits = {});
     [[nodiscard]] static foundation::Result<void, foundation::Error> saveFile(
-        const std::filesystem::path& path, const WorldSaveModel& model);
+        const std::filesystem::path& path, const WorldSaveModel& model,
+        WorldSaveLimits limits = {});
     [[nodiscard]] static foundation::Result<WorldSaveModel, foundation::Error> loadFile(
-        const std::filesystem::path& path);
+        const std::filesystem::path& path, WorldSaveLimits limits = {});
 };
 
 } // namespace genomes::world
