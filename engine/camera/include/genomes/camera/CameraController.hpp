@@ -6,6 +6,7 @@ namespace genomes::camera {
 
 using ControlMode = CameraMode;
 struct CameraInput final {
+    // Per-frame pointer displacements; unlike move_*, these are not dt-scaled.
     float orbit_x{0};
     float orbit_y{0};
     float move_x{0};
@@ -26,8 +27,6 @@ public:
     void rebaseOrbitTarget(math::Vec3 target) noexcept {
         home_target_ = target;
         orbit_target_ = target;
-        orbit_velocity_x_ = orbit_velocity_y_ = 0.0F;
-        pan_velocity_x_ = pan_velocity_y_ = 0.0F;
     }
     [[nodiscard]] ControlMode mode() const noexcept { return mode_; }
     void reset(const CameraRequest& request) noexcept;
@@ -41,10 +40,6 @@ private:
     float yaw_{0};
     float pitch_{0.2F};
     float distance_{3};
-    float orbit_velocity_x_{0};
-    float orbit_velocity_y_{0};
-    float pan_velocity_x_{0};
-    float pan_velocity_y_{0};
 };
 
 } // namespace genomes::camera

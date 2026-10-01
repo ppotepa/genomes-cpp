@@ -98,6 +98,7 @@ int main() {
     orbit.events.push_back({genomes::input::EventType::MouseButtonDown, 0, 0, 1,
                             orbit.mouse_x, orbit.mouse_y, 0.0F, 0.0F, {}});
     director.handle_input(orbit);
+    director.frame_update(1.0 / 60.0);
     assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) >
            1.0e-8F);
     const auto target_before_pan = presentation.camera.target;
@@ -109,7 +110,10 @@ int main() {
     pan.mouse_delta_x = 20.0F;
     pan.mouse_delta_y = 8.0F;
     pan.mouse_right_down = true;
+    pan.events.push_back({genomes::input::EventType::MouseButtonDown, 0, 0, 3,
+                          pan.mouse_x, pan.mouse_y, 0.0F, 0.0F, {}});
     director.handle_input(pan);
+    director.frame_update(1.0 / 60.0);
     assert(genomes::math::lengthSquared(presentation.camera.target - target_before_pan) > 1.0e-8F);
     const auto distance_before_zoom = genomes::math::length(
         presentation.camera.position - presentation.camera.target);
@@ -120,6 +124,7 @@ int main() {
     zoom.mouse_y = 360.0F;
     zoom.mouse_wheel_y = 1.0F;
     director.handle_input(zoom);
+    director.frame_update(1.0 / 60.0);
     assert(genomes::math::length(presentation.camera.position - presentation.camera.target) <
            distance_before_zoom);
     genomes::input::InputFrame reset{};
@@ -127,12 +132,14 @@ int main() {
     reset.viewport_height = 720;
     reset.reset_pressed = true;
     director.handle_input(reset);
+    director.frame_update(1.0 / 60.0);
     assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) <
            1.0e-8F);
     genomes::input::InputFrame cancel = orbit;
     cancel.cancel_pressed = true;
     cancel.pointer_cancel = true;
     director.handle_input(cancel);
+    director.frame_update(1.0 / 60.0);
     assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) <
            1.0e-8F);
     bool has_explicit_uniform_color = false;
@@ -160,10 +167,16 @@ int main() {
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() == stable_prototype);
 
+    director.handle_input(orbit);
+    director.frame_update(1.0 / 60.0);
+    const auto camera_before_regenerate = presentation.camera;
     assert(director.dispatch_ui_action(genomes::foundation::stable_id("unit.regenerate"), {}) ==
            genomes::ui::UiActionResult::Handled);
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() != stable_prototype);
+    assert(genomes::math::length(presentation.camera.position-camera_before_regenerate.position) < 1.0e-5F);
+    assert(genomes::math::length(presentation.camera.target-camera_before_regenerate.target) < 1.0e-5F);
+    assert(presentation.camera.revision == camera_before_regenerate.revision);
     assert(presentation.scene_epoch == initial_scene_epoch);
     const auto regenerated_prototype = presentation.skinned_prototypes.front();
 

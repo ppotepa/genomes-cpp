@@ -59,50 +59,16 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
         return;
     }
     if (ui_.process_input(input)) {
+        viewport_controller_.cancelGesture();
         return;
     }
     framebuffer_width_ = std::max(1, static_cast<int>(input.viewport_width));
     framebuffer_height_ = std::max(1, static_cast<int>(input.viewport_height));
     if (presentation_.camera.enabled && presentation_.camera.mode != camera::CameraMode::Fixed) {
-        camera::CameraRequest request = presentation_.camera.toRequest();
-        camera_controller_.setMode(request.mode);
-        if (!camera_controller_initialized_) {
-            camera_controller_.reset(request);
-            camera_controller_initialized_ = true;
-        }
-        camera::CameraInput camera_input{};
-        const float viewport_left = presentation_.camera.viewport_left * framebuffer_width_;
-        const float viewport_top = presentation_.camera.viewport_top * framebuffer_height_;
-        const float viewport_width = presentation_.camera.viewport_width * framebuffer_width_;
-        const float viewport_height = presentation_.camera.viewport_height * framebuffer_height_;
-        const bool inside = input.mouse_x >= viewport_left && input.mouse_x < viewport_left + viewport_width &&
-                            input.mouse_y >= viewport_top && input.mouse_y < viewport_top + viewport_height;
-        bool pointer_down_event = input.mouse_left_pressed;
-        for (const auto& event : input.events)
-            if (event.type == input::EventType::MouseButtonDown) pointer_down_event = true;
-        if (pointer_down_event && inside) camera_pointer_capture_ = true;
-        if (input.pointer_cancel || input.focus_lost ||
-            (!input.mouse_left_down && !input.mouse_middle_down && !input.mouse_right_down))
-            camera_pointer_capture_ = false;
-        const float normalized_x = input.mouse_delta_x / std::max(1.0F, viewport_width);
-        const float normalized_y = input.mouse_delta_y / std::max(1.0F, viewport_height);
-        camera_input.orbit_x = camera_pointer_capture_ && input.mouse_left_down ? normalized_x * 4.0F : 0.0F;
-        camera_input.orbit_y = camera_pointer_capture_ && input.mouse_left_down ? normalized_y * 4.0F : 0.0F;
-        const bool panning = camera_pointer_capture_ && (input.mouse_middle_down || input.mouse_right_down);
-        camera_input.pan_x = panning ? normalized_x : 0.0F;
-        camera_input.pan_y = panning ? normalized_y : 0.0F;
-        camera_input.move_x = static_cast<float>(input.right_pressed) -
-                              static_cast<float>(input.left_pressed);
-        camera_input.move_z = static_cast<float>(input.down_pressed) -
-                              static_cast<float>(input.up_pressed);
-        camera_input.zoom = inside ? -input.mouse_wheel_y * 0.12F : 0.0F;
-        camera_input.reset = input.reset_pressed;
-        camera_input.cancel = input.cancel_pressed || input.pointer_cancel;
-        camera_input.focus_lost = input.focus_lost;
-        camera_controller_.update(request, camera_input, 1.0F / 60.0F);
-        presentation_.camera.applyRequest(request);
+        viewport_controller_.configure(presentation_.camera.toRequest(), presentation_.camera.revision);
+        viewport_controller_.handleInput(input);
     } else {
-        camera_controller_initialized_ = false;
+        viewport_controller_.clear();
     }
     SceneContext context = make_context();
     current_->handle_input(context, input);
@@ -120,7 +86,9 @@ ui::UiActionResult SceneDirector::dispatch_ui_action(
         }
     }
     if (application_action_router_) {
-        return application_action_router_(action, arguments);
+        const auto result = application_action_router_(action, arguments);
+        if (result != ui::UiActionResult::Unknown) process_commands();
+        return result;
     }
     return ui::UiActionResult::Unknown;
 }
@@ -138,7 +106,7 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     }
 
     ++scene_epoch_;
-    camera_controller_initialized_ = false;
+    viewport_controller_.clear();
 
     SceneContext context = make_context();
     if (current_) {
@@ -178,7 +146,6 @@ void SceneDirector::frame_update(double dt) {
         return;
     }
     SceneContext context = make_context();
-    const render::RenderCamera previous_camera = presentation_.camera;
     ui_.clear();
     // A presentation is an extraction for this frame. Clearing it here keeps
     // a scene that has no visual entities from inheriting the previous scene's
@@ -190,27 +157,17 @@ void SceneDirector::frame_update(double dt) {
     if (presentation_.has_camera_request) {
         const camera::CameraRequest declared = presentation_.camera_request;
         const std::uint64_t declared_revision = presentation_.camera.revision;
-        const bool preserve_pose = camera_controller_initialized_ && previous_camera.enabled &&
-                                   declared.mode != camera::CameraMode::Fixed &&
-                                   declared_revision == previous_camera.revision;
-        auto resolved_request = declared;
-        if (preserve_pose) {
-            // Keep the complete interactive pose, including a panned target.
-            // Rebuilding from the declared target would erase right/middle drag
-            // panning on the next extraction frame.
-            resolved_request.position = previous_camera.position;
-            resolved_request.target = previous_camera.target;
-            resolved_request.up = declared.up;
-            camera_controller_.setMode(declared.mode);
-        } else {
-            camera_controller_.setMode(declared.mode);
-            camera_controller_.reset(resolved_request);
-            camera_controller_initialized_ = declared.mode != camera::CameraMode::Fixed;
-        }
+        viewport_controller_.configure(declared, declared_revision);
+        const auto resolved_request = viewport_controller_.update(static_cast<float>(dt));
         presentation_.camera = {};
         presentation_.camera.enabled = true;
         presentation_.camera.applyRequest(resolved_request);
-        presentation_.camera.revision = declared_revision != 0U ? declared_revision : previous_camera.revision;
+        presentation_.camera.revision = declared_revision;
+    } else if (presentation_.camera.enabled) {
+        viewport_controller_.configure(presentation_.camera.toRequest(), presentation_.camera.revision);
+        presentation_.camera.applyRequest(viewport_controller_.update(static_cast<float>(dt)));
+    } else {
+        viewport_controller_.clear();
     }
     presentation_.has_resolved_camera = false;
     if (presentation_.camera.enabled) {

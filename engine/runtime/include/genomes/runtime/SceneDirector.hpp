@@ -7,7 +7,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/camera/Camera.hpp>
-#include <genomes/camera/CameraController.hpp>
+#include <genomes/runtime/ViewportController.hpp>
 
 #include <functional>
 #include <memory>
@@ -108,9 +108,7 @@ private:
     double interpolation_alpha_{0.0};
     int framebuffer_width_{1280};
     int framebuffer_height_{720};
-    camera::CameraController camera_controller_{};
-    bool camera_controller_initialized_{false};
-    bool camera_pointer_capture_{false};
+    ViewportController viewport_controller_{};
     std::uint64_t scene_epoch_{0};
     double session_ui_scale_{1.0};
     bool session_show_diagnostics_{true};

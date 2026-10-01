@@ -1112,7 +1112,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         context.presentation.camera.projection_offset_x = viewport.projection_offset_x;
         context.presentation.camera.projection_offset_y = viewport.projection_offset_y;
         context.presentation.camera.revision = foundation::stableHashCombine(
-            model_artifact_->cache_key,
+            foundation::stable_id("unit-lab.camera"),
             static_cast<std::uint64_t>(camera_mode_));
         auto camera_request = context.presentation.camera.toRequest();
         camera_request.preset = camera::CameraPreset::UnitLab;

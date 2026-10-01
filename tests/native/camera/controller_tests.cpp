@@ -16,6 +16,11 @@ int main() {
     const auto orbit_offset = request.position - request.target;
     controller.rebaseOrbitTarget({2.0F, 0.0F, 0.0F});
     controller.update(request,{},1.0F/60.0F);
+    const auto held_position = request.position;
+    controller.update(request,{.focus_lost=true},1.0F/60.0F);
+    assert(genomes::math::length(request.position-held_position) < 1.0e-5F);
+    controller.update(request,{.cancel=true},1.0F/60.0F);
+    assert(genomes::math::length(request.position-held_position) < 1.0e-5F);
     assert(request.target.x == 2.0F);
     assert(std::abs(request.position.x - request.target.x - orbit_offset.x) < 1.0e-5F);
     controller.update(request,{},1.0F/60.0F);
@@ -27,5 +32,32 @@ int main() {
     assert(controller.mode() == CameraMode::Fly);
     controller.update(request,{0,0,1,0,0,0,false,false,false},1.0F);
     assert(request.position.x>original.x);
+    // The same physical drag must produce the same orbit at any frame rate.
+    CameraRequest reference{};
+    CameraController reference_controller;
+    reference_controller.reset(reference);
+    reference_controller.update(reference,{.orbit_x=.6F,.orbit_y=.2F},1.0F);
+    for (int fps : {30,60,144}) {
+        CameraRequest sampled{};
+        CameraController sampled_controller;
+        sampled_controller.reset(sampled);
+        for (int frame = 0; frame < fps; ++frame)
+            sampled_controller.update(sampled,{.orbit_x=.6F/fps,.orbit_y=.2F/fps},1.0F/fps);
+        assert(genomes::math::length(sampled.position-reference.position) < 1.0e-4F);
+        const auto stopped = sampled.position;
+        for (int frame = 0; frame < fps; ++frame) sampled_controller.update(sampled,{},1.0F/fps);
+        assert(genomes::math::length(sampled.position-stopped) < 1.0e-5F);
+        CameraRequest pan_reference{}, pan_sampled{};
+        CameraController pan_once, pan_frames;
+        pan_once.reset(pan_reference); pan_frames.reset(pan_sampled);
+        pan_once.update(pan_reference,{.pan_x=.2F,.pan_y=.1F},1.0F);
+        for (int frame = 0; frame < fps; ++frame)
+            pan_frames.update(pan_sampled,{.pan_x=.2F/fps,.pan_y=.1F/fps},1.0F/fps);
+        assert(genomes::math::length(pan_sampled.target-pan_reference.target) < 1.0e-4F);
+        pan_once.update(pan_reference,{.zoom=-.4F},1.0F);
+        for (int frame = 0; frame < fps; ++frame)
+            pan_frames.update(pan_sampled,{.zoom=-.4F/fps},1.0F/fps);
+        assert(genomes::math::length(pan_sampled.position-pan_reference.position) < 1.0e-4F);
+    }
     return 0;
 }

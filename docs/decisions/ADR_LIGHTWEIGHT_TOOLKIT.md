@@ -32,6 +32,15 @@ rendering, picking, and capture. UI filters input before the camera controller.
 Renderers neither process input nor own camera controllers. `SceneDirector`
 owns frame metadata and snapshot reset; scenes only replace their payload.
 
+Interactive viewport state and pointer capture belong to runtime's
+`ViewportController`, backed by `camera::CameraController`. Input is consumed
+once in frame update using the actual frame interval; pointer displacements
+are not time-scaled. Focus loss cancels capture without resetting the pose.
+Unit Lab camera revisions identify view presets, not model cache keys, so
+regenerating equipment preserves the user's orbit and pan. Regression coverage:
+`camera.controller`, `camera.viewport_controller`, and `runtime.unit_lab_smoke`.
+Compilation, CTest, and GPU acceptance remain owner-run verification.
+
 ## Dependency policy
 
 All dependencies are pinned submodules and configure performs no downloads.
@@ -49,4 +58,3 @@ Source readiness and verification are separate. The user runs configure,
 compilation, CTest, benchmarks, and GPU/visual acceptance. No result is reported
 as verified without evidence tied to the exact tested commit. Local submodule
 changes are never reset, overwritten, or automatically staged.
-
