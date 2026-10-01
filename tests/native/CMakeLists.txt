@@ -60,6 +60,11 @@ add_test(NAME ballistics.ammunition_catalog_source
         -P "${CMAKE_CURRENT_SOURCE_DIR}/ballistics_ammunition_catalog_guard.cmake")
 set_tests_properties(ballistics.ammunition_catalog_source PROPERTIES
     LABELS "source;cpu;ballistics")
+add_test(NAME weapons.catalog_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/weapons_catalog_guard.cmake")
+set_tests_properties(weapons.catalog_source_contract PROPERTIES
+    LABELS "source;cpu;weapons")
 
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp
