@@ -104,6 +104,35 @@ foreach(_token "std::move(mesh.vertices),std::move(mesh.indices),"
         message(FATAL_ERROR "Fence retirement contract missing: ${_token}")
     endif()
 endforeach()
+
+# Palette writes use a candidate constant block as well.  A failed upload must
+# leave the per-pass publication markers untouched, otherwise a later material
+# could reuse a missing/partial palette while telemetry reports a successful
+# update.  Keep this as a source contract because a headless test cannot inject
+# a Diligent map/update failure.
+file(READ "${_root}/DiligentDraw.cpp" _draw)
+string(FIND "${_draw}" "if (first.skin)" _skin_draw_start)
+string(FIND "${_draw}" "} else {" _skin_draw_end)
+if(_skin_draw_start LESS 0 OR _skin_draw_end LESS_EQUAL _skin_draw_start)
+    message(FATAL_ERROR "Skinned palette publication block is missing or malformed")
+endif()
+string(SUBSTRING "${_draw}" ${_skin_draw_start} ${_skin_draw_end} _skin_draw)
+set(_last -1)
+foreach(_token "SkinnedPassConstants skin{}"
+               "std::copy(first.pose->morph_weights.begin(),first.pose->morph_weights.end(),skin.morph_weights)"
+               "for (std::size_t k=0;k<kBoneCount;++k) std::copy(first.pose->matrices[k].begin(),first.pose->matrices[k].end(),skin.bone_palette[k])"
+               "if (auto r=mapCopy(skin_buffer,&skin,sizeof(skin));!r) return r;"
+               "last_skin_instance=first.instance.object_id"
+               "++telemetry.palette_updates")
+    string(FIND "${_skin_draw}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Atomic palette publication token missing: ${_token}")
+    endif()
+    if(_offset LESS_EQUAL _last)
+        message(FATAL_ERROR "Atomic palette publication order violated: ${_token}")
+    endif()
+    set(_last ${_offset})
+endforeach()
 file(READ "${_root}/DiligentBackend.cpp" _backend_fence)
 foreach(_token "EnqueueSignal" "last_submitted_fence")
     string(FIND "${_backend_fence}" "${_token}" _offset)
