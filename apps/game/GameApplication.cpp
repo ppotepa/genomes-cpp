@@ -381,7 +381,7 @@ int GameApplication::run(int argc,char** argv) {
             }
         }
         if (options.unitlab_appearance) {
-            const auto preset = runtime::unitLabAppearancePresetName(
+            const auto preset = game_scenes::unitLabAppearancePresetName(
                 options.unitlab_appearance->value);
             if (preset.empty()) {
                 std::cerr<<"Could not serialize UnitLab appearance preset\n";
