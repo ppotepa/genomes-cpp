@@ -46,11 +46,11 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R026 | PR06 | configuration | FIX | Core unknown fields and missing references fail; IDs differ from display names; snapshots own stable text independent of JSON DOM. | PLANNED | - | NOT_RUN | - | - |
 | R027 | PR06 | configuration | EXT | Typed simulation, presentation and execution hashes derive from canonical values. | PLANNED | - | NOT_RUN | - | - |
 | R028 | PR06 | combat AI | DATA | Tactical AI profile moves without tuning to typed core content; runtime stores no parser/DOM. | PLANNED | - | NOT_RUN | - | - |
-| R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | PLANNED | - | NOT_RUN | - | - |
-| R030 | PR07 | simulation | REF | Seconds/RPM conversion uses one deterministic ceil-to-next-tick function and preserves 60 Hz behavior. | PLANNED | - | NOT_RUN | - | - |
+| R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers tick context. |
+| R030 | PR07 | simulation | REF | Seconds/RPM conversion uses one deterministic ceil-to-next-tick function and preserves 60 Hz behavior. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers 60 Hz and alternate-rate ceil conversion. |
 | R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | PLANNED | - | NOT_RUN | - | - |
 | R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | PLANNED | - | NOT_RUN | - | - |
-| R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | PLANNED | - | NOT_RUN | - | - |
+| R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | PLANNED | - | NOT_RUN | - | - |
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | - | NOT_RUN | - | - |
 | R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | PLANNED | - | NOT_RUN | - | - |
