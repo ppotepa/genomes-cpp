@@ -201,6 +201,12 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_unit_lab_request_gate)
     add_test(NAME runtime.unit_lab_request_gate COMMAND genomes_test_unit_lab_request_gate)
 
+    add_executable(genomes_test_unit_lab_command_parsing unit_lab_command_parsing_tests.cpp)
+    target_link_libraries(genomes_test_unit_lab_command_parsing PRIVATE genomes::runtime)
+    genomes_set_project_warnings(genomes_test_unit_lab_command_parsing)
+    genomes_enable_test_assertions(genomes_test_unit_lab_command_parsing)
+    add_test(NAME runtime.unit_lab_command_parsing COMMAND genomes_test_unit_lab_command_parsing)
+
     add_executable(genomes_test_battlefield_profile battlefield_profile_tests.cpp)
     target_link_libraries(genomes_test_battlefield_profile PRIVATE genomes::gameplay)
     genomes_set_project_warnings(genomes_test_battlefield_profile)

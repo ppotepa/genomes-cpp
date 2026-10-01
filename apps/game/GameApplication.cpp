@@ -20,6 +20,9 @@
 #include <vector>
 #include <variant>
 #include <type_traits>
+#if GENOMES_HAS_INFANTRY
+#include <genomes/runtime/UnitLabCommandParsing.hpp>
+#endif
 
 namespace genomes::game {
 namespace {
@@ -56,30 +59,19 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             if (!parse_u64(*value,count) || (arg=="--capture-frame"&&count==0)) return {};
         } else if (arg=="--unitlab-camera") {
             const auto value=next();if (!value) return {};
-            if (*value=="3q" || *value=="three-quarter") result.unitlab_camera_steps=0;
-            else if (*value=="front") result.unitlab_camera_steps=1;
-            else if (*value=="side") result.unitlab_camera_steps=2;
-            else if (*value=="back") result.unitlab_camera_steps=3;
-            else if (*value=="face") result.unitlab_camera_steps=4;
-            else if (*value=="hands") result.unitlab_camera_steps=5;
-            else return {};
+            const auto parsed = runtime::parseSetCameraMode(*value);
+            if (!parsed) return {};
+            result.unitlab_camera_steps = static_cast<std::uint8_t>(parsed.value().value);
         } else if (arg=="--unitlab-locomotion") {
             const auto value=next();if (!value) return {};
-            if (*value=="idle") result.unitlab_locomotion_steps=0;
-            else if (*value=="walk") result.unitlab_locomotion_steps=1;
-            else if (*value=="run") result.unitlab_locomotion_steps=2;
-            else if (*value=="crouch") result.unitlab_locomotion_steps=3;
-            else return {};
+            const auto parsed = runtime::parseSetLocomotionPreset(*value);
+            if (!parsed) return {};
+            result.unitlab_locomotion_steps = static_cast<std::uint8_t>(parsed.value().value);
         } else if (arg=="--unitlab-expression") {
             const auto value=next();if (!value) return {};
-            if (*value=="neutral") result.unitlab_expression_steps=0;
-            else if (*value=="alert") result.unitlab_expression_steps=1;
-            else if (*value=="fear") result.unitlab_expression_steps=2;
-            else if (*value=="anger") result.unitlab_expression_steps=3;
-            else if (*value=="pain") result.unitlab_expression_steps=4;
-            else if (*value=="fatigue") result.unitlab_expression_steps=5;
-            else if (*value=="eyes-closed") result.unitlab_expression_steps=6;
-            else return {};
+            const auto parsed = runtime::parseUnitLabExpression(*value);
+            if (!parsed) return {};
+            result.unitlab_expression_steps = static_cast<std::uint8_t>(parsed.value());
         } else {
             std::cerr<<"Unknown argument: "<<arg<<'\n';return {};
         }
