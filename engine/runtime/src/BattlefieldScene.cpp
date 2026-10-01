@@ -383,6 +383,19 @@ void BattlefieldScene::configure_simulation_graph() {
         return;
     }
 
+    simulation::SystemDescriptor physics_step{};
+    physics_step.id = foundation::stable_id("system.physics.step");
+    physics_step.phase = simulation::SystemPhase::PhysicsStep;
+    physics_step.access.reads = {foundation::stable_id("resource.physics.commands")};
+    physics_step.access.writes = {foundation::stable_id("resource.physics.world")};
+    physics_step.cadence = every_tick;
+    physics_step.callback = [this](simulation::SystemContext& context) {
+        physics_.step(static_cast<float>(context.fixed_dt));
+    };
+    if (!add_system(std::move(physics_step))) {
+        return;
+    }
+
     simulation::SystemDescriptor emit_events{};
     emit_events.id = foundation::stable_id("system.combat.emit-events");
     emit_events.phase = simulation::SystemPhase::CombatBallistics;
