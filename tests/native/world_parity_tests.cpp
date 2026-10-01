@@ -12,6 +12,9 @@ int main() {
     auto zero_seed = request;
     zero_seed.seed = 0U;
     assert(!zero_seed.valid());
+    auto non_grid_size = request;
+    non_grid_size.map_size_m = 129U;
+    assert(!non_grid_size.valid());
     request.seed = 0xCAFEBABEULL;
     assert(headless.startNew(request));
     assert(graphical.startNew(request));

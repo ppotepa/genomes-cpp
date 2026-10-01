@@ -83,7 +83,8 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
     hydrology::HydrologySpec hydrology_spec{};
     hydrology_spec.seed = request.seed;
     hydrology_spec.map_size_m = request.map_size_m;
-    hydrology_spec.cells_x = std::max<std::uint32_t>(2U, request.map_size_m / 8U);
+    const GridLayout layout = GridLayout::forMap(request.map_size_m);
+    hydrology_spec.cells_x = layout.cell_count;
     hydrology_spec.cells_z = hydrology_spec.cells_x;
     hydrology_spec.cell_size_m = 8.0F;
     hydrology_spec.mode = request.hydrology_mode;

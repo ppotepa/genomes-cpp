@@ -7,6 +7,7 @@
 #include <genomes/proc/Seed.hpp>
 #include <genomes/world/BuildingSite.hpp>
 #include <genomes/world/CityPlan.hpp>
+#include <genomes/world/GridLayout.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -39,7 +40,8 @@ struct WorldGenerationRequest final {
         const auto valid_density = [](float value) {
             return std::isfinite(value) && value >= 0.0F && value <= 1.0F;
         };
-        return seed != 0U && map_size_m >= 128 && map_size_m <= 4096 && valid_density(vegetation) &&
+        return seed != 0U && map_size_m >= 128 && map_size_m <= 4096 && map_size_m % 8U == 0U &&
+               valid_density(vegetation) &&
                valid_density(buildings) && valid_density(fenced_parcels) &&
                std::isfinite(river_probability) && river_probability >= 0.0F &&
                river_probability <= 1.0F;
