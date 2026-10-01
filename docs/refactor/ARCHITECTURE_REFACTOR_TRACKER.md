@@ -75,7 +75,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | CODE_READY | ceda2e6 | NOT_RUN | - | Shared CMake manifest validation checks schema, provenance, unique family IDs, safe roots and formats; public-header consumer sources cover core targets. Full target-closure review remains open. |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | CODE_READY | e280e5d | NOT_RUN | - | Stable ID/schema are declared, strict typed parsing accepts only `inspection-olive`, the feature card records provenance/determinism/cache/error policy, and a presentation test proves geometry/indices remain unchanged. |
 | R054 | PR16 | performance | REF | Only measured optimizations ship; execution tuning preserves D1/D2 results and meets the stated target/p95 acceptance gate. | PLANNED | ff1d3d2 | NOT_RUN | - | `PR16_MEASUREMENT_GATE.md` and the versioned input/schema fixture now agree on the required profile, seeds, warmups, metrics and D1/D2 gate. Benchmark targets do not yet consume the fixture, and user baseline/evidence are still required; no optimization is implemented. |
-| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | PLANNED | 754f99c | NOT_RUN | - | The unused `genomes::runtime` aggregate is removed and a target-exact closure guard is active; final dependency review and dispositions remain open. |
+| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | PLANNED | 7d56de8 | NOT_RUN | - | CodeGraph/source review removed five in-tree-unused runtime forwarding headers (`ApplicationCommand`, `WorldConfig`, `BuiltinScenes`, `WorldConfigScene`, `BattlefieldScene`) and added guards against reintroduction. Active `genomes::world` aggregate clients, legacy domain configuration and external-consumer compatibility remain open; final dependency review/dispositions are not complete. |
 
 Kinds: `REF` preserves behavior/contracts while moving ownership, `FIX` requires
 a counterexample regression, `DATA` requires old/new parity, and `EXT` creates a
@@ -102,7 +102,7 @@ new explicitly versioned capability or contract.
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | PLANNED | ff1d3d2 | NOT_RUN | - |
-| PR17 | Migration closure | R055 | PLANNED | 754f99c | NOT_RUN | - |
+| PR17 | Migration closure | R055 | PLANNED | 7d56de8 | NOT_RUN | - |
 
 ## Acceptance scenario register
 

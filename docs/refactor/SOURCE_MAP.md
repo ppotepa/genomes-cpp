@@ -107,7 +107,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema aligned at `ff1d3d2`; WAIT_BASELINE for user benchmark evidence |
-| PR17 | compatibility headers, old config paths and fallbacks | WAIT_PRIOR_PACKAGES |
+| PR17 | compatibility headers, old config paths and fallbacks | five proven-unused runtime forwarding headers removed at `7d56de8`; WAIT_PRIOR_PACKAGES for aggregate/config closure |
 
 ## Literal classification K1-K6
 
