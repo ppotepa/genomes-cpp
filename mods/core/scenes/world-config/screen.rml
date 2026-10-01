@@ -1,1 +1,11 @@
-<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>WORLD CONFIGURATION</h1><button data-action="scene.start-battlefield">Start scenario</button><button data-action="scene.return-main-menu">Back</button></section></body></rml>
+<rml><head><title>World configuration</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head>
+<body><section class="panel" data-model="ui_builtin_world_config">
+  <header class="screen-header"><p class="eyebrow">NEW SIMULATION</p><h1>World configuration</h1><p class="subtitle" data-bind="text: title">Define the initial conditions.</p></header>
+  <label class="field"><span class="field-label">SEED</span><input class="field-control" type="number" data-value="seed" data-field="seed" data-control="world.seed" /></label><p class="validation" data-bind="text: seed_error"></p>
+  <label class="field"><span class="field-label">MAP SIZE</span><select class="field-control" data-value="map_size" data-field="map_size" data-control="world.map-size"><option data-for="option : map_size_options" data-value="option.value" data-attr-disabled="!option.enabled">{{ option.label }}</option></select></label>
+  <div class="divider"></div><h3>WORLD COMPOSITION</h3>
+  <label class="field"><span class="field-label">VEGETATION</span><div class="range-row"><input type="range" min="0" max="1" step="0.05" data-value="vegetation" data-field="vegetation" data-control="world.vegetation" /><output data-bind="text: vegetation_percent"></output></div></label>
+  <label class="field"><span class="field-label">BUILDINGS</span><div class="range-row"><input type="range" min="0" max="1" step="0.05" data-value="buildings" data-field="buildings" data-control="world.buildings" /><output data-bind="text: buildings_percent"></output></div></label>
+  <label class="field"><span class="field-label">FENCED PARCELS</span><div class="range-row"><input type="range" min="0" max="1" step="0.05" data-value="fenced_parcels" data-field="fenced_parcels" data-control="world.fenced-parcels" /><output data-bind="text: fenced_parcels_percent"></output></div></label>
+  <div class="command-bar"><button class="ghost" data-action="scene.return-main-menu">Back</button><button class="primary" data-action="scene.start-battlefield">Start scenario</button></div>
+</section></body></rml>

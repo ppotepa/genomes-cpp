@@ -7,13 +7,13 @@
 namespace genomes::geometry {
 
 namespace {
-[[nodiscard]] bool finite(foundation::Vec3 v) noexcept {
+[[nodiscard]] bool mesh_finite(foundation::Vec3 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
 }
-[[nodiscard]] bool finite(foundation::Vec2 v) noexcept {
+[[nodiscard]] bool mesh_finite(foundation::Vec2 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y);
 }
-[[nodiscard]] bool finite(foundation::Color c) noexcept {
+[[nodiscard]] bool mesh_finite(foundation::Color c) noexcept {
     return std::isfinite(c.r) && std::isfinite(c.g) && std::isfinite(c.b) &&
            std::isfinite(c.a);
 }
@@ -24,14 +24,14 @@ bool MeshData::valid() const noexcept {
     if (vertex_count == 0U || indices.empty() || indices.size() % 3U != 0U) return false;
     if (!positions.empty() && !vertices.empty() && vertices.size() != positions.size()) return false;
     for (const auto& vertex : vertices)
-        if (!finite(vertex.position) || !finite(vertex.normal) || !finite(vertex.uv)) return false;
+        if (!mesh_finite(vertex.position) || !mesh_finite(vertex.normal) || !mesh_finite(vertex.uv)) return false;
     if (!positions.empty()) {
-        for (const auto position : positions) if (!finite(position)) return false;
-        for (const auto normal : normals) if (!finite(normal)) return false;
-        for (const auto uv : uvs) if (!finite(uv)) return false;
+        for (const auto position : positions) if (!mesh_finite(position)) return false;
+        for (const auto normal : normals) if (!mesh_finite(normal)) return false;
+        for (const auto uv : uvs) if (!mesh_finite(uv)) return false;
     }
     for (const auto tangent : tangents) if (!math::finite(tangent)) return false;
-    for (const auto color : colors) if (!finite(color)) return false;
+    for (const auto color : colors) if (!mesh_finite(color)) return false;
     for (const auto index : indices)
         if (index >= vertex_count ||
             (index_format == IndexFormat::UInt16 && index > std::numeric_limits<std::uint16_t>::max()))
@@ -42,7 +42,7 @@ bool MeshData::valid() const noexcept {
     for (const auto& range : submeshes)
         if (range.first_index % 3U != 0U || range.index_count % 3U != 0U ||
             static_cast<std::size_t>(range.first_index) + range.index_count > indices.size()) return false;
-    if (!bounds.empty && (!finite(bounds.min) || !finite(bounds.max) ||
+    if (!bounds.empty && (!mesh_finite(bounds.min) || !mesh_finite(bounds.max) ||
                           bounds.min.x > bounds.max.x || bounds.min.y > bounds.max.y ||
                           bounds.min.z > bounds.max.z)) return false;
     return true;

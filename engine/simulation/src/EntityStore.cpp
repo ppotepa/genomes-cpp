@@ -26,7 +26,7 @@ using TargetComponent = EntityId;
     return key;
 }
 
-[[nodiscard]] bool finite(const foundation::Vec3& value) noexcept {
+[[nodiscard]] bool finite_position(const foundation::Vec3& value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
@@ -75,7 +75,7 @@ const ArchetypeKey& EntityStore::entityKey() noexcept {
 }
 
 foundation::Result<EntityId, foundation::Error> EntityStore::create(const EntitySpawn& spawn) {
-    if (!finite(spawn.position) || !finite(spawn.velocity) || !std::isfinite(spawn.heading) ||
+    if (!finite_position(spawn.position) || !finite_position(spawn.velocity) || !std::isfinite(spawn.heading) ||
         !std::isfinite(spawn.health) || spawn.health < 0.0F) {
         return foundation::Result<EntityId, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument,

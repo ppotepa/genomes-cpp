@@ -8,7 +8,7 @@ namespace genomes::physics {
 
 namespace {
 
-[[nodiscard]] float dot(foundation::Vec3 a, foundation::Vec3 b) noexcept {
+[[nodiscard]] float physics_dot(foundation::Vec3 a, foundation::Vec3 b) noexcept {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
@@ -21,7 +21,7 @@ namespace {
 }
 
 [[nodiscard]] float length_squared(foundation::Vec3 value) noexcept {
-    return dot(value, value);
+    return physics_dot(value, value);
 }
 
 [[nodiscard]] foundation::Vec3 normalize(foundation::Vec3 value) noexcept {
@@ -216,7 +216,7 @@ bool SimplePhysicsWorld::raycast(const RaycastQuery& query, RaycastHit& output) 
         const foundation::Vec3 to_center = {slot.state.position.x - query.origin.x,
                                             slot.state.position.y - query.origin.y,
                                             slot.state.position.z - query.origin.z};
-        const float projected = dot(to_center, direction);
+        const float projected = physics_dot(to_center, direction);
         if (projected < 0.0F || projected > best_distance) {
             continue;
         }

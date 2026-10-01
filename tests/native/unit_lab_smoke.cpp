@@ -9,8 +9,20 @@
 #include <cstdint>
 #include <memory>
 #include <thread>
+#include <tuple>
+#include <string>
+#include <variant>
 
 int main() {
+    for (const auto& [width, height, scale] : {
+            std::tuple{1280, 720, 1.0}, std::tuple{1280, 720, 1.5},
+            std::tuple{1920, 1080, 1.0}, std::tuple{1920, 1080, 1.5}}) {
+        const auto viewport = genomes::runtime::unitLabViewport(width, height, scale);
+        assert(viewport.left == 0.0F && viewport.top == 0.0F);
+        assert(viewport.width == 1.0F && viewport.height == 1.0F);
+        assert(std::isfinite(viewport.projection_offset_x));
+        assert(std::isfinite(viewport.projection_offset_y));
+    }
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
@@ -63,6 +75,56 @@ int main() {
     const auto initial_scene_epoch = presentation.scene_epoch;
     assert(initial_scene_epoch != 0U);
     const auto stable_prototype = presentation.skinned_prototypes.front();
+    const auto home_camera = presentation.camera;
+    genomes::input::InputFrame orbit{};
+    orbit.viewport_width = 1280;
+    orbit.viewport_height = 720;
+    orbit.mouse_x = 600.0F;
+    orbit.mouse_y = 360.0F;
+    orbit.mouse_delta_x = 28.0F;
+    orbit.mouse_delta_y = -12.0F;
+    orbit.mouse_left_down = true;
+    orbit.mouse_left_pressed = true;
+    orbit.events.push_back({genomes::input::EventType::MouseButtonDown, 0, 0, 1,
+                            orbit.mouse_x, orbit.mouse_y, 0.0F, 0.0F, {}});
+    director.handle_input(orbit);
+    assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) >
+           1.0e-8F);
+    const auto target_before_pan = presentation.camera.target;
+    genomes::input::InputFrame pan{};
+    pan.viewport_width = 1280;
+    pan.viewport_height = 720;
+    pan.mouse_x = 600.0F;
+    pan.mouse_y = 360.0F;
+    pan.mouse_delta_x = 20.0F;
+    pan.mouse_delta_y = 8.0F;
+    pan.mouse_right_down = true;
+    director.handle_input(pan);
+    assert(genomes::math::lengthSquared(presentation.camera.target - target_before_pan) > 1.0e-8F);
+    const auto distance_before_zoom = genomes::math::length(
+        presentation.camera.position - presentation.camera.target);
+    genomes::input::InputFrame zoom{};
+    zoom.viewport_width = 1280;
+    zoom.viewport_height = 720;
+    zoom.mouse_x = 600.0F;
+    zoom.mouse_y = 360.0F;
+    zoom.mouse_wheel_y = 1.0F;
+    director.handle_input(zoom);
+    assert(genomes::math::length(presentation.camera.position - presentation.camera.target) <
+           distance_before_zoom);
+    genomes::input::InputFrame reset{};
+    reset.viewport_width = 1280;
+    reset.viewport_height = 720;
+    reset.reset_pressed = true;
+    director.handle_input(reset);
+    assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) <
+           1.0e-8F);
+    genomes::input::InputFrame cancel = orbit;
+    cancel.cancel_pressed = true;
+    cancel.pointer_cancel = true;
+    director.handle_input(cancel);
+    assert(genomes::math::lengthSquared(presentation.camera.position - home_camera.position) <
+           1.0e-8F);
     bool has_explicit_uniform_color = false;
     for (const auto& vertex : stable_prototype->vertices) {
         if (vertex.color.r < 0.95F || vertex.color.g < 0.95F || vertex.color.b < 0.95F) {
@@ -83,13 +145,13 @@ int main() {
     }
     assert(has_equipment_material);
 
-    director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                           .mouse_y = 386.0F, .events = {}}); // camera preset
+    assert(director.dispatch_ui_action(genomes::foundation::stable_id("unit.camera"), {}) ==
+           genomes::ui::UiActionResult::Handled);
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() == stable_prototype);
 
-    director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                           .mouse_y = 276.0F, .events = {}}); // regenerate
+    assert(director.dispatch_ui_action(genomes::foundation::stable_id("unit.regenerate"), {}) ==
+           genomes::ui::UiActionResult::Handled);
     director.frame_update(1.0 / 60.0);
     assert(presentation.skinned_prototypes.front() != stable_prototype);
     assert(presentation.scene_epoch == initial_scene_epoch);
@@ -130,42 +192,45 @@ int main() {
     assert(gpu_presentation.has_camera_request);
     assert(gpu_presentation.camera_request.preset ==
            genomes::camera::CameraPreset::UnitLab);
-    assert(std::abs(gpu_presentation.camera.viewport_left - 0.40F) < 1.0e-6F);
-    assert(std::abs(gpu_presentation.camera.viewport_width - 0.60F) < 1.0e-6F);
+    const auto expected_viewport = genomes::runtime::unitLabViewport(1280, 720, 1.0);
+    assert(std::abs(gpu_presentation.camera.viewport_left - expected_viewport.left) < 1.0e-6F);
+    assert(std::abs(gpu_presentation.camera.viewport_width - expected_viewport.width) < 1.0e-6F);
+    assert(gpu_presentation.camera.viewport_left == 0.0F);
+    assert(gpu_presentation.camera.viewport_top == 0.0F);
+    assert(gpu_presentation.camera.viewport_width == 1.0F);
+    assert(gpu_presentation.camera.viewport_height == 1.0F);
+    assert(std::abs(gpu_presentation.camera.projection_offset_x -
+                    expected_viewport.projection_offset_x) < 1.0e-6F);
+    const auto composed = genomes::camera::resolve(gpu_presentation.camera.toRequest(), 1280, 720);
+    assert(composed);
+    const auto subject = genomes::camera::project(composed.value(),
+                                                  gpu_presentation.camera.target);
+    assert(subject);
+    assert(subject.value().x > 68.0F && subject.value().x < 1280.0F - 340.0F);
+    assert(subject.value().y > 104.0F && subject.value().y < 720.0F - 34.0F);
     const auto initial_camera_revision = gpu_presentation.camera.revision;
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 506.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 566.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 626.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 686.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 866.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 926.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 986.0F,
-                                         .events = {}});
-    gpu_scene.handle_input(gpu_context, {.mouse_left_pressed = true,
-                                         .mouse_x = 100.0F, .mouse_y = 1046.0F,
-                                         .events = {}});
+    for (const auto action : {"unit.wireframe", "unit.skeleton", "unit.bounds",
+                              "unit.normals", "unit.weight", "unit.variation",
+                              "unit.loadout", "unit.genome-preset"}) {
+        assert(gpu_scene.handle_ui_action(gpu_context,
+                    genomes::foundation::stable_id(action), {}) ==
+               genomes::ui::UiActionResult::Handled);
+    }
     gpu_presentation.clear_scene_payload();
     gpu_scene.build_presentation(gpu_context);
     assert(!gpu_presentation.debug_lines.empty());
     assert(gpu_presentation.camera.mode == genomes::camera::CameraMode::Orbit);
     assert(gpu_presentation.camera.revision != 0U);
     assert(gpu_presentation.camera.revision != initial_camera_revision ||
-           gpu_presentation.camera.viewport_left == 0.40F);
+           gpu_presentation.camera.viewport_left == expected_viewport.left);
 
     const auto before_genome = gpu_presentation.skinned_prototypes.front();
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.tab"),
+        {{"key", "genome"}, {"value", "genome"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.genome"),
+        {{"key", "height"}, {"value", "0.82"}}) == genomes::ui::UiActionResult::Handled);
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.genome-plus"), {}) ==
         genomes::ui::UiActionResult::Handled);
@@ -174,6 +239,37 @@ int main() {
     assert(gpu_presentation.skinned_prototypes.front() != before_genome);
 
     const auto before_equipment = gpu_presentation.skinned_prototypes.front();
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.equipment-item"),
+        {{"key", "head"}, {"value", "none"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.wear"),
+        {{"value", "0.35"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.phase"),
+        {{"value", "0.5"}}) == genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* paused = gpu_ui.model().find("animation_paused");
+    assert(paused != nullptr && std::get<bool>(*paused));
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.locomotion"),
+        {{"value", "Crouch Walk"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.variation"),
+        {{"value", "1.75"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.weight"),
+        {{"value", "68"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.genome-clear"),
+        {{"key", "height"}}) == genomes::ui::UiActionResult::Handled);
+    constexpr const char* exact_seed = "9223372036854775808";
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.seed"),
+        {{"value", exact_seed}}) == genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* seed_value = gpu_ui.model().find("seed");
+    assert(seed_value != nullptr && std::get<std::string>(*seed_value) == exact_seed);
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.equipment-item"), {}) ==
         genomes::ui::UiActionResult::Handled);
@@ -201,10 +297,12 @@ int main() {
     }
     assert(async_presentation.skinned_prototypes.size() == 1U);
     const auto async_initial = async_presentation.skinned_prototypes.front();
-    async_director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                                 .mouse_y = 276.0F, .events = {}});
-    async_director.handle_input({.mouse_left_pressed = true, .mouse_x = 100.0F,
-                                 .mouse_y = 276.0F, .events = {}});
+    assert(async_director.dispatch_ui_action(
+               genomes::foundation::stable_id("unit.regenerate"), {}) ==
+           genomes::ui::UiActionResult::Handled);
+    assert(async_director.dispatch_ui_action(
+               genomes::foundation::stable_id("unit.regenerate"), {}) ==
+           genomes::ui::UiActionResult::Handled);
     for (int frame = 0; frame < 5 &&
          !async_presentation.skinned_prototypes.empty() &&
          async_presentation.skinned_prototypes.front() == async_initial; ++frame) {

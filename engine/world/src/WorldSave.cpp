@@ -13,7 +13,7 @@ namespace {
 
 [[nodiscard]] bool finite(float value) noexcept { return std::isfinite(value); }
 
-[[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
+[[nodiscard]] bool finite_position(foundation::Vec3 value) noexcept {
     return finite(value.x) && finite(value.y) && finite(value.z);
 }
 
@@ -120,7 +120,7 @@ bool WorldSaveModel::valid() const noexcept {
         }
     }
     for (std::size_t index = 0U; index < entities.size(); ++index) {
-        if (!entities[index].id.isValid() || !finite(entities[index].position) ||
+        if (!entities[index].id.isValid() || !finite_position(entities[index].position) ||
             (index > 0U && entities[index - 1U].id.packed() >= entities[index].id.packed())) {
             return false;
         }

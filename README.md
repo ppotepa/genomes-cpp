@@ -229,15 +229,17 @@ simulation work do not require a GPU SDK. The convenience scripts configure,
 incrementally rebuild and launch the windowed game:
 
 ```powershell
-.\rundev.ps1
+.\run-dev.ps1
 .\run-release.ps1
 ```
 
-The matching `rundev.cmd` and `run-release.cmd` wrappers provide the same
+The matching `run-dev.cmd` and `run-release.cmd` wrappers provide the same
 commands from `cmd.exe`.
 
 Use `-BuildOnly` to configure and build without launching, or `-NoBuild` to
-launch an already-built executable. The first build compiles the pinned
+launch an already-built executable. The launcher writes diagnostics from the
+latest failed configure/build command to `build-error.log` (both stdout and
+stderr); a successful build leaves that file empty. The first build compiles the pinned
 third-party sources and can take several minutes; subsequent runs are
 incremental.
 

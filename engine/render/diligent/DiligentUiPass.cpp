@@ -67,14 +67,19 @@ RenderResult DiligentBackend::Impl::renderDebug(const PresentationSnapshot& snap
     const auto bytes=vertices.size()*sizeof(DebugGpuVertex);
     if (auto r=grow(debug_buffer,debug_capacity,bytes,Diligent::BIND_VERTEX_BUFFER,"Genomes debug stream");!r)return r;
     if (auto r=mapCopy(debug_buffer,vertices.data(),bytes);!r)return r;
-    viewport(camera);context->SetPipelineState(debug_pipeline.state);context->CommitShaderResources(debug_pipeline.resources,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    viewport(resolved_camera.viewport);context->SetPipelineState(debug_pipeline.state);context->CommitShaderResources(debug_pipeline.resources,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
     Diligent::IBuffer* vb=debug_buffer;const Diligent::Uint64 offset=0;
     context->SetVertexBuffers(0,1,&vb,&offset,Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION,Diligent::SET_VERTEX_BUFFERS_FLAG_RESET);
     context->Draw(Diligent::DrawAttribs{static_cast<Diligent::Uint32>(vertices.size()),Diligent::DRAW_FLAG_NONE});++telemetry.draw_calls;
     return RenderResult::success();
 }
 RenderResult DiligentBackend::Impl::renderUi(const ui::UiRenderFrame& frame) {
-    if (frame.commands.empty()&&frame.widgets.empty()) return RenderResult::success();
+    if (frame.commands.empty()) return RenderResult::success();
+    if (!ui::valid_ui_frame(frame, false)) return error("invalid UI frame structure");
+    // RmlUi may legitimately publish a transient empty/invisible frame while
+    // replacing a route or recalculating layout. It has nothing to draw and
+    // must not poison the renderer's persistent health state.
+    if (!ui::valid_ui_frame(frame)) return RenderResult::success();
     if (!ui_pipeline.state) {
         Ptr<Diligent::IShader> vs,ps;
         if (!compile(ui_vs,"Genomes UI VS",Diligent::SHADER_TYPE_VERTEX,vs)||!compile(ui_ps,"Genomes UI PS",Diligent::SHADER_TYPE_PIXEL,ps))return error("UI shader creation failed");
@@ -141,14 +146,7 @@ RenderResult DiligentBackend::Impl::renderUi(const ui::UiRenderFrame& frame) {
             cursor+=6*scale;if(cursor>width)break;
         }
     };
-    if(frame.commands.empty()) {
-        float y=150;
-        for(const auto& w:frame.widgets) {
-            if(w.type==ui::UiWidgetType::Panel){rectangle(48,48,std::min(w.width,width-96),std::min(w.height,height-96),{.025F,.035F,.06F,1});text(w.text,65,65,2,{.85F,.9F,.95F,1});}
-            else {if(w.type==ui::UiWidgetType::Button)rectangle(65,y,std::min(w.width,width-90),w.height,w.selected?foundation::Color{.1F,.38F,.67F,1}:foundation::Color{.07F,.11F,.18F,1});text(w.text,78,y+8,1.5F,{.85F,.9F,.95F,1});y+=std::max(w.height,30.0F)+10;}
-        }
-        if(!indices.empty())draws.push_back({0U,static_cast<std::uint32_t>(indices.size()),0U,full,false});
-    } else for(const auto& command:frame.commands) {
+    for(const auto& command:frame.commands) {
         if(vertices.size()+command.vertices.size()>1'000'000U||indices.size()+command.indices.size()>6'000'000U)return error("UI geometry budget exceeded");
         const auto first=static_cast<std::uint32_t>(indices.size());
         bool premultiplied=false;

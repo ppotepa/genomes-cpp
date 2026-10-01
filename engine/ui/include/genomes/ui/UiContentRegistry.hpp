@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Result.hpp>
+#include <genomes/foundation/Types.hpp>
 
 #include <filesystem>
 #include <string>
@@ -41,6 +42,7 @@ public:
 
     [[nodiscard]] const std::vector<UiModManifest>& mods() const noexcept { return mods_; }
     [[nodiscard]] const UiSceneManifest* find_scene(const std::string& id) const noexcept;
+    [[nodiscard]] const UiSceneManifest* find_scene(foundation::SceneId id) const noexcept;
     [[nodiscard]] bool is_allowed_path(const UiSceneManifest& scene,
                                        const std::filesystem::path& relative) const noexcept;
 

@@ -1,7 +1,8 @@
-button {
-  position: absolute;
-  left: 0px;
-  top: 150px;
-  width: 200px;
-  height: 80px;
-}
+body { pointer-events: none; background-color: #070d16; }
+.gallery { pointer-events: auto; position: absolute; left: 3%; top: 3%; width: 94%; height: 94%; padding: 30dp 34dp; overflow-y: auto; }
+.gallery-grid { display: flex; flex-wrap: wrap; }
+.gallery-section { box-sizing: border-box; width: 48%; margin: 1%; padding: 18dp; background-color: #0c1622; border: 1dp #233448; border-radius: 8dp; }
+.gallery-section.wide { width: 98%; }
+.button-demo { display: flex; flex-wrap: wrap; }
+.button-demo button { margin-right: 7dp; }
+button, input, select, details, .tabs, .scroll-panel, .file-picker, table { pointer-events: auto; }

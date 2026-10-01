@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <variant>
 
 int main() {
     genomes::render::NullRenderer renderer;
@@ -33,12 +34,12 @@ int main() {
     director.present();
 
     std::cout << "GENOMES\n\n";
-    for (const auto& command : ui.frame().commands) {
-        if (!command.text.empty()) {
-            std::cout << (command.primitive == genomes::ui::UiDrawPrimitive::Quad ? "[ ] " : "    ")
-                      << command.text << (command.enabled ? "" : " (coming soon)") << '\n';
-        }
-    }
+    if (const auto* title = ui.model().find("title"); title != nullptr &&
+        std::holds_alternative<std::string>(*title))
+        std::cout << std::get<std::string>(*title) << '\n';
+    if (const auto* selected = ui.model().find("selected"); selected != nullptr &&
+        std::holds_alternative<std::string>(*selected))
+        std::cout << "selected: " << std::get<std::string>(*selected) << '\n';
     std::cout << "\nscene instances: " << presentation.instances.size()
               << ", submitted ui nodes: " << renderer.submitted_ui_nodes()
               << ", rendered frames: " << renderer.frames_started() << '\n';
@@ -49,7 +50,7 @@ int main() {
     director.frame_update(1.0 / 60.0);
     std::cout << "after confirm: scene "
               << (director.current() ? director.current()->id() : 0) << '\n';
-    std::cout << "world config ui nodes: " << ui.frame().commands.size()
+    std::cout << "world config model fields: " << ui.model().size()
               << ", preview instances: " << presentation.instances.size() << '\n';
 
     // The default world-config selection is Start game. Confirming it carries

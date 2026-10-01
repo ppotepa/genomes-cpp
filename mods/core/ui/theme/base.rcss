@@ -1,4 +1,4 @@
 body { margin: 0; width: 100%; height: 100%; font-family: LatoLatin; font-size: 1rem; color: #edf4ff; background-color: #08111d; }
 section, nav { display: flex; }
 button { cursor: pointer; font-size: 1rem; }
-button:focus { outline: 2px solid #9ddcff; outline-offset: 3px; }
+button:focus { outline: 2dp solid #9ddcff; outline-offset: 3dp; }

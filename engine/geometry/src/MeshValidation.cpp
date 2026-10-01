@@ -9,24 +9,24 @@ namespace {
 [[nodiscard]] foundation::Vec3 subtract(foundation::Vec3 a, foundation::Vec3 b) noexcept {
     return {a.x - b.x, a.y - b.y, a.z - b.z};
 }
-[[nodiscard]] foundation::Vec3 cross(foundation::Vec3 a, foundation::Vec3 b) noexcept {
+[[nodiscard]] foundation::Vec3 validation_cross(foundation::Vec3 a, foundation::Vec3 b) noexcept {
     return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
             a.x * b.y - a.y * b.x};
 }
-[[nodiscard]] float dot(foundation::Vec3 a, foundation::Vec3 b) noexcept {
+[[nodiscard]] float validation_dot(foundation::Vec3 a, foundation::Vec3 b) noexcept {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
-[[nodiscard]] bool finite(foundation::Vec3 v) noexcept {
+[[nodiscard]] bool validation_finite(foundation::Vec3 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
 }
-[[nodiscard]] bool finite(foundation::Vec2 v) noexcept {
+[[nodiscard]] bool validation_finite(foundation::Vec2 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y);
 }
-[[nodiscard]] bool finite(math::Vec4 v) noexcept {
+[[nodiscard]] bool validation_finite(math::Vec4 v) noexcept {
     return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z) &&
            std::isfinite(v.w);
 }
-[[nodiscard]] bool finite(foundation::Color c) noexcept {
+[[nodiscard]] bool validation_finite(foundation::Color c) noexcept {
     return std::isfinite(c.r) && std::isfinite(c.g) && std::isfinite(c.b) &&
            std::isfinite(c.a);
 }
@@ -39,12 +39,12 @@ MeshValidationReport validateMesh(std::span<const foundation::Vec3> positions,
                                   float winding_epsilon) noexcept {
     MeshValidationReport report{};
     for (const auto position : positions) {
-        if (!finite(position)) {
+        if (!validation_finite(position)) {
             ++report.nonfinite_vertex_count;
         }
     }
     for (const auto normal : normals) {
-        if (!finite(normal)) {
+        if (!validation_finite(normal)) {
             ++report.nonfinite_vertex_count;
         }
     }
@@ -60,19 +60,19 @@ MeshValidationReport validateMesh(std::span<const foundation::Vec3> positions,
             ++report.invalid_index_count;
             continue;
         }
-        const auto normal = cross(subtract(positions[i1], positions[i0]),
+        const auto normal = validation_cross(subtract(positions[i1], positions[i0]),
                                   subtract(positions[i2], positions[i0]));
-        const float area2 = dot(normal, normal);
+        const float area2 = validation_dot(normal, normal);
         if (!std::isfinite(area2) || area2 <= area_epsilon * area_epsilon) {
             ++report.degenerate_triangle_count;
         }
-        if (normals.size() == positions.size() && finite(normals[i0]) &&
-            finite(normals[i1]) && finite(normals[i2])) {
+        if (normals.size() == positions.size() && validation_finite(normals[i0]) &&
+            validation_finite(normals[i1]) && validation_finite(normals[i2])) {
             const foundation::Vec3 average{
                 (normals[i0].x + normals[i1].x + normals[i2].x) / 3.0F,
                 (normals[i0].y + normals[i1].y + normals[i2].y) / 3.0F,
                 (normals[i0].z + normals[i1].z + normals[i2].z) / 3.0F};
-            if (dot(normal, average) < -winding_epsilon) {
+            if (validation_dot(normal, average) < -winding_epsilon) {
                 ++report.winding_mismatch_count;
             }
         }
@@ -100,12 +100,12 @@ MeshValidationReport validateMesh(const MeshData& mesh,float area_epsilon,float 
     if((!mesh.tangents.empty() && mesh.tangents.size()!=vertex_count) ||
        (!mesh.colors.empty() && mesh.colors.size()!=vertex_count))
         ++report.stream_mismatch_count;
-    for (const auto uv : mesh.uvs) if (!finite(uv)) ++report.nonfinite_vertex_count;
-    for (const auto tangent : mesh.tangents) if (!finite(tangent)) ++report.nonfinite_vertex_count;
-    for (const auto color : mesh.colors) if (!finite(color)) ++report.nonfinite_vertex_count;
+    for (const auto uv : mesh.uvs) if (!validation_finite(uv)) ++report.nonfinite_vertex_count;
+    for (const auto tangent : mesh.tangents) if (!validation_finite(tangent)) ++report.nonfinite_vertex_count;
+    for (const auto color : mesh.colors) if (!validation_finite(color)) ++report.nonfinite_vertex_count;
     for(const auto& range:mesh.submeshes)if(range.first_index%3U!=0U||range.index_count%3U!=0U||static_cast<std::size_t>(range.first_index)+range.index_count>mesh.indices.size())++report.invalid_submesh_count;
     if(!mesh.bounds.empty){
-        if(!finite(mesh.bounds.min)||!finite(mesh.bounds.max))++report.bounds_mismatch_count;
+        if(!validation_finite(mesh.bounds.min)||!validation_finite(mesh.bounds.max))++report.bounds_mismatch_count;
         math::Aabb recomputed;for(const auto position:positions)recomputed.include(position);const float e=1.0e-4F;if(recomputed.empty||std::fabs(recomputed.min.x-mesh.bounds.min.x)>e||std::fabs(recomputed.min.y-mesh.bounds.min.y)>e||std::fabs(recomputed.min.z-mesh.bounds.min.z)>e||std::fabs(recomputed.max.x-mesh.bounds.max.x)>e||std::fabs(recomputed.max.y-mesh.bounds.max.y)>e||std::fabs(recomputed.max.z-mesh.bounds.max.z)>e)++report.bounds_mismatch_count;
     }
     return report;

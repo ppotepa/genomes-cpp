@@ -6,9 +6,11 @@
 #include <genomes/render/ProceduralMeshes.hpp>
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 namespace genomes::runtime {
 
@@ -69,7 +71,7 @@ void BuildingLabScene::on_enter(SceneContext& context) {
     runtime_.reset();
     render_mesh_.reset();
     const buildings::BuildingSpec spec{
-        foundation::stable_id("building-lab.preview"), 0xB01D1A9u, {18.0F, 1.0F, 14.0F},
+        foundation::stable_id("building-lab.preview"), seed_, {18.0F, 1.0F, 14.0F},
         2, 3.0F, 0.30F, 3};
     const auto generated = buildings::BuildingGenerator::generate(spec);
     if (!generated) {
@@ -102,11 +104,8 @@ void BuildingLabScene::handle_input(SceneContext& context, const input::InputFra
     } else if (input.down_pressed) {
         selected_part_ = (selected_part_ + 1U) % plan_.parts.size();
     }
-    if (input.left_pressed) {
-        apply_selected_damage(0.20F);
-    } else if (input.right_pressed) {
-        apply_selected_damage(0.45F);
-    }
+    if (input.left_pressed) damage_amount_ = std::clamp(damage_amount_ - 0.05F, 0.0F, 1.0F);
+    else if (input.right_pressed) damage_amount_ = std::clamp(damage_amount_ + 0.05F, 0.0F, 1.0F);
 }
 
 void BuildingLabScene::fixed_update(SceneContext&, double dt) {
@@ -115,30 +114,82 @@ void BuildingLabScene::fixed_update(SceneContext&, double dt) {
 
 void BuildingLabScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
-    context.ui.add({foundation::stable_id("building-lab.panel"), ui::UiWidgetType::Panel,
-                    "BUILDING LAB", true, false, 620.0F, 650.0F});
-    context.ui.add({foundation::stable_id("building-lab.title"), ui::UiWidgetType::Label,
-                    "Procedural building plan and damage runtime", true, false, 0.0F, 0.0F});
+    auto& model = context.ui.model();
+    (void)model.set("title", std::string{"Procedural building plan and damage runtime"});
+    (void)model.set("seed", static_cast<std::int64_t>(seed_));
+    (void)model.set("error", std::string{});
+    ui::UiFieldState damage{};
+    damage.value = static_cast<double>(damage_amount_);
+    damage.commit_policy = ui::UiCommitPolicy::Explicit;
+    damage.minimum = 0.0; damage.maximum = 1.0; damage.step = 0.05;
+    (void)model.set_field("damage_amount", std::move(damage));
     if (!error_.empty()) {
-        context.ui.add({foundation::stable_id("building-lab.error"), ui::UiWidgetType::Label,
-                        "Generation failed: " + error_, true, false, 0.0F, 0.0F});
+        (void)model.set("error", "Generation failed: " + error_);
     } else if (!plan_.parts.empty() && runtime_) {
         const auto& selected = plan_.parts[selected_part_];
         const auto& state = runtime_->parts()[selected_part_];
-        context.ui.add({foundation::stable_id("building-lab.selected"), ui::UiWidgetType::Label,
-                        "Selected: " + std::string(part_name(selected.kind)) + "  integrity " +
-                            std::to_string(static_cast<int>(state.integrity * 100.0F)) + "%",
-                        true, false, 0.0F, 0.0F});
-        context.ui.add({foundation::stable_id("building-lab.help"), ui::UiWidgetType::Label,
-                        "Up/Down select part, Left/Right apply damage", true, false, 0.0F,
-                        0.0F});
-        context.ui.add({foundation::stable_id("building-lab.parts"), ui::UiWidgetType::Label,
-                        "Parts: " + std::to_string(plan_.parts.size()) + "  Rooms: " +
-                            std::to_string(plan_.rooms.size()),
-                        true, false, 0.0F, 0.0F});
+        (void)model.set("selected", "Selected: " + std::string(part_name(selected.kind)));
+        (void)model.set("selected_part", static_cast<std::int64_t>(selected_part_));
+        (void)model.set("integrity", static_cast<double>(state.integrity));
+        (void)model.set("parts", static_cast<std::int64_t>(plan_.parts.size()));
+        (void)model.set("rooms", static_cast<std::int64_t>(plan_.rooms.size()));
+        std::vector<ui::UiTableRow> options;
+        options.reserve(plan_.parts.size());
+        for (std::size_t index = 0; index < plan_.parts.size(); ++index) {
+            const auto& part = plan_.parts[index];
+            options.push_back({{"id", std::to_string(index)},
+                               {"label", std::string(part_name(part.kind))},
+                               {"value", std::to_string(index)}});
+        }
+        (void)model.set_list("parts_options", std::move(options));
     }
-    context.ui.add({foundation::stable_id("building-lab.back"), ui::UiWidgetType::Button,
-                    "Back to main menu", true, true, 500.0F, 48.0F});
+}
+
+ui::UiActionResult BuildingLabScene::handle_ui_action(
+    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments& arguments) {
+    if (action == foundation::stable_id("building.regenerate")) {
+        ++seed_;
+        on_enter(context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("building.select-next")) {
+        if (!plan_.parts.empty()) selected_part_ = (selected_part_ + 1U) % plan_.parts.size();
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("building.select")) {
+        for (const auto& argument : arguments) if (argument.first == "value") {
+            std::size_t selected = 0;
+            const auto parsed = std::from_chars(argument.second.data(),
+                                                argument.second.data() + argument.second.size(), selected);
+            if (parsed.ec != std::errc{} || parsed.ptr != argument.second.data() + argument.second.size() ||
+                selected >= plan_.parts.size()) return ui::UiActionResult::Rejected;
+            selected_part_ = selected;
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("building.apply-damage")) {
+        apply_selected_damage(damage_amount_);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("building.damage")) {
+        for (const auto& argument : arguments) {
+            if (argument.first != "value") continue;
+            double parsed = 0.0;
+            const auto converted = std::from_chars(argument.second.data(),
+                                                   argument.second.data() + argument.second.size(),
+                                                   parsed, std::chars_format::general);
+            if (converted.ec != std::errc{} || converted.ptr != argument.second.data() + argument.second.size() || !std::isfinite(parsed)) return ui::UiActionResult::Rejected;
+            damage_amount_ = std::clamp(static_cast<float>(parsed), 0.0F, 1.0F);
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("scene.return-main-menu")) {
+        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        return ui::UiActionResult::Handled;
+    }
+    return ui::UiActionResult::Unknown;
 }
 
 void BuildingLabScene::build_presentation(SceneContext& context) {

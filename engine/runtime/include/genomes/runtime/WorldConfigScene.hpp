@@ -35,6 +35,8 @@ public:
 
     void on_enter(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;
+    ui::UiActionResult handle_ui_action(
+        SceneContext&, ui::UiActionId, const ui::UiActionArguments&) override;
     void fixed_update(SceneContext&, double) override;
     void frame_update(SceneContext&, double) override;
     void build_presentation(SceneContext&) override;

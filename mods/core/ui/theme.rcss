@@ -1,0 +1,101 @@
+/* Genomes UI foundation. Shared files own visuals; scene RCSS owns placement. */
+body, section, header, nav, main, footer, article, aside, h1, h2, h3, p, ul, ol, li { display: block; }
+body { color: #dce7f3; font-family: LatoLatin; font-size: 15dp; line-height: 1.35; }
+h1, h2, h3, p { margin-top: 0dp; }
+h1 { margin-bottom: 6dp; color: #f6f9fc; font-size: 30dp; font-weight: bold; letter-spacing: 1dp; }
+h2 { margin-bottom: 8dp; color: #f1f6fb; font-size: 19dp; }
+h3 { margin-bottom: 6dp; color: #c9d8e8; font-size: 13dp; letter-spacing: 1dp; }
+.surface, .panel, .hud-card { box-sizing: border-box; background-color: #101a28f2; border: 1dp #27384c; border-radius: 10dp; }
+.screen-header { margin-bottom: 24dp; }
+.eyebrow { margin-bottom: 7dp; color: #6fc8ff; font-size: 11dp; font-weight: bold; letter-spacing: 2dp; }
+.subtitle, .hint, .copy, .muted { color: #8fa2b7; }
+.subtitle, .hint, .copy { margin-bottom: 0dp; }
+.divider { height: 1dp; margin: 18dp 0dp; background-color: #26374a; }
+
+button, input, select { box-sizing: border-box; min-height: 40dp; margin: 3dp; padding: 9dp 12dp; color: #e4edf7; background-color: #172536; border: 1dp #344a61; border-radius: 6dp; }
+button { font-weight: bold; text-align: center; }
+button:hover, input:hover, select:hover { background-color: #1d3045; border-color: #52718f; }
+button:focus, input:focus, select:focus, summary:focus { border-color: #73ccff; }
+button:active { background-color: #10283e; border-color: #4db6f2; }
+button:disabled, input:disabled, select:disabled, .disabled { color: #657487; background-color: #111a25; border-color: #253241; }
+button.primary { color: #f8fbff; background-color: #1872aa; border-color: #2695d4; }
+button.primary:hover, button.primary:focus { background-color: #2088c6; border-color: #77d2ff; }
+button.danger { color: #ffdfe3; background-color: #5d2530; border-color: #954452; }
+button.danger:hover, button.danger:focus { background-color: #7c2f3e; border-color: #e87986; }
+button.ghost { color: #a8bad0; background-color: transparent; border-color: #314357; }
+button.icon { min-width: 40dp; padding-left: 10dp; padding-right: 10dp; }
+button.toggle:checked, button.active { color: #e8f7ff; background-color: #173f5b; border-color: #4eb9f1; }
+
+input[readonly], .read-only { color: #93a4b7; background-color: #111c29; border-color: #29394b; }
+input:invalid, .invalid { border-color: #d85d6a; }
+input[type="checkbox"], input[type="radio"] { min-width: 20dp; min-height: 20dp; padding: 0dp; }
+input:checked, input[type="radio"]:checked { background-color: #2389c5; border-color: #72ceff; }
+input[type="range"] { min-height: 30dp; padding: 7dp 3dp; background-color: transparent; border-color: transparent; }
+input[type="range"] slidertrack { height: 4dp; background-color: #293b50; border-radius: 2dp; }
+input[type="range"] sliderprogress { height: 4dp; background-color: #278fc9; border-radius: 2dp; }
+input[type="range"] sliderbar { width: 16dp; height: 16dp; margin-top: -6dp; background-color: #72ceff; border: 2dp #13354c; border-radius: 8dp; }
+input[type="range"] sliderbar:hover { background-color: #b4e7ff; }
+input[type="range"] sliderbar:active, input[type="range"] sliderbar:focus { background-color: #ffffff; border-color: #73ccff; }
+select selectvalue { padding-right: 28dp; color: #e4edf7; }
+select selectarrow { width: 24dp; color: #8fcdea; background-color: #122031; }
+select selectbox { margin-top: 2dp; color: #dce7f3; background-color: #101b29; border: 1dp #45617d; border-radius: 5dp; }
+option { padding: 8dp 10dp; }
+option:hover { color: #ffffff; background-color: #1b3850; }
+option:checked { color: #bdeaff; background-color: #174563; }
+option:disabled { color: #566576; background-color: #111923; }
+
+label { color: #b9c8d8; }
+.field { display: flex; flex-direction: column; margin-bottom: 13dp; }
+.field-label { margin: 0dp 3dp 5dp 3dp; color: #91a6bb; font-size: 12dp; font-weight: bold; letter-spacing: .6dp; }
+.field-control { width: 100%; margin-left: 0dp; margin-right: 0dp; }
+.field-row { display: flex; align-items: center; margin-bottom: 10dp; }
+.field-row > .field { flex: 1; margin-right: 10dp; margin-bottom: 0dp; }
+.check-row { display: flex; align-items: center; min-height: 38dp; padding: 4dp 2dp; }
+.check-row input { margin-right: 10dp; }
+.range-row { display: flex; align-items: center; }
+.range-row input { flex: 1; }
+output, .value-chip { min-width: 48dp; margin-left: 8dp; padding: 5dp 8dp; color: #a8dcfa; background-color: #0c1622; border: 1dp #27394d; border-radius: 5dp; text-align: center; }
+.validation { margin: -7dp 3dp 10dp 3dp; color: #ff8994; font-size: 12dp; }
+.status { color: #9eb2c6; }
+.status-success { color: #72d8ae; }
+.status-warning { color: #f3c979; }
+.busy { opacity: .62; pointer-events: none; }
+.alert { padding: 10dp 12dp; color: #ffdce1; background-color: #4a1d28f2; border: 1dp #b24b5f; border-radius: 6dp; }
+.status-chip { min-width: 74dp; padding: 6dp 9dp; color: #a9e4c9; background-color: #10261f; border: 1dp #285c48; border-radius: 12dp; text-align: center; }
+.wrap { white-space: normal; }
+
+.toolbar, .command-bar, .tabs { display: flex; align-items: center; }
+.toolbar { padding: 5dp; background-color: #0c1622; border: 1dp #233347; border-radius: 7dp; }
+.toolbar button, .tabs button { min-height: 34dp; margin: 2dp; padding: 6dp 10dp; }
+.command-bar { margin-top: 20dp; padding-top: 16dp; border-top: 1dp #27384b; }
+.command-bar button { margin-right: 8dp; }
+.command-bar .primary { margin-left: auto; }
+.tabs { overflow-x: auto; border-bottom: 1dp #2a3a4d; }
+.tabs button { min-width: 88dp; color: #8fa4ba; background-color: transparent; border-color: transparent; border-radius: 5dp 5dp 0dp 0dp; }
+.tabs button:hover { color: #d9e8f5; background-color: #162638; }
+.tabs button.active { color: #71ceff; background-color: #152a3d; border-bottom-color: #56bff7; }
+
+details { margin: 10dp 0dp; padding: 0dp; background-color: #0d1723; border: 1dp #26374a; border-radius: 7dp; }
+summary { padding: 11dp 13dp; color: #cbd9e7; font-size: 13dp; font-weight: bold; letter-spacing: .5dp; background-color: #131f2d; border-radius: 7dp; }
+details > :not(summary) { margin-left: 13dp; margin-right: 13dp; }
+details > :last-child { margin-bottom: 13dp; }
+.metric-list, .metric-grid, table { background-color: #0b1520; border: 1dp #243548; border-radius: 7dp; }
+.metric-list { padding: 9dp 12dp; }
+.metric { display: flex; padding: 7dp 0dp; border-bottom: 1dp #213144; }
+.metric-name { flex: 1; color: #8499ae; }
+.metric-value { color: #d9e7f4; font-weight: bold; }
+table { width: 100%; }
+th { padding: 9dp; color: #8499ae; font-size: 11dp; letter-spacing: 1dp; text-align: left; border-bottom: 1dp #2a3a4d; }
+td { padding: 9dp; color: #c9d7e5; border-bottom: 1dp #1e2d3e; }
+.progress, progress { height: 8dp; background-color: #253548; border: 0dp; border-radius: 4dp; }
+.progress > div, progress fill { height: 8dp; background-color: #35a9e9; border-radius: 4dp; }
+.file-picker { display: flex; align-items: center; }
+.file-picker input { flex: 1; }
+.prototype-banner { padding: 10dp 12dp; color: #f1c878; background-color: #2b2417; border: 1dp #6a5730; border-radius: 6dp; }
+.overlay { background-color: #050912d9; }
+.scroll-panel { overflow: auto; }
+scrollbarvertical { width: 10dp; margin: 3dp; }
+scrollbarvertical slidertrack { background-color: #0b1420; border-radius: 5dp; }
+scrollbarvertical sliderbar { min-height: 28dp; background-color: #32485e; border-radius: 5dp; }
+scrollbarvertical sliderbar:hover { background-color: #4c6d8a; }
+scrollbarvertical sliderarrowdec, scrollbarvertical sliderarrowinc { height: 0dp; }

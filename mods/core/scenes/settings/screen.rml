@@ -1,2 +1,7 @@
-<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section class="panel"><h1>SETTINGS</h1><button data-action="scene.return-main-menu">Back</button></section></body></rml>
-
+<rml><head><title>Settings</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head><body class="overlay">
+<section class="panel" data-model="ui_builtin_settings">
+  <header class="screen-header"><p class="eyebrow">SESSION PREFERENCES</p><h1>Settings</h1><p class="subtitle">Tune interface comfort without leaving the current scene.</p></header>
+  <label class="field"><span class="field-label">UI SCALE</span><div class="range-row"><input type="range" min="0.75" max="1.5" step="0.05" data-value="ui_scale" data-field="ui_scale" data-control="settings.ui-scale" /><output data-bind="text: ui_scale_percent"></output></div></label>
+  <label class="check-row"><input type="checkbox" data-checked="show_diagnostics" data-field="show_diagnostics" data-control="settings.show-diagnostics" /><span><strong>Show diagnostics</strong><br/><span class="muted">Renderer telemetry in the battlefield HUD</span></span></label>
+  <div class="command-bar"><button class="ghost" data-action="settings.defaults">Defaults</button><button data-action="settings.cancel">Cancel</button><button class="primary" data-action="settings.apply">Apply settings</button></div>
+</section></body></rml>

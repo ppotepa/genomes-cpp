@@ -7,6 +7,9 @@
 #include <array>
 #include <cmath>
 #include <string>
+#include <charconv>
+#include <cstdlib>
+#include <utility>
 
 namespace genomes::runtime {
 
@@ -14,22 +17,29 @@ namespace {
 
 constexpr std::array<std::uint32_t, 4> map_sizes{{400, 600, 800, 1200}};
 
+template <typename T>
+[[nodiscard]] std::string numberText(T value) {
+    std::array<char, 64> buffer{};
+    const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+    return result.ec == std::errc{} ? std::string{buffer.data(), result.ptr} : std::string{};
+}
+
 [[nodiscard]] int entryIndex(WorldConfigEntry entry) noexcept {
     return static_cast<int>(entry);
 }
 
 [[nodiscard]] std::string percentage(float value) {
-    return std::to_string(static_cast<int>(std::lround(value * 100.0F))) + "%";
+    return numberText(static_cast<int>(std::lround(value * 100.0F))) + "%";
 }
 
 [[nodiscard]] std::string entryLabel(WorldConfigEntry entry,
                                      const WorldGenerationConfig& config) {
     switch (entry) {
     case WorldConfigEntry::Seed:
-        return "Seed: " + std::to_string(config.seed);
+        return "Seed: " + numberText(config.seed);
     case WorldConfigEntry::MapSize:
-        return "Map size: " + std::to_string(config.map_size_m) + " x " +
-               std::to_string(config.map_size_m) + " m";
+        return "Map size: " + numberText(config.map_size_m) + " x " +
+               numberText(config.map_size_m) + " m";
     case WorldConfigEntry::Preset:
         return "Preset: village with settlement";
     case WorldConfigEntry::Hydrology:
@@ -74,23 +84,6 @@ void WorldConfigScene::on_enter(SceneContext& context) {
 void WorldConfigScene::handle_input(SceneContext& context, const input::InputFrame& input) {
     const int count = static_cast<int>(WorldConfigEntry::Count);
     int selected = entryIndex(state_.selected);
-    if (input.mouse_left_pressed && input.mouse_x >= 78.0F && input.mouse_x <= 678.0F) {
-        float row_y = 198.0F; // description follows the title at renderer row 164
-        for (int index = 0; index < count; ++index) {
-            if (input.mouse_y >= row_y && input.mouse_y <= row_y + 48.0F) {
-                state_.selected = static_cast<WorldConfigEntry>(index);
-                if (state_.selected == WorldConfigEntry::Start ||
-                    state_.selected == WorldConfigEntry::Back) {
-                    activate(context);
-                }
-                return;
-            }
-            const auto entry = static_cast<WorldConfigEntry>(index);
-            row_y += (entry == WorldConfigEntry::Start || entry == WorldConfigEntry::Back)
-                          ? 60.0F
-                          : 34.0F;
-        }
-    }
     if (input.up_pressed) {
         selected = (selected + count - 1) % count;
         state_.selected = static_cast<WorldConfigEntry>(selected);
@@ -118,27 +111,77 @@ void WorldConfigScene::fixed_update(SceneContext&, double dt) {
 
 void WorldConfigScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
-    context.ui.add({foundation::stable_id("world-config.panel"), ui::UiWidgetType::Panel,
-                    "WORLD-GENERATION-1", true, false, 720.0F, 760.0F});
-    context.ui.add({foundation::stable_id("world-config.title"), ui::UiWidgetType::Label,
-                    "New world", true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("world-config.description"), ui::UiWidgetType::Label,
-                    "A deterministic settlement, roads, parcels and vegetation.", true, false,
-                    0.0F, 0.0F});
+    auto& model = context.ui.model();
+    (void)model.set("title", std::string{"New world"});
+    (void)model.set("description", std::string{"A deterministic settlement, roads, parcels and vegetation."});
+    ui::UiFieldState seed{}; seed.value = numberText(state_.config.seed);
+    seed.commit_policy = ui::UiCommitPolicy::OnChange; seed.minimum = 0.0;
+    (void)model.set_field("seed", std::move(seed));
+    ui::UiFieldState size{}; size.value = static_cast<std::int64_t>(state_.config.map_size_m);
+    size.commit_policy = ui::UiCommitPolicy::OnChange;
+    size.options = {{"400", "400m", true}, {"600", "600m", true},
+                    {"800", "800m", true}, {"1200", "1200m", true}};
+    (void)model.set_field("map_size", std::move(size));
+    ui::UiFieldState vegetation{}; vegetation.value = static_cast<double>(state_.config.vegetation);
+    vegetation.commit_policy = ui::UiCommitPolicy::Live; vegetation.minimum = 0.0; vegetation.maximum = 1.0; vegetation.step = 0.05;
+    (void)model.set_field("vegetation", std::move(vegetation));
+    ui::UiFieldState buildings{}; buildings.value = static_cast<double>(state_.config.buildings);
+    buildings.commit_policy = ui::UiCommitPolicy::Live; buildings.minimum = 0.0; buildings.maximum = 1.0; buildings.step = 0.05;
+    (void)model.set_field("buildings", std::move(buildings));
+    ui::UiFieldState fenced{}; fenced.value = static_cast<double>(state_.config.fenced_parcels);
+    fenced.commit_policy = ui::UiCommitPolicy::Live; fenced.minimum = 0.0; fenced.maximum = 1.0; fenced.step = 0.05;
+    (void)model.set_field("fenced_parcels", std::move(fenced));
+    (void)model.set("vegetation_percent", percentage(state_.config.vegetation));
+    (void)model.set("buildings_percent", percentage(state_.config.buildings));
+    (void)model.set("fenced_parcels_percent", percentage(state_.config.fenced_parcels));
+    (void)model.set("selected", entryLabel(state_.selected, state_.config));
+    (void)model.set("note", std::string{"The same seed and settings produce the same world plan."});
+}
 
-    for (int index = 0; index < static_cast<int>(WorldConfigEntry::Count); ++index) {
-        const auto entry = static_cast<WorldConfigEntry>(index);
-        context.ui.add({foundation::stable_id("world-config." + std::to_string(index)),
-                        entry == WorldConfigEntry::Start || entry == WorldConfigEntry::Back
-                            ? ui::UiWidgetType::Button
-                            : ui::UiWidgetType::Label,
-                        entryLabel(entry, state_.config), true, entry == state_.selected,
-                        600.0F, 48.0F});
+ui::UiActionResult WorldConfigScene::handle_ui_action(
+    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments& arguments) {
+    const auto value_of = [&]() -> std::string_view {
+        for (const auto& argument : arguments) if (argument.first == "value") return argument.second;
+        return {};
+    };
+    const auto value = value_of();
+    if (action == foundation::stable_id("world.seed")) {
+        std::uint64_t seed{};
+        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) return ui::UiActionResult::Rejected;
+        state_.config.seed = seed;
+        return ui::UiActionResult::Handled;
     }
-
-    context.ui.add({foundation::stable_id("world-config.note"), ui::UiWidgetType::Label,
-                    "The same seed and settings produce the same world plan.", true, false,
-                    0.0F, 0.0F});
+    if (action == foundation::stable_id("world.map-size")) {
+        std::uint64_t size{};
+        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), size);
+        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) return ui::UiActionResult::Rejected;
+        if (size != 400U && size != 600U && size != 800U && size != 1200U) return ui::UiActionResult::Rejected;
+        state_.config.map_size_m = static_cast<std::uint32_t>(size);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("world.vegetation") ||
+        action == foundation::stable_id("world.buildings") ||
+        action == foundation::stable_id("world.fenced-parcels")) {
+        double parsed = 0.0;
+        const auto converted = std::from_chars(value.data(), value.data() + value.size(), parsed,
+                                               std::chars_format::general);
+        if (converted.ec != std::errc{} || converted.ptr != value.data() + value.size() || !std::isfinite(parsed)) return ui::UiActionResult::Rejected;
+        const float clamped = std::clamp(static_cast<float>(parsed), 0.0F, 1.0F);
+        if (action == foundation::stable_id("world.vegetation")) state_.config.vegetation = clamped;
+        else if (action == foundation::stable_id("world.buildings")) state_.config.buildings = clamped;
+        else state_.config.fenced_parcels = clamped;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("scene.start-battlefield")) {
+        context.commands.push({ApplicationCommandKind::StartScenario, state_.config});
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("scene.return-main-menu")) {
+        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        return ui::UiActionResult::Handled;
+    }
+    return ui::UiActionResult::Unknown;
 }
 
 void WorldConfigScene::build_presentation(SceneContext& context) {

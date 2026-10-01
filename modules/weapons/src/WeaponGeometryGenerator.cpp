@@ -11,7 +11,7 @@ namespace genomes::weapons {
 
 namespace {
 
-[[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
+[[nodiscard]] bool weapon_finite(foundation::Vec3 value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
@@ -21,9 +21,9 @@ namespace {
 
 [[nodiscard]] foundation::Vec3 add(foundation::Vec3 a,foundation::Vec3 b) noexcept{return {a.x+b.x,a.y+b.y,a.z+b.z};}
 [[nodiscard]] foundation::Vec3 subtract(foundation::Vec3 a,foundation::Vec3 b) noexcept{return {a.x-b.x,a.y-b.y,a.z-b.z};}
-[[nodiscard]] float dot(foundation::Vec3 a,foundation::Vec3 b) noexcept{return a.x*b.x+a.y*b.y+a.z*b.z;}
-[[nodiscard]] foundation::Vec3 cross(foundation::Vec3 a,foundation::Vec3 b) noexcept{return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
-[[nodiscard]] foundation::Vec3 normalized(foundation::Vec3 v) noexcept{const float l=std::sqrt(dot(v,v));return l>0?multiply(v,1/l):foundation::Vec3{};}
+[[nodiscard]] float weapon_dot(foundation::Vec3 a,foundation::Vec3 b) noexcept{return a.x*b.x+a.y*b.y+a.z*b.z;}
+[[nodiscard]] foundation::Vec3 weapon_cross(foundation::Vec3 a,foundation::Vec3 b) noexcept{return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};}
+[[nodiscard]] foundation::Vec3 weapon_normalized(foundation::Vec3 v) noexcept{const float l=std::sqrt(weapon_dot(v,v));return l>0?multiply(v,1/l):foundation::Vec3{};}
 [[nodiscard]] foundation::Color linearColor(std::uint32_t hex) noexcept{const auto channel=[](std::uint32_t value){const float c=static_cast<float>(value)/255.0F;return c<.04045F?c*.0773993808F:std::pow(c*.9478672986F+.0521327014F,2.4F);};return {channel((hex>>16U)&255U),channel((hex>>8U)&255U),channel(hex&255U),1};}
 
 struct DoubleVec3 final { double x; double y; double z; };
@@ -37,20 +37,20 @@ public:
         mesh.vertices.push_back({p,normal,uv,color,material});return index;}
     void triangle(std::uint32_t a,std::uint32_t b,std::uint32_t c,std::uint32_t material=0){
         const auto pa=mesh.vertices[a].position,pb=mesh.vertices[b].position,pc=mesh.vertices[c].position;
-        const auto n=cross(subtract(pb,pa),subtract(pc,pa));if(dot(n,n)<1e-18F)return;
+        const auto n=weapon_cross(subtract(pb,pa),subtract(pc,pa));if(weapon_dot(n,n)<1e-18F)return;
         const auto hint=add(add(mesh.vertices[a].normal,mesh.vertices[b].normal),mesh.vertices[c].normal);
-        if(dot(n,hint)<0)std::swap(b,c);triangles[material].insert(triangles[material].end(),{a,b,c});}
+        if(weapon_dot(n,hint)<0)std::swap(b,c);triangles[material].insert(triangles[material].end(),{a,b,c});}
     Ring ring(foundation::Vec3 center,foundation::Vec3 u,foundation::Vec3 v,float rx,float rz,
               std::size_t count,foundation::Color color,std::uint32_t material=0,float uv_y=0){Ring result;result.reserve(count);
         for(std::size_t j=0;j<count;++j){const float angle=2*3.14159265358979323846F*static_cast<float>(j)/static_cast<float>(count);
             const float x=std::cos(angle),z=std::sin(angle);const auto p=add(center,add(multiply(u,rx*x),multiply(v,rz*z)));
-            const auto n=normalized(add(multiply(u,x/std::max(rx,1e-5F)),multiply(v,z/std::max(rz,1e-5F))));
+            const auto n=weapon_normalized(add(multiply(u,x/std::max(rx,1e-5F)),multiply(v,z/std::max(rz,1e-5F))));
             result.push_back(vertex(p,color,n,{static_cast<float>(j)/static_cast<float>(count)*3,uv_y},material));}return result;}
     void bridge(const Ring& a,const Ring& b,std::uint32_t material=0){for(std::size_t j=0;j<a.size();++j){const auto k=(j+1)%a.size();triangle(a[j],b[j],a[k],material);triangle(a[k],b[j],b[k],material);}}
     void cap(const Ring& loop,foundation::Color color,foundation::Vec3 normal,std::uint32_t material=0){foundation::Vec3 center{};for(const auto index:loop)center=add(center,mesh.vertices[index].position);center=multiply(center,1.0F/static_cast<float>(loop.size()));const auto middle=vertex(center,color,normal,{},material);for(std::size_t i=0;i<loop.size();++i)triangle(middle,loop[i],loop[(i+1)%loop.size()],material);}
-    void cylinder(foundation::Vec3 a,foundation::Vec3 b,float radius,foundation::Color color,std::uint32_t material=1,std::size_t segments=10){const auto direction=normalized(subtract(b,a));const foundation::Vec3 guide=std::abs(direction.z)<.9F?foundation::Vec3{0,0,1}:foundation::Vec3{0,1,0};const auto u=normalized(cross(direction,guide)),v=normalized(cross(u,direction));const auto one=ring(a,u,v,radius,radius,segments,color,material),two=ring(b,u,v,radius,radius,segments,color,material);bridge(one,two,material);cap(one,color,multiply(direction,-1),material);cap(two,color,direction,material);}
-    void tubePath(const std::vector<foundation::Vec3>& points,float radius,foundation::Color color,std::uint32_t material=0,std::size_t segments=6){Ring previous;for(std::size_t i=0;i<points.size();++i){const auto direction=normalized(i+1<points.size()?subtract(points[i+1],points[i]):subtract(points[i],points[i-1]));const foundation::Vec3 guide=std::abs(direction.z)<.9F?foundation::Vec3{0,0,1}:foundation::Vec3{0,1,0};const auto u=normalized(cross(direction,guide)),v=normalized(cross(u,direction));auto current=ring(points[i],u,v,radius,radius,segments,color,material,static_cast<float>(i)/points.size());if(!previous.empty())bridge(previous,current,material);previous=std::move(current);}}
-    void profile(const std::vector<foundation::Vec2>& points,float width,foundation::Color color,std::uint32_t material=1){for(const float sign:{-1.0F,1.0F}){Ring ids;for(const auto p:points)ids.push_back(vertex({sign*width/2,p.x,p.y},color,{sign,0,0},{},material));for(std::size_t i=1;i+1<ids.size();++i)triangle(ids[0],ids[i],ids[i+1],material);}for(std::size_t i=0;i<points.size();++i){const auto a=points[i],b=points[(i+1)%points.size()];const auto normal=normalized({0,b.y-a.y,a.x-b.x});const std::array<std::uint32_t,4> ids{vertex({-width/2,a.x,a.y},color,normal,{},material),vertex({width/2,a.x,a.y},color,normal,{},material),vertex({width/2,b.x,b.y},color,normal,{},material),vertex({-width/2,b.x,b.y},color,normal,{},material)};triangle(ids[0],ids[1],ids[2],material);triangle(ids[0],ids[2],ids[3],material);}}
+    void cylinder(foundation::Vec3 a,foundation::Vec3 b,float radius,foundation::Color color,std::uint32_t material=1,std::size_t segments=10){const auto direction=weapon_normalized(subtract(b,a));const foundation::Vec3 guide=std::abs(direction.z)<.9F?foundation::Vec3{0,0,1}:foundation::Vec3{0,1,0};const auto u=weapon_normalized(weapon_cross(direction,guide)),v=weapon_normalized(weapon_cross(u,direction));const auto one=ring(a,u,v,radius,radius,segments,color,material),two=ring(b,u,v,radius,radius,segments,color,material);bridge(one,two,material);cap(one,color,multiply(direction,-1),material);cap(two,color,direction,material);}
+    void tubePath(const std::vector<foundation::Vec3>& points,float radius,foundation::Color color,std::uint32_t material=0,std::size_t segments=6){Ring previous;for(std::size_t i=0;i<points.size();++i){const auto direction=weapon_normalized(i+1<points.size()?subtract(points[i+1],points[i]):subtract(points[i],points[i-1]));const foundation::Vec3 guide=std::abs(direction.z)<.9F?foundation::Vec3{0,0,1}:foundation::Vec3{0,1,0};const auto u=weapon_normalized(weapon_cross(direction,guide)),v=weapon_normalized(weapon_cross(u,direction));auto current=ring(points[i],u,v,radius,radius,segments,color,material,static_cast<float>(i)/points.size());if(!previous.empty())bridge(previous,current,material);previous=std::move(current);}}
+    void profile(const std::vector<foundation::Vec2>& points,float width,foundation::Color color,std::uint32_t material=1){for(const float sign:{-1.0F,1.0F}){Ring ids;for(const auto p:points)ids.push_back(vertex({sign*width/2,p.x,p.y},color,{sign,0,0},{},material));for(std::size_t i=1;i+1<ids.size();++i)triangle(ids[0],ids[i],ids[i+1],material);}for(std::size_t i=0;i<points.size();++i){const auto a=points[i],b=points[(i+1)%points.size()];const auto normal=weapon_normalized({0,b.y-a.y,a.x-b.x});const std::array<std::uint32_t,4> ids{vertex({-width/2,a.x,a.y},color,normal,{},material),vertex({width/2,a.x,a.y},color,normal,{},material),vertex({width/2,b.x,b.y},color,normal,{},material),vertex({-width/2,b.x,b.y},color,normal,{},material)};triangle(ids[0],ids[1],ids[2],material);triangle(ids[0],ids[2],ids[3],material);}}
     void box(DoubleVec3 center,DoubleVec3 size,foundation::Color color,std::uint32_t material=0,double round=.13){
         const std::array<double,3> half{size.x*.5,size.y*.5,size.z*.5};const double radius=std::min({half[0],half[1],half[2]})*round*2;
         const std::array<double,3> core{half[0]-radius,half[1]-radius,half[2]-radius};constexpr std::size_t segments=2;
@@ -69,13 +69,13 @@ public:
         std::vector<Ring> rings;for(std::size_t row=0;row<=rows;++row){const float phi=-3.14159265358979323846F/2+3.14159265358979323846F*static_cast<float>(row)/rows;Ring ring_values;
             for(std::size_t j=0;j<segments;++j){const float a=2*3.14159265358979323846F*static_cast<float>(j)/segments;
                 const foundation::Vec3 local{std::cos(phi)*std::cos(a)*radii.x,std::sin(phi)*radii.y,std::cos(phi)*std::sin(a)*radii.z};
-                const auto normal=normalized({std::cos(phi)*std::cos(a)/radii.x,std::sin(phi)/radii.y,std::cos(phi)*std::sin(a)/radii.z});
+                const auto normal=weapon_normalized({std::cos(phi)*std::cos(a)/radii.x,std::sin(phi)/radii.y,std::cos(phi)*std::sin(a)/radii.z});
                 ring_values.push_back(vertex(add(center,local),color,normal,{static_cast<float>(j)/segments,static_cast<float>(row)/rows},material));}
             if(!rings.empty())bridge(rings.back(),ring_values,material);rings.push_back(std::move(ring_values));}}
     WeaponMesh finish(bool orient=false){mesh.indices.clear();for(auto& stream:triangles)mesh.indices.insert(mesh.indices.end(),stream.begin(),stream.end());
         if(orient){const std::size_t count=mesh.indices.size()/3,vertex_count=mesh.vertices.size();struct Use{std::uint32_t triangle;bool direction;};std::unordered_map<std::uint64_t,Use> edges;std::vector<std::vector<std::pair<std::uint32_t,std::uint8_t>>> neighbours(count);
             for(std::uint32_t t=0;t<count;++t)for(std::size_t j=0;j<3;++j){const auto a=mesh.indices[t*3+j],b=mesh.indices[t*3+(j+1)%3],lo=std::min(a,b),hi=std::max(a,b);const std::uint64_t key=static_cast<std::uint64_t>(lo)*vertex_count+hi;const Use entry{t,a<b};const auto found=edges.find(key);if(found!=edges.end()){const std::uint8_t different=found->second.direction==entry.direction?1:0;neighbours[t].push_back({found->second.triangle,different});neighbours[found->second.triangle].push_back({t,different});}else edges.emplace(key,entry);}
-            std::vector<std::int8_t> flips(count,-1);for(std::uint32_t start=0;start<count;++start){if(flips[start]!=-1)continue;flips[start]=0;std::vector<std::uint32_t> queue{start};double score=0;for(std::size_t at=0;at<queue.size();++at){const auto t=queue[at];for(const auto [next,delta]:neighbours[t])if(flips[next]==-1){flips[next]=static_cast<std::int8_t>(flips[t]^delta);queue.push_back(next);}const auto a=mesh.indices[t*3],b=mesh.indices[t*3+1],c=mesh.indices[t*3+2];const auto pa=mesh.vertices[a].position,pb=subtract(mesh.vertices[b].position,pa),pc=subtract(mesh.vertices[c].position,pa),normal=cross(pb,pc);const auto hint=add(add(mesh.vertices[a].normal,mesh.vertices[b].normal),mesh.vertices[c].normal);score+=dot(normal,hint)*(flips[t]?-1:1);}const std::int8_t invert=score<0?1:0;for(const auto t:queue)if((flips[t]^invert)!=0)std::swap(mesh.indices[t*3+1],mesh.indices[t*3+2]);}}
+            std::vector<std::int8_t> flips(count,-1);for(std::uint32_t start=0;start<count;++start){if(flips[start]!=-1)continue;flips[start]=0;std::vector<std::uint32_t> queue{start};double score=0;for(std::size_t at=0;at<queue.size();++at){const auto t=queue[at];for(const auto [next,delta]:neighbours[t])if(flips[next]==-1){flips[next]=static_cast<std::int8_t>(flips[t]^delta);queue.push_back(next);}const auto a=mesh.indices[t*3],b=mesh.indices[t*3+1],c=mesh.indices[t*3+2];const auto pa=mesh.vertices[a].position,pb=subtract(mesh.vertices[b].position,pa),pc=subtract(mesh.vertices[c].position,pa),normal=weapon_cross(pb,pc);const auto hint=add(add(mesh.vertices[a].normal,mesh.vertices[b].normal),mesh.vertices[c].normal);score+=weapon_dot(normal,hint)*(flips[t]?-1:1);}const std::int8_t invert=score<0?1:0;for(const auto t:queue)if((flips[t]^invert)!=0)std::swap(mesh.indices[t*3+1],mesh.indices[t*3+2]);}}
         std::vector<foundation::Vec3> normals(mesh.vertices.size());
         for(std::size_t at=0;at<mesh.indices.size();at+=3){const auto a=mesh.indices[at],b=mesh.indices[at+1],c=mesh.indices[at+2];
             const auto pa=mesh.vertices[a].position,pb=mesh.vertices[b].position,pc=mesh.vertices[c].position;
@@ -191,11 +191,11 @@ foundation::Result<WeaponArtifact, foundation::Error> WeaponGeometryGenerator::b
 
 bool WeaponArtifact::valid(const WeaponDefinition& definition) const noexcept {
     if (version != 1U || weapon_id != definition.id || cache_key == 0U || mesh.vertices.empty() ||
-        mesh.indices.empty() || !finite(mesh.minimum) || !finite(mesh.maximum)) {
+        mesh.indices.empty() || !weapon_finite(mesh.minimum) || !weapon_finite(mesh.maximum)) {
         return false;
     }
     for (const WeaponVertex& vertex : mesh.vertices) {
-        if (!finite(vertex.position) || !finite(vertex.normal) ||
+        if (!weapon_finite(vertex.position) || !weapon_finite(vertex.normal) ||
             !std::isfinite(vertex.color.r) || !std::isfinite(vertex.color.g) ||
             !std::isfinite(vertex.color.b) || !std::isfinite(vertex.color.a)) {
             return false;
@@ -206,10 +206,10 @@ bool WeaponArtifact::valid(const WeaponDefinition& definition) const noexcept {
             return false;
         }
     }
-    const auto valid_optional=[](const WeaponMesh& candidate){if(candidate.vertices.empty())return candidate.indices.empty();if(candidate.indices.empty()||!finite(candidate.minimum)||!finite(candidate.maximum))return false;for(const auto index:candidate.indices)if(index>=candidate.vertices.size())return false;return true;};
+    const auto valid_optional=[](const WeaponMesh& candidate){if(candidate.vertices.empty())return candidate.indices.empty();if(candidate.indices.empty()||!weapon_finite(candidate.minimum)||!weapon_finite(candidate.maximum))return false;for(const auto index:candidate.indices)if(index>=candidate.vertices.size())return false;return true;};
     if(!valid_optional(slide)||!valid_optional(muzzle_flash))return false;
-    return finite(muzzle.local_position) && finite(primary_grip.local_position) &&
-           finite(support_grip.local_position) && finite(stow_anchor.local_position);
+    return weapon_finite(muzzle.local_position) && weapon_finite(primary_grip.local_position) &&
+           weapon_finite(support_grip.local_position) && weapon_finite(stow_anchor.local_position);
 }
 
 const WeaponArtifact* WeaponArtifactCache::find(foundation::StableId key) const noexcept {

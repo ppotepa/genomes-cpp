@@ -11,3 +11,5 @@ CMakeUserPresets.json
 *.a
 *.dll
 *.dylib
+run.log
+build-error.log

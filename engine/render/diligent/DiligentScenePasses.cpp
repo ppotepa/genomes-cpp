@@ -108,19 +108,25 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         }
         items.push_back(item);
     }
-    if (!have_resolved_camera) return error("Diligent requires a resolved camera");
     camera=snapshot.camera;
-    const auto& viewport_pixels=resolved_camera.viewport;
-    if (viewport_pixels.width<=0 || viewport_pixels.height<=0 ||
-        viewport_pixels.x<0 || viewport_pixels.y<0 ||
-        viewport_pixels.x+viewport_pixels.width>static_cast<int>(swap->GetDesc().Width) ||
-        viewport_pixels.y+viewport_pixels.height>static_cast<int>(swap->GetDesc().Height))
-        return error("resolved camera viewport is outside the framebuffer");
     const auto& desc=swap->GetDesc();
-    camera.viewport_left=static_cast<float>(viewport_pixels.x)/static_cast<float>(desc.Width);
-    camera.viewport_top=static_cast<float>(viewport_pixels.y)/static_cast<float>(desc.Height);
-    camera.viewport_width=static_cast<float>(viewport_pixels.width)/static_cast<float>(desc.Width);
-    camera.viewport_height=static_cast<float>(viewport_pixels.height)/static_cast<float>(desc.Height);
+    if (have_resolved_camera) {
+        const auto& viewport_pixels=resolved_camera.viewport;
+        if (viewport_pixels.width<=0 || viewport_pixels.height<=0 ||
+            viewport_pixels.x<0 || viewport_pixels.y<0 ||
+            viewport_pixels.x+viewport_pixels.width>static_cast<int>(desc.Width) ||
+            viewport_pixels.y+viewport_pixels.height>static_cast<int>(desc.Height))
+            return error("resolved camera viewport is outside the framebuffer");
+        camera.viewport_left=static_cast<float>(viewport_pixels.x)/static_cast<float>(desc.Width);
+        camera.viewport_top=static_cast<float>(viewport_pixels.y)/static_cast<float>(desc.Height);
+        camera.viewport_width=static_cast<float>(viewport_pixels.width)/static_cast<float>(desc.Width);
+        camera.viewport_height=static_cast<float>(viewport_pixels.height)/static_cast<float>(desc.Height);
+    } else {
+        camera.viewport_left=0.0F;
+        camera.viewport_top=0.0F;
+        camera.viewport_width=1.0F;
+        camera.viewport_height=1.0F;
+    }
     if (camera.enabled&&!camera.valid()) return error("invalid scene camera");
     if (!camera.enabled) {
         V lo{-1,0,-1},hi{1,2,1};
@@ -142,8 +148,10 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         camera_matrix.v=resolved_camera.view_projection.m;
     } else {
         const auto view=math::lookAtRH(camera.position,camera.target,camera.up);
-        const auto projection=math::perspectiveD3D(camera.vertical_fov,aspect,
-                                                    camera.near_plane,camera.far_plane);
+        auto projection=math::perspectiveD3D(camera.vertical_fov,aspect,
+                                             camera.near_plane,camera.far_plane);
+        projection(0,2)=-camera.projection_offset_x;
+        projection(1,2)=-camera.projection_offset_y;
         camera_matrix.v=(projection*view).m;
     }
     const auto offset=camera.position-camera.target;

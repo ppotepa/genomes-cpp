@@ -145,6 +145,8 @@ struct RenderCamera final {
     float vertical_fov{0.9F};
     float near_plane{0.1F};
     float far_plane{10'000.0F};
+    float projection_offset_x{0.0F};
+    float projection_offset_y{0.0F};
     // Normalized framebuffer rectangle. Default preserves full-window scenes.
     float viewport_left{0.0F};
     float viewport_top{0.0F};
@@ -168,6 +170,8 @@ struct RenderCamera final {
                std::isfinite(vertical_fov) && vertical_fov > 0.05F && vertical_fov < 3.0F &&
                std::isfinite(near_plane) && near_plane > 0.0F &&
                std::isfinite(far_plane) && far_plane > near_plane &&
+               std::isfinite(projection_offset_x) && std::isfinite(projection_offset_y) &&
+               std::abs(projection_offset_x) <= 1.0F && std::abs(projection_offset_y) <= 1.0F &&
                std::isfinite(viewport_left) && std::isfinite(viewport_top) &&
                std::isfinite(viewport_width) && std::isfinite(viewport_height) &&
                viewport_left >= 0.0F && viewport_top >= 0.0F &&
@@ -182,6 +186,8 @@ struct RenderCamera final {
         request.mode=mode;
         request.lens.vertical_fov=vertical_fov;
         request.lens.near_plane=near_plane; request.lens.far_plane=far_plane;
+        request.lens.projection_offset_x=projection_offset_x;
+        request.lens.projection_offset_y=projection_offset_y;
         request.viewport={viewport_left,viewport_top,viewport_width,viewport_height};
         return request;
     }
@@ -190,6 +196,8 @@ struct RenderCamera final {
         mode=request.mode;
         vertical_fov=request.lens.vertical_fov;
         near_plane=request.lens.near_plane; far_plane=request.lens.far_plane;
+        projection_offset_x=request.lens.projection_offset_x;
+        projection_offset_y=request.lens.projection_offset_y;
         viewport_left=request.viewport.x; viewport_top=request.viewport.y;
         viewport_width=request.viewport.width; viewport_height=request.viewport.height;
     }

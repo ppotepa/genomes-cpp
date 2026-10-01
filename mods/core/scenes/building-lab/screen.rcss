@@ -1,1 +1,8 @@
-body { background-color: #08101c; color: #d5e2f2; font-family: LatoLatin; } .panel { width: 720px; margin: 48px; padding: 48px; background-color: #101b2c; }
+body { pointer-events: none; background-color: transparent; }
+.panel { pointer-events: auto; width: 430dp; height: 100%; padding: 34dp 30dp; border-width: 0dp 1dp 0dp 0dp; border-radius: 0dp; overflow-y: auto; }
+.integrity { margin-bottom: 18dp; }
+.integrity-label { display: flex; margin-bottom: 8dp; color: #9eb0c3; font-size: 12dp; }
+.integrity-label span:first-child { flex: 1; }
+.full { width: 100%; margin-left: 0dp; }
+.command-bar { flex-wrap: wrap; }
+.command-bar { flex-wrap: wrap; }

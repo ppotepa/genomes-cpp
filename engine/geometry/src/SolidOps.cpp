@@ -13,7 +13,7 @@
 namespace genomes::geometry {
 namespace {
 foundation::Error unsupported() { return {foundation::ErrorCode::Unsupported,"Manifold CSG is disabled"}; }
-foundation::Error invalid() { return {foundation::ErrorCode::InvalidArgument,"CSG requires valid closed meshes"}; }
+[[maybe_unused]] foundation::Error invalid() { return {foundation::ErrorCode::InvalidArgument,"CSG requires valid closed meshes"}; }
 #if GENOMES_HAS_MANIFOLD
 foundation::Result<manifold::Manifold, foundation::Error> toManifold(const MeshData& mesh, std::uint32_t material_offset) {
     if(!mesh.valid()||mesh.vertices.empty())return foundation::Result<manifold::Manifold,foundation::Error>::failure(invalid());

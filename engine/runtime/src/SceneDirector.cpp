@@ -3,12 +3,24 @@
 #include <genomes/runtime/MainMenuScene.hpp>
 
 #include <algorithm>
+#include <array>
+#include <charconv>
+#include <cmath>
 #include <string>
 #include <utility>
+#include <variant>
 
 namespace genomes::runtime {
 
 namespace {
+
+[[nodiscard]] std::string scalePercent(double scale) {
+    std::array<char, 16> buffer{};
+    const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(),
+                                      static_cast<int>(std::lround(scale * 100.0)));
+    return result.ec == std::errc{} ? std::string{buffer.data(), result.ptr} + "%"
+                                    : std::string{};
+}
 
 class PlaceholderScene final : public Scene {
 public:
@@ -25,11 +37,9 @@ public:
 
     void frame_update(SceneContext& context, double) override {
         context.ui.clear();
-        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiWidgetType::Panel,
-                        title_, true, false, 720.0F, 480.0F});
-        context.ui.add({foundation::stable_id("placeholder.description"), ui::UiWidgetType::Label,
-                        "Scene registered; domain module will provide its content.",
-                        true, false, 0.0F, 0.0F});
+        (void)context.ui.model().set("title", title_);
+        (void)context.ui.model().set("description",
+            std::string{"Scene registered; domain module will provide its content."});
     }
 
 private:
@@ -48,7 +58,8 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
 SceneContext SceneDirector::make_context() noexcept {
     return {commands_, ui_, presentation_, active_world_config_ ? &*active_world_config_ : nullptr,
             jobs_, renderer_.capabilities(), renderer_.uploadTelemetry(),
-            deterministic_capture_, &presentation_.camera_request,
+            deterministic_capture_, framebuffer_width_, framebuffer_height_, session_ui_scale_,
+            &presentation_.camera_request,
             &presentation_.has_camera_request};
 }
 
@@ -77,18 +88,36 @@ void SceneDirector::handle_input(const input::InputFrame& input) {
             camera_controller_initialized_ = true;
         }
         camera::CameraInput camera_input{};
-        camera_input.orbit_x = input.mouse_left_down ? input.mouse_delta_x * 0.01F : 0.0F;
-        camera_input.orbit_y = input.mouse_left_down ? input.mouse_delta_y * 0.01F : 0.0F;
+        const float viewport_left = presentation_.camera.viewport_left * framebuffer_width_;
+        const float viewport_top = presentation_.camera.viewport_top * framebuffer_height_;
+        const float viewport_width = presentation_.camera.viewport_width * framebuffer_width_;
+        const float viewport_height = presentation_.camera.viewport_height * framebuffer_height_;
+        const bool inside = input.mouse_x >= viewport_left && input.mouse_x < viewport_left + viewport_width &&
+                            input.mouse_y >= viewport_top && input.mouse_y < viewport_top + viewport_height;
+        bool pointer_down_event = input.mouse_left_pressed;
+        for (const auto& event : input.events)
+            if (event.type == input::EventType::MouseButtonDown) pointer_down_event = true;
+        if (pointer_down_event && inside) camera_pointer_capture_ = true;
+        if (input.pointer_cancel || input.focus_lost ||
+            (!input.mouse_left_down && !input.mouse_middle_down && !input.mouse_right_down))
+            camera_pointer_capture_ = false;
+        const float normalized_x = input.mouse_delta_x / std::max(1.0F, viewport_width);
+        const float normalized_y = input.mouse_delta_y / std::max(1.0F, viewport_height);
+        camera_input.orbit_x = camera_pointer_capture_ && input.mouse_left_down ? normalized_x * 4.0F : 0.0F;
+        camera_input.orbit_y = camera_pointer_capture_ && input.mouse_left_down ? normalized_y * 4.0F : 0.0F;
+        const bool panning = camera_pointer_capture_ && (input.mouse_middle_down || input.mouse_right_down);
+        camera_input.pan_x = panning ? normalized_x : 0.0F;
+        camera_input.pan_y = panning ? normalized_y : 0.0F;
         camera_input.move_x = static_cast<float>(input.right_pressed) -
                               static_cast<float>(input.left_pressed);
         camera_input.move_z = static_cast<float>(input.down_pressed) -
                               static_cast<float>(input.up_pressed);
-        camera_input.zoom = -input.mouse_wheel_y * 0.05F;
+        camera_input.zoom = inside ? -input.mouse_wheel_y * 0.12F : 0.0F;
+        camera_input.reset = input.reset_pressed;
         camera_input.cancel = input.cancel_pressed || input.pointer_cancel;
         camera_input.focus_lost = input.focus_lost;
         camera_controller_.update(request, camera_input, 1.0F / 60.0F);
         presentation_.camera.applyRequest(request);
-        ++presentation_.camera.revision;
     } else {
         camera_controller_initialized_ = false;
     }
@@ -119,15 +148,20 @@ ui::UiActionResult SceneDirector::dispatch_ui_action(
         return push(ApplicationCommandKind::OpenBuildingLab);
     if (action == foundation::stable_id("scene.open-world-config"))
         return push(ApplicationCommandKind::OpenWorldConfig);
+    if (action == foundation::stable_id("scene.open-world-lab"))
+        return push(ApplicationCommandKind::OpenWorldLab);
     if (action == foundation::stable_id("scene.open-settings")) {
         if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) return ui::UiActionResult::Rejected;
-        ui_.routes().push({foundation::scene_id("scene.settings"), {}, "builtin.settings", "scene.settings", true});
+        (void)ui_.model().set("ui_scale", session_ui_scale_);
+        (void)ui_.model().set("ui_scale_percent", scalePercent(session_ui_scale_));
+        (void)ui_.model().set("show_diagnostics", session_show_diagnostics_);
+        ui_.routes().push({foundation::scene_id("scene.settings"), {}, {}, {}, true});
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("scene.open-pause")) {
         if (current_ == nullptr || current_->id() != foundation::scene_id("scene.battlefield") ||
             (ui_.routes().top() != nullptr && ui_.routes().top()->overlay)) return ui::UiActionResult::Rejected;
-        ui_.routes().push({foundation::scene_id("scene.pause"), {}, "builtin.pause", "scene.pause", true});
+        ui_.routes().push({foundation::scene_id("scene.pause"), {}, {}, {}, true});
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("scene.return-main-menu")) {
@@ -151,6 +185,50 @@ ui::UiActionResult SceneDirector::dispatch_ui_action(
         ui_.routes().pop();
         return ui::UiActionResult::Handled;
     }
+    if (action == foundation::stable_id("settings.defaults")) {
+        (void)ui_.model().set("ui_scale", 1.0);
+        (void)ui_.model().set("ui_scale_percent", std::string{"100%"});
+        (void)ui_.model().set("show_diagnostics", true);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("settings.ui-scale")) {
+        for (const auto& argument : arguments) if (argument.first == "value") {
+            double value = 0.0;
+            const auto converted = std::from_chars(argument.second.data(),
+                                                   argument.second.data() + argument.second.size(),
+                                                   value, std::chars_format::general);
+            if (converted.ec != std::errc{} || converted.ptr != argument.second.data() + argument.second.size() || !std::isfinite(value)) return ui::UiActionResult::Rejected;
+            (void)ui_.model().set("ui_scale", std::clamp(value, 0.75, 1.50));
+            (void)ui_.model().set("ui_scale_percent", scalePercent(std::clamp(value, 0.75, 1.50)));
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("settings.show-diagnostics")) {
+        for (const auto& argument : arguments) if (argument.first == "value") {
+            (void)ui_.model().set("show_diagnostics", argument.second == "true" || argument.second == "1");
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("settings.cancel")) {
+        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) {
+            (void)ui_.model().set("ui_scale", session_ui_scale_);
+            (void)ui_.model().set("ui_scale_percent", scalePercent(session_ui_scale_));
+            (void)ui_.model().set("show_diagnostics", session_show_diagnostics_);
+            ui_.routes().pop();
+            return ui::UiActionResult::Handled;
+        }
+        return ui::UiActionResult::Rejected;
+    }
+    if (action == foundation::stable_id("settings.apply")) {
+        if (const auto* value = ui_.model().find("ui_scale"); value != nullptr &&
+            std::holds_alternative<double>(*value)) session_ui_scale_ = std::get<double>(*value);
+        if (const auto* value = ui_.model().find("show_diagnostics"); value != nullptr &&
+            std::holds_alternative<bool>(*value)) session_show_diagnostics_ = std::get<bool>(*value);
+        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) ui_.routes().pop();
+        return ui::UiActionResult::Handled;
+    }
     if (action == foundation::stable_id("application.quit"))
         return push(ApplicationCommandKind::Quit);
     return ui::UiActionResult::Unknown;
@@ -170,6 +248,7 @@ bool SceneDirector::change_to(foundation::SceneId id) {
         current_->on_exit(context);
     }
     ui_.routes().replace({id, {}, {}, {}, false});
+    ui_.reset_model();
     current_ = factory->second();
     current_->on_enter(context);
     return true;
@@ -205,12 +284,13 @@ void SceneDirector::frame_update(double dt) {
                                    declared_revision == previous_camera.revision;
         auto resolved_request = declared;
         if (preserve_pose) {
-            const foundation::Vec3 orbit_offset = previous_camera.position - previous_camera.target;
-            resolved_request.position = declared.target + orbit_offset;
+            // Keep the complete interactive pose, including a panned target.
+            // Rebuilding from the declared target would erase right/middle drag
+            // panning on the next extraction frame.
+            resolved_request.position = previous_camera.position;
+            resolved_request.target = previous_camera.target;
             resolved_request.up = declared.up;
             camera_controller_.setMode(declared.mode);
-            if (declared.mode == camera::CameraMode::Orbit)
-                camera_controller_.rebaseOrbitTarget(declared.target);
         } else {
             camera_controller_.setMode(declared.mode);
             camera_controller_.reset(resolved_request);
@@ -299,7 +379,7 @@ void SceneDirector::process_commands() {
             change_to(foundation::scene_id("scene.settings"));
             break;
         case ApplicationCommandKind::OpenPause:
-            ui_.routes().push({foundation::scene_id("scene.pause"), {}, "builtin.pause", "scene.pause", true});
+            ui_.routes().push({foundation::scene_id("scene.pause"), {}, {}, {}, true});
             break;
         case ApplicationCommandKind::Quit:
             quit_requested_ = true;

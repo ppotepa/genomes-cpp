@@ -12,7 +12,11 @@ int main() {
     assert(contains(square,{0.5F,0.5F}) && !contains(square,{1.5F,1.5F}));
     const auto triangles=triangulate(square);
     assert(triangles && triangles.value().size()%3U==0U);
-    const std::vector<math::Vec2> flattened{{0,0},{4,0},{4,4},{0,4},{1,1},{2,1},{2,2},{1,2}};
+    const auto normalized_square = normalizeWinding(square);
+    assert(normalized_square);
+    std::vector<genomes::math::Vec2> flattened = normalized_square.value().outer;
+    flattened.insert(flattened.end(), normalized_square.value().holes.front().begin(),
+                     normalized_square.value().holes.front().end());
     float triangulated_area=0.0F;
     for(std::size_t i=0;i<triangles.value().size();i+=3U){
         const auto a=flattened[triangles.value()[i]],b=flattened[triangles.value()[i+1U]],c=flattened[triangles.value()[i+2U]];

@@ -14,7 +14,7 @@ bool indexOptimizerAvailable() noexcept {
 
 std::uint64_t indexOptimizerFingerprint() noexcept {
 #if GENOMES_HAS_MESHOPTIMIZER
-    return foundation::stable_id(
+    return foundation::stableHashString(
         "meshoptimizer.9e1f07b159d3cb777f1c67ed31fc11fd117986f4.index-order.v1");
 #else
     return 0U;

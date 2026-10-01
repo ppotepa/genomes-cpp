@@ -1,12 +1,12 @@
 <rml>
-  <head><title>Paused</title><link type="text/rcss" href="screen.rcss" /></head>
+  <head><title>Paused</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head>
   <body class="overlay" id="pause-overlay">
     <section class="panel" tabindex="0">
       <p class="eyebrow">BATTLEFIELD / PAUSED</p>
       <h1>Simulation paused</h1>
       <p class="copy">The world remains stable while you inspect the next move.</p>
       <nav class="actions">
-        <button autofocus="autofocus" data-action="scene.resume">Resume</button>
+        <button class="primary" autofocus="autofocus" data-action="scene.resume">Resume</button>
         <button data-action="scene.return-main-menu">Return to main menu</button>
       </nav>
     </section>

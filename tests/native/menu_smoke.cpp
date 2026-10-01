@@ -8,6 +8,7 @@
 #include <cassert>
 #include <memory>
 #include <thread>
+#include <string>
 
 namespace {
 
@@ -20,9 +21,7 @@ public:
     }
 
     void frame_update(genomes::runtime::SceneContext& context, double) override {
-        context.ui.add({genomes::foundation::stable_id("test.scene.panel"),
-                        genomes::ui::UiWidgetType::Panel, "test scene", true, false, 1.0F,
-                        1.0F});
+        (void)context.ui.model().set("title", std::string{"test scene"});
     }
 
 private:
@@ -60,9 +59,9 @@ int main() {
     director.frame_update(1.0 / 60.0);
     director.present();
 
-    assert(ui.frame().commands.size() == 10);
+    assert(ui.model().find("title") != nullptr);
     assert(presentation.instances.size() == 3);
-    assert(renderer.submitted_ui_nodes() == 10);
+    assert(renderer.submitted_ui_nodes() == 0);
 
     director.handle_input({.down_pressed = true, .confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
@@ -70,18 +69,18 @@ int main() {
 
     director.frame_update(1.0 / 60.0);
     director.present();
-    assert(ui.frame().commands.size() == 1);
+    assert(ui.model().find("title") != nullptr);
     assert(presentation.instances.empty());
     assert(renderer.frames_started() == 2);
     assert(renderer.submitted_instances() == 3);
-    assert(renderer.submitted_ui_nodes() == 11);
+    assert(renderer.submitted_ui_nodes() == 0);
 
     assert(director.start(menu_id));
     director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == world_config_id);
     director.frame_update(1.0 / 60.0);
-    assert(ui.frame().commands.size() == 13);
+    assert(ui.model().find("title") != nullptr);
     assert(presentation.instances.size() == 2);
     director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);

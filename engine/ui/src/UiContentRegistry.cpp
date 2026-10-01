@@ -199,6 +199,15 @@ const UiSceneManifest* UiContentRegistry::find_scene(const std::string& id) cons
     return nullptr;
 }
 
+const UiSceneManifest* UiContentRegistry::find_scene(foundation::SceneId id) const noexcept {
+    for (const auto& mod : mods_) {
+        for (const auto& scene : mod.scenes) {
+            if (foundation::scene_id(scene.id) == id) return &scene;
+        }
+    }
+    return nullptr;
+}
+
 bool UiContentRegistry::is_allowed_path(const UiSceneManifest& scene,
                                         const std::filesystem::path& relative) const noexcept {
     if (!traversal_free(relative)) return false;

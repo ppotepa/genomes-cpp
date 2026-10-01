@@ -1,1 +1,4 @@
-body { background-color: #08101c; color: #d5e2f2; font-family: LatoLatin; } .panel { width: 720px; margin: 48px; padding: 48px; background-color: #101b2c; }
+body { pointer-events: none; background-color: transparent; }
+.panel { pointer-events: auto; width: 590dp; max-width: 86%; max-height: 90%; margin: 5% 0dp 0dp 56dp; padding: 34dp 38dp; overflow-y: auto; }
+.command-bar { flex-wrap: wrap; }
+.command-bar button { min-width: 120dp; }

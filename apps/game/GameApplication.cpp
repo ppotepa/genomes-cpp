@@ -2,8 +2,11 @@
 #include <DiligentBackend.hpp>
 #include <DiligentSceneRenderer.hpp>
 #include <genomes/platform/Platform.hpp>
+#include <genomes/platform/SdlFileDialogService.hpp>
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/runtime/BuiltinScenes.hpp>
+#include <algorithm>
+#include <array>
 #include <charconv>
 #include <chrono>
 #include <cstdint>
@@ -14,6 +17,9 @@
 #include <string_view>
 #include <thread>
 #include <utility>
+#include <vector>
+#include <variant>
+#include <type_traits>
 
 namespace genomes::game {
 namespace {
@@ -97,21 +103,79 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
         content_=std::move(content.value());ui::UiPluginError plugin_error;
         if (!plugins_.load(content_,&plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
     } else std::cerr<<"UI content discovery failed: "<<content.error().message<<'\n';
+    ui_.set_route_resolver([this](ui::UiRoute& route) {
+        const auto* manifest = content_.find_scene(route.scene);
+        if (manifest == nullptr) return;
+        for (const auto& mod : content_.mods()) {
+            if (mod.id == manifest->mod_id) {
+                route.document = (manifest->root.lexically_relative(mod.root) /
+                                  manifest->document).generic_string();
+                break;
+            }
+        }
+        route.controller = manifest->controller;
+        route.action_namespace = manifest->action_namespace;
+    });
 #if defined(GENOMES_HAS_RMLUI)
     rml_ui_=std::make_unique<ui::rml::Runtime>("mods/core",static_cast<std::uint32_t>(platform_->width()),static_cast<std::uint32_t>(platform_->height()));
-    if (rml_ui_->valid()) rml_ui_->set_action_router(this);
+    if (rml_ui_->valid()) {
+        file_dialog_service_=std::make_unique<platform::SdlFileDialogService>(
+            static_cast<SDL_Window*>(platform_->sdl_window()));
+        rml_ui_->set_file_dialog_service(file_dialog_service_.get());
+        rml_ui_->set_action_router(this);
+        rml_ui_->set_event_router([this](const ui::UiEvent& event) {
+            if (event.route_revision != 0U && event.route_revision != ui_.routes().revision())
+                return ui::UiActionResult::Rejected;
+            const std::string& field_key = event.field;
+            if (const auto* field = ui_.model().find_field(field_key); field != nullptr) {
+                if (field->commit_policy == ui::UiCommitPolicy::OnChange &&
+                    event.phase == ui::UiEventPhase::Input)
+                    return ui::UiActionResult::Handled;
+                if (field->commit_policy == ui::UiCommitPolicy::Explicit &&
+                    event.phase == ui::UiEventPhase::Input)
+                    return ui::UiActionResult::Handled;
+            }
+            ui::UiActionArguments arguments;
+            arguments.emplace_back("value", std::visit([](const auto& value) -> std::string {
+                using Value = std::decay_t<decltype(value)>;
+                if constexpr (std::is_same_v<Value, std::string>) return value;
+                else if constexpr (std::is_same_v<Value, bool>) return value ? "true" : "false";
+                else {
+                    std::array<char, 64> buffer{};
+                    const auto result = [&] {
+                        if constexpr (std::is_floating_point_v<Value>)
+                            return std::to_chars(buffer.data(), buffer.data() + buffer.size(), value,
+                                                 std::chars_format::general);
+                        else return std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+                    }();
+                    return result.ec == std::errc{} ? std::string(buffer.data(), result.ptr) : std::string{};
+                }
+            }, event.value));
+            for (const auto& [key, value] : event.arguments) {
+                arguments.emplace_back(key, std::visit([](const auto& item) -> std::string {
+                    using Value = std::decay_t<decltype(item)>;
+                    if constexpr (std::is_same_v<Value, std::string>) return item;
+                    else if constexpr (std::is_same_v<Value, bool>) return item ? "true" : "false";
+                    else {
+                        std::array<char, 64> buffer{};
+                        const auto result = [&] {
+                            if constexpr (std::is_floating_point_v<Value>)
+                                return std::to_chars(buffer.data(), buffer.data() + buffer.size(), item,
+                                                     std::chars_format::general);
+                            else return std::to_chars(buffer.data(), buffer.data() + buffer.size(), item);
+                        }();
+                        return result.ec == std::errc{} ? std::string(buffer.data(), result.ptr) : std::string{};
+                    }
+                }, value));
+            }
+            return director_.dispatch_ui_action(foundation::stable_id(event.control), arguments);
+        });
+    }
 #endif
 }
 #if defined(GENOMES_HAS_RMLUI)
-std::string GameApplication::document_for_scene(foundation::SceneId scene) const {
-    const auto* manifest=content_.find_scene(
-        scene==foundation::scene_id("scene.battlefield")?"scene.battlefield":
-        scene==foundation::scene_id("scene.settings")?"scene.settings":
-        scene==foundation::scene_id("scene.world-config")?"scene.world-config":
-        scene==foundation::scene_id("scene.building-lab")?"scene.building-lab":
-        scene==foundation::scene_id("scene.unit-lab")?"scene.unit-lab":
-        scene==foundation::scene_id("scene.world-lab")?"scene.world-lab":
-        scene==foundation::scene_id("scene.pause")?"scene.pause":"scene.main-menu");
+std::string GameApplication::resolve_document(foundation::SceneId scene) const {
+    const auto* manifest=content_.find_scene(scene);
     if (!manifest) return "scenes/main-menu/screen.rml";
     for (const auto& mod:content_.mods()) if (mod.id==manifest->mod_id)
         return (manifest->root.lexically_relative(mod.root)/manifest->document).generic_string();
@@ -206,25 +270,29 @@ int GameApplication::run(int argc,char** argv) {
 #if defined(GENOMES_HAS_RMLUI)
         const auto route_revision=ui_.routes().revision();
         if (route_revision!=rml_route_revision_) {
-            rml_ui_->unload_documents();
+            std::vector<ui::UiRoute> mounted_routes;
+            mounted_routes.reserve(ui_.routes().routes().size());
             for (const auto& route:ui_.routes().routes()) {
-                const auto document=document_for_scene(route.scene);
-                if (!rml_ui_->push_document(document)) {std::cerr<<"Could not load UI document: "<<document<<'\n';return 1;}
+                auto mounted = route;
+                mounted.document=resolve_document(route.scene);
+                if (const auto* manifest=content_.find_scene(route.scene);manifest!=nullptr) {
+                    mounted.controller=manifest->controller;
+                    mounted.action_namespace=manifest->action_namespace;
+                }
+                mounted_routes.push_back(std::move(mounted));
+            }
+            if (!rml_ui_->mount_routes(mounted_routes, ui_)) {
+                std::cerr<<"Could not mount RmlUi route stack\n";
+                return 1;
             }
             rml_route_revision_=route_revision;
         }
-        // Native scene labels are the source of the inspector state. Copy their
-        // text into owned data-model strings before replacing the extraction frame.
-        std::string status;
-        for (const auto& widget:ui_.frame().widgets) if (widget.type==ui::UiWidgetType::Label) {
-            if (!status.empty()) status+=" | ";
-            status+=widget.text;
+        rml_ui_->set_model(ui_.model());
+        rml_ui_->set_route_models(ui_);
+        if (const auto* scale=ui_.model().find("ui_scale"); scale!=nullptr &&
+            std::holds_alternative<double>(*scale)) {
+            rml_ui_->set_density_ratio(static_cast<float>(std::get<double>(*scale)));
         }
-        if (!status.empty()) (void)rml_ui_->set_builtin_text("status",std::move(status));
-        const auto telemetry=renderer_->uploadTelemetry();
-        (void)rml_ui_->set_builtin_text("selected","Mesh uploads: "+std::to_string(telemetry.mesh_uploads)+
-            " | Skin constant writes: "+std::to_string(telemetry.palette_updates)+
-            " | Draws incl. shadows: "+std::to_string(telemetry.draw_calls));
         ui_.replace_frame(rml_ui_->update(dt));
 #endif
         const bool capture_now=options.capture_path&&frames+1U==options.capture_frame;

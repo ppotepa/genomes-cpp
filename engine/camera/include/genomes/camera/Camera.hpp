@@ -12,7 +12,15 @@ namespace genomes::camera {
 enum class CameraPreset : std::uint8_t { Custom, UnitLab, BuildingLab, Battlefield };
 enum class CameraMode : std::uint8_t { Fixed, Orbit, Fly, RTS };
 struct ViewportNormalized final { float x{0}; float y{0}; float width{1}; float height{1}; };
-struct CameraLens final { float vertical_fov{1.04719755F}; float near_plane{0.05F}; float far_plane{1000.0F}; };
+struct CameraLens final {
+    float vertical_fov{1.04719755F};
+    float near_plane{0.05F};
+    float far_plane{1000.0F};
+    // NDC displacement of the optical axis. This keeps picking, culling and
+    // rendering on one projection while composing a subject around HUD panels.
+    float projection_offset_x{0.0F};
+    float projection_offset_y{0.0F};
+};
 struct CameraRequest final {
     CameraPreset preset{CameraPreset::Custom};
     CameraMode mode{CameraMode::Orbit};

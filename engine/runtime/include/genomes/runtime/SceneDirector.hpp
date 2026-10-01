@@ -75,7 +75,10 @@ private:
     int framebuffer_height_{720};
     camera::CameraController camera_controller_{};
     bool camera_controller_initialized_{false};
+    bool camera_pointer_capture_{false};
     std::uint64_t scene_epoch_{0};
+    double session_ui_scale_{1.0};
+    bool session_show_diagnostics_{true};
     render::SnapshotExchange presentation_exchange_{3};
 };
 

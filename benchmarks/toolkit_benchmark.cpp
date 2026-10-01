@@ -43,6 +43,10 @@ double measure(Work&& work, std::size_t samples = 25U) {
 
 int main(int argc, char** argv) {
     using namespace genomes;
+#if !GENOMES_BENCH_HAS_ASSETS
+    (void)argc;
+    (void)argv;
+#endif
     const auto box = geometry::makeBoxResult({{2.0F, 3.0F, 1.5F}});
     if (!box) {
         return 1;

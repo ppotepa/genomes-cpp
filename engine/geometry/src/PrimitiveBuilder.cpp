@@ -210,7 +210,7 @@ foundation::Result<MeshData, foundation::Error> makeCylinderResult(const Cylinde
             const float u = static_cast<float>(segment) / static_cast<float>(spec.segments);
             const float theta = u * 2.0F * kPi;
             const foundation::Vec3 normal{std::cos(theta), 0.0F, std::sin(theta)};
-            add_vertex(mesh, {spec.radius * normal.x, y, spec.radius * normal.z}, normal, {u, v});
+            (void)add_vertex(mesh, {spec.radius * normal.x, y, spec.radius * normal.z}, normal, {u, v});
         }
     }
     for (std::uint32_t segment = 0U; segment < spec.segments; ++segment) {
@@ -226,7 +226,7 @@ foundation::Result<MeshData, foundation::Error> makeCylinderResult(const Cylinde
         for (std::uint32_t segment = 0U; segment <= spec.segments; ++segment) {
             const float u = static_cast<float>(segment) / static_cast<float>(spec.segments);
             const float theta = u * 2.0F * kPi;
-            add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
+            (void)add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
                               spec.radius * std::sin(theta)},
                        {0, -1, 0}, {0.5F + 0.5F * std::cos(theta),
                                     0.5F + 0.5F * std::sin(theta)});
@@ -236,7 +236,7 @@ foundation::Result<MeshData, foundation::Error> makeCylinderResult(const Cylinde
         for (std::uint32_t segment = 0U; segment <= spec.segments; ++segment) {
             const float u = static_cast<float>(segment) / static_cast<float>(spec.segments);
             const float theta = u * 2.0F * kPi;
-            add_vertex(mesh, {spec.radius * std::cos(theta), half_height,
+            (void)add_vertex(mesh, {spec.radius * std::cos(theta), half_height,
                               spec.radius * std::sin(theta)},
                        {0, 1, 0}, {0.5F + 0.5F * std::cos(theta),
                                    0.5F + 0.5F * std::sin(theta)});
@@ -270,8 +270,8 @@ foundation::Result<MeshData, foundation::Error> makeConeResult(const ConeSpec& s
     for (std::uint32_t segment = 0U; segment <= spec.segments; ++segment) {
         const float u = static_cast<float>(segment) / static_cast<float>(spec.segments);
         const float theta = u * 2.0F * kPi;
-        const foundation::Vec3 normal = math::normalized({std::cos(theta), slope, std::sin(theta)});
-        add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
+        const foundation::Vec3 normal = math::normalized(foundation::Vec3{std::cos(theta), slope, std::sin(theta)});
+        (void)add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
                           spec.radius * std::sin(theta)}, normal, {u, 1.0F});
     }
     const auto apex_start = static_cast<std::uint32_t>(mesh.vertices.size());
@@ -279,8 +279,8 @@ foundation::Result<MeshData, foundation::Error> makeConeResult(const ConeSpec& s
         const float u = (static_cast<float>(segment) + 0.5F) /
                         static_cast<float>(spec.segments);
         const float theta = u * 2.0F * kPi;
-        const foundation::Vec3 normal = math::normalized({std::cos(theta), slope, std::sin(theta)});
-        add_vertex(mesh, {0.0F, half_height, 0.0F}, normal, {u, 0.0F});
+        const foundation::Vec3 normal = math::normalized(foundation::Vec3{std::cos(theta), slope, std::sin(theta)});
+        (void)add_vertex(mesh, {0.0F, half_height, 0.0F}, normal, {u, 0.0F});
     }
     for (std::uint32_t segment = 0U; segment < spec.segments; ++segment)
         mesh.indices.insert(mesh.indices.end(),
@@ -291,7 +291,7 @@ foundation::Result<MeshData, foundation::Error> makeConeResult(const ConeSpec& s
         for (std::uint32_t segment = 0U; segment <= spec.segments; ++segment) {
             const float u = static_cast<float>(segment) / static_cast<float>(spec.segments);
             const float theta = u * 2.0F * kPi;
-            add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
+            (void)add_vertex(mesh, {spec.radius * std::cos(theta), -half_height,
                               spec.radius * std::sin(theta)},
                        {0, -1, 0}, {0.5F + 0.5F * std::cos(theta),
                                     0.5F + 0.5F * std::sin(theta)});

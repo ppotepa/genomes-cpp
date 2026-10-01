@@ -10,6 +10,7 @@
 #include <genomes/runtime/UnitLabScene.hpp>
 #endif
 #include <genomes/runtime/WorldConfigScene.hpp>
+#include <genomes/runtime/WorldLabScene.hpp>
 
 #include <memory>
 #include <string>
@@ -28,12 +29,9 @@ public:
 
     void frame_update(SceneContext& context, double) override {
         context.ui.clear();
-        context.ui.add({foundation::stable_id("placeholder.panel"), ui::UiWidgetType::Panel,
-                        title_, true, false, 720.0F, 480.0F});
-        context.ui.add({foundation::stable_id("placeholder.description"),
-                        ui::UiWidgetType::Label,
-                        "Scene registered; domain module will provide its content.", true, false,
-                        0.0F, 0.0F});
+        (void)context.ui.model().set("title", title_);
+        (void)context.ui.model().set("description",
+            std::string{"Scene registered; domain module will provide its content."});
     }
 
 private:
@@ -74,9 +72,7 @@ void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
 #endif
     director.register_scene(building_lab_id,
                             [] { return std::make_unique<BuildingLabScene>(); });
-    director.register_scene(world_lab_id, [world_lab_id] {
-        return std::make_unique<PlaceholderScene>(world_lab_id, "World generator");
-    });
+    director.register_scene(world_lab_id, [] { return std::make_unique<WorldLabScene>(); });
     director.register_scene(settings_id, [settings_id] {
         return std::make_unique<PlaceholderScene>(settings_id, "Settings");
     });

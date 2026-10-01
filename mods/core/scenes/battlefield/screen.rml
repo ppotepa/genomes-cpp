@@ -1,1 +1,8 @@
-<rml><head><link type="text/rcss" href="screen.rcss" /></head><body><section id="hud"><h1>BATTLEFIELD</h1><p data-bind="text: status">Preparing presentation...</p><button data-action="scene.open-pause">Pause</button></section></body></rml>
+<rml><head><title>Battlefield</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head><body>
+<section id="hud" class="hud-card" data-model="ui_builtin_battlefield">
+  <header><p class="eyebrow">LIVE SIMULATION</p><div class="hud-title"><h2 data-bind="text: title">Battlefield</h2><span class="live-dot"></span></div></header>
+  <p class="status" data-bind="text: status">Preparing presentation...</p><p class="feature" data-bind="text: features"></p>
+  <div class="hud-meta"><span data-bind="text: seed"></span><span data-bind="text: map_size"></span></div>
+  <p class="diagnostics" data-if="show_diagnostics" data-bind="text: diagnostics"></p>
+  <button class="ghost pause" data-action="scene.open-pause">Pause simulation</button>
+</section></body></rml>

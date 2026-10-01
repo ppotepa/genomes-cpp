@@ -1,3 +1,12 @@
-body { background-color: #08101c; color: #d5e2f2; font-family: LatoLatin; }
-.panel { width: 420px; padding: 48px; margin: 48px; background-color: #101b2c; }
-button { display: block; width: 360px; height: 48px; margin-top: 12px; padding: 12px; }
+body { display: block; background-color: transparent; }
+.menu-panel { display: block; box-sizing: border-box; width: 38%; max-width: 560dp; min-height: 100%; padding: 64dp 56dp 32dp 56dp; background-color: #07101ddd; border: 0dp #07101d; border-radius: 0dp; }
+.screen-header { display: block; margin-bottom: 44dp; }
+.eyebrow { display: block; margin-bottom: 8dp; color: #72c9f2; font-size: 12dp; letter-spacing: 3dp; }
+h1 { margin-bottom: 4dp; color: #f5f8fb; font-size: 42dp; letter-spacing: 2dp; }
+.subtitle { display: block; color: #91a8bd; font-size: 16dp; letter-spacing: 3dp; }
+.menu-primary { display: flex; flex-direction: column; align-items: stretch; }
+.menu-action { display: block; position: relative; width: 100%; min-height: 42dp; margin: 0dp; padding: 9dp 0dp 9dp 20dp; color: #aebdca; background-color: transparent; border: 0dp transparent; border-radius: 0dp; text-align: left; }
+.menu-action:hover, .menu-action:focus, .menu-action:active { color: #f4f8fb; background-color: #16253899; border: 0dp transparent; border-left: 3dp #72c9f2; }
+.prototype-note { margin-left: 8dp; color: #d6b86d; font-size: 10dp; letter-spacing: 1dp; }
+.menu-secondary { display: flex; flex-direction: column; margin-top: 34dp; }
+footer { display: block; position: absolute; left: 56dp; bottom: 28dp; color: #63778d; font-size: 11dp; }

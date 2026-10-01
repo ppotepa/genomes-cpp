@@ -1,1 +1,6 @@
-body { background-color: #08101c; color: #d5e2f2; font-family: LatoLatin; } .panel { margin: 48px; padding: 48px; background-color: #101b2c; }
+body { pointer-events: none; background-color: #070d16; }
+.panel { pointer-events: auto; width: 680dp; max-height: 92%; margin: 4% 0dp 0dp 48dp; padding: 30dp 34dp; overflow-y: auto; }
+.category-bar { margin-bottom: 20dp; }
+.category-bar button { flex: 1; }
+.file-actions { display: flex; }
+.file-actions button { flex: 1; }

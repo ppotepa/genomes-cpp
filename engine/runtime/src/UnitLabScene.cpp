@@ -4,22 +4,57 @@
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/infantry/EquipmentCatalog.hpp>
+#include <genomes/infantry/RagdollSchema.hpp>
+#include <genomes/infantry/RigSchema.hpp>
 #include <genomes/render/ProceduralMeshes.hpp>
 #include <genomes/render/SkinnedDeformer.hpp>
 
 #include <cmath>
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <string>
+#include <string_view>
 #include <span>
+#include <type_traits>
 #include <iterator>
 #include <vector>
 
 namespace genomes::runtime {
 
+UnitLabViewport unitLabViewport(int framebuffer_width, int framebuffer_height,
+                                double ui_scale) noexcept {
+    const float width = static_cast<float>(std::max(1, framebuffer_width));
+    const float height = static_cast<float>(std::max(1, framebuffer_height));
+    const float scale = static_cast<float>(std::clamp(ui_scale, 0.75, 1.50));
+    const float rail = 68.0F * scale;
+    const float inspector = 340.0F * scale;
+    const float top = (56.0F + 48.0F) * scale;
+    const float caption = 34.0F * scale;
+    const float free_center_x = (rail + width - inspector) * 0.5F;
+    const float free_center_y = (top + height - caption) * 0.5F;
+    return {0.0F, 0.0F, 1.0F, 1.0F,
+            std::clamp(free_center_x * 2.0F / width - 1.0F, -1.0F, 1.0F),
+            std::clamp(1.0F - free_center_y * 2.0F / height, -1.0F, 1.0F)};
+}
+
 namespace {
 
 using Vec3 = foundation::Vec3;
+
+template <typename T>
+[[nodiscard]] std::string numberText(T value) {
+    std::array<char, 64> buffer{};
+    const auto converted = [&] {
+        if constexpr (std::is_floating_point_v<T>)
+            return std::to_chars(buffer.data(), buffer.data() + buffer.size(), value,
+                                 std::chars_format::general);
+        else
+            return std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+    }();
+    return converted.ec == std::errc{} ? std::string{buffer.data(), converted.ptr}
+                                        : std::string{};
+}
 
 [[nodiscard]] Vec3 add(Vec3 a, Vec3 b) noexcept {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
@@ -157,6 +192,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             const auto next = p == infantry::BipedPreset::Idle ? infantry::BipedPreset::Walk
                 : p == infantry::BipedPreset::Walk ? infantry::BipedPreset::Run
                 : p == infantry::BipedPreset::Run ? infantry::BipedPreset::Crouch
+                : p == infantry::BipedPreset::Crouch ? infantry::BipedPreset::CrouchWalk
                 : infantry::BipedPreset::Idle;
             (void)locomotion_->setPreset(*locomotion_state_, next);
             markDirty(UnitLabDirtyFlag::Pose);
@@ -278,37 +314,52 @@ void UnitLabScene::publishModelResult(
 }
 
 void UnitLabScene::rebuildModel(SceneContext* context) {
-    // A JobHandle is single-owner in the scene.  Before replacing it, finish
-    // the previous task so its lambda cannot outlive this scene and so the
-    // compiler's revision cancellation is observed deterministically.
-    if (model_job_.valid()) {
-        if (model_revision_ != 0U) {
-            model_compiler_.cancelRevision(model_revision_);
-        }
-        model_job_.wait();
-        model_job_ = {};
-        pending_model_result_.reset();
-    }
     infantry::InfantryModelRequest request{};
     request.seed = preview_seed_;
     request.variation = variation_;
     request.detail_level = static_cast<infantry::InfantryDetail>(detail_level_);
+    request.side = side_;
+    request.wear = equipment_wear_;
+    static constexpr std::array<foundation::Color, 4> uniforms{{
+        infantry::kDefaultUniformColor,
+        {0.20F, 0.25F, 0.16F, 1.0F}, {0.30F, 0.27F, 0.20F, 1.0F},
+        {0.12F, 0.15F, 0.18F, 1.0F}}};
+    request.palette.uniform = uniforms[palette_index_ % uniforms.size()];
     request.genome_overrides = genome_overrides_;
-    request.uniform_color = infantry::kDefaultUniformColor;
+    request.uniform_color = request.palette.uniform;
     const auto loadouts = infantry::infantryLoadouts();
     if (!loadouts.empty()) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
+    if (context != nullptr && context->jobs != nullptr &&
+        !context->deterministic_capture && model_job_.valid() &&
+        !model_job_.isComplete()) {
+        // Keep at most one active compile and one overwriteable request.  The
+        // current prototype remains visible while the newest request waits.
+        queued_model_request_ = std::move(request);
+        if (model_revision_ != 0U) model_compiler_.cancelRevision(model_revision_);
+        markDirty(UnitLabDirtyFlag::Ui);
+        return;
+    }
+    if (context != nullptr && context->jobs != nullptr && !context->deterministic_capture) {
+        startModelRequest(*context, std::move(request));
+        return;
+    }
+    const auto revision = model_compiler_.beginRevision();
+    model_revision_ = revision;
+    publishModelResult(model_compiler_.compile(request, revision));
+}
+
+void UnitLabScene::startModelRequest(SceneContext& context,
+                                     infantry::InfantryModelRequest request) {
     // Every rebuild owns a revision.  A queued/older job can therefore not
     // publish a result after the preview has changed underneath it.
     const auto revision = model_compiler_.beginRevision();
     model_revision_ = revision;
-    if (context != nullptr && context->jobs != nullptr &&
-        !context->deterministic_capture) {
-        const auto pending = std::make_shared<PendingModelResult>();
-        pending_model_result_ = pending;
-        model_job_ = context->jobs->submit(
+    const auto pending = std::make_shared<PendingModelResult>();
+    pending_model_result_ = pending;
+    model_job_ = context.jobs->submit(
             [this, request, revision, pending](jobs::JobContext&) mutable {
                 auto result = model_compiler_.compile(request, revision);
                 {
@@ -317,10 +368,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
                     pending->result = std::move(result);
                 }
             });
-        markDirty(UnitLabDirtyFlag::Ui);
-        return;
-    }
-    publishModelResult(model_compiler_.compile(request, revision));
+    markDirty(UnitLabDirtyFlag::Ui);
 }
 
 void UnitLabScene::on_enter(SceneContext& context) {
@@ -356,20 +404,10 @@ void UnitLabScene::on_exit(SceneContext&) {
         model_job_ = {};
     }
     pending_model_result_.reset();
+    queued_model_request_.reset();
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
-    if (input.mouse_left_pressed && input.mouse_x >= 78.0F && input.mouse_x <= 500.0F) {
-        constexpr float first_control_y = 266.0F;
-        constexpr float control_step = 60.0F;
-        const int control = static_cast<int>((input.mouse_y - first_control_y) / control_step);
-        const float local_y = input.mouse_y -
-                              (first_control_y + static_cast<float>(control) * control_step);
-        if (control >= 0 && control <= 14 && local_y >= 0.0F && local_y <= 48.0F) {
-            if (activateControl(context, static_cast<std::uint8_t>(control))) return;
-        }
-    }
-
     if (locomotion_ && locomotion_state_) {
         if (input.right_pressed) {
             const auto current = locomotion_state_->preset;
@@ -379,12 +417,16 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
                     ? infantry::BipedPreset::Run
                     : current == infantry::BipedPreset::Run
                         ? infantry::BipedPreset::Crouch
+                        : current == infantry::BipedPreset::Crouch
+                            ? infantry::BipedPreset::CrouchWalk
                         : infantry::BipedPreset::Idle;
             (void)locomotion_->setPreset(*locomotion_state_, next);
         } else if (input.left_pressed) {
             const auto current = locomotion_state_->preset;
             const auto previous = current == infantry::BipedPreset::Idle
-                ? infantry::BipedPreset::Crouch
+                ? infantry::BipedPreset::CrouchWalk
+                : current == infantry::BipedPreset::CrouchWalk
+                    ? infantry::BipedPreset::Crouch
                 : current == infantry::BipedPreset::Crouch
                     ? infantry::BipedPreset::Run
                     : current == infantry::BipedPreset::Run
@@ -400,7 +442,219 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
 }
 
 ui::UiActionResult UnitLabScene::handle_ui_action(
-    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments&) {
+    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments& arguments) {
+    const auto value_of = [&]() -> std::string_view {
+        for (const auto& argument : arguments) if (argument.first == "value") return argument.second;
+        return {};
+    };
+    const auto key_of = [&]() -> std::string_view {
+        for (const auto& argument : arguments) if (argument.first == "key") return argument.second;
+        return {};
+    };
+    const auto text = value_of();
+    if (action == foundation::stable_id("unit.tab")) {
+        static constexpr std::array<std::string_view, 6> names{
+            "model", "equipment", "genome", "skeleton", "animation", "face"};
+        const auto it = std::find(names.begin(), names.end(), key_of());
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        active_tab_ = static_cast<std::uint8_t>(std::distance(names.begin(), it));
+        markDirty(UnitLabDirtyFlag::Ui);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.seed")) {
+        std::uint64_t value = 0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size())
+            return ui::UiActionResult::Rejected;
+        preview_seed_ = value;
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.genome") && !key_of().empty()) {
+        const auto gene = infantry::genomeGeneFromName(key_of());
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (!gene || parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        (void)genome_overrides_.set(*gene, std::clamp(value, 0.0, 1.0));
+        selected_genome_gene_ = *gene;
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.weight") && !text.empty()) {
+        if (text == "off") {
+            debug_weight_bone_.reset();
+        } else {
+            std::uint16_t index = 0;
+            const auto parsed = std::from_chars(text.data(), text.data() + text.size(), index);
+            if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+                index >= infantry::kRigBoneCount) return ui::UiActionResult::Rejected;
+            debug_weight_bone_ = static_cast<infantry::BoneId>(index);
+        }
+        markDirty(UnitLabDirtyFlag::Ui);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.genome-reset")) {
+        genome_overrides_ = {};
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.genome-preset") && !text.empty()) {
+        genome_overrides_ = {};
+        if (text == "short") {
+            (void)genome_overrides_.set(infantry::GenomeGene::Height, (1.65 - 1.60) / 0.35);
+        } else if (text == "tall") {
+            (void)genome_overrides_.set(infantry::GenomeGene::Height, (1.90 - 1.60) / 0.35);
+        } else if (text == "broad") {
+            (void)genome_overrides_.set(infantry::GenomeGene::BodyShoulderBreadth, 1.0);
+            (void)genome_overrides_.set(infantry::GenomeGene::BodyHipBreadth, 0.0);
+        } else return ui::UiActionResult::Rejected;
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.equipment-item") && !key_of().empty()) {
+        const auto slots = infantry::EquipmentCatalog::slots();
+        const auto slot = std::find_if(slots.begin(), slots.end(), [&](const auto& candidate) {
+            return candidate.identifier == key_of();
+        });
+        if (slot == slots.end()) return ui::UiActionResult::Rejected;
+        auto& target = equipment_overrides_.slots[infantry::equipmentSlotIndex(slot->slot)];
+        if (text == "auto") target = infantry::EquipmentOverride::absent();
+        else if (text == "none") target = infantry::EquipmentOverride::nullValue();
+        else if (const auto* item = infantry::EquipmentCatalog::findItem(text);
+                 item != nullptr && item->allows(slot->slot))
+            target = infantry::EquipmentOverride::item(item->id);
+        else return ui::UiActionResult::Rejected;
+        selected_equipment_slot_ = infantry::equipmentSlotIndex(slot->slot);
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.loadout-select")) {
+        const auto loadouts = infantry::infantryLoadouts();
+        const auto it = std::find_if(loadouts.begin(), loadouts.end(), [&](const auto& loadout) {
+            return loadout.identifier == text;
+        });
+        if (it == loadouts.end()) return ui::UiActionResult::Rejected;
+        loadout_index_ = static_cast<std::size_t>(std::distance(loadouts.begin(), it));
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.wear")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        equipment_wear_ = std::clamp(static_cast<float>(value), 0.0F, 1.0F);
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.phase")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (!locomotion_state_ || parsed.ec != std::errc{} || !std::isfinite(value))
+            return ui::UiActionResult::Rejected;
+        locomotion_state_->phase = std::clamp(value, 0.0, 1.0);
+        animation_paused_ = true;
+        markDirty(UnitLabDirtyFlag::Pose);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.animation-speed")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        animation_speed_ = std::clamp(static_cast<float>(value), 0.0F, 2.0F);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.palette")) {
+        static constexpr std::array<std::string_view, 4> names{"Standard", "Forest", "Field", "Night"};
+        const auto it = std::find(names.begin(), names.end(), text);
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        palette_index_ = static_cast<std::size_t>(std::distance(names.begin(), it));
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.side")) {
+        static constexpr std::array<std::string_view, 3> names{"Side A", "Side B", "Neutral"};
+        const auto it = std::find(names.begin(), names.end(), text);
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        side_ = static_cast<infantry::InfantrySide>(std::distance(names.begin(), it));
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.detail")) {
+        std::uint32_t value = 0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size()) return ui::UiActionResult::Rejected;
+        detail_level_ = std::clamp(value, 1U, 3U);
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.variation")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        variation_ = std::clamp(static_cast<float>(value), 0.0F, 1.75F);
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
+    const auto bool_value = [&]() -> bool { return text == "true" || text == "1"; };
+    if (action == foundation::stable_id("unit.surface")) { show_surface_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.wireframe")) { show_wireframe_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.skeleton")) { show_skeleton_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.bounds")) { show_bounds_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.normals")) { show_normals_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.camera-reset")) { camera_mode_ = UnitLabCameraMode::ThreeQuarter; markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
+    if (action == foundation::stable_id("unit.camera")) {
+        static constexpr std::array<std::string_view, 6> names{"Three quarter", "Front", "Side", "Back", "Face", "Hands"};
+        const auto it = std::find(names.begin(), names.end(), text);
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        camera_mode_ = static_cast<UnitLabCameraMode>(std::distance(names.begin(), it));
+        markDirty(UnitLabDirtyFlag::Ui);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.locomotion")) {
+        if (!locomotion_ || !locomotion_state_) return ui::UiActionResult::Rejected;
+        static constexpr std::array<std::string_view, 5> names{"Idle", "Walk", "Run", "Crouch", "Crouch Walk"};
+        const auto it = std::find(names.begin(), names.end(), text);
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        (void)locomotion_->setPreset(*locomotion_state_, static_cast<infantry::BipedPreset>(std::distance(names.begin(), it)));
+        markDirty(UnitLabDirtyFlag::Pose);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.expression")) {
+        static constexpr std::array<std::string_view, 7> names{"Neutral", "Alert", "Fear", "Anger", "Pain", "Fatigue", "Eyes closed"};
+        const auto it = std::find(names.begin(), names.end(), text);
+        if (it == names.end()) return ui::UiActionResult::Rejected;
+        expression_ = static_cast<infantry::FaceExpression>(std::distance(names.begin(), it));
+        expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
+        if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
+        markDirty(UnitLabDirtyFlag::Pose);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.expression-intensity")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        expression_intensity_ = std::clamp(static_cast<float>(value), 0.0F, 1.0F);
+        if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
+        markDirty(UnitLabDirtyFlag::Pose);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.genome-clear") && !key_of().empty()) {
+        const auto gene = infantry::genomeGeneFromName(key_of());
+        if (!gene) return ui::UiActionResult::Rejected;
+        genome_overrides_.genes[static_cast<std::size_t>(*gene)].reset();
+        rebuildModel(&context);
+        return ui::UiActionResult::Handled;
+    }
     struct Binding { ui::UiActionId id; std::uint8_t control; };
     static constexpr Binding bindings[] = {
         {foundation::stable_id("unit.regenerate"),0U}, {foundation::stable_id("unit.detail"),1U},
@@ -435,7 +689,7 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
         ++fixed_tick_;
         elapsed_seconds_ = static_cast<double>(fixed_tick_) * fixed_dt;
         if (!animation_paused_ && locomotion_ && locomotion_state_) {
-            (void)locomotion_->step(*locomotion_state_, fixed_dt);
+            (void)locomotion_->step(*locomotion_state_, fixed_dt * animation_speed_);
         }
         if (!animation_paused_ && animation_system_ && locomotion_ && locomotion_state_ && model_artifact_) {
             infantry::AnimationEntity entity{};
@@ -446,7 +700,8 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
             entity.locomotion_state = &*locomotion_state_;
             entity.face = face_animator_ ? &*face_animator_ : nullptr;
             (void)animation_system_->evaluate(
-                std::span<infantry::AnimationEntity>(&entity, 1U), fixed_tick_, fixed_dt,
+                std::span<infantry::AnimationEntity>(&entity, 1U), fixed_tick_,
+                fixed_dt * animation_speed_,
                 nullptr);
             if (!animation_system_->currentSnapshot().poses.empty()) {
                 animation_pose_ = animation_system_->currentSnapshot().poses.front();
@@ -469,25 +724,23 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
                     result = std::move(pending_model_result_->result);
                 }
             }
-            if (result && revision == model_revision_) {
+            if (result && revision == model_revision_ && !queued_model_request_) {
                 publishModelResult(std::move(*result));
             }
         }
         model_job_ = {};
         pending_model_result_.reset();
+        if (queued_model_request_) {
+            auto request = std::move(*queued_model_request_);
+            queued_model_request_.reset();
+            startModelRequest(context, std::move(request));
+        }
     }
     ui_dirty_ = false;
     context.ui.clear();
-    context.ui.add({foundation::stable_id("unit-lab.panel"), ui::UiWidgetType::Panel,
-                    "UNIT LAB", true, false, 520.0F, 1240.0F});
-    context.ui.add({foundation::stable_id("unit-lab.title"), ui::UiWidgetType::Label,
-                    "Procedural infantry prototypes", true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("unit-lab.description"), ui::UiWidgetType::Label,
-                    "Native procedural body, face, hair and equipment preview.", true,
-                    false, 0.0F, 0.0F});
     std::string metrics = model_artifact_
-        ? "MODEL READY | SEED " + std::to_string(preview_seed_) +
-          " | RIFLEMAN | DETAIL " + std::to_string(detail_level_)
+        ? "MODEL READY | SEED " + numberText(preview_seed_) +
+          " | RIFLEMAN | DETAIL " + numberText(detail_level_)
         : "MODEL COMPILATION FAILED";
     if (last_generation_error_) {
         metrics += " | PREVIOUS MODEL / ERROR " +
@@ -495,28 +748,28 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
     }
     if (model_artifact_) {
         const auto& appearance = model_artifact_->appearance;
-        metrics += " | BONES " + std::to_string(model_artifact_->skeleton.bones().size());
-        metrics += " | VERTICES " + std::to_string(appearance.body.vertices.size() +
+        metrics += " | BONES " + numberText(model_artifact_->skeleton.bones().size());
+        metrics += " | VERTICES " + numberText(appearance.body.vertices.size() +
                                                      appearance.hair.vertices.size());
-        metrics += " | TRIANGLES " + std::to_string(
+        metrics += " | TRIANGLES " + numberText(
             (appearance.body.indices.size() + appearance.hair.indices.size()) / 3U);
-        metrics += " | MORPHS " + std::to_string(appearance.morphs.size());
-        metrics += " | CACHE H" + std::to_string(model_compiler_.cacheHits());
-        metrics += "/M" + std::to_string(model_compiler_.cacheMisses());
+        metrics += " | MORPHS " + numberText(appearance.morphs.size());
+        metrics += " | CACHE H" + numberText(model_compiler_.cacheHits());
+        metrics += "/M" + numberText(model_compiler_.cacheMisses());
         metrics += show_surface_ ? " | SURFACE" : " | SURFACE OFF";
         metrics += show_wireframe_ ? " | WIREFRAME" : "";
         metrics += show_skeleton_ ? " | SKELETON" : "";
         metrics += show_bounds_ ? " | BOUNDS" : "";
         metrics += show_normals_ ? " | NORMALS" : "";
         metrics += debug_weight_bone_
-            ? " | WEIGHT " + std::to_string(static_cast<std::uint16_t>(*debug_weight_bone_))
+            ? " | WEIGHT " + numberText(static_cast<std::uint16_t>(*debug_weight_bone_))
             : "";
-        metrics += " | CAMERA " + std::to_string(static_cast<int>(camera_mode_));
-        metrics += " | VAR " + std::to_string(variation_);
-        metrics += " | OVERRIDE " + std::to_string(genome_override_mode_);
+        metrics += " | CAMERA " + numberText(static_cast<int>(camera_mode_));
+        metrics += " | VAR " + numberText(variation_);
+        metrics += " | OVERRIDE " + numberText(genome_override_mode_);
         metrics += " | GENE " + std::string(infantry::genomeGeneName(selected_genome_gene_));
         const auto selected_override = genome_overrides_.get(selected_genome_gene_);
-        metrics += selected_override ? "=" + std::to_string(*selected_override) : "=seed";
+        metrics += selected_override ? "=" + numberText(*selected_override) : "=seed";
         const auto equipment_slots = infantry::EquipmentCatalog::slots();
         if (!equipment_slots.empty()) {
             const auto slot = equipment_slots[selected_equipment_slot_ % equipment_slots.size()];
@@ -536,54 +789,142 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
             metrics += " | LOADOUT " + std::string(
                 infantry::infantryLoadouts()[loadout_index_ % infantry::infantryLoadouts().size()].identifier);
         }
-        metrics += " | EXPRESSION " + std::to_string(static_cast<int>(expression_)) +
-                   "@" + std::to_string(expression_intensity_);
-        metrics += " | GPU UPLOAD " + std::to_string(context.render_telemetry.mesh_uploads);
-        metrics += " | PALETTE " + std::to_string(context.render_telemetry.palette_updates);
-        metrics += " | DRAW " + std::to_string(context.render_telemetry.draw_calls);
-        metrics += " | UI " + std::to_string(context.render_telemetry.ui_draw_calls);
+        metrics += " | EXPRESSION " + numberText(static_cast<int>(expression_)) +
+                   "@" + numberText(expression_intensity_);
+        metrics += " | GPU UPLOAD " + numberText(context.render_telemetry.mesh_uploads);
+        metrics += " | PALETTE " + numberText(context.render_telemetry.palette_updates);
+        metrics += " | DRAW " + numberText(context.render_telemetry.draw_calls);
+        metrics += " | UI " + numberText(context.render_telemetry.ui_draw_calls);
     }
-    context.ui.add({foundation::stable_id("unit-lab.metrics"), ui::UiWidgetType::Label,
-                    std::move(metrics),
-                    true, false, 0.0F, 0.0F});
-    context.ui.add({foundation::stable_id("unit-lab.regenerate"), ui::UiWidgetType::Button,
-                    "Regenerate seed", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.detail"), ui::UiWidgetType::Button,
-                    "Cycle detail level", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.camera"), ui::UiWidgetType::Button,
-                    "Cycle camera preset", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.surface"), ui::UiWidgetType::Button,
-                    show_surface_ ? "Surface: ON" : "Surface: OFF", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.wireframe"), ui::UiWidgetType::Button,
-                    show_wireframe_ ? "Wireframe: ON" : "Wireframe: OFF", true, false,
-                    420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.skeleton"), ui::UiWidgetType::Button,
-                    show_skeleton_ ? "Skeleton: ON" : "Skeleton: OFF", true, false,
-                    420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.bounds"), ui::UiWidgetType::Button,
-                    show_bounds_ ? "Bounds: ON" : "Bounds: OFF", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.normals"), ui::UiWidgetType::Button,
-                    show_normals_ ? "Normals: ON" : "Normals: OFF", true, false,
-                    420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.pause"), ui::UiWidgetType::Button,
-                    animation_paused_ ? "Animation: PAUSED" : "Animation: PLAYING", true,
-                    false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.expression"), ui::UiWidgetType::Button,
-                    "Cycle expression", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.weight"), ui::UiWidgetType::Button,
-                    debug_weight_bone_
-                        ? "Cycle weight bone (" + std::to_string(
-                            static_cast<std::uint16_t>(*debug_weight_bone_)) + ")"
-                        : "Weight heatmap: OFF",
-                    true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.variation"), ui::UiWidgetType::Button,
-                    "Cycle phenotype variation", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.loadout"), ui::UiWidgetType::Button,
-                    "Cycle equipment loadout", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.overrides"), ui::UiWidgetType::Button,
-                    "Cycle genome overrides", true, false, 420.0F, 48.0F});
-    context.ui.add({foundation::stable_id("unit-lab.back"), ui::UiWidgetType::Button,
-                    "Back to main menu", true, true, 420.0F, 48.0F});
+    auto& model = context.ui.model();
+    (void)model.set("title", std::string{"UNIT LAB"});
+    (void)model.set("description", std::string{"Procedural infantry prototypes"});
+    (void)model.set("metrics", std::move(metrics));
+    (void)model.set("seed", numberText(preview_seed_));
+    ui::UiFieldState detail{}; detail.value = static_cast<std::int64_t>(detail_level_);
+    detail.commit_policy = ui::UiCommitPolicy::OnChange; detail.minimum = 1.0; detail.maximum = 3.0;
+    (void)model.set_field("detail", std::move(detail));
+    ui::UiFieldState variation{}; variation.value = static_cast<double>(variation_);
+    variation.commit_policy = ui::UiCommitPolicy::Live; variation.minimum = 0.0; variation.maximum = 1.75; variation.step = 0.05;
+    (void)model.set_field("variation", std::move(variation));
+    (void)model.set("animation_paused", animation_paused_);
+    (void)model.set("surface", show_surface_);
+    (void)model.set("wireframe", show_wireframe_);
+    (void)model.set("skeleton", show_skeleton_);
+    (void)model.set("bounds", show_bounds_);
+    (void)model.set("normals", show_normals_);
+    (void)model.set("auto_rotate", auto_rotate_);
+    static constexpr std::array<std::string_view, 6> tab_names{
+        "model", "equipment", "genome", "skeleton", "animation", "face"};
+    for (std::size_t index = 0; index < tab_names.size(); ++index)
+        (void)model.set("tab_" + std::string{tab_names[index]}, index == active_tab_);
+    (void)model.set("wear", static_cast<double>(equipment_wear_));
+    (void)model.set("animation_speed", static_cast<double>(animation_speed_));
+    (void)model.set("animation_phase", locomotion_state_ ? locomotion_state_->phase : 0.0);
+    (void)model.set("expression_intensity", static_cast<double>(expression_intensity_));
+    (void)model.set("expression_intensity_enabled", expression_ != infantry::FaceExpression::Neutral);
+    (void)model.set("pause_label", std::string{animation_paused_ ? "Resume" : "Pause"});
+    const bool updating = model_job_.valid() && !model_job_.isComplete();
+    (void)model.set("status_compact", std::string{last_generation_error_ ? "Error" : updating ? "Updating" : "Ready"});
+    (void)model.set("equipment_seed", model_artifact_
+        ? numberText(model_artifact_->equipment.equipment_seed) : std::string{"--"});
+
+    std::vector<ui::UiTableRow> genes;
+    genes.reserve(infantry::GenomeGeneCount);
+    for (std::size_t index = 0; index < infantry::GenomeGeneCount; ++index) {
+        const auto gene = static_cast<infantry::GenomeGene>(index);
+        const auto override = genome_overrides_.get(gene);
+        const double value = override.value_or(model_artifact_
+            ? model_artifact_->genome.geneValue(gene) : 0.5);
+        genes.push_back({{"id", std::string{infantry::genomeGeneName(gene)}},
+                         {"group", index < 2 ? std::string{"Root"} :
+                                   index < 19 ? std::string{"Body"} : std::string{"Face"}},
+                         {"label", std::string{infantry::genomeGeneName(gene)}},
+                         {"value", value}, {"enabled", true},
+                         {"selected", gene == selected_genome_gene_},
+                         {"overridden", override.has_value()}});
+    }
+    (void)model.set_list("genes", std::move(genes));
+
+    std::vector<ui::UiTableRow> slots;
+    for (const auto& definition : infantry::EquipmentCatalog::slots()) {
+        const auto index = infantry::equipmentSlotIndex(definition.slot);
+        std::string value{"auto"};
+        const auto& override = equipment_overrides_.slots[index];
+        if (override.specified) {
+            value = override.empty ? "none" : numberText(override.definition_id);
+            if (!override.empty) if (const auto* item = infantry::EquipmentCatalog::findItem(
+                    override.definition_id); item != nullptr) value = std::string{item->identifier};
+        } else if (model_artifact_) {
+            if (const auto* item = model_artifact_->equipment.item(definition.slot); item != nullptr)
+                if (const auto* catalog = infantry::EquipmentCatalog::findItem(item->definition_id);
+                    catalog != nullptr) value = std::string{catalog->identifier};
+        }
+        const std::string_view identifier = definition.identifier;
+        const std::string group = identifier.find("weapon") != std::string_view::npos
+            ? "Weapons" : identifier.find("armor") != std::string_view::npos ||
+              identifier.find("plate") != std::string_view::npos ? "Armor" :
+              identifier.find("pouch") != std::string_view::npos ? "Attachments" : "Apparel";
+        slots.push_back({{"id", std::string{definition.identifier}}, {"group", group},
+                         {"label", std::string{definition.identifier}}, {"value", std::move(value)},
+                         {"enabled", true}, {"selected", index == selected_equipment_slot_},
+                         {"overridden", override.specified}});
+    }
+    (void)model.set_list("equipment_slots", std::move(slots));
+    std::vector<ui::UiTableRow> equipment_items;
+    for (const auto& slot : infantry::EquipmentCatalog::slots()) {
+        const auto& selected = equipment_overrides_.slots[infantry::equipmentSlotIndex(slot.slot)];
+        equipment_items.push_back({{"id", std::string{"auto"}}, {"group", std::string{slot.identifier}},
+            {"label", std::string{"Auto"}}, {"value", std::string{"auto"}},
+            {"enabled", true}, {"selected", !selected.specified}});
+        equipment_items.push_back({{"id", std::string{"none"}}, {"group", std::string{slot.identifier}},
+            {"label", std::string{"None"}}, {"value", std::string{"none"}},
+            {"enabled", true}, {"selected", selected.specified && selected.empty}});
+        for (const auto& item : infantry::EquipmentCatalog::items()) {
+            if (!item.allows(slot.slot)) continue;
+            equipment_items.push_back({{"id", std::string{item.identifier}},
+                {"group", std::string{slot.identifier}}, {"label", std::string{item.identifier}},
+                {"value", std::string{item.identifier}}, {"enabled", true},
+                {"selected", selected.specified && !selected.empty && selected.definition_id == item.id}});
+        }
+    }
+    (void)model.set_list("equipment_items", std::move(equipment_items));
+    std::vector<ui::UiTableRow> loadouts;
+    for (const auto& loadout : infantry::infantryLoadouts())
+        loadouts.push_back({{"id", std::string{loadout.identifier}},
+            {"label", std::string{loadout.identifier}}, {"value", std::string{loadout.identifier}},
+            {"enabled", true}, {"selected", loadouts.size() == loadout_index_}});
+    (void)model.set_list("loadouts", std::move(loadouts));
+
+    std::vector<ui::UiTableRow> bones;
+    if (model_artifact_) {
+        const auto ragdoll = infantry::RagdollSchema::build(
+            model_artifact_->phenotype.body, model_artifact_->skeleton);
+        const auto skeleton_bones = model_artifact_->skeleton.bones();
+        const auto schema = infantry::rigSchema();
+        for (std::size_t index = 0; index < skeleton_bones.size(); ++index) {
+            const auto& bone = skeleton_bones[index];
+            const std::string parent = bone.parent == infantry::kInvalidBoneIndex
+                ? std::string{"root"} : std::string{schema[bone.parent].name};
+            bones.push_back({{"id", numberText(index)}, {"group", std::string{"Hierarchy"}},
+                             {"label", std::string{schema[index].name}},
+                             {"value", std::string{"parent: "} + parent},
+                             {"enabled", true}, {"selected", debug_weight_bone_ &&
+                                static_cast<std::size_t>(*debug_weight_bone_) == index},
+                             {"overridden", ragdoll && std::any_of(ragdoll.value().bodies().begin(),
+                                ragdoll.value().bodies().end(), [index](const auto& body) {
+                                    return static_cast<std::size_t>(body.bone) == index;
+                                })}});
+        }
+        (void)model.set("ragdoll_readout", ragdoll
+            ? numberText(ragdoll.value().bodies().size()) + " bodies / " +
+              numberText(ragdoll.value().constraints().size()) + " constraints"
+            : std::string{"Unavailable"});
+    }
+    (void)model.set_list("bones", std::move(bones));
+    (void)model.set("busy", model_job_.valid() && !model_job_.isComplete());
+    (void)model.set("error", last_generation_error_ ?
+        std::string{last_generation_error_->message} : std::string{});
 }
 
 void UnitLabScene::build_presentation(SceneContext& context) {
@@ -669,10 +1010,15 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             camera_mode_ == UnitLabCameraMode::Face ? 0.62F : 0.72F,
             0.025F,
             100.0F};
-        // The left side belongs to the RmlUi inspector. The camera controller
-        // consumes this bounded preset; the renderer does not own orbit input.
-        context.presentation.camera.viewport_left = 0.40F;
-        context.presentation.camera.viewport_width = 0.60F;
+        const auto viewport = unitLabViewport(context.framebuffer_width,
+                                              context.framebuffer_height,
+                                              context.ui_scale);
+        context.presentation.camera.viewport_left = viewport.left;
+        context.presentation.camera.viewport_top = viewport.top;
+        context.presentation.camera.viewport_width = viewport.width;
+        context.presentation.camera.viewport_height = viewport.height;
+        context.presentation.camera.projection_offset_x = viewport.projection_offset_x;
+        context.presentation.camera.projection_offset_y = viewport.projection_offset_y;
         context.presentation.camera.revision = foundation::stableHashCombine(
             model_artifact_->cache_key,
             static_cast<std::uint64_t>(camera_mode_));
@@ -680,8 +1026,8 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         camera_request.preset = camera::CameraPreset::UnitLab;
         camera_request.mode = camera::CameraMode::Orbit;
         context.publishCameraRequest(camera_request);
-        const float model_rotation =
-            std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F;
+        const float model_rotation = auto_rotate_
+            ? std::sin(static_cast<float>(elapsed_seconds_) * 0.35F) * 0.12F : 0.0F;
         std::optional<render::RenderMesh> debug_deformed;
         if (show_bounds_ || show_normals_ || show_wireframe_ || debug_weight_bone_) {
             const auto& live_palette = context.presentation.skinned_palettes.back();

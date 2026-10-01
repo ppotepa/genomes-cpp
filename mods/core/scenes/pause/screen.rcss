@@ -1,8 +1,5 @@
-body { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: rgba(5, 8, 15, 0.82); color: #edf4ff; font-family: LatoLatin; }
-.panel { width: 34rem; padding: 2.5rem; display: flex; flex-direction: column; gap: 1rem; background-color: #111c2b; border: 1px solid #38516d; box-shadow: 0 1rem 3rem rgba(0,0,0,.45); }
-.eyebrow { color: #8bb8dc; letter-spacing: .12rem; font-size: .75rem; }
-h1 { margin: 0; font-size: 2rem; }
-.copy { color: #a9b8c9; }
-.actions { display: flex; flex-direction: column; gap: .7rem; margin-top: 1rem; }
-button { padding: .8rem 1rem; background-color: #1d3853; color: #f5f8fc; border: 1px solid #52769a; }
-button:hover, button:focus { background-color: #2d6a99; border-color: #a6d4f5; }
+body { pointer-events: auto; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.panel { width: 440dp; padding: 36dp 40dp; text-align: center; }
+.copy { margin-top: 10dp; }
+.actions { display: flex; flex-direction: column; margin-top: 24dp; }
+.actions button { width: 100%; margin: 0dp 0dp 9dp 0dp; }

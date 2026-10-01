@@ -39,6 +39,10 @@ add_test(NAME config.boundaries
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/config_boundaries.cmake")
 set_tests_properties(config.boundaries PROPERTIES LABELS "source;cpu;configuration")
+add_test(NAME ui.scene_guard
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_ui_guard.cmake")
+set_tests_properties(ui.scene_guard PROPERTIES LABELS "source;cpu;ui")
 add_executable(genomes_test_polygon geometry/polygon_tests.cpp)
 target_link_libraries(genomes_test_polygon PRIVATE genomes::geometry)
 genomes_set_project_warnings(genomes_test_polygon)
@@ -113,6 +117,12 @@ genomes_enable_test_assertions(genomes_test_menu_smoke)
 
 add_test(NAME menu_smoke COMMAND genomes_test_menu_smoke)
 
+add_executable(genomes_test_world_lab_smoke world_lab_smoke.cpp)
+target_link_libraries(genomes_test_world_lab_smoke PRIVATE genomes::runtime)
+genomes_set_project_warnings(genomes_test_world_lab_smoke)
+genomes_enable_test_assertions(genomes_test_world_lab_smoke)
+add_test(NAME runtime.world_lab_smoke COMMAND genomes_test_world_lab_smoke)
+
 add_executable(genomes_test_ui_content_registry ui_content_registry_tests.cpp)
 target_link_libraries(genomes_test_ui_content_registry PRIVATE genomes::ui)
 target_compile_definitions(genomes_test_ui_content_registry PRIVATE
@@ -120,6 +130,24 @@ target_compile_definitions(genomes_test_ui_content_registry PRIVATE
 genomes_set_project_warnings(genomes_test_ui_content_registry)
 genomes_enable_test_assertions(genomes_test_ui_content_registry)
 add_test(NAME ui.content_registry COMMAND genomes_test_ui_content_registry)
+
+add_executable(genomes_test_ui_data_model ui_data_model_tests.cpp)
+target_link_libraries(genomes_test_ui_data_model PRIVATE genomes::ui)
+genomes_set_project_warnings(genomes_test_ui_data_model)
+genomes_enable_test_assertions(genomes_test_ui_data_model)
+add_test(NAME ui.data_model COMMAND genomes_test_ui_data_model)
+
+add_executable(genomes_test_ui_services ui_services_tests.cpp)
+target_link_libraries(genomes_test_ui_services PRIVATE genomes::ui)
+genomes_set_project_warnings(genomes_test_ui_services)
+genomes_enable_test_assertions(genomes_test_ui_services)
+add_test(NAME ui.services COMMAND genomes_test_ui_services)
+
+add_executable(genomes_test_ui_route_lifecycle ui_route_lifecycle_tests.cpp)
+target_link_libraries(genomes_test_ui_route_lifecycle PRIVATE genomes::ui)
+genomes_set_project_warnings(genomes_test_ui_route_lifecycle)
+genomes_enable_test_assertions(genomes_test_ui_route_lifecycle)
+add_test(NAME ui.route_lifecycle COMMAND genomes_test_ui_route_lifecycle)
 
 if(GENOMES_ENABLE_RMLUI)
     add_executable(genomes_test_ui_rml_smoke ui_rml_smoke.cpp)

@@ -36,7 +36,7 @@ template<class Source,class Resident> void setBounds(const Source& source,Reside
         lo={std::min(lo.x,v.position.x),std::min(lo.y,v.position.y),std::min(lo.z,v.position.z)};
         hi={std::max(hi.x,v.position.x),std::max(hi.y,v.position.y),std::max(hi.z,v.position.z)};
     }
-    gpu.center=scale(add(lo,hi),.5F);gpu.half_extent=scale(sub(hi,lo),.5F);
+    gpu.center=(lo+hi)*.5F;gpu.half_extent=(hi-lo)*.5F;
 }
 }
 RenderResult DiligentBackend::Impl::ensureRegular(const std::shared_ptr<const RenderMesh>& source,Mesh*& out) {

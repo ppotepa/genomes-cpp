@@ -25,7 +25,7 @@ foundation::Result<void, foundation::Error> finalizeAppearanceMesh(AppearanceMes
     auto value=std::move(repaired.value());
     mesh.indices=std::move(value.indices);
     mesh.groups.clear();mesh.groups.reserve(value.groups.size());
-    for(const auto& group:value.groups)mesh.groups.push_back({group.start,group.count,group.material});
+    for(const auto& group:value.groups)mesh.groups.push_back({group.start,group.count,static_cast<std::uint16_t>(group.material)});
     for(std::size_t index=0;index<mesh.vertices.size();++index)mesh.vertices[index].normal=value.normals[index];
 
     mesh.minimum=mesh.maximum=mesh.vertices.front().position;

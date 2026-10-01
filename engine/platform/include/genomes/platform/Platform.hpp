@@ -60,6 +60,9 @@ public:
     [[nodiscard]] const WindowMetrics& metrics() const noexcept { return metrics_; }
     [[nodiscard]] WindowGraphicsApi graphics_api() const noexcept { return config_.graphicsApi(); }
     [[nodiscard]] bool on_owner_thread() const noexcept;
+    // Opaque SDL window for application-owned SDL services such as the native
+    // file dialog. The pointer is valid only while this platform is alive.
+    [[nodiscard]] void* sdl_window() const noexcept { return window_; }
     // All methods and destruction run on the SDL/main thread. Dispose renderer
     // resources before this call; it destroys the native window only.
     void shutdown() noexcept;
@@ -75,6 +78,8 @@ private:
     float last_mouse_x_{0.0F}; // window coordinates, not previously scaled pixels
     float last_mouse_y_{0.0F};
     bool mouse_left_down_{false};
+    bool mouse_middle_down_{false};
+    bool mouse_right_down_{false};
     bool initialized_{false};
 };
 

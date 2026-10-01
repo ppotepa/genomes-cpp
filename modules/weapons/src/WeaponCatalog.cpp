@@ -51,16 +51,16 @@ const std::array<WeaponDefinition, 8> kCatalog{{
      WeaponFamily::TwoHanded, WeaponVisualKind::Long, 2U, 1.00F, 1.60F, 1.65F, .18F, .28F},
 }};
 
-[[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
+[[nodiscard]] bool finite_position(foundation::Vec3 value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
 } // namespace
 
 bool WeaponDefinition::valid() const noexcept {
-    return id != 0U && !identifier.empty() && finite(dimensions) && dimensions.x > 0.0F &&
-           dimensions.y > 0.0F && dimensions.z > 0.0F && finite(muzzle) && finite(primary_grip) &&
-           finite(support_grip) && finite(stow_anchor) && version > 0U &&
+    return id != 0U && !identifier.empty() && finite_position(dimensions) && dimensions.x > 0.0F &&
+           dimensions.y > 0.0F && dimensions.z > 0.0F && finite_position(muzzle) && finite_position(primary_grip) &&
+           finite_position(support_grip) && finite_position(stow_anchor) && version > 0U &&
            grip_profile_mask > 0U && grip_profile_mask <= 3U &&
            std::isfinite(visual_length) && visual_length > 0.0F &&
            std::isfinite(draw_seconds) && draw_seconds > 0.0F &&

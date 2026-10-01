@@ -10,14 +10,27 @@ using namespace diligent_contract;
 
 DiligentBackend::Impl::Ptr<Diligent::IBuffer> DiligentBackend::Impl::buffer(
     const char* name,std::size_t size,Diligent::BIND_FLAGS bind,bool dynamic,const void* data) {
+    (void)dynamic;
+    // Keep Genomes uploads in default D3D12 resources. Diligent's dynamic
+    // buffer path suballocates an over-aligned context array; the pinned
+    // release backend can issue an unaligned AVX store while constructing it.
+    // UpdateBuffer below provides the same per-frame upload contract without
+    // relying on that allocator path.
     Diligent::BufferDesc d{};d.Name=name;d.Size=static_cast<Diligent::Uint64>(size);d.BindFlags=bind;
-    d.Usage=dynamic?Diligent::USAGE_DYNAMIC:Diligent::USAGE_DEFAULT;
-    d.CPUAccessFlags=dynamic?Diligent::CPU_ACCESS_WRITE:Diligent::CPU_ACCESS_NONE;
+    d.Usage=Diligent::USAGE_DEFAULT;
+    d.CPUAccessFlags=Diligent::CPU_ACCESS_NONE;
     Diligent::BufferData initial{data,static_cast<Diligent::Uint64>(size)};
-    Ptr<Diligent::IBuffer> out;device->CreateBuffer(d,data?&initial:nullptr,&out);return out;
+    Ptr<Diligent::IBuffer> out;
+    device->CreateBuffer(d,data?&initial:nullptr,&out);
+    return out;
 }
 RenderResult DiligentBackend::Impl::mapCopy(Diligent::IBuffer* target,const void* source,std::size_t size) {
-    if (!target || !source || !size || size>target->GetDesc().Size) return error("invalid dynamic buffer write");
+    if (!target || !source || !size || size>target->GetDesc().Size) return error("invalid GPU buffer write");
+    if (target->GetDesc().Usage == Diligent::USAGE_DEFAULT) {
+        context->UpdateBuffer(target,0,static_cast<Diligent::Uint64>(size),source,
+                              Diligent::RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+        return RenderResult::success();
+    }
     void* mapped=nullptr;context->MapBuffer(target,Diligent::MAP_WRITE,Diligent::MAP_FLAG_DISCARD,mapped);
     if (!mapped) return error("could not map transient GPU data",foundation::ErrorCode::Internal);
     std::memcpy(mapped,source,size);context->UnmapBuffer(target,Diligent::MAP_WRITE);return RenderResult::success();

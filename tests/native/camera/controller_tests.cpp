@@ -9,6 +9,10 @@ int main() {
     const auto original=request.position;
     controller.update(request,{1.0F,0,0,0,0,0,false,false,false},1.0F/60.0F);
     assert(request.position.x!=original.x || request.position.z!=original.z);
+    const auto before_pan = request.target;
+    controller.update(request,{0,0,0,0,0,0,false,false,false,24.0F,-12.0F},1.0F/60.0F);
+    assert(request.target.x != before_pan.x || request.target.y != before_pan.y ||
+           request.target.z != before_pan.z);
     const auto orbit_offset = request.position - request.target;
     controller.rebaseOrbitTarget({2.0F, 0.0F, 0.0F});
     controller.update(request,{},1.0F/60.0F);

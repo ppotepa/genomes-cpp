@@ -17,6 +17,7 @@
 #include <string>
 
 namespace genomes::platform { class SdlPlatform; }
+namespace genomes::platform { class SdlFileDialogService; }
 namespace genomes::render {
 class IRenderer;
 class RenderBackend;
@@ -64,7 +65,8 @@ private:
     runtime::SceneDirector director_;
     simulation::FixedStepClock clock_;
 #if defined(GENOMES_HAS_RMLUI)
-    [[nodiscard]] std::string document_for_scene(foundation::SceneId scene) const;
+    [[nodiscard]] std::string resolve_document(foundation::SceneId scene) const;
+    std::unique_ptr<platform::SdlFileDialogService> file_dialog_service_;
     std::unique_ptr<ui::rml::Runtime> rml_ui_;
     std::uint64_t rml_route_revision_{0};
 #endif

@@ -8,7 +8,7 @@ namespace genomes::camera {
 namespace {
 foundation::Error error(foundation::ErrorCode code, std::string_view message) { return {code, message}; }
 bool validViewport(ViewportNormalized v) { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.width)&&std::isfinite(v.height)&&v.x>=0&&v.y>=0&&v.width>0&&v.height>0&&v.x+v.width<=1&&v.y+v.height<=1; }
-bool validLens(CameraLens l) { return std::isfinite(l.vertical_fov)&&std::isfinite(l.near_plane)&&std::isfinite(l.far_plane)&&l.vertical_fov>0&&l.vertical_fov<3.13F&&l.near_plane>0&&l.far_plane>l.near_plane; }
+bool validLens(CameraLens l) { return std::isfinite(l.vertical_fov)&&std::isfinite(l.near_plane)&&std::isfinite(l.far_plane)&&std::isfinite(l.projection_offset_x)&&std::isfinite(l.projection_offset_y)&&l.vertical_fov>0&&l.vertical_fov<3.13F&&l.near_plane>0&&l.far_plane>l.near_plane&&std::abs(l.projection_offset_x)<=1.0F&&std::abs(l.projection_offset_y)<=1.0F; }
 void normalizePlane(math::Plane& p) { const float n=math::length(p.normal); if(n>1e-8F){p.normal=p.normal/n;p.distance/=n;} }
 }
 
@@ -22,6 +22,8 @@ foundation::Result<ResolvedCamera, foundation::Error> resolve(const CameraReques
     result.viewport.width=std::max(1,result.viewport.width); result.viewport.height=std::max(1,result.viewport.height);
     result.view=math::lookAtRH(request.position,request.target,request.up);
     result.projection=math::perspectiveD3D(request.lens.vertical_fov,static_cast<float>(result.viewport.width)/result.viewport.height,request.lens.near_plane,request.lens.far_plane);
+    result.projection(0,2)=-request.lens.projection_offset_x;
+    result.projection(1,2)=-request.lens.projection_offset_y;
     result.view_projection=result.projection*result.view;
     auto iv=result.view.rigidInverse(); auto ip=result.projection.inverse(); auto ivp=result.view_projection.inverse();
     if(!iv||!ip||!ivp) return foundation::Result<ResolvedCamera, foundation::Error>::failure(error(foundation::ErrorCode::InvalidState,"camera matrix inversion failed"));

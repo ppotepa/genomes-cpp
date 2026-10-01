@@ -19,9 +19,9 @@ struct EntryDefinition {
 
 constexpr std::array<EntryDefinition, 6> entries{{
     {MainMenuEntry::StartScenario, "Battlefield", true},
-    {MainMenuEntry::UnitLab, "Unit laboratory", true},
-    {MainMenuEntry::BuildingLab, "Building laboratory", true},
-    {MainMenuEntry::WorldConfig, "World configuration", true},
+    {MainMenuEntry::UnitLab, "Unit Laboratory", true},
+    {MainMenuEntry::BuildingLab, "Building Laboratory", true},
+    {MainMenuEntry::WorldLab, "World Laboratory", true},
     {MainMenuEntry::Settings, "Settings", true},
     {MainMenuEntry::Quit, "Quit", true},
 }};
@@ -65,21 +65,6 @@ void MainMenuScene::fixed_update(SceneContext&, double dt) {
 }
 
 void MainMenuScene::handle_input(SceneContext& context, const input::InputFrame& input) {
-    if (input.mouse_left_pressed && input.mouse_x >= 78.0F && input.mouse_x <= 438.0F) {
-        constexpr float first_button_y = 184.0F;
-        constexpr float button_step = 60.0F;
-        const float relative_y = input.mouse_y - first_button_y;
-        const int index = static_cast<int>(relative_y / button_step);
-        const float local_y = relative_y - static_cast<float>(index) * button_step;
-        if (index >= 0 && index < static_cast<int>(entries.size()) && local_y >= 0.0F &&
-            local_y <= 48.0F) {
-            state_.selected = entries[static_cast<std::size_t>(index)].entry;
-            if (entries[static_cast<std::size_t>(index)].enabled) {
-                activate(context);
-            }
-            return;
-        }
-    }
     if (input.up_pressed) {
         state_.selected = move_selection(state_.selected, -1);
     } else if (input.down_pressed) {
@@ -92,27 +77,19 @@ void MainMenuScene::handle_input(SceneContext& context, const input::InputFrame&
 
 void MainMenuScene::frame_update(SceneContext& context, double) {
     context.ui.clear();
-
-    context.ui.add({foundation::stable_id("menu.panel"), ui::UiWidgetType::Panel,
-                    "GENOMES", true, false, 420.0F, 640.0F});
-    context.ui.add({foundation::stable_id("menu.title"), ui::UiWidgetType::Label,
-                    "PROCEDURAL WORLD", true, false, 0.0F, 0.0F});
-
-    for (const EntryDefinition& definition : entries) {
-        context.ui.add({foundation::stable_id(definition.label), ui::UiWidgetType::Button,
-                        std::string(definition.label), definition.enabled,
-                        definition.entry == state_.selected, 360.0F, 48.0F});
+    auto& model = context.ui.model();
+    (void)model.set("title", std::string{"PROCEDURAL WORLD"});
+    (void)model.set("selected", std::string{definition_for(state_.selected).label});
+    (void)model.set("version", std::string{"native runtime / scene architecture"});
+    (void)model.set("settings_open", state_.settings_open);
+    std::vector<ui::UiTableRow> menu_entries;
+    menu_entries.reserve(entries.size());
+    for (const auto& entry : entries) {
+        menu_entries.push_back({{"id", std::string{entry.label}},
+                                {"label", std::string{entry.label}},
+                                {"enabled", entry.enabled}});
     }
-
-    context.ui.add({foundation::stable_id("menu.separator"), ui::UiWidgetType::Separator,
-                    {}, true, false, 360.0F, 1.0F});
-    context.ui.add({foundation::stable_id("menu.version"), ui::UiWidgetType::Label,
-                    "native runtime / scene architecture", true, false, 0.0F, 0.0F});
-
-    if (state_.settings_open) {
-        context.ui.add({foundation::stable_id("menu.settings"), ui::UiWidgetType::Panel,
-                        "Settings", true, false, 360.0F, 160.0F});
-    }
+    (void)model.set_list("entries", std::move(menu_entries));
 }
 
 void MainMenuScene::build_presentation(SceneContext& context) {
@@ -173,8 +150,8 @@ void MainMenuScene::activate(SceneContext& context) {
         context.commands.push({ApplicationCommandKind::OpenBuildingLab,
                                WorldGenerationConfig{state_.preview_seed}});
         break;
-    case MainMenuEntry::WorldConfig:
-        context.commands.push({ApplicationCommandKind::OpenWorldConfig,
+    case MainMenuEntry::WorldLab:
+        context.commands.push({ApplicationCommandKind::OpenWorldLab,
                                WorldGenerationConfig{state_.preview_seed}});
         break;
     case MainMenuEntry::Settings:

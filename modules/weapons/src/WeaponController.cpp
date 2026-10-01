@@ -11,7 +11,7 @@ namespace {
     return value.x * value.x + value.y * value.y + value.z * value.z;
 }
 
-[[nodiscard]] foundation::Vec3 normalized(foundation::Vec3 value) noexcept {
+[[nodiscard]] foundation::Vec3 normalized_direction(foundation::Vec3 value) noexcept {
     const float length = std::sqrt(length_squared(value));
     return {value.x / length, value.y / length, value.z / length};
 }
@@ -49,7 +49,7 @@ foundation::Result<ShotRequest, foundation::Error> WeaponController::tryFire(
     state.next_fire = foundation::SimulationTick{tick.value + cadence_ticks};
     --state.ammunition;
     return foundation::Result<ShotRequest, foundation::Error>::success(
-        {shooter, origin, normalized(direction), spec.range, spec.damage, tick});
+        {shooter, origin, normalized_direction(direction), spec.range, spec.damage, tick});
 }
 
 } // namespace genomes::weapons

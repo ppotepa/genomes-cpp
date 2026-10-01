@@ -137,7 +137,19 @@ PlatformFrame SdlPlatform::poll_events() {
                 frame.input.events.push_back({input::EventType::MouseButtonUp, 0, 0,
                     SDL_BUTTON_LEFT, p.x, p.y, 0.0F, 0.0F, {}});
             }
+            if (mouse_middle_down_) {
+                const auto p = metrics_.to_pixels(last_mouse_x_, last_mouse_y_);
+                frame.input.events.push_back({input::EventType::MouseButtonUp, 0, 0,
+                    SDL_BUTTON_MIDDLE, p.x, p.y, 0.0F, 0.0F, {}});
+            }
+            if (mouse_right_down_) {
+                const auto p = metrics_.to_pixels(last_mouse_x_, last_mouse_y_);
+                frame.input.events.push_back({input::EventType::MouseButtonUp, 0, 0,
+                    SDL_BUTTON_RIGHT, p.x, p.y, 0.0F, 0.0F, {}});
+            }
             mouse_left_down_ = false;
+            mouse_middle_down_ = false;
+            mouse_right_down_ = false;
             (void)SDL_CaptureMouse(false);
             break;
         case SDL_EVENT_KEY_DOWN:
@@ -145,7 +157,10 @@ PlatformFrame SdlPlatform::poll_events() {
             const bool pressed = event.type == SDL_EVENT_KEY_DOWN;
             frame.input.events.push_back({pressed ? input::EventType::KeyDown : input::EventType::KeyUp,
                 static_cast<std::int32_t>(event.key.scancode), static_cast<std::int32_t>(event.key.key),
-                0, 0.0F, 0.0F, 0.0F, 0.0F, {}});
+                0, 0.0F, 0.0F, 0.0F, 0.0F, {},
+                static_cast<std::uint8_t>((event.key.mod & SDL_KMOD_SHIFT ? 1U : 0U) |
+                                           (event.key.mod & SDL_KMOD_CTRL ? 2U : 0U) |
+                                           (event.key.mod & SDL_KMOD_ALT ? 4U : 0U))});
             if (!pressed || event.key.repeat) break;
             switch (event.key.scancode) {
             case SDL_SCANCODE_UP: frame.input.up_pressed = true; break;
@@ -155,6 +170,7 @@ PlatformFrame SdlPlatform::poll_events() {
             case SDL_SCANCODE_RETURN:
             case SDL_SCANCODE_KP_ENTER: frame.input.confirm_pressed = true; break;
             case SDL_SCANCODE_ESCAPE: frame.input.cancel_pressed = true; break;
+            case SDL_SCANCODE_R: frame.input.reset_pressed = true; break;
             default: break;
             }
             break;
@@ -172,8 +188,12 @@ PlatformFrame SdlPlatform::poll_events() {
             if (event.button.button == SDL_BUTTON_LEFT) {
                 mouse_left_down_ = pressed;
                 if (pressed) frame.input.mouse_left_pressed = true;
-                (void)SDL_CaptureMouse(pressed);
+            } else if (event.button.button == SDL_BUTTON_MIDDLE) {
+                mouse_middle_down_ = pressed;
+            } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                mouse_right_down_ = pressed;
             }
+            (void)SDL_CaptureMouse(mouse_left_down_ || mouse_middle_down_ || mouse_right_down_);
             break;
         }
         case SDL_EVENT_MOUSE_MOTION: {
@@ -208,6 +228,8 @@ PlatformFrame SdlPlatform::poll_events() {
             static_cast<float>(frame.width), static_cast<float>(frame.height), 0.0F, 0.0F, {}});
     }
     frame.input.mouse_left_down = mouse_left_down_;
+    frame.input.mouse_middle_down = mouse_middle_down_;
+    frame.input.mouse_right_down = mouse_right_down_;
     const auto p = metrics_.to_pixels(last_mouse_x_, last_mouse_y_);
     frame.input.mouse_x = p.x;
     frame.input.mouse_y = p.y;

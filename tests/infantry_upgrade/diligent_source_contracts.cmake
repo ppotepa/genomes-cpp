@@ -57,7 +57,8 @@ foreach(_token "MAP_READ" "Image::Encode" "MappedTextureSubresource" "skin_const
     endif()
 endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/unit-lab/screen.rml" _lab)
-foreach(_token "data-model=\"ui\"" "{{ status }}" "{{ selected }}")
+foreach(_token "data-model=\"ui_builtin_unit_lab\"" "id=\"unit-toolbar\""
+               "id=\"unit-inspector\"" "data-class-active=\"tab_model\"")
     string(FIND "${_lab}" "${_token}" _offset)
     if(_offset LESS 0)
         message(FATAL_ERROR "UnitLab data binding missing: ${_token}")

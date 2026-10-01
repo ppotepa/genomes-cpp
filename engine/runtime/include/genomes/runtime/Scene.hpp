@@ -47,6 +47,9 @@ struct SceneContext {
     // Evidence/capture mode disables worker timing as an input to generated
     // presentation state. Simulation still advances through fixed_update.
     bool deterministic_capture{false};
+    int framebuffer_width{1280};
+    int framebuffer_height{720};
+    double ui_scale{1.0};
     camera::CameraRequest* camera_request{nullptr};
     bool* camera_request_published{nullptr};
 

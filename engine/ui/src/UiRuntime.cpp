@@ -4,13 +4,49 @@
 
 namespace genomes::ui {
 
+namespace {
+class SettingsController final : public IUiScreenController {
+public:
+    void bind(UiDataModel& model) override {
+        UiFieldState scale{};
+        if (const auto* existing = model.find("ui_scale"); existing != nullptr)
+            scale.value = *existing;
+        else scale.value = 1.0;
+        scale.commit_policy = UiCommitPolicy::Live;
+        scale.minimum = 0.75;
+        scale.maximum = 1.50;
+        scale.step = 0.05;
+        (void)model.set_field("ui_scale", std::move(scale));
+        if (model.find("show_diagnostics") == nullptr) (void)model.set("show_diagnostics", true);
+    }
+};
+
+class OverlayController final : public IUiScreenController {};
+}
+
+UiRuntime::UiRuntime() {
+    register_controller("builtin.settings", [] { return std::make_unique<SettingsController>(); });
+    register_controller("builtin.pause", [] { return std::make_unique<OverlayController>(); });
+    register_controller("builtin.world-lab", [] { return std::make_unique<OverlayController>(); });
+    // Scene-domain ViewModels are owned by SceneDirector, but every manifest
+    // route still receives a concrete lifecycle object. This keeps the route
+    // stack uniform and gives future scene adapters a stable registration
+    // point without coupling the runtime to their domain types.
+    for (const auto* id : {"builtin.main-menu", "builtin.world-config", "builtin.battlefield",
+                           "builtin.unit-lab", "builtin.building-lab"})
+        register_controller(id, [] { return std::make_unique<OverlayController>(); });
+    reset_model();
+}
+
 void UiRouteStack::replace(UiRoute route) {
     routes_.clear();
+    route.revision = revision_ + 1U;
     routes_.push_back(std::move(route));
     ++revision_;
 }
 
 void UiRouteStack::push(UiRoute route) {
+    route.revision = revision_ + 1U;
     routes_.push_back(std::move(route));
     ++revision_;
 }
@@ -29,8 +65,53 @@ const UiRoute* UiRouteStack::top() const noexcept {
 }
 
 void UiRuntime::clear() {
-    widgets_.clear();
     frame_dirty_ = true;
+}
+
+void UiRuntime::sync_route_lifecycle() {
+    if (synchronized_route_revision_ == routes_.revision()) return;
+    std::vector<UiRoute> resolved_routes;
+    resolved_routes.reserve(routes_.routes().size());
+    for (const auto& source : routes_.routes()) {
+        UiRoute resolved = source;
+        if (route_resolver_) route_resolver_(resolved);
+        resolved_routes.push_back(std::move(resolved));
+    }
+    std::size_t common = 0;
+    while (common < route_controllers_.size() && common < resolved_routes.size()) {
+        const auto& old = route_controllers_[common].route;
+        const auto& next = resolved_routes[common];
+        if (old.scene != next.scene || old.document != next.document ||
+            old.controller != next.controller || old.overlay != next.overlay) break;
+        ++common;
+    }
+    while (route_controllers_.size() > common) {
+        auto& state = route_controllers_.back();
+        if (state.controller) {
+            UiContext context{this, &state.model};
+            state.controller->on_exit(context);
+        }
+        route_controllers_.pop_back();
+    }
+    for (std::size_t index = common; index < resolved_routes.size(); ++index) {
+        const auto& resolved = resolved_routes[index];
+        RouteControllerState state{};
+        state.route = resolved;
+        const auto factory = controller_factories_.find(resolved.controller);
+        if (factory != controller_factories_.end()) {
+            state.controller = factory->second();
+            if (state.controller) {
+                model_.for_each_field([&state](std::string_view key, const UiFieldState& field) {
+                    if (state.model.find_field(key) == nullptr) (void)state.model.set_field(std::string{key}, field);
+                });
+                state.controller->bind(state.model);
+                UiContext context{this, &state.model};
+                state.controller->on_enter(context);
+            }
+        }
+        route_controllers_.push_back(std::move(state));
+    }
+    synchronized_route_revision_ = routes_.revision();
 }
 
 void UiRuntime::register_controller(std::string id, ControllerFactory factory) {
@@ -55,12 +136,6 @@ bool UiRuntime::activate_controller(std::string_view id) {
     return true;
 }
 
-UiWidget& UiRuntime::add(UiWidget widget) {
-    widgets_.push_back(std::move(widget));
-    frame_dirty_ = true;
-    return widgets_.back();
-}
-
 void UiRuntime::set_viewport(std::uint32_t width, std::uint32_t height) noexcept {
     if (frame_.viewport_width != width || frame_.viewport_height != height) {
         frame_.viewport_width = width;
@@ -70,10 +145,17 @@ void UiRuntime::set_viewport(std::uint32_t width, std::uint32_t height) noexcept
 }
 
 void UiRuntime::update(double delta_seconds) {
+    sync_route_lifecycle();
     elapsed_seconds_ += std::max(0.0, delta_seconds);
     if (controller_) {
         UiContext context{this, &model_};
         controller_->update(context, std::max(0.0, delta_seconds));
+    }
+    for (auto& state : route_controllers_) {
+        if (state.controller) {
+            UiContext context{this, &state.model};
+            state.controller->update(context, std::max(0.0, delta_seconds));
+        }
     }
 }
 
@@ -103,6 +185,13 @@ UiActionResult UiRuntime::dispatch(UiActionId action,
         const auto result = controller_->handle_action(action, arguments);
         if (result != UiActionResult::Unknown) return result;
     }
+    if (!route_controllers_.empty()) {
+        auto& top = route_controllers_.back();
+        if (top.controller) {
+            const auto result = top.controller->handle_action(action, arguments);
+            if (result != UiActionResult::Unknown) return result;
+        }
+    }
     if (action_router_ == nullptr) {
         return UiActionResult::Unknown;
     }
@@ -118,40 +207,6 @@ const UiRenderFrame& UiRuntime::frame() const noexcept {
 
 void UiRuntime::rebuild_frame() const {
     frame_.commands.clear();
-    frame_.widgets = widgets_;
-    float row_y = 164.0F;
-    for (const UiWidget& widget : widgets_) {
-        UiDrawCommand command{};
-        command.id = widget.id;
-        command.text = widget.text;
-        command.enabled = widget.enabled;
-        command.selected = widget.selected;
-        command.rect = {78.0F, row_y, widget.width, widget.height};
-        switch (widget.type) {
-        case UiWidgetType::Panel:
-            command.primitive = UiDrawPrimitive::Quad;
-            command.rect = {48.0F, 48.0F, widget.width, widget.height};
-            command.color = {0.025F, 0.035F, 0.06F, 0.97F};
-            break;
-        case UiWidgetType::Button:
-            command.primitive = UiDrawPrimitive::Quad;
-            command.color = widget.selected ? foundation::Color{0.10F, 0.38F, 0.67F, 1.0F}
-                                             : foundation::Color{0.07F, 0.11F, 0.18F, 1.0F};
-            row_y += widget.height + 12.0F;
-            break;
-        case UiWidgetType::Separator:
-            command.primitive = UiDrawPrimitive::Separator;
-            command.rect.height = 1.0F;
-            row_y += 24.0F;
-            break;
-        case UiWidgetType::Label:
-            command.primitive = UiDrawPrimitive::Text;
-            command.color = {0.62F, 0.68F, 0.76F, 1.0F};
-            row_y += 34.0F;
-            break;
-        }
-        frame_.commands.push_back(std::move(command));
-    }
     ++frame_.revision;
     frame_dirty_ = false;
 }

@@ -31,6 +31,8 @@ struct Event final {
     float wheel_x{0.0F};
     float wheel_y{0.0F};
     std::string text;
+    // Neutral modifier bitfield; bit 0 is Shift, bit 1 is Ctrl, bit 2 Alt.
+    std::uint8_t modifiers{0};
 };
 
 struct InputFrame {
@@ -40,10 +42,13 @@ struct InputFrame {
     bool right_pressed{false};
     bool confirm_pressed{false};
     bool cancel_pressed{false};
+    bool reset_pressed{false};
     bool focus_lost{false};
     bool pointer_cancel{false};
     bool mouse_left_pressed{false};
     bool mouse_left_down{false};
+    bool mouse_middle_down{false};
+    bool mouse_right_down{false};
     float mouse_x{0.0F};
     float mouse_y{0.0F};
     float mouse_delta_x{0.0F};

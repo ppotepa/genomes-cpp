@@ -65,7 +65,7 @@ foundation::Result<void, foundation::Error> MeshBuilder::appendMesh(const MeshDa
     vertices_.reserve(vertex_count + mesh.vertices.size());
     positions_.reserve(vertex_count + mesh.vertices.size());
     indices_.reserve(index_count + mesh.indices.size());
-    for (const auto& vertex : mesh.vertices) appendVertex(vertex);
+    for (const auto& vertex : mesh.vertices) (void)appendVertex(vertex);
     for (const auto index : mesh.indices) indices_.push_back(static_cast<VertexIndex>(vertex_count) + index);
     return foundation::Result<void, foundation::Error>::success();
 }

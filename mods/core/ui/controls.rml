@@ -1,0 +1,6 @@
+<!-- Shared control catalogue. Scene documents choose the controls and own layout. -->
+<template name="text-input"><input type="text" /></template>
+<template name="number-input"><input type="number" /></template>
+<template name="range-slider"><input type="range" /></template>
+<template name="progress-bar"><progress value="0" max="1"></progress></template>
+<template name="file-picker"><div class="file-picker"><input type="text" readonly="readonly" data-control="file.path" /><button data-file-dialog="open" data-file-dialog-title="Choose file" data-file-dialog-filter="*.json" data-control="file.path">Choose file</button></div></template>

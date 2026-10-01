@@ -14,10 +14,7 @@ enum class MainMenuEntry {
     StartScenario,
     UnitLab,
     BuildingLab,
-    WorldConfig,
-    // Compatibility alias for callers that used the earlier placeholder
-    // world-lab name before the configuration screen became selectable.
-    WorldLab = WorldConfig,
+    WorldLab,
     Settings,
     Quit,
     Count

@@ -16,6 +16,17 @@
 
 namespace genomes::runtime {
 
+struct UnitLabViewport final {
+    float left;
+    float top;
+    float width;
+    float height;
+    float projection_offset_x;
+    float projection_offset_y;
+};
+[[nodiscard]] UnitLabViewport unitLabViewport(int framebuffer_width, int framebuffer_height,
+                                               double ui_scale) noexcept;
+
 enum class UnitLabCameraMode : std::uint8_t {
     ThreeQuarter,
     Front,
@@ -51,6 +62,7 @@ private:
     void markDirty(UnitLabDirtyFlag flag) noexcept;
     bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
+    void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
     void publishModelResult(foundation::Result<infantry::InfantryModelArtifact,
                                                foundation::Error>&& result);
 
@@ -61,6 +73,10 @@ private:
     float variation_{1.0F};
     std::uint32_t detail_level_{2U};
     std::size_t loadout_index_{0U};
+    std::size_t palette_index_{0U};
+    float equipment_wear_{0.0F};
+    infantry::InfantrySide side_{infantry::InfantrySide::SideA};
+    std::uint8_t active_tab_{0U};
     std::uint8_t genome_override_mode_{0U};
     infantry::GenomeOverrides genome_overrides_{};
     infantry::GenomeGene selected_genome_gene_{infantry::GenomeGene::Height};
@@ -74,8 +90,10 @@ private:
     bool show_skeleton_{false};
     bool show_bounds_{false};
     bool show_normals_{false};
+    bool auto_rotate_{true};
     std::optional<infantry::BoneId> debug_weight_bone_;
     bool animation_paused_{false};
+    float animation_speed_{1.0F};
     bool geometry_dirty_{true};
     bool material_dirty_{true};
     bool pose_dirty_{true};
@@ -99,6 +117,7 @@ private:
     std::shared_ptr<PendingModelResult> pending_model_result_;
     jobs::JobHandle model_job_;
     infantry::InfantryModelCompiler::CompileRevision model_revision_{0};
+    std::optional<infantry::InfantryModelRequest> queued_model_request_;
 };
 
 } // namespace genomes::runtime

@@ -124,7 +124,7 @@ foundation::Result<MeshData, foundation::Error> recalculateNormals(const MeshDat
     if(!source.valid()||source.vertices.empty()) return foundation::Result<MeshData, foundation::Error>::failure({foundation::ErrorCode::Unsupported,"stream-only normal generation requires an attribute adapter"});
     MeshData result=source; const auto submeshes=result.submeshes; for(auto& vertex:result.vertices)vertex.normal={0,0,0};
     for(std::size_t i=0;i+2<result.indices.size();i+=3){auto& a=result.vertices[result.indices[i]];auto& b=result.vertices[result.indices[i+1]];auto& c=result.vertices[result.indices[i+2]];const auto n=math::cross(b.position-a.position,c.position-a.position);a.normal=a.normal+n;b.normal=b.normal+n;c.normal=c.normal+n;}
-    for(auto& vertex:result.vertices)vertex.normal=math::normalized(vertex.normal); refresh(result); result.submeshes=submeshes; if(result.submeshes.empty())result.submeshes.push_back({0U,static_cast<std::uint32_t>(result.indices.size()),0U}); return foundation::Result<MeshData, foundation::Error>::success(std::move(result));
+    for(auto& vertex:result.vertices)vertex.normal=math::normalized(vertex.normal); refreshBounds(result); result.submeshes=submeshes; if(result.submeshes.empty())result.submeshes.push_back({0U,static_cast<std::uint32_t>(result.indices.size()),0U}); return foundation::Result<MeshData, foundation::Error>::success(std::move(result));
 }
 
 foundation::Result<MeshData, foundation::Error> convertIndexFormat(const MeshData& source,IndexFormat format) {

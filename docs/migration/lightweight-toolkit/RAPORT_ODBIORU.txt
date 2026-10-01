@@ -10,6 +10,25 @@ SOURCE REVIEW
 Status: IN PROGRESS (source slices only)
 Static guard: PASS at source SHA 175cbeb (active-tree forbidden-token, public-API, tracker-arithmetic, preset, renderer-cache, link-boundary and ISA scan)
 Dependency closure: NOT RUN
+Release resumption fix: CODE_READY in working tree based on e9358c0; Vec2
+scalar division and regression coverage added for LT-024/LT-129. Agent checks:
+native and infantry CMake boundaries PASS, Diligent source contracts PASS,
+lightweight-toolkit static guard PASS, Clang syntax PASS, diff check PASS.
+Agent build evidence (working tree, not acceptance): rundev.cmd -BuildOnly PASS,
+run-release.cmd -BuildOnly PASS, full dev-debug and dev-release preset builds
+PASS (game, native tests and benchmarks).
+Agent launch smoke (working tree): rundev.cmd --frames 1 --deterministic PASS,
+run-release.cmd --frames 1 --deterministic PASS, and Release no-argument process
+remained alive after 5 seconds. The Release Diligent dynamic-buffer allocator
+path is bypassed with default GPU buffers plus UpdateBuffer; startup camera
+fallback is used when the menu has no resolved camera.
+Interactive camera fix: orbit revision is preserved across scene extraction;
+left drag rotates, right/middle drag pans, wheel zooms, `R` resets, and RmlUi
+pointer capture is limited to actual panels instead of the full viewport.
+Agent CTest: 88/92 passed; four existing execution regressions remain
+(runtime.unit_lab_smoke, render.full_presentation,
+infantry.reference_parity, infantry.appearance_topology). User Release
+build/CTest at a published SHA: NOT RUN
 Source slices: dec980a (math), 470a55b (mesh streams), b012a5e (builder),
 995f873 (typed box), e99293d (mesh operations), d073a47 (optimizer),
 ef84e82 (recipe), 46aa8b9 (earcut/polygons), 2660846/114e4de (CSG),

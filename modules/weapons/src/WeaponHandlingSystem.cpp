@@ -9,7 +9,7 @@ namespace {
 
 [[nodiscard]] bool finite(float value) noexcept { return std::isfinite(value); }
 
-[[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
+[[nodiscard]] bool finite_vec3(foundation::Vec3 value) noexcept {
     return finite(value.x) && finite(value.y) && finite(value.z);
 }
 
@@ -49,20 +49,20 @@ bool WeaponRuntimeState::valid() const noexcept {
 }
 
 bool HandPoseTask::valid() const noexcept {
-    return finite(target) && finite(weight) && weight >= 0.0F && weight <= 1.0F && finite(curl) &&
+    return finite_vec3(target) && finite(weight) && weight >= 0.0F && weight <= 1.0F && finite(curl) &&
            curl >= 0.0F && curl <= 1.0F;
 }
 
 bool WeaponPoseTasks::valid() const noexcept {
     return (weapon_id == 0U || WeaponCatalog::find(weapon_id) != nullptr) && primary.valid() &&
-           support.valid() && finite(muzzle) && finite(aim_direction) &&
+           support.valid() && finite_vec3(muzzle) && finite_vec3(aim_direction) &&
            finite(readiness) && readiness >= 0.0F && readiness <= 1.0F && finite(recoil) &&
            recoil >= 0.0F;
 }
 
 bool FireIntent::valid() const noexcept {
     return entity != 0U && weapon_id != 0U && ammunition_id != 0U && shot_sequence > 0U &&
-           finite(origin) && finite(direction) &&
+           finite_vec3(origin) && finite_vec3(direction) &&
            std::abs(std::sqrt(direction.x * direction.x + direction.y * direction.y +
                                direction.z * direction.z) - 1.0F) < 1.0e-3F;
 }
@@ -109,8 +109,8 @@ foundation::Result<void, foundation::Error> WeaponHandlingSystem::step(
     if (!state.valid() || input.entity == 0U || input.definition == nullptr ||
         input.artifact == nullptr || !input.definition->valid() ||
         input.artifact->weapon_id != input.definition->id || !input.artifact->valid(*input.definition) ||
-        !finite(input.root_position) || !input.locomotion.valid() ||
-        (input.world_aim_target.has_value() && !finite(input.world_aim_target.value())) ||
+        !finite_vec3(input.root_position) || !input.locomotion.valid() ||
+        (input.world_aim_target.has_value() && !finite_vec3(input.world_aim_target.value())) ||
         !finite(fixed_dt_seconds) || fixed_dt_seconds <= 0.0F || fixed_dt_seconds > 0.25F) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid weapon handling input"});

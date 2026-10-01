@@ -36,7 +36,7 @@ target_include_directories(genomes_render_gpu_scene PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/core/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/gpu_scene/include")
-target_link_libraries(genomes_render_gpu_scene PUBLIC genomes::foundation genomes::ui)
+target_link_libraries(genomes_render_gpu_scene PUBLIC genomes::foundation genomes::camera genomes::ui)
 target_compile_features(genomes_render_gpu_scene PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_render_gpu_scene)
 

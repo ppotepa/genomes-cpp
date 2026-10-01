@@ -30,8 +30,12 @@ int main() {
     assert(!config.valid());
 
     genomes::input::InputFrame frame{};
-    frame.events.push_back({genomes::input::EventType::FocusLost});
-    frame.events.push_back({genomes::input::EventType::PointerCancel});
+    genomes::input::Event focus_lost{};
+    focus_lost.type = genomes::input::EventType::FocusLost;
+    frame.events.push_back(focus_lost);
+    genomes::input::Event pointer_cancel{};
+    pointer_cancel.type = genomes::input::EventType::PointerCancel;
+    frame.events.push_back(pointer_cancel);
     assert(frame.events.size() == 2U);
     assert(frame.events[0].type == genomes::input::EventType::FocusLost);
     assert(frame.events[1].type == genomes::input::EventType::PointerCancel);

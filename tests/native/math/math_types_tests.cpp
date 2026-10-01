@@ -2,10 +2,19 @@
 #include <genomes/math/Transform.hpp>
 #include <cassert>
 #include <cmath>
+#include <limits>
 
 int main() {
     using namespace genomes::math;
     static_assert(sizeof(Vec2)==8 && sizeof(Vec3)==12 && sizeof(Vec4)==16);
+    const Vec2 divided=Vec2{8.0F,-6.0F}/2.0F;
+    assert(divided.x==4.0F && divided.y==-3.0F);
+    Vec2 normalized_vec{3.0F,4.0F};
+    assert(normalize(normalized_vec));
+    assert(std::fabs(normalized_vec.x-0.6F)<1e-6F && std::fabs(normalized_vec.y-0.8F)<1e-6F);
+    Vec2 zero2{}; assert(!normalize(zero2));
+    Vec2 nan2{std::numeric_limits<float>::quiet_NaN(),1.0F}; assert(!normalize(nan2));
+    Vec2 inf2{std::numeric_limits<float>::infinity(),1.0F}; assert(!normalize(inf2));
     Vec3 x{1,0,0}; Vec3 y{0,1,0}; assert(cross(x,y).z==1); assert(dot(x,y)==0);
     Vec3 zero{}; assert(!normalize(zero));
     Quat q{}; assert(Quat::axisAngle({0,1,0},3.14159265358979323846F,q));

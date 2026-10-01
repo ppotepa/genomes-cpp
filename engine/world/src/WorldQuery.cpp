@@ -11,7 +11,7 @@ namespace genomes::world {
 
 namespace {
 
-[[nodiscard]] bool finite(foundation::Vec3 value) noexcept {
+[[nodiscard]] bool finite_position(foundation::Vec3 value) noexcept {
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
@@ -152,7 +152,7 @@ QuerySegmentResult WorldQuerySnapshot::querySegment(foundation::Vec3 origin,
                                                      foundation::Vec3 end,
                                                      bool stable_order) const {
     QuerySegmentResult result{};
-    if (!finite(origin) || !finite(end)) {
+    if (!finite_position(origin) || !finite_position(end)) {
         return result;
     }
     const Aabb3 envelope{{std::min(origin.x, end.x), std::min(origin.y, end.y),
@@ -205,7 +205,7 @@ TerrainSampleResult WorldQuerySnapshot::terrainHeight(float x, float z) const no
 }
 
 std::optional<RegionCoord> WorldQuerySnapshot::regionAt(foundation::Vec3 position) const noexcept {
-    if (!finite(position)) {
+    if (!finite_position(position)) {
         return std::nullopt;
     }
     return regionCoordFor({position.x, position.y, position.z}, coordinate_config_);

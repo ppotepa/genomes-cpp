@@ -1,10 +1,10 @@
 add_library(genomes_runtime STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
-src/BuiltinScenes.cpp
-    
-src/MainMenuScene.cpp
-src/WorldConfigScene.cpp
+    src/BuiltinScenes.cpp
+    src/MainMenuScene.cpp
+    src/WorldConfigScene.cpp
+    src/WorldLabScene.cpp
     src/SceneDirector.cpp)
 
 if(GENOMES_ENABLE_INFANTRY)

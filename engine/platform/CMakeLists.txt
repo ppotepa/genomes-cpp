@@ -1,10 +1,12 @@
 add_library(genomes_platform STATIC
-    src/SdlPlatform.cpp)
+    src/SdlPlatform.cpp
+    src/SdlFileDialogService.cpp)
 
 target_link_libraries(genomes_platform
     PUBLIC
         genomes::foundation
         genomes::input
+        genomes::ui
         SDL3::SDL3-static)
 
 target_include_directories(genomes_platform

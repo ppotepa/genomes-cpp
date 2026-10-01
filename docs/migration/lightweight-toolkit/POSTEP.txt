@@ -30,7 +30,7 @@ LT-004 | CODE_READY | dec980a | - | historical ADR source review | user verifica
 LT-005 | CODE_READY | dec980a | - | 167-row/count audit | user verification at published SHA
 LT-006 | CODE_READY | dec980a | - | acceptance template review | user verification at published SHA
 LT-023 | CODE_READY | dec980a | - | math target source review | user Debug/Release build and tests
-LT-024 | CODE_READY | 6406108 | - | Vec ABI/source review with finite-safe quaternion-facing operations | math test evidence
+LT-024 | CODE_READY | WORKTREE | - | Vec2 scalar division restores normalize contract; ABI remains 8 bytes; source review only | user Release build and math test evidence at published SHA
 LT-025 | CODE_READY | 6406108 | - | Quat axis-angle, normalization, finite checks, non-unit inverse and rotation source review | math test evidence
 LT-026 | CODE_READY | dec980a | - | Mat4 source review | math test evidence
 LT-027 | CODE_READY | 6406108 | - | Transform validation rejects nonfinite/zero-norm rotations while preserving TRS contract | math test evidence
@@ -38,7 +38,7 @@ LT-028 | CODE_READY | dec980a | - | Bounds source review | math test evidence
 LT-029 | CODE_READY | dec980a | - | Math.cpp source review | math test evidence
 LT-030 | CODE_READY | dec980a | - | foundation alias review | ABI test evidence
 LT-031 | CODE_READY | dec980a | - | dependency-order review | headless build evidence
-LT-129 | CODE_READY | 6406108 | - | math regression covers quaternion inverse/rotation and nonfinite axis-angle cases | user Debug/Release CTest
+LT-129 | CODE_READY | WORKTREE | - | math regression adds Vec2 division, {3,4} normalization, zero/NaN/Inf rejection and ABI assertion | user Debug/Release CTest at published SHA
 LT-032 | CODE_READY | 470a55b | - | MeshData stream/range source review | geometry tests and build
 LT-033 | CODE_READY | 93f9232 | - | MeshData validation and append transform preserve optional streams, groups, reflection winding and tangent handedness | geometry tests and build
 LT-034 | CODE_READY | b012a5e | - | MeshBuilder API/source review | geometry tests and build

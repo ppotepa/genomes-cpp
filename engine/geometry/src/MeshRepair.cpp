@@ -10,17 +10,17 @@ namespace {
 foundation::Vec3 sub(foundation::Vec3 a, foundation::Vec3 b) {
     return {a.x-b.x,a.y-b.y,a.z-b.z};
 }
-foundation::Vec3 cross(foundation::Vec3 a, foundation::Vec3 b) {
+foundation::Vec3 repair_cross(foundation::Vec3 a, foundation::Vec3 b) {
     return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x};
 }
-float dot(foundation::Vec3 a, foundation::Vec3 b) {
+float repair_dot(foundation::Vec3 a, foundation::Vec3 b) {
     return a.x*b.x+a.y*b.y+a.z*b.z;
 }
-bool finite(foundation::Vec3 v) {
+bool repair_finite(foundation::Vec3 v) {
     return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z);
 }
-foundation::Vec3 normalized(foundation::Vec3 v) {
-    const float length=std::sqrt(dot(v,v));
+foundation::Vec3 repair_normalized(foundation::Vec3 v) {
+    const float length=std::sqrt(repair_dot(v,v));
     return length>kNormalLengthEpsilon
         ? foundation::Vec3{v.x/length,v.y/length,v.z/length}
         : foundation::Vec3{0.0F,1.0F,0.0F};
@@ -38,7 +38,7 @@ foundation::Result<MeshRepairResult, foundation::Error> repairTriangleMesh(
         return Result::failure({foundation::ErrorCode::InvalidArgument,
                                 "invalid indexed triangle streams"});
     }
-    for (const auto p:positions) if(!finite(p))
+    for (const auto p:positions) if(!repair_finite(p))
         return Result::failure({foundation::ErrorCode::InvalidArgument,
                                 "non-finite mesh position"});
     for (const auto i:source_indices) if(i>=positions.size())
@@ -72,8 +72,8 @@ foundation::Result<MeshRepairResult, foundation::Error> repairTriangleMesh(
         const auto start=static_cast<std::uint32_t>(out.indices.size());
         for(std::uint32_t offset=group.start; offset<group.start+group.count; offset+=3U) {
             const auto i0=source_indices[offset],i1=source_indices[offset+1U],i2=source_indices[offset+2U];
-            const auto face=cross(sub(positions[i1],positions[i0]),sub(positions[i2],positions[i0]));
-            const float area2=dot(face,face);
+            const auto face=repair_cross(sub(positions[i1],positions[i0]),sub(positions[i2],positions[i0]));
+            const float area2=repair_dot(face,face);
             if(!std::isfinite(area2) ||
                area2<=kTriangleAreaEpsilon*kTriangleAreaEpsilon) {
                 ++out.stats.removed_degenerate_triangles;
@@ -81,7 +81,7 @@ foundation::Result<MeshRepairResult, foundation::Error> repairTriangleMesh(
             }
             out.indices.insert(out.indices.end(),{i0,i1,i2});
             for(const auto index:{i0,i1,i2})
-                if(dot(fallback[index],fallback[index])<=kNormalLengthEpsilon*kNormalLengthEpsilon)
+                if(repair_dot(fallback[index],fallback[index])<=kNormalLengthEpsilon*kNormalLengthEpsilon)
                     fallback[index]=face;
         }
         const auto count=static_cast<std::uint32_t>(out.indices.size())-start;
@@ -92,21 +92,21 @@ foundation::Result<MeshRepairResult, foundation::Error> repairTriangleMesh(
                                 "triangle repair removed the complete mesh"});
 
     for(std::size_t index=0; index<out.normals.size(); ++index) {
-        const float length2=dot(out.normals[index],out.normals[index]);
-        if(!finite(out.normals[index]) ||
+        const float length2=repair_dot(out.normals[index],out.normals[index]);
+        if(!repair_finite(out.normals[index]) ||
            !(length2>kNormalLengthEpsilon*kNormalLengthEpsilon)) {
-            out.normals[index]=normalized(fallback[index]);
+            out.normals[index]=repair_normalized(fallback[index]);
             ++out.stats.repaired_normals;
         }
     }
     for(std::size_t offset=0; offset<out.indices.size(); offset+=3U) {
         const auto i0=out.indices[offset],i1=out.indices[offset+1U],i2=out.indices[offset+2U];
-        const auto face=cross(sub(positions[i1],positions[i0]),sub(positions[i2],positions[i0]));
+        const auto face=repair_cross(sub(positions[i1],positions[i0]),sub(positions[i2],positions[i0]));
         const foundation::Vec3 average{
             (out.normals[i0].x+out.normals[i1].x+out.normals[i2].x)/3.0F,
             (out.normals[i0].y+out.normals[i1].y+out.normals[i2].y)/3.0F,
             (out.normals[i0].z+out.normals[i1].z+out.normals[i2].z)/3.0F};
-        if(dot(face,average)<-1.0e-6F) {
+        if(repair_dot(face,average)<-1.0e-6F) {
             std::swap(out.indices[offset+1U],out.indices[offset+2U]);
             ++out.stats.flipped_triangles;
         }
