@@ -6,6 +6,7 @@ target_include_directories(genomes_runtime_core PUBLIC
 target_link_libraries(genomes_runtime_core PUBLIC
     genomes::foundation
     genomes::jobs
+    genomes::simulation
     genomes::camera
     genomes::render
     genomes::ui

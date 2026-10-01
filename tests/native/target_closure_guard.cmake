@@ -84,7 +84,8 @@ foreach(_required IN ITEMS
         "add_library(genomes_runtime_core STATIC"
         "add_library(genomes::runtime_core ALIAS genomes_runtime_core"
         "target_include_directories(genomes_runtime_core PUBLIC"
-        "target_link_libraries(genomes_runtime_core PUBLIC")
+        "target_link_libraries(genomes_runtime_core PUBLIC"
+        "genomes::simulation")
     _require_text(_runtime "${_required}" "Runtime target contract is incomplete")
 endforeach()
 foreach(_forbidden IN ITEMS
