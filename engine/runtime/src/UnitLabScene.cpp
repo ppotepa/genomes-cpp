@@ -197,40 +197,40 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetGeneOverride command) 
     return true;
 }
 
-bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
+bool UnitLabScene::executeControl(SceneContext& context, Control control) {
     switch (control) {
-    case 0: ++preview_seed_; rebuildModel(&context); break;
-    case 1: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
-    case 2:
+    case Control::Regenerate: ++preview_seed_; rebuildModel(&context); break;
+    case Control::Detail: detail_level_ = detail_level_ >= 3U ? 1U : detail_level_ + 1U; rebuildModel(&context); break;
+    case Control::CycleCamera:
         return applyCommand(context, {static_cast<UnitLabCameraMode>(
             (static_cast<std::uint8_t>(camera_mode_) + 1U) % 6U)});
-    case 3: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case 4: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case 5: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case 6: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case 7: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
-    case 8: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
-    case 9:
+    case Control::ToggleSurface: show_surface_ = !show_surface_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleWireframe: show_wireframe_ = !show_wireframe_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleSkeleton: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleBounds: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::ToggleNormals: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Ui); break;
+    case Control::TogglePause: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
+    case Control::CycleExpression:
         expression_ = static_cast<infantry::FaceExpression>(
             (static_cast<std::uint8_t>(expression_) + 1U) % infantry::kFaceExpressionCount);
         expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
         if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
         markDirty(UnitLabDirtyFlag::Pose); break;
-    case 10:
+    case Control::CycleWeightBone:
         debug_weight_bone_ = debug_weight_bone_
             ? static_cast<infantry::BoneId>((static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) % infantry::kRigBoneCount)
             : infantry::BoneId::Hips;
         markDirty(UnitLabDirtyFlag::Ui); break;
-    case 11:
+    case Control::CycleVariation:
         return applyCommand(context, {variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
                                       : variation_ < 1.75F ? 1.75F : 0.5F});
-    case 12:
+    case Control::CycleLoadout:
         if (!infantry::infantryLoadouts().empty()) {
             loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
             rebuildModel(&context);
         }
         break;
-    case 13:
+    case Control::CycleGenomePreset:
         genome_override_mode_ = static_cast<std::uint8_t>((genome_override_mode_ + 1U) % 4U);
         genome_overrides_ = {};
         if (genome_override_mode_ == 1U) {
@@ -242,8 +242,8 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             (void)genome_overrides_.set(infantry::GenomeGene::BodyHipBreadth, 0.0);
         }
         rebuildModel(&context); break;
-    case 14: context.commands.push({ApplicationCommandKind::ReturnToMainMenu}); break;
-    case 15:
+    case Control::ReturnToMenu: context.commands.push({ApplicationCommandKind::ReturnToMainMenu}); break;
+    case Control::CycleLocomotion:
         if (locomotion_ && locomotion_state_) {
             const auto p = locomotion_state_->preset;
             const auto next = p == infantry::BipedPreset::Idle ? infantry::BipedPreset::Walk
@@ -254,7 +254,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             return applyCommand(context, {next});
         }
         break;
-    case 16:
+    case Control::CycleExpressionIntensity:
         if (expression_ != infantry::FaceExpression::Neutral) {
             expression_intensity_ += 0.25F;
             if (expression_intensity_ > 1.001F) expression_intensity_ = 0.25F;
@@ -262,44 +262,44 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             markDirty(UnitLabDirtyFlag::Pose);
         }
         break;
-    case 17: {
+    case Control::NextGenomeGene: {
         const auto next = (static_cast<std::size_t>(selected_genome_gene_) + 1U) %
                           infantry::GenomeGeneCount;
         selected_genome_gene_ = static_cast<infantry::GenomeGene>(next);
         markDirty(UnitLabDirtyFlag::Ui);
         break;
     }
-    case 18:
-    case 19: {
+    case Control::DecreaseGenomeGene:
+    case Control::IncreaseGenomeGene: {
         double value = 0.5;
         if (const auto override = genome_overrides_.get(selected_genome_gene_); override) {
             value = *override;
         } else if (model_artifact_) {
             value = model_artifact_->genome.geneValue(selected_genome_gene_);
         }
-        value = std::clamp(value + (control == 18 ? -0.10 : 0.10), 0.0, 1.0);
+        value = std::clamp(value + (control == Control::DecreaseGenomeGene ? -0.10 : 0.10), 0.0, 1.0);
         genome_override_mode_ = 0U;
         return applyCommand(context, {selected_genome_gene_, value});
     }
-    case 20: {
+    case Control::ClearGenomeGene: {
         const auto index = static_cast<std::size_t>(selected_genome_gene_);
         if (index < genome_overrides_.genes.size()) genome_overrides_.genes[index].reset();
         genome_override_mode_ = 0U;
         rebuildModel(&context);
         break;
     }
-    case 21:
+    case Control::ClearAllGenomeGenes:
         genome_overrides_ = {};
         genome_override_mode_ = 0U;
         rebuildModel(&context);
         break;
-    case 22: {
+    case Control::CycleEquipmentSlot: {
         const auto slots = infantry::EquipmentCatalog::slots();
         if (!slots.empty()) selected_equipment_slot_ = (selected_equipment_slot_ + 1U) % slots.size();
         markDirty(UnitLabDirtyFlag::Ui);
         break;
     }
-    case 23: {
+    case Control::CycleEquipmentItem: {
         const auto slots = infantry::EquipmentCatalog::slots();
         const auto items = infantry::EquipmentCatalog::items();
         if (slots.empty()) break;
@@ -323,7 +323,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
         }
         return applyCommand(context, {slot, current});
     }
-    case 24:
+    case Control::ClearEquipment:
         equipment_overrides_ = {};
         rebuildModel(&context);
         break;
@@ -706,28 +706,28 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         rebuildModel(&context);
         return ui::UiActionResult::Handled;
     }
-    struct Binding { ui::UiActionId id; std::uint8_t control; };
+    struct Binding { ui::UiActionId id; Control control; };
     static constexpr Binding bindings[] = {
-        {foundation::stable_id("unit.regenerate"),0U}, {foundation::stable_id("unit.detail"),1U},
-        {foundation::stable_id("unit.camera"),2U}, {foundation::stable_id("unit.surface"),3U},
-        {foundation::stable_id("unit.wireframe"),4U}, {foundation::stable_id("unit.skeleton"),5U},
-        {foundation::stable_id("unit.bounds"),6U}, {foundation::stable_id("unit.normals"),7U},
-        {foundation::stable_id("unit.pause"),8U}, {foundation::stable_id("unit.expression"),9U},
-        {foundation::stable_id("unit.weight"),10U}, {foundation::stable_id("unit.variation"),11U},
-        {foundation::stable_id("unit.loadout"),12U}, {foundation::stable_id("unit.genome-preset"),13U},
-        {foundation::stable_id("unit.back"),14U}, {foundation::stable_id("unit.locomotion"),15U},
-        {foundation::stable_id("unit.expression-intensity"),16U},
-        {foundation::stable_id("unit.genome-next"),17U},
-        {foundation::stable_id("unit.genome-minus"),18U},
-        {foundation::stable_id("unit.genome-plus"),19U},
-        {foundation::stable_id("unit.genome-clear"),20U},
-        {foundation::stable_id("unit.genome-clear-all"),21U},
-        {foundation::stable_id("unit.equipment-slot"),22U},
-        {foundation::stable_id("unit.equipment-item"),23U},
-        {foundation::stable_id("unit.equipment-clear"),24U}
+        {foundation::stable_id("unit.regenerate"), Control::Regenerate}, {foundation::stable_id("unit.detail"), Control::Detail},
+        {foundation::stable_id("unit.camera"), Control::CycleCamera}, {foundation::stable_id("unit.surface"), Control::ToggleSurface},
+        {foundation::stable_id("unit.wireframe"), Control::ToggleWireframe}, {foundation::stable_id("unit.skeleton"), Control::ToggleSkeleton},
+        {foundation::stable_id("unit.bounds"), Control::ToggleBounds}, {foundation::stable_id("unit.normals"), Control::ToggleNormals},
+        {foundation::stable_id("unit.pause"), Control::TogglePause}, {foundation::stable_id("unit.expression"), Control::CycleExpression},
+        {foundation::stable_id("unit.weight"), Control::CycleWeightBone}, {foundation::stable_id("unit.variation"), Control::CycleVariation},
+        {foundation::stable_id("unit.loadout"), Control::CycleLoadout}, {foundation::stable_id("unit.genome-preset"), Control::CycleGenomePreset},
+        {foundation::stable_id("unit.back"), Control::ReturnToMenu}, {foundation::stable_id("unit.locomotion"), Control::CycleLocomotion},
+        {foundation::stable_id("unit.expression-intensity"), Control::CycleExpressionIntensity},
+        {foundation::stable_id("unit.genome-next"), Control::NextGenomeGene},
+        {foundation::stable_id("unit.genome-minus"), Control::DecreaseGenomeGene},
+        {foundation::stable_id("unit.genome-plus"), Control::IncreaseGenomeGene},
+        {foundation::stable_id("unit.genome-clear"), Control::ClearGenomeGene},
+        {foundation::stable_id("unit.genome-clear-all"), Control::ClearAllGenomeGenes},
+        {foundation::stable_id("unit.equipment-slot"), Control::CycleEquipmentSlot},
+        {foundation::stable_id("unit.equipment-item"), Control::CycleEquipmentItem},
+        {foundation::stable_id("unit.equipment-clear"), Control::ClearEquipment}
     };
     for (const auto& binding : bindings) if (action == binding.id)
-        return activateControl(context, binding.control)
+        return executeControl(context, binding.control)
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     return ui::UiActionResult::Unknown;
 }

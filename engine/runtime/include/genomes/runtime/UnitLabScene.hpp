@@ -81,13 +81,22 @@ public:
     void build_presentation(SceneContext&) override;
 
 private:
+    enum class Control : std::uint8_t {
+        Regenerate, Detail, CycleCamera, ToggleSurface, ToggleWireframe,
+        ToggleSkeleton, ToggleBounds, ToggleNormals, TogglePause, CycleExpression,
+        CycleWeightBone, CycleVariation, CycleLoadout, CycleGenomePreset, ReturnToMenu,
+        CycleLocomotion, CycleExpressionIntensity, NextGenomeGene, DecreaseGenomeGene,
+        IncreaseGenomeGene, ClearGenomeGene, ClearAllGenomeGenes, CycleEquipmentSlot,
+        CycleEquipmentItem, ClearEquipment,
+    };
+
     void markDirty(UnitLabDirtyFlag flag) noexcept;
     bool applyCommand(SceneContext&, SetVariation);
     bool applyCommand(SceneContext&, SetCameraMode);
     bool applyCommand(SceneContext&, SetLocomotionPreset);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool applyCommand(SceneContext&, SetGeneOverride);
-    bool activateControl(SceneContext&, std::uint8_t control);
+    bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
     void publishModelResult(foundation::Result<infantry::InfantryModelArtifact,
