@@ -34,19 +34,22 @@ constexpr float kTargetHalfExtent = 0.5F;
 } // namespace
 
 BattlefieldRuntime::BattlefieldRuntime(BattlefieldScenarioConfig config,
-                                         jobs::JobSystem* jobs)
-    : config_{config}, jobs_{jobs}, combat_{entities_},
+                                         jobs::JobSystem* jobs,
+                                         BattlefieldExecutionMode execution_mode)
+    : config_{config}, execution_mode_{execution_mode}, jobs_{jobs}, combat_{entities_},
       tactical_ai_{config.tactical_ai_profile} {}
 
 foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>
 BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
-                                              jobs::JobSystem* jobs) {
+                           jobs::JobSystem* jobs,
+                           BattlefieldExecutionMode execution_mode) {
     if (!config.valid()) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidArgument,
                           "invalid 25x25 battlefield scenario configuration"));
     }
-    auto scenario = std::unique_ptr<BattlefieldRuntime>(new BattlefieldRuntime(config, jobs));
+    auto scenario = std::unique_ptr<BattlefieldRuntime>(
+        new BattlefieldRuntime(config, jobs, execution_mode));
     const auto initialized = scenario->initialize();
     if (!initialized) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
@@ -626,7 +629,8 @@ void BattlefieldRuntime::runDecision() noexcept {
                                 visible_targets_[index],
                                 &ai_states_.back()});
     }
-    const combat::AIJobPipelineConfig config{2U, true, {}, {}, {}};
+    const combat::AIJobPipelineConfig config{
+        2U, execution_mode_ == BattlefieldExecutionMode::Parallel, {}, {}, {}};
     const auto evaluated = ai_pipeline_.evaluate(*jobs_, tactical_ai_, ai_entities_,
                                                  simulation_tick_, config);
     if (!evaluated) {

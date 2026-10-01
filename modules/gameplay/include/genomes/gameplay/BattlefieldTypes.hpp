@@ -24,6 +24,14 @@ struct BattlefieldScenarioConfig final {
     }
 };
 
+// Execution policy is intentionally separate from session content. It lets
+// acceptance tests compare the serial and job-backed AI paths while keeping
+// the default production policy unchanged.
+enum class BattlefieldExecutionMode : std::uint8_t {
+    Inline,
+    Parallel,
+};
+
 // A runtime failure is terminal for the current session.  Keeping this
 // state separate from the presentation snapshot lets the last committed
 // snapshot remain inspectable while still making future ticks a no-op.

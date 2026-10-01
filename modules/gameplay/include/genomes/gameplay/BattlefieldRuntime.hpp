@@ -47,7 +47,8 @@ public:
 
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldRuntime>,
                                              foundation::Error>
-    start(const BattlefieldScenarioConfig& config = {}, jobs::JobSystem* jobs = nullptr);
+    start(const BattlefieldScenarioConfig& config = {}, jobs::JobSystem* jobs = nullptr,
+          BattlefieldExecutionMode execution_mode = BattlefieldExecutionMode::Parallel);
 
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept;
     void fixedUpdate(const simulation::TickContext& context) noexcept;
@@ -83,7 +84,8 @@ private:
         destruction::DamageField damage_field{};
     };
 
-    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem* jobs);
+    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem* jobs,
+                       BattlefieldExecutionMode execution_mode);
 
     [[nodiscard]] foundation::Result<void, foundation::Error> initialize();
     [[nodiscard]] foundation::Result<void, foundation::Error> configureWorldQuery();
@@ -101,6 +103,7 @@ private:
                                               ballistics::ContactCandidate&) noexcept;
 
     BattlefieldScenarioConfig config_{};
+    BattlefieldExecutionMode execution_mode_{BattlefieldExecutionMode::Parallel};
     std::unique_ptr<jobs::JobSystem> owned_jobs_;
     jobs::JobSystem* jobs_{nullptr};
     simulation::EntityStore entities_;
