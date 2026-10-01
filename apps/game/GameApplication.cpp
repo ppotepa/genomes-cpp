@@ -32,6 +32,9 @@ struct RunOptions final {
     std::uint64_t capture_frame{180U},max_frames{0U};
     bool deterministic{false};
     std::uint8_t unitlab_camera_steps{0U},unitlab_locomotion_steps{0U},unitlab_expression_steps{0U};
+#if GENOMES_HAS_INFANTRY
+    std::optional<runtime::SetAppearancePreset> unitlab_appearance;
+#endif
 };
 bool parse_u64(std::string_view text,std::uint64_t& value) {
     if (text.empty()) return false;
@@ -72,6 +75,13 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             const auto parsed = runtime::parseSetExpression(*value);
             if (!parsed) return {};
             result.unitlab_expression_steps = static_cast<std::uint8_t>(parsed.value().value);
+#if GENOMES_HAS_INFANTRY
+        } else if (arg=="--unitlab-appearance") {
+            const auto value=next();if (!value) return {};
+            const auto parsed = runtime::parseSetAppearancePreset(*value);
+            if (!parsed) return {};
+            result.unitlab_appearance = parsed.value();
+#endif
         } else {
             std::cerr<<"Unknown argument: "<<arg<<'\n';return {};
         }
@@ -228,6 +238,7 @@ int GameApplication::run(int argc,char** argv) {
         std::cerr<<"Usage: genomes_game [--unit-lab|--battlefield|--building-lab] "
             "[--unitlab-camera 3q|front|side|back|face|hands] [--unitlab-locomotion idle|walk|run|crouch] "
             "[--unitlab-expression neutral|alert|fear|anger|pain|fatigue|eyes-closed] "
+            "[--unitlab-appearance inspection-olive] "
             "[--frames N] [--deterministic] [--capture FILE.png --capture-frame N]\n";
         return 2;
     }
@@ -246,6 +257,15 @@ int GameApplication::run(int argc,char** argv) {
         if (!repeat("unit.camera",options.unitlab_camera_steps)||!repeat("unit.locomotion",options.unitlab_locomotion_steps)||!repeat("unit.expression",options.unitlab_expression_steps)) {
             std::cerr<<"Could not select deterministic UnitLab state\n";return 1;
         }
+#if GENOMES_HAS_INFANTRY
+        if (options.unitlab_appearance) {
+            if (director_.dispatch_ui_action(
+                    foundation::stable_id("unit.appearance-preset"),
+                    {{"value", "inspection-olive"}}) != ui::UiActionResult::Handled) {
+                std::cerr<<"Could not select UnitLab appearance preset\n";return 1;
+            }
+        }
+#endif
     }
     auto previous=std::chrono::steady_clock::now();std::uint64_t frames=0;bool captured=false;
     while (!director_.quit_requested()) {
