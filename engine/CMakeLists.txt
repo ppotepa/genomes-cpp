@@ -2,6 +2,7 @@
 # its value types; the remaining targets follow their header dependency DAG.
 add_subdirectory(math)
 add_subdirectory(foundation)
+add_subdirectory(content)
 add_subdirectory(camera)
 add_subdirectory(geometry)
 if(GENOMES_ENABLE_ASSETS)

@@ -13,6 +13,8 @@ int main() {
     assert(loaded_profile.value().id == "tactical-ai-default");
     assert(loaded_profile.value().profile.observation_period_ticks == 12U);
     assert(loaded_profile.value().profile.memory_ticks == 150U);
+    assert(loaded_profile.value().content.sources.size() == 1U);
+    assert(loaded_profile.value().content.fingerprint != 0U);
     assert(loaded_profile.value().fingerprint.value != 0U);
     const auto* rifle = weapons::WeaponCatalog::find("rifle");
     assert(rifle != nullptr);

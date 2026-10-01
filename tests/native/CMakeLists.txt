@@ -114,6 +114,12 @@ genomes_set_project_warnings(genomes_test_config_hash)
 genomes_enable_test_assertions(genomes_test_config_hash)
 add_test(NAME foundation.config_hash COMMAND genomes_test_config_hash)
 
+add_executable(genomes_test_content_snapshot content_snapshot_tests.cpp)
+target_link_libraries(genomes_test_content_snapshot PRIVATE genomes::content)
+genomes_set_project_warnings(genomes_test_content_snapshot)
+genomes_enable_test_assertions(genomes_test_content_snapshot)
+add_test(NAME content.snapshot COMMAND genomes_test_content_snapshot)
+
 add_executable(genomes_test_artifact_cache artifact_cache_tests.cpp)
 target_link_libraries(genomes_test_artifact_cache PRIVATE genomes::proc)
 genomes_set_project_warnings(genomes_test_artifact_cache)

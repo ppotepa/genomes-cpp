@@ -1,12 +1,12 @@
 #include <genomes/combat/TacticalAI.hpp>
 
+#include <genomes/content/ContentSnapshot.hpp>
 #include <genomes/foundation/StableHash.hpp>
 
 #include <nlohmann/json.hpp>
 
 #include <array>
 #include <exception>
-#include <fstream>
 #include <set>
 
 namespace genomes::combat {
@@ -14,12 +14,12 @@ namespace genomes::combat {
 foundation::Result<TacticalAIProfileSnapshot, foundation::Error> loadTacticalAIProfile(
     const std::filesystem::path& path) {
     try {
-        std::ifstream stream(path, std::ios::binary);
-        if (!stream) {
+        auto document = content::readContentText(path);
+        if (!document) {
             return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::failure(
-                {foundation::ErrorCode::NotFound, "tactical AI profile cannot be opened"});
+                document.error());
         }
-        const nlohmann::json json = nlohmann::json::parse(stream);
+        const nlohmann::json json = nlohmann::json::parse(document.value().text);
         static const std::set<std::string> fields{
             "schema_version", "id", "observation_period_ticks", "memory_ticks",
             "target_switch_ratio", "fire_alignment_cos"};
@@ -54,6 +54,18 @@ foundation::Result<TacticalAIProfileSnapshot, foundation::Error> loadTacticalAIP
             return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidArgument, "invalid tactical AI profile values"});
         }
+        document.value().provenance.source_id = result.id;
+        content::ContentSnapshotBuilder snapshot_builder{"combat.tactical-ai", 1U};
+        if (auto added = snapshot_builder.add(std::move(document.value().provenance)); !added) {
+            return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::failure(
+                added.error());
+        }
+        auto snapshot = std::move(snapshot_builder).freeze();
+        if (!snapshot) {
+            return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::failure(
+                snapshot.error());
+        }
+        result.content = std::move(snapshot.value());
         const std::array<foundation::CanonicalConfigField, 5U> fingerprint_fields{{
             {"id", foundation::stableHashString(result.id)},
             {"observation_period_ticks", result.profile.observation_period_ticks},

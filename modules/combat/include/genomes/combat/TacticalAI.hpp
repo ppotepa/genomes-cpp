@@ -5,6 +5,7 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
+#include <genomes/content/ContentSnapshot.hpp>
 #include <genomes/simulation/Entity.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 #include <genomes/combat/AIModelRegistry.hpp>
@@ -33,6 +34,7 @@ struct TacticalAIProfileSnapshot final {
     TacticalAIProfile profile{};
     std::string id;
     std::filesystem::path source;
+    content::FrozenContentSnapshot content;
     foundation::SimConfigHash fingerprint{};
 };
 
