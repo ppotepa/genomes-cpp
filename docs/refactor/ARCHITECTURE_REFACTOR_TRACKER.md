@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **35/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **36/55 decisions CODE_READY; 6/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -56,7 +56,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | PLANNED | - | NOT_RUN | - | - |
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | - | NOT_RUN | - | - |
-| R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | PLANNED | - | NOT_RUN | - | - |
+| R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | CODE_READY | 361b36c | NOT_RUN | - | `menu_smoke` covers duplicate/frozen registration and an unavailable scene that leaves no current scene and reports `UnavailableFeature`; infantry-off builtin registration uses that path. |
 | R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | PLANNED | - | NOT_RUN | - | - |
 | R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 31f820e | NOT_RUN | - | `world.grid_layout` covers valid bounds and 129/601 rejection. |
 | R039 | PR09 | world | REF | One immutable `ResolvedWorldArtifacts` revision feeds render/collision/navigation/destruction. | PLANNED | - | NOT_RUN | - | - |
