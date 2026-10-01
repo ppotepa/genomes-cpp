@@ -1,6 +1,7 @@
 #include <genomes/render/NullRenderer.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/runtime/BuiltinScenes.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/runtime/WorldConfigScene.hpp>
@@ -56,6 +57,7 @@ int main() {
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
+    genomes::runtime::configureBuiltinSceneRouting(director);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");

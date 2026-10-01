@@ -13,17 +13,46 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 
 namespace genomes::runtime {
 
 class SceneDirector {
 public:
     using Factory = std::function<std::unique_ptr<Scene>()>;
+    using ApplicationActionRouter = std::function<ui::UiActionResult(
+        ui::UiActionId, const ui::UiActionArguments&)>;
+    using ApplicationCommandHandler = std::function<void(const ApplicationCommand&)>;
 
     SceneDirector(render::IRenderer& renderer,
                   ui::UiRuntime& ui,
                   render::PresentationSnapshot& presentation,
                   jobs::JobSystem* jobs = nullptr);
+
+    void set_application_action_router(ApplicationActionRouter router) {
+        application_action_router_ = std::move(router);
+    }
+    void set_application_command_handler(ApplicationCommandHandler handler) {
+        application_command_handler_ = std::move(handler);
+    }
+    void enqueue_command(ApplicationCommand command) { commands_.push(std::move(command)); }
+    [[nodiscard]] ui::UiRuntime& ui_runtime() noexcept { return ui_; }
+    [[nodiscard]] const ui::UiRuntime& ui_runtime() const noexcept { return ui_; }
+    [[nodiscard]] foundation::SceneId current_scene_id() const noexcept {
+        return current_ != nullptr ? current_->id() : foundation::SceneId{0};
+    }
+    void set_active_world_config(WorldGenerationConfig config) {
+        active_world_config_ = std::move(config);
+    }
+    [[nodiscard]] double session_ui_scale() const noexcept { return session_ui_scale_; }
+    void set_session_ui_scale(double value) noexcept { session_ui_scale_ = value; }
+    [[nodiscard]] bool session_show_diagnostics() const noexcept {
+        return session_show_diagnostics_;
+    }
+    void set_session_show_diagnostics(bool value) noexcept {
+        session_show_diagnostics_ = value;
+    }
+    void request_quit() noexcept { quit_requested_ = true; }
 
     foundation::Result<void, foundation::Error>
     register_scene(foundation::SceneId id, Factory factory);
@@ -91,6 +120,8 @@ private:
     std::uint64_t scene_epoch_{0};
     double session_ui_scale_{1.0};
     bool session_show_diagnostics_{true};
+    ApplicationActionRouter application_action_router_{};
+    ApplicationCommandHandler application_command_handler_{};
     render::SnapshotExchange presentation_exchange_{3};
 };
 

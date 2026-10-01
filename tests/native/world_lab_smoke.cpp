@@ -1,4 +1,5 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/runtime/BuiltinScenes.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/runtime/WorldLabScene.hpp>
@@ -12,6 +13,7 @@ int main() {
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
+    genomes::runtime::configureBuiltinSceneRouting(director);
     const auto menu = genomes::foundation::scene_id("scene.main-menu");
     const auto lab = genomes::foundation::scene_id("scene.world-lab");
     director.register_scene(menu, [] { return std::make_unique<genomes::runtime::MainMenuScene>(); });

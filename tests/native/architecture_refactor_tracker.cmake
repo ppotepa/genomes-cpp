@@ -104,7 +104,7 @@ if(runtime_core_links MATCHES "genomes::(gameplay|infantry|buildings|world_rende
     message(FATAL_ERROR "Runtime core must not link product gameplay targets")
 endif()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_director_source)
-if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene")
+if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene|scene\\.|settings\\.|application\\.")
     message(FATAL_ERROR "Neutral SceneDirector still includes a product scene")
 endif()
 foreach(product_consumer IN ITEMS

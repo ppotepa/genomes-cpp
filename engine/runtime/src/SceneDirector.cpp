@@ -1,51 +1,10 @@
 #include <genomes/runtime/SceneDirector.hpp>
 
 #include <algorithm>
-#include <array>
-#include <charconv>
 #include <cmath>
-#include <string>
 #include <utility>
-#include <variant>
 
 namespace genomes::runtime {
-
-namespace {
-
-[[nodiscard]] std::string scalePercent(double scale) {
-    std::array<char, 16> buffer{};
-    const auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(),
-                                      static_cast<int>(std::lround(scale * 100.0)));
-    return result.ec == std::errc{} ? std::string{buffer.data(), result.ptr} + "%"
-                                    : std::string{};
-}
-
-class PlaceholderScene final : public Scene {
-public:
-    explicit PlaceholderScene(foundation::SceneId scene_id, const char* title)
-        : scene_id_(scene_id), title_(title) {}
-
-    [[nodiscard]] foundation::SceneId id() const noexcept override {
-        return scene_id_;
-    }
-
-    void on_enter(SceneContext& context) override {
-        context.ui.clear();
-    }
-
-    void frame_update(SceneContext& context, double) override {
-        context.ui.clear();
-        (void)context.ui.model().set("title", title_);
-        (void)context.ui.model().set("description",
-            std::string{"Scene registered; domain module will provide its content."});
-    }
-
-private:
-    foundation::SceneId scene_id_;
-    const char* title_;
-};
-
-} // namespace
 
 SceneDirector::SceneDirector(render::IRenderer& renderer,
                              ui::UiRuntime& ui,
@@ -160,101 +119,9 @@ ui::UiActionResult SceneDirector::dispatch_ui_action(
             return local;
         }
     }
-    const auto push = [this](ApplicationCommandKind kind) {
-        commands_.push({kind, {}});
-        return ui::UiActionResult::Handled;
-    };
-    if (action == foundation::stable_id("scene.start-battlefield"))
-        return push(ApplicationCommandKind::StartScenario);
-    if (action == foundation::stable_id("scene.open-unit-lab"))
-        return push(ApplicationCommandKind::OpenUnitLab);
-    if (action == foundation::stable_id("scene.open-building-lab"))
-        return push(ApplicationCommandKind::OpenBuildingLab);
-    if (action == foundation::stable_id("scene.open-world-config"))
-        return push(ApplicationCommandKind::OpenWorldConfig);
-    if (action == foundation::stable_id("scene.open-world-lab"))
-        return push(ApplicationCommandKind::OpenWorldLab);
-    if (action == foundation::stable_id("scene.open-settings")) {
-        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) return ui::UiActionResult::Rejected;
-        (void)ui_.model().set("ui_scale", session_ui_scale_);
-        (void)ui_.model().set("ui_scale_percent", scalePercent(session_ui_scale_));
-        (void)ui_.model().set("show_diagnostics", session_show_diagnostics_);
-        ui_.routes().push({foundation::scene_id("scene.settings"), {}, {}, {}, true});
-        return ui::UiActionResult::Handled;
+    if (application_action_router_) {
+        return application_action_router_(action, arguments);
     }
-    if (action == foundation::stable_id("scene.open-pause")) {
-        if (current_ == nullptr || current_->id() != foundation::scene_id("scene.battlefield") ||
-            (ui_.routes().top() != nullptr && ui_.routes().top()->overlay)) return ui::UiActionResult::Rejected;
-        ui_.routes().push({foundation::scene_id("scene.pause"), {}, {}, {}, true});
-        return ui::UiActionResult::Handled;
-    }
-    if (action == foundation::stable_id("scene.return-main-menu")) {
-        if (ui_.routes().top() != nullptr && ui_.routes().top()->scene == foundation::scene_id("scene.pause")) {
-            return push(ApplicationCommandKind::ReturnToMainMenu);
-        } else if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) {
-            ui_.routes().pop();
-            return ui::UiActionResult::Handled;
-        }
-        return push(ApplicationCommandKind::ReturnToMainMenu);
-    }
-    if (action == foundation::stable_id("scene.resume")) {
-        if (ui_.routes().top() != nullptr && ui_.routes().top()->scene == foundation::scene_id("scene.pause")) {
-            ui_.routes().pop();
-            return ui::UiActionResult::Handled;
-        }
-        return ui::UiActionResult::Rejected;
-    }
-    if (action == foundation::stable_id("scene.close-overlay")) {
-        if (ui_.routes().top() == nullptr || !ui_.routes().top()->overlay) return ui::UiActionResult::Rejected;
-        ui_.routes().pop();
-        return ui::UiActionResult::Handled;
-    }
-    if (action == foundation::stable_id("settings.defaults")) {
-        (void)ui_.model().set("ui_scale", 1.0);
-        (void)ui_.model().set("ui_scale_percent", std::string{"100%"});
-        (void)ui_.model().set("show_diagnostics", true);
-        return ui::UiActionResult::Handled;
-    }
-    if (action == foundation::stable_id("settings.ui-scale")) {
-        for (const auto& argument : arguments) if (argument.first == "value") {
-            double value = 0.0;
-            const auto converted = std::from_chars(argument.second.data(),
-                                                   argument.second.data() + argument.second.size(),
-                                                   value, std::chars_format::general);
-            if (converted.ec != std::errc{} || converted.ptr != argument.second.data() + argument.second.size() || !std::isfinite(value)) return ui::UiActionResult::Rejected;
-            (void)ui_.model().set("ui_scale", std::clamp(value, 0.75, 1.50));
-            (void)ui_.model().set("ui_scale_percent", scalePercent(std::clamp(value, 0.75, 1.50)));
-            return ui::UiActionResult::Handled;
-        }
-        return ui::UiActionResult::Rejected;
-    }
-    if (action == foundation::stable_id("settings.show-diagnostics")) {
-        for (const auto& argument : arguments) if (argument.first == "value") {
-            (void)ui_.model().set("show_diagnostics", argument.second == "true" || argument.second == "1");
-            return ui::UiActionResult::Handled;
-        }
-        return ui::UiActionResult::Rejected;
-    }
-    if (action == foundation::stable_id("settings.cancel")) {
-        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) {
-            (void)ui_.model().set("ui_scale", session_ui_scale_);
-            (void)ui_.model().set("ui_scale_percent", scalePercent(session_ui_scale_));
-            (void)ui_.model().set("show_diagnostics", session_show_diagnostics_);
-            ui_.routes().pop();
-            return ui::UiActionResult::Handled;
-        }
-        return ui::UiActionResult::Rejected;
-    }
-    if (action == foundation::stable_id("settings.apply")) {
-        if (const auto* value = ui_.model().find("ui_scale"); value != nullptr &&
-            std::holds_alternative<double>(*value)) session_ui_scale_ = std::get<double>(*value);
-        if (const auto* value = ui_.model().find("show_diagnostics"); value != nullptr &&
-            std::holds_alternative<bool>(*value)) session_show_diagnostics_ = std::get<bool>(*value);
-        if (ui_.routes().top() != nullptr && ui_.routes().top()->overlay) ui_.routes().pop();
-        return ui::UiActionResult::Handled;
-    }
-    if (action == foundation::stable_id("application.quit"))
-        return push(ApplicationCommandKind::Quit);
     return ui::UiActionResult::Unknown;
 }
 
@@ -385,36 +252,11 @@ void SceneDirector::present() {
 void SceneDirector::process_commands() {
     while (!commands_.empty()) {
         const ApplicationCommand command = commands_.pop();
-        switch (command.kind) {
-        case ApplicationCommandKind::StartScenario:
-            active_world_config_ = command.world_config;
-            change_to(foundation::scene_id("scene.battlefield"));
-            break;
-        case ApplicationCommandKind::OpenWorldConfig:
-            active_world_config_ = command.world_config;
-            change_to(foundation::scene_id("scene.world-config"));
-            break;
-        case ApplicationCommandKind::OpenUnitLab:
-            change_to(foundation::scene_id("scene.unit-lab"));
-            break;
-        case ApplicationCommandKind::OpenBuildingLab:
-            change_to(foundation::scene_id("scene.building-lab"));
-            break;
-        case ApplicationCommandKind::OpenWorldLab:
-            change_to(foundation::scene_id("scene.world-lab"));
-            break;
-        case ApplicationCommandKind::ReturnToMainMenu:
-            change_to(foundation::scene_id("scene.main-menu"));
-            break;
-        case ApplicationCommandKind::OpenSettings:
-            change_to(foundation::scene_id("scene.settings"));
-            break;
-        case ApplicationCommandKind::OpenPause:
-            ui_.routes().push({foundation::scene_id("scene.pause"), {}, {}, {}, true});
-            break;
-        case ApplicationCommandKind::Quit:
-            quit_requested_ = true;
-            break;
+        if (application_command_handler_) {
+            application_command_handler_(command);
+        } else {
+            last_error_ = {foundation::ErrorCode::InvalidState,
+                           "application command handler is not installed"};
         }
     }
 }
