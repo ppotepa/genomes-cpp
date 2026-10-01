@@ -34,7 +34,7 @@ count is not proof of a clean dependency closure.
 Source review at `824f35f` found no in-tree CMake consumer of the
 `genomes::runtime` compatibility aggregate. That bridge was removed, while the
 runtime core and application-scene aliases remain explicit. The
-The `genomes::world` aggregate was removed at `d789c5a` after all project CMake
+`genomes::world` aggregate was removed at `d789c5a` after all project CMake
 clients were split between `genomes::world_core` and
 `genomes::world_generation`. The source guard in
 `tests/native/architecture_refactor_tracker.cmake` prevents the aggregate from
