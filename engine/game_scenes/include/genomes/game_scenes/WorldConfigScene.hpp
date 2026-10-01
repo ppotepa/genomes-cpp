@@ -16,12 +16,6 @@ namespace genomes::game_scenes {
 using runtime::Scene;
 using runtime::SceneContext;
 
-// Namespace aliases preserve the historical scene API while the actual
-// configuration and seed contract remain owned by genomes::application.
-using WorldGenerationConfig = application::WorldGenerationConfig;
-using WorldSeedMode = application::WorldSeedMode;
-using WorldSeedInput = application::WorldSeedInput;
-
 enum class WorldConfigEntry {
     Seed,
     MapSize,

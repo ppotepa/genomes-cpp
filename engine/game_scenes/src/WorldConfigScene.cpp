@@ -51,12 +51,12 @@ template <typename T>
     return numberText(static_cast<int>(std::lround(value * 100.0F))) + "%";
 }
 
-[[nodiscard]] std::string entryLabel(WorldConfigEntry entry,
-                                     const WorldGenerationConfig& config,
-                                     const WorldSeedInput& seed_input) {
+[[nodiscard]] std::string entryLabel(
+    WorldConfigEntry entry, const application::WorldGenerationConfig& config,
+    const application::WorldSeedInput& seed_input) {
     switch (entry) {
     case WorldConfigEntry::Seed:
-        return seed_input.mode == WorldSeedMode::Auto ? "Seed: auto" :
+        return seed_input.mode == application::WorldSeedMode::Auto ? "Seed: auto" :
                                                         "Seed: " + numberText(config.seed);
     case WorldConfigEntry::MapSize:
         return "Map size: " + numberText(config.map_size_m) + " x " +
@@ -103,8 +103,9 @@ foundation::SceneId WorldConfigScene::id() const noexcept {
 
 void WorldConfigScene::on_enter(SceneContext& context) {
     state_.config = initial_config_;
-    state_.seed_input = state_.config.seed == 0U ? WorldSeedInput::automatic() :
-                                                    WorldSeedInput::explicitValue(state_.config.seed);
+    state_.seed_input = state_.config.seed == 0U
+                            ? application::WorldSeedInput::automatic()
+                            : application::WorldSeedInput::explicitValue(state_.config.seed);
     context.ui.clear();
 }
 
@@ -143,7 +144,7 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
     (void)model.set("title", std::string{"New world"});
     (void)model.set("description", std::string{"A deterministic settlement, roads, parcels and vegetation."});
     ui::UiFieldState seed{};
-    seed.value = state_.seed_input.mode == WorldSeedMode::Auto ? std::string{"auto"} :
+    seed.value = state_.seed_input.mode == application::WorldSeedMode::Auto ? std::string{"auto"} :
                                                                  numberText(state_.config.seed);
     seed.commit_policy = ui::UiCommitPolicy::OnChange; seed.minimum = 0.0;
     (void)model.set_field("seed", std::move(seed));
@@ -177,14 +178,14 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
     const auto value = value_of();
     if (action == foundation::stable_id("world.seed")) {
         if (value == "auto") {
-            state_.seed_input = WorldSeedInput::automatic();
+            state_.seed_input = application::WorldSeedInput::automatic();
             return ui::UiActionResult::Handled;
         }
         std::uint64_t seed{};
         const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
         if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || seed == 0U) return ui::UiActionResult::Rejected;
         state_.config.seed = seed;
-        state_.seed_input = WorldSeedInput::explicitValue(seed);
+        state_.seed_input = application::WorldSeedInput::explicitValue(seed);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("world.map-size")) {
@@ -212,7 +213,7 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
         const auto resolved_seed = state_.seed_input.resolve(autoSeedEntropy());
         if (!resolved_seed) return ui::UiActionResult::Rejected;
         state_.config.seed = resolved_seed.value();
-        state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
+        state_.seed_input = application::WorldSeedInput::explicitValue(resolved_seed.value());
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::StartScenario, state_.config);
         return ui::UiActionResult::Handled;
@@ -255,9 +256,9 @@ void WorldConfigScene::build_presentation(SceneContext& context) {
 void WorldConfigScene::adjust(int direction) noexcept {
     switch (state_.selected) {
     case WorldConfigEntry::Seed:
-        if (state_.seed_input.mode == WorldSeedMode::Auto) {
+        if (state_.seed_input.mode == application::WorldSeedMode::Auto) {
             state_.config.seed = 1U;
-            state_.seed_input = WorldSeedInput::explicitValue(1U);
+            state_.seed_input = application::WorldSeedInput::explicitValue(1U);
         } else if (direction < 0 && state_.config.seed > 1U) {
             --state_.config.seed;
         } else if (direction > 0) {
@@ -308,7 +309,7 @@ void WorldConfigScene::activate(SceneContext& context) {
         const auto resolved_seed = state_.seed_input.resolve(autoSeedEntropy());
         if (!resolved_seed) return;
         state_.config.seed = resolved_seed.value();
-        state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
+        state_.seed_input = application::WorldSeedInput::explicitValue(resolved_seed.value());
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::StartScenario, state_.config);
     } else if (state_.selected == WorldConfigEntry::Back) {
