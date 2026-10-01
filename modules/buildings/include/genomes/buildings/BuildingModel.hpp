@@ -11,16 +11,18 @@
 
 namespace genomes::buildings {
 
+struct BuildingSiteGenerationProfile;
+
 inline constexpr std::uint32_t BuildingGeneratorVersion = 2;
 
 struct BuildingSpec final {
     foundation::StableId building_id{0};
     proc::Seed seed{0};
-    foundation::Vec3 footprint{12.0F, 1.0F, 10.0F};
-    std::uint32_t floors{1};
-    float floor_height{3.0F};
-    float wall_thickness{0.25F};
-    std::uint32_t rooms_per_floor{2};
+    foundation::Vec3 footprint{};
+    std::uint32_t floors{0U};
+    float floor_height{0.0F};
+    float wall_thickness{0.0F};
+    std::uint32_t rooms_per_floor{0U};
 
     [[nodiscard]] bool valid() const noexcept;
 };
@@ -94,7 +96,7 @@ public:
     [[nodiscard]] static foundation::Result<BuildingPlan, foundation::Error> generate(
         const BuildingSpec&);
     [[nodiscard]] static foundation::Result<BuildingGenerationResult, foundation::Error>
-    generateSite(const world::BuildingSiteRequest&);
+    generateSite(const world::BuildingSiteRequest&, const BuildingSiteGenerationProfile&);
 };
 
 struct BuildingPartRuntime final {

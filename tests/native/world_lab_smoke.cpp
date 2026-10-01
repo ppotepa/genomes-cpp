@@ -3,20 +3,34 @@
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/runtime/WorldLabScene.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <memory>
 #include <string>
 
 int main() {
+    const auto loaded_world_profile = genomes::world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    assert(loaded_world_profile);
+    const auto world_profile =
+        std::make_shared<const genomes::world::FrozenWorldGenerationProfile>(
+            loaded_world_profile.value());
+    auto active_world_config =
+        std::make_shared<genomes::application::WorldGenerationConfig>(
+            world_profile->makeDefaultRequest());
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
-    genomes::application::configureBuiltinSceneRouting(director);
+    genomes::application::configureBuiltinSceneRouting(director, active_world_config);
     const auto menu = genomes::foundation::scene_id("scene.main-menu");
     const auto lab = genomes::foundation::scene_id("scene.world-lab");
-    director.register_scene(menu, [] { return std::make_unique<genomes::runtime::MainMenuScene>(); });
+    director.register_scene(menu, [world_profile] {
+        return std::make_unique<genomes::runtime::MainMenuScene>(world_profile);
+    });
     director.register_scene(lab, [] { return std::make_unique<genomes::runtime::WorldLabScene>(); });
     assert(director.start(menu));
     assert(director.dispatch_ui_action(genomes::foundation::stable_id("scene.open-world-lab"), {}) ==

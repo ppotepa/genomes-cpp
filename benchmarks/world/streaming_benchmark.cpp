@@ -1,17 +1,19 @@
 #include <genomes/world/WorldStreamer.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <thread>
 
 namespace {
 
-void run(std::size_t count) {
+void run(std::size_t count, const genomes::world::FrozenWorldGenerationProfile& profile) {
     using namespace genomes;
     jobs::JobSystem jobs(4U);
-    world::WorldGenerationRequest request{};
-    request.seed = 0xABCD0000ULL + static_cast<std::uint64_t>(count);
+    world::WorldGenerationRequest request =
+        profile.makeRequest(0xABCD0000ULL + static_cast<std::uint64_t>(count));
     request.map_size_m = 128U;
     world::WorldCoordinateConfig coordinates{};
     coordinates.region_size_m = 128.0;
@@ -38,8 +40,15 @@ void run(std::size_t count) {
 } // namespace
 
 int main() {
-    run(32U);
-    run(128U);
-    run(256U);
+    const auto profile = genomes::world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    if (!profile) {
+        std::cerr << "world profile loading failed: " << profile.error().message << '\n';
+        return 1;
+    }
+    run(32U, profile.value());
+    run(128U, profile.value());
+    run(256U, profile.value());
     return 0;
 }

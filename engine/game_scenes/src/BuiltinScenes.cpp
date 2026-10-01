@@ -19,6 +19,7 @@
 #include <cmath>
 #include <algorithm>
 #include <string>
+#include <stdexcept>
 #include <utility>
 #include <variant>
 
@@ -217,7 +218,13 @@ void configureBuiltinSceneRouting(
 }
 
 BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
-    active_world_config_ = std::make_shared<WorldGenerationConfig>();
+    const auto world_profile = config.world_generation_profile;
+    if (world_profile == nullptr || !world_profile->frozen() ||
+        config.building_profile == nullptr || !config.building_profile->frozen()) {
+        throw std::invalid_argument{"built-in scenes require frozen world and building profiles"};
+    }
+    active_world_config_ = std::make_shared<WorldGenerationConfig>(
+        world_profile->makeDefaultRequest());
     const auto menu_id = foundation::scene_id("scene.main-menu");
     const auto world_config_id = foundation::scene_id("scene.world-config");
     const auto battlefield_id = foundation::scene_id("scene.battlefield");
@@ -227,23 +234,30 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
     const auto settings_id = foundation::scene_id("scene.settings");
     const auto pause_id = foundation::scene_id("scene.pause");
 
-    entries_.push_back({menu_id, [] { return std::make_unique<runtime::MainMenuScene>(); }});
+    entries_.push_back({menu_id, [world_profile] {
+        return std::make_unique<runtime::MainMenuScene>(world_profile);
+    }});
     const auto active_world_config = active_world_config_;
     entries_.push_back({world_config_id,
-                        [active_world_config] {
-                            return std::make_unique<runtime::WorldConfigScene>(*active_world_config);
+                        [active_world_config, world_profile] {
+                            return std::make_unique<runtime::WorldConfigScene>(
+                                world_profile, *active_world_config);
                         }});
+    const auto building_profile = config.building_profile;
     if (config.real_battlefield) {
 #if GENOMES_HAS_INFANTRY
         const auto tactical_ai_profile =
             config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
-        entries_.push_back({battlefield_id, [active_world_config, tactical_ai_profile] {
+        entries_.push_back({battlefield_id, [active_world_config, tactical_ai_profile,
+                                             building_profile] {
             return std::make_unique<runtime::BattlefieldScene>(*active_world_config,
+                                                      building_profile,
                                                       tactical_ai_profile);
         }});
 #else
-        entries_.push_back({battlefield_id, [active_world_config] {
-            return std::make_unique<runtime::BattlefieldScene>(*active_world_config);
+        entries_.push_back({battlefield_id, [active_world_config, building_profile] {
+            return std::make_unique<runtime::BattlefieldScene>(*active_world_config,
+                                                               building_profile);
         }});
 #endif
     } else {
@@ -260,8 +274,9 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
 #else
     (void)unit_lab_id;
 #endif
-    entries_.push_back({building_lab_id,
-                        [] { return std::make_unique<runtime::BuildingLabScene>(); }});
+    entries_.push_back({building_lab_id, [building_profile] {
+        return std::make_unique<runtime::BuildingLabScene>(building_profile);
+    }});
     entries_.push_back({world_lab_id, [] { return std::make_unique<runtime::WorldLabScene>(); }});
     entries_.push_back({settings_id, [settings_id] {
         return std::make_unique<PlaceholderScene>(settings_id, "Settings");
@@ -284,15 +299,6 @@ void BuiltinSceneCatalog::install(runtime::SceneDirector& director) const {
 
 void registerBuiltinScenes(runtime::SceneDirector& director, BuiltinSceneConfig config) {
     BuiltinSceneCatalog{std::move(config)}.install(director);
-}
-
-void registerBuiltinScenes(runtime::SceneDirector& director, bool real_battlefield) {
-    BuiltinSceneConfig config{};
-    config.real_battlefield = real_battlefield;
-#if GENOMES_HAS_INFANTRY
-    config.tactical_ai_profile = std::nullopt;
-#endif
-    registerBuiltinScenes(director, std::move(config));
 }
 
 } // namespace genomes::application

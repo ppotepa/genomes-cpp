@@ -2,6 +2,7 @@
 
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
@@ -9,6 +10,7 @@
 #include <genomes/simulation/FixedStepClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 #include <genomes/ui/UiNativePluginManager.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/combat/TacticalAI.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
@@ -50,10 +52,12 @@ public:
 private:
     GameApplication(std::unique_ptr<platform::SdlPlatform> platform,
                     std::unique_ptr<render::IRenderer> renderer,
-                    std::unique_ptr<render::RenderBackend> backend_owner = {}
+                    std::unique_ptr<render::RenderBackend> backend_owner,
+                    std::shared_ptr<const world::FrozenWorldGenerationProfile> world_profile,
+                    std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile
 #if GENOMES_HAS_INFANTRY
-                    , combat::TacticalAIProfile tactical_ai_profile = {}
-                    , std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog = {}
+                    , combat::TacticalAIProfile tactical_ai_profile
+                    , std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog
 #endif
                     );
 

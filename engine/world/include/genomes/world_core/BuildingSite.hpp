@@ -28,13 +28,13 @@ struct BuildingSiteRequest final {
     proc::Seed seed{0};
     std::vector<foundation::Vec2> buildable_polygon;
     foundation::Vec3 preferred_position{};
-    foundation::Vec3 preferred_footprint{12.0F, 1.0F, 10.0F};
+    foundation::Vec3 preferred_footprint{};
     float preferred_rotation{0.0F};
-    std::uint32_t floors_min{1};
-    std::uint32_t floors_max{3};
+    std::uint32_t floors_min{0U};
+    std::uint32_t floors_max{0U};
     foundation::Vec2 access_point{};
-    float access_width{1.2F};
-    float clearance_m{1.0F};
+    float access_width{0.0F};
+    float clearance_m{0.0F};
     SiteAccessClass access_class{SiteAccessClass::Service};
     SiteAccessSurface access_surface{SiteAccessSurface::Track};
 
@@ -43,7 +43,8 @@ struct BuildingSiteRequest final {
             floors_min == 0 || floors_min > floors_max || floors_max > 32 ||
             !std::isfinite(preferred_position.x) || !std::isfinite(preferred_position.y) ||
             !std::isfinite(preferred_position.z) || !std::isfinite(preferred_footprint.x) ||
-            !std::isfinite(preferred_footprint.z) || preferred_footprint.x < 2.0F ||
+            !std::isfinite(preferred_footprint.y) || !std::isfinite(preferred_footprint.z) ||
+            preferred_footprint.x < 2.0F || preferred_footprint.y <= 0.0F ||
             preferred_footprint.z < 2.0F || !std::isfinite(preferred_rotation) ||
             !std::isfinite(access_point.x) || !std::isfinite(access_point.y) ||
             !std::isfinite(access_width) || access_width <= 0.0F ||
@@ -83,7 +84,7 @@ struct BuildingSiteResolution final {
     foundation::Vec2 entrance{};
     foundation::Vec2 approach{};
     foundation::Vec3 clearance_envelope{};
-    float entrance_width{1.2F};
+    float entrance_width{0.0F};
 
     [[nodiscard]] bool valid() const noexcept {
         return request_id != 0 && parcel_id != 0 && building_id != 0 &&

@@ -138,26 +138,28 @@ void MainMenuScene::select(MainMenuEntry entry) noexcept {
 }
 
 void MainMenuScene::activate(SceneContext& context) {
+    application::WorldGenerationConfig config = world_config_;
+    config.seed = state_.preview_seed;
     switch (state_.selected) {
     case MainMenuEntry::StartScenario:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenWorldConfig,
-            application::WorldGenerationConfig{state_.preview_seed});
+            config);
         break;
     case MainMenuEntry::UnitLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenUnitLab,
-            application::WorldGenerationConfig{state_.preview_seed});
+            config);
         break;
     case MainMenuEntry::BuildingLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenBuildingLab,
-            application::WorldGenerationConfig{state_.preview_seed});
+            config);
         break;
     case MainMenuEntry::WorldLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenWorldLab,
-            application::WorldGenerationConfig{state_.preview_seed});
+            config);
         break;
     case MainMenuEntry::Settings:
         state_.settings_open = !state_.settings_open;

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "world-generation-default",
+  "default_seed": 1592598566,
+  "map_size_m": 600,
+  "vegetation": 0.62,
+  "buildings": 0.55,
+  "fenced_parcels": 0.48,
+  "hydrology_mode": "seeded-optional",
+  "river_probability": 0.35
+}

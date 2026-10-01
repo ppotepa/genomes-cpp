@@ -1,13 +1,19 @@
 #include <genomes/world/WorldStreamer.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <thread>
 
 int main() {
     using namespace genomes;
     jobs::JobSystem jobs(2U);
-    world::WorldGenerationRequest generation{};
-    generation.seed = 0x11112222ULL;
+    const auto profile = world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    assert(profile);
+    world::WorldGenerationRequest generation =
+        profile.value().makeRequest(0x11112222ULL);
     generation.map_size_m = 256U;
     world::WorldCoordinateConfig coordinates{};
     coordinates.region_size_m = 256.0;

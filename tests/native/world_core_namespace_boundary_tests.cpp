@@ -44,6 +44,10 @@ int main() {
     request.seed = 3;
     request.buildable_polygon = {{-6.0F, -5.0F}, {6.0F, -5.0F},
                                  {6.0F, 5.0F}, {-6.0F, 5.0F}};
+    request.preferred_footprint = {12.0F, 1.0F, 10.0F};
+    request.floors_min = 1U;
+    request.floors_max = 3U;
+    request.access_width = 1.2F;
     assert(request.valid());
     const auto translated = request.translated({10.0F, 2.0F, -4.0F});
     assert(translated.buildable_polygon.front().x == 4.0F);

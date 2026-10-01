@@ -71,9 +71,12 @@ void BuildingLabScene::on_enter(SceneContext& context) {
     plan_ = {};
     runtime_.reset();
     render_mesh_.reset();
-    const buildings::BuildingSpec spec{
-        foundation::stable_id("building-lab.preview"), seed_, {18.0F, 1.0F, 14.0F},
-        2, 3.0F, 0.30F, 3};
+    if (building_profile_ == nullptr || !building_profile_->frozen()) {
+        error_ = "building profile is unavailable";
+        context.ui.clear();
+        return;
+    }
+    const buildings::BuildingSpec spec = building_profile_->labPreview().instantiate(seed_);
     const auto generated = buildings::BuildingGenerator::generate(spec);
     if (!generated) {
         error_ = generated.error().message;

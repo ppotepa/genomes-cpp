@@ -3,6 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/buildings/BuildingModel.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/destruction/DestructionInvalidation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
@@ -85,8 +86,10 @@ struct WorldScenarioStatus final {
 class WorldScenario final {
 public:
     explicit WorldScenario(jobs::JobSystem& jobs,
+                           std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
                            std::shared_ptr<proc::ArtifactCache> cache = {}) noexcept
-        : jobs_(jobs), generation_service_(jobs, std::move(cache)) {}
+        : jobs_(jobs), generation_service_(jobs, std::move(cache)),
+          building_profile_(std::move(building_profile)) {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> requestNew(
         const world::WorldGenerationRequest& request);
@@ -115,13 +118,15 @@ public:
     // this entry point instead of maintaining a second terrain/building path.
     [[nodiscard]] static foundation::Result<ResolvedWorldArtifacts, foundation::Error>
     compileArtifact(world::WorldPlan plan,
-                    const world::WorldGenerationRequest& request);
+                    const world::WorldGenerationRequest& request,
+                    const buildings::FrozenBuildingProfile& building_profile);
 
 private:
     [[nodiscard]] static bool validCandidate(const world::WorldPlan& plan) noexcept;
 
     jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;
+    std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile_;
     std::unique_ptr<world::WorldStreamer> streamer_;
     std::vector<world::StreamedRegion> streamed_regions_;
     foundation::SimulationTick streaming_tick_{};

@@ -21,7 +21,7 @@ enum class WorldSeedMode : std::uint8_t {
 
 struct WorldSeedInput final {
     WorldSeedMode mode{WorldSeedMode::Explicit};
-    proc::Seed explicit_seed{0x5EED2026ULL};
+    proc::Seed explicit_seed{0U};
 
     [[nodiscard]] static WorldSeedInput automatic() noexcept {
         return {WorldSeedMode::Auto, 0U};

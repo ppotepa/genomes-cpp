@@ -3,9 +3,11 @@
 #include <genomes/game_scenes/WorldConfig.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/runtime/Scene.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -39,8 +41,15 @@ struct WorldConfigState final {
 
 class WorldConfigScene final : public Scene {
 public:
-    explicit WorldConfigScene(application::WorldGenerationConfig config = {})
-        : initial_config_{std::move(config)} {}
+    WorldConfigScene(
+        std::shared_ptr<const world::FrozenWorldGenerationProfile> world_profile,
+        application::WorldGenerationConfig config)
+        : world_profile_{std::move(world_profile)}, initial_config_{std::move(config)} {
+        if (world_profile_ == nullptr || !world_profile_->frozen() || !initial_config_.valid()) {
+            throw std::invalid_argument{
+                "world configuration scene requires a frozen profile and resolved request"};
+        }
+    }
 
     [[nodiscard]] foundation::SceneId id() const noexcept override;
 
@@ -60,6 +69,7 @@ private:
     void adjust(int direction) noexcept;
     void activate(SceneContext&);
 
+    std::shared_ptr<const world::FrozenWorldGenerationProfile> world_profile_;
     application::WorldGenerationConfig initial_config_{};
     WorldConfigState state_{};
     std::vector<std::shared_ptr<const render::RenderMesh>> preview_prototypes_;

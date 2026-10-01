@@ -51,23 +51,29 @@ struct WorldStageFingerprint final {
 };
 
 struct WorldGenerationRequest final {
-    proc::Seed seed{0x5EED2026ull};
-    std::uint32_t map_size_m{600};
-    float vegetation{0.62F};
-    float buildings{0.55F};
-    float fenced_parcels{0.48F};
-    hydrology::HydrologyMode hydrology_mode{hydrology::HydrologyMode::SeededOptional};
-    float river_probability{0.35F};
+    // A request is mutable session state. Domain defaults live exclusively in
+    // FrozenWorldGenerationProfile and must be resolved before generation.
+    proc::Seed seed{0U};
+    std::uint32_t map_size_m{0U};
+    float vegetation{0.0F};
+    float buildings{0.0F};
+    float fenced_parcels{0.0F};
+    hydrology::HydrologyMode hydrology_mode{hydrology::HydrologyMode::Off};
+    float river_probability{0.0F};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto valid_density = [](float value) {
             return std::isfinite(value) && value >= 0.0F && value <= 1.0F;
         };
+        const bool valid_hydrology_mode =
+            hydrology_mode == hydrology::HydrologyMode::Off ||
+            hydrology_mode == hydrology::HydrologyMode::SeededOptional ||
+            hydrology_mode == hydrology::HydrologyMode::Forced;
         return seed != 0U && map_size_m >= 128 && map_size_m <= 4096 && map_size_m % 8U == 0U &&
                valid_density(vegetation) &&
                valid_density(buildings) && valid_density(fenced_parcels) &&
                std::isfinite(river_probability) && river_probability >= 0.0F &&
-               river_probability <= 1.0F;
+               river_probability <= 1.0F && valid_hydrology_mode;
     }
 };
 

@@ -127,7 +127,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     configure_simulation_graph();
 
     if (jobs_ != nullptr) {
-        scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_);
+        scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
         const auto requested = scenario_->requestNew(config_);
         if (!requested) {
             generation_error_ = std::string(requested.error().message);
@@ -562,7 +562,13 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         plan_.reset();
         return;
     } else {
-        const auto resolved = gameplay::WorldScenario::compileArtifact(*plan_, config_);
+        if (building_profile_ == nullptr || !building_profile_->frozen()) {
+            generation_error_ = "building profile is unavailable";
+            plan_.reset();
+            return;
+        }
+        const auto resolved = gameplay::WorldScenario::compileArtifact(
+            *plan_, config_, *building_profile_);
         if (!resolved) {
             generation_error_ = std::string(resolved.error().message);
             plan_.reset();

@@ -46,6 +46,8 @@ genomes_set_project_warnings(genomes_bench_ai_pipeline)
 add_executable(genomes_bench_world_streaming
     world/streaming_benchmark.cpp)
 target_link_libraries(genomes_bench_world_streaming PRIVATE genomes::world_generation)
+target_compile_definitions(genomes_bench_world_streaming PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_bench_world_streaming)
 
 add_executable(genomes_bench_full_scene
@@ -87,10 +89,18 @@ if(GENOMES_ENABLE_INFANTRY)
     add_executable(genomes_bench_infantry_appearance
         infantry/appearance_generation_benchmark.cpp)
     target_link_libraries(genomes_bench_infantry_appearance PRIVATE genomes::infantry)
+    target_include_directories(genomes_bench_infantry_appearance PRIVATE
+        "${CMAKE_SOURCE_DIR}/external/json/single_include")
+    target_compile_definitions(genomes_bench_infantry_appearance PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_bench_infantry_appearance)
 
     add_executable(genomes_bench_infantry_animation
         infantry/animation_benchmark.cpp)
     target_link_libraries(genomes_bench_infantry_animation PRIVATE genomes::infantry)
+    target_include_directories(genomes_bench_infantry_animation PRIVATE
+        "${CMAKE_SOURCE_DIR}/external/json/single_include")
+    target_compile_definitions(genomes_bench_infantry_animation PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_bench_infantry_animation)
 endif()

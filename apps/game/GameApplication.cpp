@@ -142,7 +142,9 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
 GameApplication::~GameApplication()=default;
 GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform,
                                  std::unique_ptr<render::IRenderer> renderer,
-                                 std::unique_ptr<render::RenderBackend> backend_owner
+                                 std::unique_ptr<render::RenderBackend> backend_owner,
+                                 std::shared_ptr<const world::FrozenWorldGenerationProfile> world_profile,
+                                 std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile
 #if GENOMES_HAS_INFANTRY
                                  , combat::TacticalAIProfile tactical_ai_profile
                                  , std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog
@@ -152,6 +154,8 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
      renderer_(std::move(renderer)),jobs_(0U,2U),director_(*renderer_,ui_,presentation_,&jobs_) {
     application::BuiltinSceneConfig scene_config{};
     scene_config.real_battlefield = true;
+    scene_config.world_generation_profile = std::move(world_profile);
+    scene_config.building_profile = std::move(building_profile);
 #if GENOMES_HAS_INFANTRY
     scene_config.tactical_ai_profile = tactical_ai_profile;
     scene_config.appearance_catalog = std::move(appearance_catalog);
@@ -264,6 +268,15 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     if (!created_backend) return Result::failure(created_backend.error());
     auto backend=std::move(created_backend.value());
     std::unique_ptr<render::IRenderer> renderer=std::make_unique<render::DiligentSceneRenderer>(*backend);
+    auto world_profile = world::loadWorldGenerationProfile(
+        "mods/core/profiles/world-generation.json");
+    if (!world_profile) return Result::failure(world_profile.error());
+    auto shared_world_profile = std::make_shared<const world::FrozenWorldGenerationProfile>(
+        std::move(world_profile.value()));
+    auto building_profile = buildings::loadBuildingProfile("mods/core/profiles/building.json");
+    if (!building_profile) return Result::failure(building_profile.error());
+    auto shared_building_profile = std::make_shared<const buildings::FrozenBuildingProfile>(
+        std::move(building_profile.value()));
 #if GENOMES_HAS_INFANTRY
     auto tactical_ai_profile = combat::loadTacticalAIProfile("mods/core/profiles/tactical-ai.json");
     if (!tactical_ai_profile) return Result::failure(tactical_ai_profile.error());
@@ -272,12 +285,16 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     if (!appearance_catalog) return Result::failure(appearance_catalog.error());
     return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
         std::move(platform), std::move(renderer), std::move(backend),
+        std::move(shared_world_profile),
+        std::move(shared_building_profile),
         tactical_ai_profile.value().profile,
         std::make_shared<const infantry::FrozenAppearanceCatalog>(
             std::move(appearance_catalog.value()))}});
 #else
     return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
-        std::move(platform), std::move(renderer), std::move(backend)}});
+        std::move(platform), std::move(renderer), std::move(backend),
+        std::move(shared_world_profile),
+        std::move(shared_building_profile)}});
 #endif
 }
 foundation::Result<void,foundation::Error> GameApplication::resize_renderer(std::uint32_t w,std::uint32_t h) {

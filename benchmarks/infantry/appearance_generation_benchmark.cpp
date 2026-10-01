@@ -1,16 +1,17 @@
+#include "../Pr16Measurement.hpp"
+
+#include <genomes/foundation/StableHash.hpp>
 #include <genomes/infantry/AppearanceArtifact.hpp>
-#include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
-#include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/PhenotypeResolver.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
 
 #include <chrono>
-#include <algorithm>
-#include <array>
 #include <cstdint>
+#include <filesystem>
+#include <iomanip>
 #include <iostream>
-#include <numeric>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -18,20 +19,37 @@ namespace {
 using Clock = std::chrono::steady_clock;
 using Microseconds = std::chrono::microseconds;
 
-[[nodiscard]] std::int64_t percentile(std::vector<std::int64_t> values, double fraction) {
-    if (values.empty()) {
-        return 0;
+[[nodiscard]] std::uint64_t semanticHash(
+    const genomes::infantry::AppearanceArtifact& artifact) noexcept {
+    auto hash = genomes::foundation::stableHashU64(artifact.version);
+    hash = genomes::foundation::stableHashCombine(hash, artifact.cache_key);
+    hash = genomes::foundation::stableHashCombine(hash, artifact.body.vertices.size());
+    hash = genomes::foundation::stableHashCombine(hash, artifact.body.indices.size());
+    hash = genomes::foundation::stableHashCombine(hash, artifact.hair.vertices.size());
+    hash = genomes::foundation::stableHashCombine(hash, artifact.hair.indices.size());
+    for (const auto& morph : artifact.morphs) {
+        hash = genomes::foundation::stableHashCombine(hash, morph.position_deltas.size());
+        hash = genomes::foundation::stableHashCombine(hash, morph.normal_deltas.size());
     }
-    std::sort(values.begin(), values.end());
-    const std::size_t index = static_cast<std::size_t>(
-        fraction * static_cast<double>(values.size() - 1U));
-    return values[index];
+    return hash;
 }
 
 } // namespace
 
-int main() {
-    const auto genome = genomes::infantry::InfantryGenome::generate(0xCAFEU, 1.0F);
+int main(int argc, char** argv) {
+    const std::filesystem::path fixture = argc > 1
+                                              ? argv[1]
+                                              : std::filesystem::path{GENOMES_SOURCE_DIR} /
+                                                    "config/performance/pr16_measurement_inputs.json";
+    const auto loaded = genomes::benchmark::loadPr16MeasurementPlan(
+        fixture, "infantry.appearance_generation");
+    if (!loaded) {
+        std::cerr << "status=INVALID_MEASUREMENT_FIXTURE error=" << loaded.error << '\n';
+        return 2;
+    }
+    const auto& plan = *loaded.plan;
+    const auto genome = genomes::infantry::InfantryGenome::generate(
+        static_cast<std::uint32_t>(plan.seed), 1.0F);
     if (!genome) {
         return 1;
     }
@@ -45,85 +63,69 @@ int main() {
         return 1;
     }
     genomes::infantry::AppearanceOptions options{};
-    options.seed = 19U;
-    genomes::infantry::AppearanceCache cache;
-    constexpr std::uint32_t builds = 100U;
-    std::vector<std::int64_t> unique_samples;
-    unique_samples.reserve(builds);
-    std::size_t vertices = 0U;
-    for (std::uint32_t index = 0U; index < builds; ++index) {
-        options.seed = 19U + index;
+    options.detail_level = plan.detail == "far" ? 0U : (plan.detail == "world" ? 1U : 2U);
+    options.hair_style = genomes::infantry::HairStyle::Buzz;
+    const auto measure = [&]() -> std::pair<double, std::uint64_t> {
         const auto begin = Clock::now();
-        const auto artifact = genomes::infantry::AppearanceCompiler::build(
-            phenotype.value(), rig.value(), options);
-        if (!artifact) {
-            return 1;
+        std::uint64_t result_hash = 0U;
+        for (std::size_t index = 0U; index < plan.entity_count; ++index) {
+            options.seed = plan.seed + static_cast<std::uint64_t>(index);
+            const auto artifact = genomes::infantry::AppearanceCompiler::build(
+                phenotype.value(), rig.value(), options);
+            if (!artifact) {
+                return {-1.0, 0U};
+            }
+            result_hash = genomes::foundation::stableHashCombine(
+                result_hash, semanticHash(artifact.value()));
         }
-        unique_samples.push_back(
-            std::chrono::duration_cast<Microseconds>(Clock::now() - begin).count());
-        vertices += artifact.value().body.vertices.size();
-    }
-    std::vector<std::int64_t> cache_samples;
-    cache_samples.reserve(builds);
-    for (std::uint32_t index = 0U; index < builds; ++index) {
-        options.seed = 19U + index;
-        const auto artifact = genomes::infantry::AppearanceCompiler::build(
-            phenotype.value(), rig.value(), options);
-        if (!artifact) {
-            return 1;
-        }
-        if (!cache.acquire(phenotype.value(), rig.value(), options)) {
+        return {Microseconds(Clock::now() - begin).count(), result_hash};
+    };
+    for (std::size_t index = 0U; index < plan.warmup_runs; ++index) {
+        if (measure().first < 0.0) {
             return 1;
         }
     }
-    for (std::uint32_t index = 0U; index < builds; ++index) {
-        options.seed = 19U + index;
-        const auto begin = Clock::now();
-        if (!cache.acquire(phenotype.value(), rig.value(), options)) {
+    std::vector<double> samples;
+    samples.reserve(plan.measured_runs);
+    std::uint64_t semantic_hash = 0U;
+    bool semantic_hash_stable = true;
+    for (std::size_t index = 0U; index < plan.measured_runs; ++index) {
+        const auto result = measure();
+        if (result.first < 0.0) {
             return 1;
         }
-        cache_samples.push_back(
-            std::chrono::duration_cast<Microseconds>(Clock::now() - begin).count());
-    }
-    std::array<std::int64_t, 7U> style_samples{};
-    for (std::size_t style = 0U; style < style_samples.size(); ++style) {
-        options.seed = 101U + static_cast<std::uint64_t>(style);
-        options.hair_style = static_cast<genomes::infantry::HairStyle>(style);
-        const auto begin = Clock::now();
-        if (!genomes::infantry::AppearanceCompiler::build(
-                phenotype.value(), rig.value(), options)) {
-            return 1;
+        samples.push_back(result.first);
+        if (index == 0U) {
+            semantic_hash = result.second;
+        } else {
+            semantic_hash_stable = semantic_hash_stable && semantic_hash == result.second;
         }
-        style_samples[style] =
-            std::chrono::duration_cast<Microseconds>(Clock::now() - begin).count();
     }
-    genomes::infantry::InfantryModelCompiler model_compiler;
-    std::vector<std::int64_t> equipment_samples;
-    const auto loadouts = genomes::infantry::infantryLoadouts();
-    equipment_samples.reserve(loadouts.size());
-    for (const auto& loadout : loadouts) {
-        genomes::infantry::InfantryModelRequest request{};
-        request.seed = 0x5EED2026U;
-        request.loadout_id = loadout.id;
-        const auto begin = Clock::now();
-        if (!model_compiler.compile(request)) {
-            return 1;
+    const auto raw_samples = samples;
+    const auto statistics = genomes::benchmark::sortedPr16Samples(std::move(samples));
+    std::cout << "status=" << (plan.requiresBaseline() ? "BASELINE_REQUIRED" : plan.status)
+              << " baseline_status=" << plan.baseline_status
+              << " workload=" << plan.workload_id << " fixture=" << fixture.generic_string()
+              << " entry_point=" << plan.entry_point << " seed=" << plan.seed
+              << " entity_count=" << plan.entity_count
+              << " duration_seconds=" << plan.duration_seconds
+              << " warmup_runs=" << plan.warmup_runs
+              << " warmups_discarded=true"
+              << " measured_runs=" << plan.measured_runs
+              << " required_metrics=" << genomes::benchmark::pr16MetricList(plan)
+              << " median_us=" << statistics.percentile(0.50)
+              << " p95_us=" << statistics.percentile(0.95)
+              << " p99_us=" << statistics.percentile(0.99)
+              << " max_us=" << statistics.maximum() << " semantic_hash=0x" << std::hex
+              << semantic_hash << std::dec << " semantic_hash_scope=artifact_summary"
+              << " semantic_hash_stable=" << (semantic_hash_stable ? "true" : "false")
+              << " allocations=NOT_INSTRUMENTED bytes=NOT_INSTRUMENTED samples_us=";
+    for (std::size_t index = 0U; index < raw_samples.size(); ++index) {
+        if (index != 0U) {
+            std::cout << ',';
         }
-        equipment_samples.push_back(
-            std::chrono::duration_cast<Microseconds>(Clock::now() - begin).count());
+        std::cout << raw_samples[index];
     }
-    std::cout << "infantry_appearance builds=" << builds << " vertices=" << vertices
-              << " unique_avg_us=" << (unique_samples.empty() ? 0 :
-                    std::accumulate(unique_samples.begin(), unique_samples.end(), std::int64_t{0}) /
-                    static_cast<std::int64_t>(unique_samples.size()))
-              << " unique_p50_us=" << percentile(unique_samples, 0.50)
-              << " unique_p95_us=" << percentile(unique_samples, 0.95)
-              << " cache_p50_us=" << percentile(cache_samples, 0.50)
-              << " cache_p95_us=" << percentile(cache_samples, 0.95)
-              << " styles_p95_us=" << percentile(
-                    std::vector<std::int64_t>(style_samples.begin(), style_samples.end()), 0.95)
-              << " equipment_p95_us=" << percentile(equipment_samples, 0.95)
-              << " equipment_loadouts=" << loadouts.size()
-              << " cache_hits=" << cache.hits() << " cache_misses=" << cache.misses() << '\n';
+    std::cout << '\n';
     return 0;
 }

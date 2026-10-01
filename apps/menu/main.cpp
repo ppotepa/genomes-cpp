@@ -1,8 +1,10 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/simulation/FixedStepClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -11,6 +13,18 @@
 #include <variant>
 
 int main() {
+    auto loaded_world_profile = genomes::world::loadWorldGenerationProfile(
+        "mods/core/profiles/world-generation.json");
+    if (!loaded_world_profile) {
+        std::cerr << "Could not load world generation profile\n";
+        return 1;
+    }
+    auto loaded_building_profile = genomes::buildings::loadBuildingProfile(
+        "mods/core/profiles/building.json");
+    if (!loaded_building_profile) {
+        std::cerr << "Could not load building profile\n";
+        return 1;
+    }
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
@@ -19,6 +33,12 @@ int main() {
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     genomes::application::BuiltinSceneConfig config{};
     config.real_battlefield = false;
+    config.world_generation_profile =
+        std::make_shared<const genomes::world::FrozenWorldGenerationProfile>(
+            std::move(loaded_world_profile.value()));
+    config.building_profile =
+        std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
+            std::move(loaded_building_profile.value()));
     genomes::application::BuiltinSceneCatalog catalog{std::move(config)};
     catalog.install(director);
 

@@ -13,16 +13,17 @@
 namespace genomes::world {
 
 struct CityGenerationRequest final {
-    proc::Seed seed{0x5EED2026ull};
-    std::uint32_t map_size_m{600};
-    float buildings{0.55F};
-    float fenced_parcels{0.48F};
+    proc::Seed seed{0U};
+    std::uint32_t map_size_m{0U};
+    float buildings{0.0F};
+    float fenced_parcels{0.0F};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto valid_density = [](float value) {
             return std::isfinite(value) && value >= 0.0F && value <= 1.0F;
         };
-        return map_size_m >= 128 && map_size_m <= 4096 && valid_density(buildings) &&
+        return seed != 0U && map_size_m >= 128 && map_size_m <= 4096 &&
+               valid_density(buildings) &&
                valid_density(fenced_parcels);
     }
 };

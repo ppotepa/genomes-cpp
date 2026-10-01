@@ -14,6 +14,7 @@ genomes_set_project_warnings(genomes_world_core)
 
 add_library(genomes_world_generation STATIC
     src/CityGenerator.cpp
+    src/WorldGenerationProfile.cpp
     src/WorldGenerationTask.cpp
     src/WorldRegionStreamer.cpp
     src/WorldGenerator.cpp
@@ -21,7 +22,10 @@ add_library(genomes_world_generation STATIC
 
 target_include_directories(genomes_world_generation PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_include_directories(genomes_world_generation PRIVATE
+    "${CMAKE_SOURCE_DIR}/external/json/single_include")
 target_link_libraries(genomes_world_generation PUBLIC
+    genomes::content
     genomes_world_core
     genomes::foundation
     genomes::proc

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "core.building-profile",
+  "site_generation": {
+    "floor_height": 2.8,
+    "wall_thickness": 0.25,
+    "target_room_width": 6.0,
+    "minimum_rooms_per_floor": 1,
+    "maximum_rooms_per_floor": 8
+  },
+  "lab_preview": {
+    "id": "building-lab.preview",
+    "footprint": [18.0, 1.0, 14.0],
+    "floors": 2,
+    "floor_height": 3.0,
+    "wall_thickness": 0.30,
+    "rooms_per_floor": 3
+  }
+}

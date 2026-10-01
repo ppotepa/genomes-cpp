@@ -12,9 +12,10 @@ namespace genomes::gameplay {
 
 foundation::Result<void, foundation::Error> WorldScenario::requestNew(
     const world::WorldGenerationRequest& request) {
-    if (!request.valid()) {
+    if (!request.valid() || building_profile_ == nullptr || !building_profile_->frozen()) {
         return foundation::Result<void, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "invalid world scenario request"});
+            {foundation::ErrorCode::InvalidArgument,
+             "invalid world scenario request or building profile"});
     }
     pending_ = generation_service_.submit(request);
     pending_request_ = request;
@@ -65,7 +66,8 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
                                "world generation completed without a request"};
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
     }
-    const auto artifact = compileArtifact(std::move(*candidate), *completed_request);
+    const auto artifact = compileArtifact(std::move(*candidate), *completed_request,
+                                          *building_profile_);
     if (!artifact) {
         status_.last_error = artifact.error();
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
@@ -184,11 +186,13 @@ bool WorldScenario::validCandidate(const world::WorldPlan& plan) noexcept {
 }
 
 foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifact(
-    world::WorldPlan plan, const world::WorldGenerationRequest& request) {
-    if (!request.valid() || !validCandidate(plan) || plan.seed != request.seed) {
+    world::WorldPlan plan, const world::WorldGenerationRequest& request,
+    const buildings::FrozenBuildingProfile& building_profile) {
+    if (!request.valid() || !validCandidate(plan) || plan.seed != request.seed ||
+        !building_profile.frozen()) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument,
-             "world artifact request and generated plan do not match"});
+             "world artifact request, generated plan, and building profile do not match"});
     }
 
     const world::GridLayout layout = world::GridLayout::forMap(request.map_size_m);
@@ -231,7 +235,8 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     auto resolved_buildings = std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
     resolved_buildings->reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
-        auto building = buildings::BuildingGenerator::generateSite(site);
+        auto building = buildings::BuildingGenerator::generateSite(
+            site, building_profile.siteGeneration());
         if (!building) {
             return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
                 building.error());

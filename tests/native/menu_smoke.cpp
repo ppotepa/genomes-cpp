@@ -1,12 +1,15 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/game_scenes/BattlefieldScene.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/game_scenes/WorldConfigScene.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <memory>
 #include <thread>
 #include <string>
@@ -32,6 +35,20 @@ private:
 } // namespace
 
 int main() {
+    const auto loaded_world_profile = genomes::world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    assert(loaded_world_profile);
+    const auto world_profile =
+        std::make_shared<const genomes::world::FrozenWorldGenerationProfile>(
+            loaded_world_profile.value());
+    const auto world_config = world_profile->makeDefaultRequest();
+    const auto loaded_building_profile = genomes::buildings::loadBuildingProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/building.json");
+    assert(loaded_building_profile);
+    const auto building_profile =
+        std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
+            loaded_building_profile.value());
     const auto automatic_seed = genomes::runtime::WorldSeedInput::automatic().resolve(0U);
     assert(automatic_seed && automatic_seed.value() != 0U);
     const auto invalid_explicit_seed =
@@ -60,6 +77,8 @@ int main() {
             catalog_renderer, catalog_ui, catalog_presentation);
         genomes::runtime::BuiltinSceneConfig catalog_config{};
         catalog_config.real_battlefield = false;
+        catalog_config.world_generation_profile = world_profile;
+        catalog_config.building_profile = building_profile;
         genomes::runtime::BuiltinSceneCatalog catalog{catalog_config};
         assert(!catalog.entries().empty());
         catalog.install(catalog_director);
@@ -70,14 +89,16 @@ int main() {
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
-    genomes::runtime::configureBuiltinSceneRouting(director);
+    auto active_world_config =
+        std::make_shared<genomes::application::WorldGenerationConfig>(world_config);
+    genomes::runtime::configureBuiltinSceneRouting(director, active_world_config);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
     const auto world_config_id = genomes::foundation::scene_id("scene.world-config");
     const auto battlefield_id = genomes::foundation::scene_id("scene.battlefield");
-    director.register_scene(menu_id, [] {
-        return std::make_unique<genomes::runtime::MainMenuScene>();
+    director.register_scene(menu_id, [world_profile] {
+        return std::make_unique<genomes::runtime::MainMenuScene>(world_profile);
     });
     const auto duplicate_menu = director.register_scene(menu_id, [] {
         return std::make_unique<DummyScene>(genomes::foundation::scene_id("scene.main-menu"));
@@ -87,11 +108,13 @@ int main() {
     director.register_scene(unit_lab_id, [unit_lab_id] {
         return std::make_unique<DummyScene>(unit_lab_id);
     });
-    director.register_scene(world_config_id, [] {
-        return std::make_unique<genomes::runtime::WorldConfigScene>();
+    director.register_scene(world_config_id, [world_profile, active_world_config] {
+        return std::make_unique<genomes::runtime::WorldConfigScene>(
+            world_profile, *active_world_config);
     });
-    director.register_scene(battlefield_id, [] {
-        return std::make_unique<genomes::runtime::BattlefieldScene>();
+    director.register_scene(battlefield_id, [active_world_config, building_profile] {
+        return std::make_unique<genomes::runtime::BattlefieldScene>(
+            *active_world_config, building_profile);
     });
 
     assert(director.start(menu_id));

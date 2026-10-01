@@ -1,4 +1,5 @@
 #include <genomes/foundation/BuildInfo.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/gameplay/BattlefieldScenario.hpp>
 #endif
@@ -6,10 +7,12 @@
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/simulation/SimulationCommand.hpp>
 #include <genomes/simulation/WorldEcs.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <algorithm>
 #include <array>
 #include <iostream>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <thread>
@@ -97,10 +100,27 @@ int main(int argc, char** argv) {
     // battlefield scene.
     if (argc > 1 && argv != nullptr && argv[1] != nullptr &&
         std::string_view{argv[1]} == "--world") {
+        auto loaded_world_profile = genomes::world::loadWorldGenerationProfile(
+            "mods/core/profiles/world-generation.json");
+        if (!loaded_world_profile) {
+            std::cerr << "world profile load failed: "
+                      << loaded_world_profile.error().message << '\n';
+            return 1;
+        }
+        auto loaded_building_profile = genomes::buildings::loadBuildingProfile(
+            "mods/core/profiles/building.json");
+        if (!loaded_building_profile) {
+            std::cerr << "building profile load failed: "
+                      << loaded_building_profile.error().message << '\n';
+            return 1;
+        }
+        auto building_profile =
+            std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
+                std::move(loaded_building_profile.value()));
         genomes::jobs::JobSystem world_jobs(2U);
-        genomes::gameplay::WorldScenario world(world_jobs);
-        genomes::world::WorldGenerationRequest request{};
-        request.seed = 0x5EED2026ULL;
+        genomes::gameplay::WorldScenario world(world_jobs, std::move(building_profile));
+        const genomes::world::WorldGenerationRequest request =
+            loaded_world_profile.value().makeDefaultRequest();
         if (!world.startNew(request)) {
             std::cerr << "world generation failed: " << world.status().last_error.message << '\n';
             return 1;

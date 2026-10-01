@@ -1,14 +1,27 @@
 #include <genomes/gameplay/WorldScenario.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <filesystem>
+#include <memory>
 
 int main() {
     using namespace genomes;
+    const auto loaded_building_profile = buildings::loadBuildingProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/building.json");
+    assert(loaded_building_profile);
+    const auto building_profile = std::make_shared<const buildings::FrozenBuildingProfile>(
+        std::move(loaded_building_profile.value()));
     jobs::JobSystem headless_jobs(2U);
     jobs::JobSystem graphical_jobs(2U);
-    gameplay::WorldScenario headless(headless_jobs);
-    gameplay::WorldScenario graphical(graphical_jobs);
-    world::WorldGenerationRequest request{};
+    gameplay::WorldScenario headless(headless_jobs, building_profile);
+    gameplay::WorldScenario graphical(graphical_jobs, building_profile);
+    const auto profile = world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    assert(profile);
+    world::WorldGenerationRequest request = profile.value().makeDefaultRequest();
     auto zero_seed = request;
     zero_seed.seed = 0U;
     assert(!zero_seed.valid());

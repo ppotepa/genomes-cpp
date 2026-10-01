@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/gameplay/WorldScenario.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/jobs/JobSystem.hpp>
@@ -8,6 +9,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -39,7 +41,9 @@ struct ViewerArtifact final {
 
 class ProcViewerApp final {
 public:
-    explicit ProcViewerApp(std::uint32_t workers = 2U);
+    explicit ProcViewerApp(
+        std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
+        std::uint32_t workers = 2U);
 
     [[nodiscard]] static std::span<const ViewerMode> modes() noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> selectMode(ViewerMode mode) noexcept;

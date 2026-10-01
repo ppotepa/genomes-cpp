@@ -3,6 +3,7 @@
 #include <genomes/combat/CombatSystem.hpp>
 #include <genomes/combat/TacticalAI.hpp>
 #include <genomes/buildings/BuildingModel.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
 #endif
@@ -40,11 +41,11 @@ namespace genomes::runtime {
 
 class BattlefieldScene final : public Scene {
 public:
-    explicit BattlefieldScene(combat::TacticalAIProfile tactical_ai_profile = {})
-        : tactical_ai_profile_{tactical_ai_profile} {}
     BattlefieldScene(application::WorldGenerationConfig config,
+                     std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
                      combat::TacticalAIProfile tactical_ai_profile = {})
-        : config_{std::move(config)}, tactical_ai_profile_{tactical_ai_profile} {}
+        : config_{std::move(config)}, building_profile_{std::move(building_profile)},
+          tactical_ai_profile_{tactical_ai_profile} {}
 
     [[nodiscard]] foundation::SceneId id() const noexcept override;
     void on_enter(SceneContext&) override;
@@ -68,6 +69,7 @@ private:
 #endif
 
     application::WorldGenerationConfig config_{};
+    std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile_;
     std::optional<world::WorldPlan> plan_;
     std::shared_ptr<const std::vector<buildings::BuildingGenerationResult>> resolved_buildings_;
     std::unique_ptr<gameplay::WorldScenario> scenario_;

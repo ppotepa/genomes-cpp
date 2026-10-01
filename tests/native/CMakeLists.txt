@@ -80,9 +80,25 @@ add_test(NAME infantry.appearance_catalog_source
         -P "${CMAKE_CURRENT_SOURCE_DIR}/appearance_catalog_guard.cmake")
 set_tests_properties(infantry.appearance_catalog_source PROPERTIES
     LABELS "source;cpu;infantry;content")
+add_test(NAME buildings.profile_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/building_profile_guard.cmake")
+set_tests_properties(buildings.profile_source_contract PROPERTIES
+    LABELS "source;cpu;buildings;content")
+add_test(NAME pr16.measurement_benchmark_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/pr16_measurement_benchmark_guard.cmake")
+set_tests_properties(pr16.measurement_benchmark_source_contract PROPERTIES
+    LABELS "source;cpu;benchmark;performance")
+add_test(NAME world.generation_profile_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/world_generation_profile_guard.cmake")
+set_tests_properties(world.generation_profile_source_contract PROPERTIES
+    LABELS "source;cpu;world;content")
 
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp
+    public_header_building_profile.cpp
     public_header_content.cpp
     public_header_gameplay.cpp
     public_header_navigation.cpp
@@ -90,8 +106,10 @@ add_executable(genomes_test_public_header_consumer
     public_header_world.cpp
     public_header_world_core.cpp
     public_header_world_generation.cpp
+    public_header_world_generation_profile.cpp
     public_header_world_render.cpp)
 target_link_libraries(genomes_test_public_header_consumer PRIVATE
+    genomes::buildings
     genomes::content
     genomes::gameplay
     genomes::navigation
@@ -214,6 +232,8 @@ add_test(NAME foundation.memory_budget COMMAND genomes_test_memory_budget)
 
 add_executable(genomes_test_menu_smoke menu_smoke.cpp)
 target_link_libraries(genomes_test_menu_smoke PRIVATE genomes::application_scenes)
+target_compile_definitions(genomes_test_menu_smoke PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_menu_smoke)
 genomes_enable_test_assertions(genomes_test_menu_smoke)
 
@@ -221,6 +241,8 @@ add_test(NAME menu_smoke COMMAND genomes_test_menu_smoke)
 
 add_executable(genomes_test_world_lab_smoke world_lab_smoke.cpp)
 target_link_libraries(genomes_test_world_lab_smoke PRIVATE genomes::application_scenes)
+target_compile_definitions(genomes_test_world_lab_smoke PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_world_lab_smoke)
 genomes_enable_test_assertions(genomes_test_world_lab_smoke)
 add_test(NAME runtime.world_lab_smoke COMMAND genomes_test_world_lab_smoke)
@@ -409,6 +431,27 @@ genomes_set_project_warnings(genomes_test_building_generator)
 genomes_enable_test_assertions(genomes_test_building_generator)
 add_test(NAME buildings.generator COMMAND genomes_test_building_generator)
 set_tests_properties(buildings.generator PROPERTIES LABELS "cpu;buildings")
+
+add_executable(genomes_test_building_profile
+    buildings/building_profile_tests.cpp)
+target_link_libraries(genomes_test_building_profile PRIVATE genomes::buildings)
+target_compile_definitions(genomes_test_building_profile PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_building_profile)
+genomes_enable_test_assertions(genomes_test_building_profile)
+add_test(NAME buildings.profile COMMAND genomes_test_building_profile)
+set_tests_properties(buildings.profile PROPERTIES LABELS "cpu;buildings;content")
+
+add_executable(genomes_test_world_generation_profile
+    world_generation_profile_tests.cpp)
+target_link_libraries(genomes_test_world_generation_profile PRIVATE
+    genomes::world_generation)
+target_compile_definitions(genomes_test_world_generation_profile PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_world_generation_profile)
+genomes_enable_test_assertions(genomes_test_world_generation_profile)
+add_test(NAME world.generation_profile COMMAND genomes_test_world_generation_profile)
+set_tests_properties(world.generation_profile PROPERTIES LABELS "cpu;world;content")
 
 add_executable(genomes_test_flow_field
     navigation/flow_field_tests.cpp)
@@ -730,6 +773,8 @@ add_test(NAME combat.influence_field COMMAND genomes_test_influence_field)
 add_executable(genomes_test_native_world_assembly
     native_world_assembly_tests.cpp)
 target_link_libraries(genomes_test_native_world_assembly PRIVATE genomes::gameplay)
+target_compile_definitions(genomes_test_native_world_assembly PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_native_world_assembly)
 genomes_enable_test_assertions(genomes_test_native_world_assembly)
 add_test(NAME integration.native_world_assembly COMMAND genomes_test_native_world_assembly)
@@ -737,6 +782,8 @@ add_test(NAME integration.native_world_assembly COMMAND genomes_test_native_worl
 add_executable(genomes_test_world_parity
     world_parity_tests.cpp)
 target_link_libraries(genomes_test_world_parity PRIVATE genomes::gameplay)
+target_compile_definitions(genomes_test_world_parity PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_world_parity)
 genomes_enable_test_assertions(genomes_test_world_parity)
 add_test(NAME integration.world_parity COMMAND genomes_test_world_parity)
@@ -744,6 +791,8 @@ add_test(NAME integration.world_parity COMMAND genomes_test_world_parity)
 add_executable(genomes_test_world_streaming
     world_streaming_tests.cpp)
 target_link_libraries(genomes_test_world_streaming PRIVATE genomes::world_generation)
+target_compile_definitions(genomes_test_world_streaming PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_world_streaming)
 genomes_enable_test_assertions(genomes_test_world_streaming)
 add_test(NAME integration.world_streaming COMMAND genomes_test_world_streaming)
@@ -758,6 +807,8 @@ add_test(NAME integration.world_save COMMAND genomes_test_world_save)
 add_executable(genomes_test_proc_viewer
     proc_viewer_smoke_tests.cpp)
 target_link_libraries(genomes_test_proc_viewer PRIVATE genomes::proc_viewer_core)
+target_compile_definitions(genomes_test_proc_viewer PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_proc_viewer)
 genomes_enable_test_assertions(genomes_test_proc_viewer)
 add_test(NAME tools.proc_viewer COMMAND genomes_test_proc_viewer)

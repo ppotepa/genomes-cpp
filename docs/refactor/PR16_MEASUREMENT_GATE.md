@@ -1,8 +1,8 @@
 # PR16 / R054 — measurement-led optimization gate
 
-Status: **PLANNED**. This commit supplies the measurement contract only. It
-does not implement an optimization, establish a performance baseline, or claim
-that any benchmark has run.
+Status: **SOURCE_READY / BASELINE_REQUIRED**. The fixture remains a measurement
+contract only: this change does not implement an optimization, establish a
+performance baseline, or claim that any benchmark has run.
 
 R054 says that only measured optimizations ship, execution tuning preserves the
 D1/D2 results, and the target/p95 gate must be met. The repository currently
@@ -23,11 +23,16 @@ runs:
 - three warmups followed by ten measured runs;
 - median, p95, p99, max, semantic hash, allocation count and allocated bytes.
 
-The entry-point names identify the intended benchmark sources/targets. The
-infantry source benchmarks are registered in `benchmarks/CMakeLists.txt`, but
-they are not yet consumers of this fixture's seed, warmup, metric, or report
-contract. Adding a new executable or changing a workload input requires a
-schema/fixture revision and a new review; it is not an optimization result.
+The entry-point names identify the benchmark sources/targets. The two infantry
+source benchmarks now consume the fixture through the benchmark-only
+`Pr16Measurement.hpp` reader: seed, entity count, duration, warmup count,
+measured count and required metric names come from the selected workload. Each
+report explicitly emits `status=BASELINE_REQUIRED` while the fixture has no
+user baseline. Allocation/byte counters are reported as
+`NOT_INSTRUMENTED`, never as zero; measured samples are emitted as
+`samples_us` for evidence capture. Adding a new executable or changing a
+workload input requires a schema/fixture revision and a new review; it is not
+an optimization result.
 
 ## D1/D2 acceptance
 
@@ -65,6 +70,7 @@ and raw evidence.
 Only then may a follow-up change fill `baseline`, `target_p95`, and
 `allowed_regression_percent`, review the gate, and move R054 out of `PLANNED`.
 
-This artifact deliberately does not add a CMake target or CTest test: source
-readiness and user benchmark verification remain separate in the architecture
-tracker.
+The source guard
+`tests/native/pr16_measurement_benchmark_guard.cmake` checks that both
+registered infantry benchmark targets consume this contract. Source readiness
+and user benchmark verification remain separate in the architecture tracker.

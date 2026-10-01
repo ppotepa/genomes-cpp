@@ -1,15 +1,27 @@
 #include <genomes/gameplay/WorldScenario.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/world/GridLayout.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <filesystem>
+#include <memory>
 
 int main() {
     using namespace genomes;
+    const auto loaded_building_profile = buildings::loadBuildingProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/building.json");
+    assert(loaded_building_profile);
+    const auto building_profile = std::make_shared<const buildings::FrozenBuildingProfile>(
+        std::move(loaded_building_profile.value()));
     jobs::JobSystem jobs(2U);
-    gameplay::WorldScenario scenario(jobs);
-    world::WorldGenerationRequest request{};
-    request.seed = 0x12345678ULL;
-    request.map_size_m = 600U;
+    gameplay::WorldScenario scenario(jobs, building_profile);
+    const auto profile = world::loadWorldGenerationProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "mods/core/profiles/world-generation.json");
+    assert(profile);
+    const world::WorldGenerationRequest request =
+        profile.value().makeRequest(0x12345678ULL);
     assert(scenario.startNew(request));
     assert(scenario.activePlan() != nullptr);
     const auto first_hash = scenario.status().active_content_hash;
@@ -35,7 +47,7 @@ int main() {
     assert(artifact->resolved_buildings->size() == artifact->plan.building_sites.size());
 
     const auto deterministic_artifact = gameplay::WorldScenario::compileArtifact(
-        artifact->plan, request);
+        artifact->plan, request, *building_profile);
     assert(deterministic_artifact && deterministic_artifact.value().valid());
     assert(deterministic_artifact.value().revision == artifact->revision);
     assert(deterministic_artifact.value().terrain->width() == artifact->terrain->width());

@@ -1,4 +1,5 @@
 #include <genomes/buildings/BuildingModel.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 
@@ -154,7 +155,8 @@ struct SiteBounds final {
 bool BuildingSpec::valid() const noexcept {
     if (building_id == 0 || seed == 0 || !std::isfinite(footprint.x) ||
         !std::isfinite(footprint.y) || !std::isfinite(footprint.z) || footprint.x < 2.0F ||
-        footprint.z < 2.0F || floors == 0 || floors > 32 || !std::isfinite(floor_height) ||
+        footprint.y <= 0.0F || footprint.z < 2.0F || floors == 0 || floors > 32 ||
+        !std::isfinite(floor_height) ||
         floor_height <= 1.5F || floor_height > 10.0F || !std::isfinite(wall_thickness) ||
         wall_thickness <= 0.05F ||
         wall_thickness >= std::min(footprint.x, footprint.z) * 0.25F || rooms_per_floor == 0 ||
@@ -275,10 +277,10 @@ foundation::Result<BuildingPlan, foundation::Error> BuildingGenerator::generate(
 }
 
 foundation::Result<BuildingGenerationResult, foundation::Error> BuildingGenerator::generateSite(
-    const world::BuildingSiteRequest& request) {
-    if (!request.valid()) {
+    const world::BuildingSiteRequest& request, const BuildingSiteGenerationProfile& profile) {
+    if (!request.valid() || !profile.valid()) {
         return foundation::Result<BuildingGenerationResult, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidArgument, "invalid building site request"});
+            {foundation::ErrorCode::InvalidArgument, "invalid building site request or profile"});
     }
 
     SiteBounds bounds{};
@@ -309,9 +311,11 @@ foundation::Result<BuildingGenerationResult, foundation::Error> BuildingGenerato
     spec.footprint = {std::min(request.preferred_footprint.x, available_x), 1.0F,
                       std::min(request.preferred_footprint.z, available_z)};
     spec.floors = floors;
-    spec.floor_height = 2.8F;
+    spec.floor_height = profile.floor_height;
+    spec.wall_thickness = profile.wall_thickness;
     spec.rooms_per_floor = std::clamp<std::uint32_t>(
-        static_cast<std::uint32_t>(std::lround(spec.footprint.x / 6.0F)), 1U, 8U);
+        static_cast<std::uint32_t>(std::lround(spec.footprint.x / profile.target_room_width)),
+        profile.minimum_rooms_per_floor, profile.maximum_rooms_per_floor);
     const auto generated = generate(spec);
     if (!generated) {
         return foundation::Result<BuildingGenerationResult, foundation::Error>::failure(

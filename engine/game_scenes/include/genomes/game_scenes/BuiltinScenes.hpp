@@ -1,7 +1,9 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/game_scenes/WorldConfig.hpp>
+#include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <functional>
 #include <memory>
@@ -25,6 +27,8 @@ namespace genomes::application {
 
 struct BuiltinSceneConfig final {
     bool real_battlefield{true};
+    std::shared_ptr<const world::FrozenWorldGenerationProfile> world_generation_profile;
+    std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile;
 #if GENOMES_HAS_INFANTRY
     std::optional<combat::TacticalAIProfile> tactical_ai_profile;
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog;
@@ -43,7 +47,7 @@ struct BuiltinSceneEntry final {
 // (start/change/update) independent from the product catalog.
 class BuiltinSceneCatalog final {
 public:
-    explicit BuiltinSceneCatalog(BuiltinSceneConfig config = {});
+    explicit BuiltinSceneCatalog(BuiltinSceneConfig config);
 
     [[nodiscard]] std::span<const BuiltinSceneEntry> entries() const noexcept {
         return entries_;
@@ -61,9 +65,8 @@ private:
 // this application-scene header.
 void configureBuiltinSceneRouting(
     runtime::SceneDirector&,
-    std::shared_ptr<WorldGenerationConfig> active_config = {});
+    std::shared_ptr<WorldGenerationConfig> active_config);
 void registerBuiltinScenes(runtime::SceneDirector&, BuiltinSceneConfig config);
-void registerBuiltinScenes(runtime::SceneDirector&, bool real_battlefield = true);
 
 } // namespace genomes::application
 

@@ -14,7 +14,10 @@ constexpr std::array<ViewerMode, 7> kModes{
 
 } // namespace
 
-ProcViewerApp::ProcViewerApp(std::uint32_t workers) : jobs_(workers), scenario_(jobs_) {}
+ProcViewerApp::ProcViewerApp(
+    std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
+    std::uint32_t workers)
+    : jobs_(workers), scenario_(jobs_, std::move(building_profile)) {}
 
 std::span<const ViewerMode> ProcViewerApp::modes() noexcept { return kModes; }
 
