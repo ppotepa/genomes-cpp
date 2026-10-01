@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **37/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **39/55 decisions CODE_READY; 6/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -45,8 +45,8 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R022 | PR05 | foundation/content | EXT | Owning `Diagnostic` carries dynamic path/field/source text; lightweight `foundation::Error` remains static. | CODE_READY | 76cd265 | NOT_RUN | - | `UiContentError` owns message/path/field/source; `foundation::Error` remains unchanged. |
 | R023 | PR05 | plugins | FIX | Native plugins require user permission plus `trusted_native`; C ABI is exception-safe with rollback and reverse dependency unload. | CODE_READY | 10601b2 | NOT_RUN | - | Plugin manager keeps host API alive through unload and rolls back failed loads. |
 | R024 | PR06 | content | REF | Content module owns bounded read, manifests, provenance, canonical hashing and frozen snapshots; domains own fields. | CODE_READY | c69491c | NOT_RUN | - | `content.snapshot` covers bounded read, root-safe resolution, manifest core fields and frozen provenance; Tactical AI and UI registry consume the shared content boundaries. |
-| R025 | PR06 | configuration | REF | Configuration flow is defaults/core/profile/topological overrides/allowed CLI, then validate, resolve, canonicalize, fingerprint and freeze. | PLANNED | - | NOT_RUN | - | - |
-| R026 | PR06 | configuration | FIX | Core unknown fields and missing references fail; IDs differ from display names; snapshots own stable text independent of JSON DOM. | PLANNED | - | NOT_RUN | - | - |
+| R025 | PR06 | configuration | REF | Configuration flow is defaults/core/profile/topological overrides/allowed CLI, then validate, resolve, canonicalize, fingerprint and freeze. | CODE_READY | e195e39 | NOT_RUN | - | `content.configuration_snapshot` covers deterministic layer ordering, override resolution, canonical hashes and frozen scalar snapshots. |
+| R026 | PR06 | configuration | FIX | Core unknown fields and missing references fail; IDs differ from display names; snapshots own stable text independent of JSON DOM. | CODE_READY | e195e39 | NOT_RUN | - | `content.configuration_snapshot` covers core unknown fields, missing references, distinct id/display_name values, owning strings and rejected CLI fields. |
 | R027 | PR06 | configuration | EXT | Typed simulation, presentation and execution hashes derive from canonical values. | CODE_READY | 559ba9f | NOT_RUN | - | `foundation.config_hash` covers canonical field ordering and distinct typed hash spaces; Tactical AI uses the simulation hash after parsing and validation. |
 | R028 | PR06 | combat AI | DATA | Tactical AI profile moves without tuning to typed core content; runtime stores no parser/DOM. | CODE_READY | ec69179 | NOT_RUN | - | `tactical-ai.json` is strict-loaded in the game composition root; `BattlefieldScenarioConfig` receives only `TacticalAIProfile`; combat and battlefield profile tests cover parity and injection. |
 | R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers tick context. |
