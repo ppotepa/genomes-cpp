@@ -23,6 +23,7 @@ public:
     void unload() noexcept;
     [[nodiscard]] const std::vector<std::string>& registered_scene_controllers() const noexcept { return scenes_; }
     [[nodiscard]] const std::vector<std::string>& registered_ui_actions() const noexcept { return actions_; }
+    [[nodiscard]] const std::vector<std::string>& callback_trace() const noexcept { return callback_trace_; }
 
 private:
     struct LoadedPlugin final {
@@ -33,6 +34,7 @@ private:
     std::vector<LoadedPlugin> plugins_;
     std::vector<std::string> scenes_;
     std::vector<std::string> actions_;
+    std::vector<std::string> callback_trace_;
 };
 
 } // namespace genomes::ui

@@ -40,12 +40,19 @@ void writeMod(const std::filesystem::path& root, const std::string& id, int prio
 }
 
 void writeNativeManifest(const std::filesystem::path& root, const std::string& id, int priority,
-                         const std::string& plugin_name, bool trusted) {
+                         const std::string& plugin_name, bool trusted,
+                         const std::vector<std::string>& dependencies = {}) {
+    std::string dependency_json = "[";
+    for (std::size_t index = 0U; index < dependencies.size(); ++index) {
+        if (index != 0U) dependency_json += ",";
+        dependency_json += "\"" + dependencies[index] + "\"";
+    }
+    dependency_json += "]";
     writeText(root / id / "mod.json",
               "{\"schema_version\":1,\"id\":\"" + id +
                   "\",\"version\":\"1.0.0\",\"load_priority\":" +
-                  std::to_string(priority) + ","
-                  "\"dependencies\":[],\"native_plugin\":\"" + plugin_name +
+                  std::to_string(priority) + ",\"dependencies\":" + dependency_json +
+                  ",\"native_plugin\":\"" + plugin_name +
                   "\",\"trusted_native\":" + (trusted ? "true" : "false") +
                   ",\"scenes\":[\"scenes/" + id + "\"]}");
 }
@@ -120,18 +127,20 @@ void nativePluginRequiresTrustedManifest() {
 }
 
 void nativePluginFixtureExercisesLoadAndRollback() {
-    const auto plugin_source = std::filesystem::path{GENOMES_TEST_NATIVE_PLUGIN_PATH};
-    assert(std::filesystem::is_regular_file(plugin_source));
+    const auto plugin_source_a = std::filesystem::path{GENOMES_TEST_NATIVE_PLUGIN_A_PATH};
+    const auto plugin_source_b = std::filesystem::path{GENOMES_TEST_NATIVE_PLUGIN_B_PATH};
+    assert(std::filesystem::is_regular_file(plugin_source_a));
+    assert(std::filesystem::is_regular_file(plugin_source_b));
     const auto root = std::filesystem::temp_directory_path() /
                       "genomes-ui-content-native-fixture";
     std::error_code cleanup_error;
     std::filesystem::remove_all(root, cleanup_error);
     std::filesystem::create_directories(root);
     writeMod(root, "good", 0, {});
-    const auto plugin_name = plugin_source.filename().string();
-    std::filesystem::copy_file(plugin_source, root / "good" / plugin_name,
+    const auto plugin_name_a = plugin_source_a.filename().string();
+    std::filesystem::copy_file(plugin_source_a, root / "good" / plugin_name_a,
                                std::filesystem::copy_options::overwrite_existing);
-    writeNativeManifest(root, "good", 0, plugin_name, true);
+    writeNativeManifest(root, "good", 0, plugin_name_a, true);
     writeMod(root, "bad", 1, {});
     writeNativeManifest(root, "bad", 1, "missing-plugin.dll", true);
 
@@ -147,14 +156,23 @@ void nativePluginFixtureExercisesLoadAndRollback() {
     assert(plugins.registered_ui_actions().empty());
 
     std::filesystem::remove_all(root / "bad", cleanup_error);
+    writeMod(root, "dependent", 1, {"good"});
+    const auto plugin_name_b = plugin_source_b.filename().string();
+    std::filesystem::copy_file(plugin_source_b, root / "dependent" / plugin_name_b,
+                               std::filesystem::copy_options::overwrite_existing);
+    writeNativeManifest(root, "dependent", 1, plugin_name_b, true, {"good"});
     const auto successful = genomes::ui::UiContentRegistry::discover(root);
     assert(successful);
     assert(plugins.load(successful.value(), true, &error));
-    assert(plugins.registered_scene_controllers().size() == 1U);
-    assert(plugins.registered_ui_actions().size() == 1U);
-    assert(plugins.registered_scene_controllers().front() == "test.plugin.scene");
-    assert(plugins.registered_ui_actions().front() == "test.plugin.action");
+    assert(plugins.registered_scene_controllers().size() == 2U);
+    assert(plugins.registered_ui_actions().size() == 2U);
+    assert(plugins.registered_scene_controllers()[0] == "test.plugin.a.scene");
+    assert(plugins.registered_scene_controllers()[1] == "test.plugin.b.scene");
     plugins.unload();
+    // Unload callbacks retain a valid host context and run dependent first.
+    assert(plugins.callback_trace().size() == 6U);
+    assert(plugins.callback_trace()[4] == "test.plugin.b.unload");
+    assert(plugins.callback_trace()[5] == "test.plugin.a.unload");
     assert(plugins.registered_scene_controllers().empty());
     assert(plugins.registered_ui_actions().empty());
     std::filesystem::remove_all(root, cleanup_error);

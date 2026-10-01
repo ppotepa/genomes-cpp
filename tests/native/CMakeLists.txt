@@ -309,20 +309,31 @@ genomes_set_project_warnings(genomes_test_world_lab_smoke)
 genomes_enable_test_assertions(genomes_test_world_lab_smoke)
 add_test(NAME runtime.world_lab_smoke COMMAND genomes_test_world_lab_smoke)
 
-add_library(genomes_test_native_ui_plugin SHARED
+add_library(genomes_test_native_ui_plugin_a SHARED
     plugins/ui_test_plugin.cpp)
-target_include_directories(genomes_test_native_ui_plugin PRIVATE
+target_include_directories(genomes_test_native_ui_plugin_a PRIVATE
     "${CMAKE_SOURCE_DIR}/engine/ui/include")
-set_target_properties(genomes_test_native_ui_plugin PROPERTIES
+target_compile_definitions(genomes_test_native_ui_plugin_a PRIVATE GENOMES_TEST_PLUGIN_ID="test.plugin.a")
+set_target_properties(genomes_test_native_ui_plugin_a PROPERTIES
     PREFIX "")
-genomes_set_project_warnings(genomes_test_native_ui_plugin)
+genomes_set_project_warnings(genomes_test_native_ui_plugin_a)
+
+add_library(genomes_test_native_ui_plugin_b SHARED
+    plugins/ui_test_plugin.cpp)
+target_include_directories(genomes_test_native_ui_plugin_b PRIVATE
+    "${CMAKE_SOURCE_DIR}/engine/ui/include")
+target_compile_definitions(genomes_test_native_ui_plugin_b PRIVATE GENOMES_TEST_PLUGIN_ID="test.plugin.b")
+set_target_properties(genomes_test_native_ui_plugin_b PROPERTIES PREFIX "")
+genomes_set_project_warnings(genomes_test_native_ui_plugin_b)
 
 add_executable(genomes_test_ui_content_registry ui_content_registry_tests.cpp)
 target_link_libraries(genomes_test_ui_content_registry PRIVATE genomes::ui)
 target_compile_definitions(genomes_test_ui_content_registry PRIVATE
     GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-    GENOMES_TEST_NATIVE_PLUGIN_PATH="$<TARGET_FILE:genomes_test_native_ui_plugin>")
-add_dependencies(genomes_test_ui_content_registry genomes_test_native_ui_plugin)
+    GENOMES_TEST_NATIVE_PLUGIN_A_PATH="$<TARGET_FILE:genomes_test_native_ui_plugin_a>"
+    GENOMES_TEST_NATIVE_PLUGIN_B_PATH="$<TARGET_FILE:genomes_test_native_ui_plugin_b>")
+add_dependencies(genomes_test_ui_content_registry
+    genomes_test_native_ui_plugin_a genomes_test_native_ui_plugin_b)
 genomes_set_project_warnings(genomes_test_ui_content_registry)
 genomes_enable_test_assertions(genomes_test_ui_content_registry)
 add_test(NAME ui.content_registry COMMAND genomes_test_ui_content_registry)

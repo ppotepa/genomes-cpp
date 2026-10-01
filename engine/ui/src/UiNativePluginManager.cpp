@@ -16,9 +16,11 @@ void set_error(UiPluginError* error, std::string message) {
     if (error != nullptr) error->message = std::move(message);
 }
 
-int register_id(GenomesModString id, std::vector<std::string>& target) {
+int register_id(GenomesModString id, std::vector<std::string>& target,
+                std::vector<std::string>& trace) {
     if (id.data == nullptr || id.size == 0 || id.size > 4096) return 0;
     target.emplace_back(id.data, id.size);
+    trace.emplace_back(id.data, id.size);
     return 1;
 }
 }
@@ -28,6 +30,7 @@ UiNativePluginManager::~UiNativePluginManager() { unload(); }
 bool UiNativePluginManager::load(const UiContentRegistry& registry, bool allow_native_plugins,
                                  UiPluginError* error) {
     unload();
+    callback_trace_.clear();
     for (const auto& mod : registry.mods()) {
         if (mod.native_plugin.empty()) continue;
         if (!allow_native_plugins || !mod.trusted_native) {
@@ -81,12 +84,12 @@ bool UiNativePluginManager::load(const UiContentRegistry& registry, bool allow_n
             sizeof(GenomesModHostApi), GENOMES_MOD_API_VERSION, this, nullptr,
             [](GenomesModString id, void* data) {
                 auto* manager = static_cast<UiNativePluginManager*>(data);
-                try { return manager == nullptr ? 0 : register_id(id, manager->scenes_); }
+                try { return manager == nullptr ? 0 : register_id(id, manager->scenes_, manager->callback_trace_); }
                 catch (...) { return 0; }
             },
             [](GenomesModString id, void* data) {
                 auto* manager = static_cast<UiNativePluginManager*>(data);
-                try { return manager == nullptr ? 0 : register_id(id, manager->actions_); }
+                try { return manager == nullptr ? 0 : register_id(id, manager->actions_, manager->callback_trace_); }
                 catch (...) { return 0; }
             }});
         bool accepted = false;

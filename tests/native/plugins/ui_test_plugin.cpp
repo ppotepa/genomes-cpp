@@ -7,6 +7,10 @@ namespace {
 
 const GenomesModHostApi* host_api = nullptr;
 
+#ifndef GENOMES_TEST_PLUGIN_ID
+#  define GENOMES_TEST_PLUGIN_ID "test.plugin"
+#endif
+
 GenomesModString literal(const char* value) {
     return {value, static_cast<std::uint32_t>(std::strlen(value))};
 }
@@ -24,8 +28,8 @@ extern "C" GENOMES_MOD_EXPORT int genomes_mod_load(const GenomesModHostApi* host
         return 0;
     }
     host_api = host;
-    if (host_api->register_scene_controller(literal("test.plugin.scene"), host_api->user_data) == 0 ||
-        host_api->register_ui_action(literal("test.plugin.action"), host_api->user_data) == 0) {
+    if (host_api->register_scene_controller(literal(GENOMES_TEST_PLUGIN_ID ".scene"), host_api->user_data) == 0 ||
+        host_api->register_ui_action(literal(GENOMES_TEST_PLUGIN_ID ".action"), host_api->user_data) == 0) {
         host_api = nullptr;
         return 0;
     }
@@ -33,5 +37,9 @@ extern "C" GENOMES_MOD_EXPORT int genomes_mod_load(const GenomesModHostApi* host
 }
 
 extern "C" GENOMES_MOD_EXPORT void genomes_mod_unload(void) {
+    if (host_api != nullptr) {
+        const auto unload_id = literal(GENOMES_TEST_PLUGIN_ID ".unload");
+        (void)host_api->register_ui_action(unload_id, host_api->user_data);
+    }
     host_api = nullptr;
 }
