@@ -78,6 +78,21 @@ foreach(required_text IN ITEMS
     endif()
 endforeach()
 
+# T10: the executable regression must observe the authoritative identity
+# hand-off, not only aggregate fired/impact counters.
+file(READ "${GENOMES_SOURCE_DIR}/tests/native/battlefield_profile_tests.cpp"
+     battlefield_profile_test)
+foreach(required_test_text IN ITEMS
+        "last_shot_source.isValid()"
+        "last_impact_source == pipeline_snapshot.last_shot_source"
+        "last_impact_target.isValid()")
+    string(FIND "${battlefield_profile_test}" "${required_test_text}" test_position)
+    if(test_position EQUAL -1)
+        message(FATAL_ERROR
+                "T10 regression lost explicit EntityId assertion: ${required_test_text}")
+    endif()
+endforeach()
+
 # The graph declaration is the phase boundary: combat must be registered
 # before damage and both phases must be wired to callbacks.
 string(FIND "${battlefield}" "combat.phase = simulation::SystemPhase::CombatBallistics"
