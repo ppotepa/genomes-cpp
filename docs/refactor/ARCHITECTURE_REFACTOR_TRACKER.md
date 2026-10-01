@@ -55,7 +55,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | - | NOT_RUN | - | - |
 | R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | PLANNED | - | NOT_RUN | - | - |
 | R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | PLANNED | - | NOT_RUN | - | - |
-| R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | PLANNED | - | NOT_RUN | - | - |
+| R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 31f820e | NOT_RUN | - | `world.grid_layout` covers valid bounds and 129/601 rejection. |
 | R039 | PR09 | world | REF | One immutable `ResolvedWorldArtifacts` revision feeds render/collision/navigation/destruction. | PLANNED | - | NOT_RUN | - | - |
 | R040 | PR09 | world render | REF | Mesh compiler consumes resolved building plans and `PartId` draw ranges; it never invokes the generator. | PLANNED | - | NOT_RUN | - | - |
 | R041 | PR09 | world generation | REF | Each generation stage has its own SeedPath, version and dependency fingerprint. | PLANNED | - | NOT_RUN | - | - |
