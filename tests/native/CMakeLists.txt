@@ -494,6 +494,8 @@ add_test(NAME compute.cuda_interop COMMAND genomes_test_compute_cuda_interop)
 add_executable(genomes_test_destruction_materials
     destruction/material_solid_tests.cpp)
 target_link_libraries(genomes_test_destruction_materials PRIVATE genomes::destruction)
+target_compile_definitions(genomes_test_destruction_materials PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_destruction_materials)
 genomes_enable_test_assertions(genomes_test_destruction_materials)
 add_test(NAME destruction.materials COMMAND genomes_test_destruction_materials)

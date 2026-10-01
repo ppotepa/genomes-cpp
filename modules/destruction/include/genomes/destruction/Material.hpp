@@ -1,9 +1,16 @@
 #pragma once
 
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/content/ContentSnapshot.hpp>
+#include <genomes/foundation/ConfigHash.hpp>
+#include <genomes/foundation/Error.hpp>
+#include <genomes/foundation/Result.hpp>
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -52,7 +59,7 @@ enum class MaterialResponse : std::uint8_t {
 // are deliberately not presented as certified engineering data.
 struct MaterialDefinition final {
     MaterialId id{};
-    std::string_view name{};
+    std::string name{};
     float density_kg_m3{0.0F};
     float strength_pa{0.0F};
     float penetration_work_j_m3{0.0F};
@@ -60,7 +67,7 @@ struct MaterialDefinition final {
     float ricochet_factor{0.0F};
     float spall_threshold_j{0.0F};
     MaterialResponse response{MaterialResponse::Brittle};
-    std::string_view provenance{};
+    std::string provenance{};
 
     [[nodiscard]] bool valid() const noexcept;
 };
@@ -79,11 +86,22 @@ public:
     }
     [[nodiscard]] std::size_t size() const noexcept { return definitions_.size(); }
 
+    // A loaded catalog owns its resolved source provenance.  The pointer is
+    // null for the compatibility defaults until their source is migrated.
+    [[nodiscard]] const content::FrozenContentSnapshot* contentSnapshot() const noexcept {
+        return snapshot_ ? &*snapshot_ : nullptr;
+    }
+    [[nodiscard]] foundation::SimConfigHash fingerprint() const noexcept { return fingerprint_; }
+
     [[nodiscard]] static MaterialCatalog makeDefault();
+    [[nodiscard]] static foundation::Result<MaterialCatalog, foundation::Error>
+    load(const std::filesystem::path& path);
 
 private:
     std::vector<MaterialDefinition> definitions_;
     bool frozen_{false};
+    std::optional<content::FrozenContentSnapshot> snapshot_;
+    foundation::SimConfigHash fingerprint_{};
 };
 
 } // namespace genomes::destruction

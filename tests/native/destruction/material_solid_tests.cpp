@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <filesystem>
 #include <vector>
 
 int main() {
@@ -11,6 +12,30 @@ int main() {
     assert(catalog.frozen());
     assert(catalog.size() >= 9);
     assert(catalog.find(MaterialId::fromName("brick")) != nullptr);
+
+    const auto external = MaterialCatalog::load(
+        std::filesystem::path{GENOMES_SOURCE_DIR} /
+        "reference/fixtures/destruction/material_catalog_v1.json");
+    assert(external);
+    const MaterialCatalog& loaded = external.value();
+    assert(loaded.frozen());
+    assert(loaded.size() == catalog.size());
+    assert(loaded.contentSnapshot() != nullptr);
+    assert(loaded.contentSnapshot()->package_id == "destruction.materials");
+    assert(loaded.fingerprint().value != 0U);
+    for (const auto& expected : catalog.definitions()) {
+        const auto* actual = loaded.find(expected.id);
+        assert(actual != nullptr);
+        assert(actual->name == expected.name);
+        assert(actual->density_kg_m3 == expected.density_kg_m3);
+        assert(actual->strength_pa == expected.strength_pa);
+        assert(actual->penetration_work_j_m3 == expected.penetration_work_j_m3);
+        assert(actual->toughness_j_m2 == expected.toughness_j_m2);
+        assert(actual->ricochet_factor == expected.ricochet_factor);
+        assert(actual->spall_threshold_j == expected.spall_threshold_j);
+        assert(actual->response == expected.response);
+        assert(actual->provenance == expected.provenance);
+    }
 
     const MaterialFrame frame{{1.0F, 2.0F, 3.0F},
                               {0.0F, 1.0F, 0.0F},

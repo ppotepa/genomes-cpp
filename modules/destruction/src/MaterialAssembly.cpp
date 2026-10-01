@@ -1,13 +1,19 @@
 #include <genomes/destruction/MaterialAssembly.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/content/ContentSnapshot.hpp>
 #include <genomes/proc/RandomStream.hpp>
 #include <genomes/proc/SeedPath.hpp>
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
+#include <exception>
 #include <limits>
+#include <set>
 #include <string_view>
 
 namespace genomes::destruction {
@@ -15,6 +21,15 @@ namespace genomes::destruction {
 namespace {
 
 constexpr float kLayerTolerance = 1.0e-5F;
+
+constexpr std::string_view kMaterialCatalogSchema =
+    "genomes.destruction.material-catalog.v1";
+constexpr std::string_view kMaterialCatalogId = "destruction.materials";
+
+[[nodiscard]] foundation::Error catalogError(foundation::ErrorCode code,
+                                              std::string_view message) noexcept {
+    return {code, message};
+}
 
 [[nodiscard]] float dot(foundation::Vec3 left, foundation::Vec3 right) noexcept {
     return left.x * right.x + left.y * right.y + left.z * right.z;
@@ -41,8 +56,41 @@ constexpr float kLayerTolerance = 1.0e-5F;
                                              float ricochet,
                                              float spall_threshold,
                                              MaterialResponse response) {
-    return {MaterialId::fromName(name), name, density, strength, penetration_work,
-            toughness, ricochet, spall_threshold, response, "SOURCE destruction calibration"};
+    return {MaterialId::fromName(name), std::string{name}, density, strength, penetration_work,
+            toughness, ricochet, spall_threshold, response,
+            std::string{"SOURCE destruction calibration"}};
+}
+
+[[nodiscard]] std::optional<MaterialResponse> responseFromJson(
+    const nlohmann::json& value) {
+    if (!value.is_string()) {
+        return std::nullopt;
+    }
+    const auto response = value.get<std::string>();
+    if (response == "brittle") return MaterialResponse::Brittle;
+    if (response == "ductile") return MaterialResponse::Ductile;
+    if (response == "fibrous") return MaterialResponse::Fibrous;
+    if (response == "soft") return MaterialResponse::Soft;
+    return std::nullopt;
+}
+
+[[nodiscard]] foundation::SimConfigHash materialFingerprint(
+    const std::vector<MaterialDefinition>& definitions) noexcept {
+    std::uint64_t hash = foundation::stableHashString(kMaterialCatalogSchema);
+    for (const auto& value : definitions) {
+        hash = foundation::stableHashCombine(hash, value.id.value);
+        hash = foundation::stableHashCombine(hash, foundation::stableHashString(value.name));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.density_kg_m3));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.strength_pa));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.penetration_work_j_m3));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.toughness_j_m2));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.ricochet_factor));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(value.spall_threshold_j));
+        hash = foundation::stableHashCombine(
+            hash, static_cast<std::uint64_t>(value.response));
+        hash = foundation::stableHashCombine(hash, foundation::stableHashString(value.provenance));
+    }
+    return {hash};
 }
 
 [[nodiscard]] std::uint64_t fieldCell(foundation::Vec3 local,
@@ -130,6 +178,122 @@ MaterialCatalog MaterialCatalog::makeDefault() {
                                  0.20F, 0.0F, MaterialResponse::Ductile));
     (void)catalog.freeze();
     return catalog;
+}
+
+foundation::Result<MaterialCatalog, foundation::Error> MaterialCatalog::load(
+    const std::filesystem::path& path) {
+    auto document = content::readContentText(path);
+    if (!document) {
+        return foundation::Result<MaterialCatalog, foundation::Error>::failure(document.error());
+    }
+    try {
+        const nlohmann::json json = nlohmann::json::parse(document.value().text);
+        static const std::set<std::string> fields{"schema", "schema_version", "id", "entries"};
+        if (!json.is_object() || json.size() != fields.size()) {
+            return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidArgument,
+                             "unknown or missing material catalog fields"));
+        }
+        for (const auto& [key, value] : json.items()) {
+            (void)value;
+            if (!fields.contains(key)) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "unknown material catalog field"));
+            }
+        }
+        if (json.at("schema").get<std::string>() != kMaterialCatalogSchema ||
+            json.at("schema_version") != MaterialCatalogVersion ||
+            json.at("id").get<std::string>() != kMaterialCatalogId ||
+            !json.at("entries").is_array() ||
+            json.at("entries").empty()) {
+            return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidArgument,
+                             "invalid material catalog header"));
+        }
+
+        static const std::set<std::string> entry_fields{
+            "id", "density_kg_m3", "strength_pa", "penetration_work_j_m3",
+            "toughness_j_m2", "ricochet_factor", "spall_threshold_j", "response",
+            "provenance"};
+        MaterialCatalog catalog;
+        for (const auto& item : json.at("entries")) {
+            if (!item.is_object() || item.size() != entry_fields.size()) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid material catalog entry fields"));
+            }
+            for (const auto& [key, value] : item.items()) {
+                (void)value;
+                if (!entry_fields.contains(key)) {
+                    return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                        catalogError(foundation::ErrorCode::InvalidArgument,
+                                     "unknown material catalog entry field"));
+                }
+            }
+            const auto& name = item.at("id");
+            const auto& provenance = item.at("provenance");
+            if (!name.is_string() || !provenance.is_string() ||
+                name.get<std::string>().empty() || provenance.get<std::string>().empty()) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid material catalog identity"));
+            }
+            const auto response = responseFromJson(item.at("response"));
+            if (!response.has_value()) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid material catalog response"));
+            }
+            const auto number = [&item](std::string_view key) {
+                return item.at(std::string{key}).is_number();
+            };
+            if (!number("density_kg_m3") || !number("strength_pa") ||
+                !number("penetration_work_j_m3") || !number("toughness_j_m2") ||
+                !number("ricochet_factor") || !number("spall_threshold_j")) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid material catalog numeric value"));
+            }
+            const std::string name_value = name.get<std::string>();
+            const MaterialDefinition definition_value{
+                MaterialId::fromName(name_value), name_value,
+                item.at("density_kg_m3").get<float>(), item.at("strength_pa").get<float>(),
+                item.at("penetration_work_j_m3").get<float>(),
+                item.at("toughness_j_m2").get<float>(), item.at("ricochet_factor").get<float>(),
+                item.at("spall_threshold_j").get<float>(), *response,
+                provenance.get<std::string>()};
+            if (!catalog.add(definition_value)) {
+                return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid or duplicate material catalog entry"));
+            }
+        }
+        if (!catalog.freeze()) {
+            return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidState,
+                             "material catalog could not be frozen"));
+        }
+
+        document.value().provenance.source_id = json.at("id").get<std::string>();
+        content::ContentSnapshotBuilder snapshot_builder{
+            json.at("id").get<std::string>(), MaterialCatalogVersion};
+        auto added = snapshot_builder.add(std::move(document.value().provenance));
+        if (!added) {
+            return foundation::Result<MaterialCatalog, foundation::Error>::failure(added.error());
+        }
+        auto snapshot = std::move(snapshot_builder).freeze();
+        if (!snapshot) {
+            return foundation::Result<MaterialCatalog, foundation::Error>::failure(snapshot.error());
+        }
+        catalog.snapshot_ = std::move(snapshot.value());
+        catalog.fingerprint_ = materialFingerprint(catalog.definitions_);
+        return foundation::Result<MaterialCatalog, foundation::Error>::success(std::move(catalog));
+    } catch (const std::exception&) {
+        return foundation::Result<MaterialCatalog, foundation::Error>::failure(
+            catalogError(foundation::ErrorCode::InvalidArgument,
+                         "invalid material catalog document"));
+    }
 }
 
 bool MaterialFrame::valid(float tolerance) const noexcept {

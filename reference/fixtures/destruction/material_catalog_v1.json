@@ -1,0 +1,16 @@
+{
+  "schema": "genomes.destruction.material-catalog.v1",
+  "schema_version": 1,
+  "id": "destruction.materials",
+  "entries": [
+    {"id":"concrete","density_kg_m3":2400.0,"strength_pa":45000000.0,"penetration_work_j_m3":600000000.0,"toughness_j_m2":80000.0,"ricochet_factor":0.18,"spall_threshold_j":150.0,"response":"brittle","provenance":"SOURCE destruction calibration"},
+    {"id":"brick","density_kg_m3":1800.0,"strength_pa":16000000.0,"penetration_work_j_m3":160000000.0,"toughness_j_m2":40000.0,"ricochet_factor":0.12,"spall_threshold_j":80.0,"response":"brittle","provenance":"SOURCE destruction calibration"},
+    {"id":"steel","density_kg_m3":7850.0,"strength_pa":600000000.0,"penetration_work_j_m3":10000000000.0,"toughness_j_m2":250000.0,"ricochet_factor":0.30,"spall_threshold_j":0.0,"response":"ductile","provenance":"SOURCE destruction calibration"},
+    {"id":"glass","density_kg_m3":2500.0,"strength_pa":5000000.0,"penetration_work_j_m3":20000000.0,"toughness_j_m2":700.0,"ricochet_factor":0.04,"spall_threshold_j":0.0,"response":"brittle","provenance":"SOURCE destruction calibration"},
+    {"id":"wood","density_kg_m3":650.0,"strength_pa":8000000.0,"penetration_work_j_m3":40000000.0,"toughness_j_m2":12000.0,"ricochet_factor":0.08,"spall_threshold_j":0.0,"response":"fibrous","provenance":"SOURCE destruction calibration"},
+    {"id":"foliage","density_kg_m3":100.0,"strength_pa":10000.0,"penetration_work_j_m3":10000.0,"toughness_j_m2":30.0,"ricochet_factor":0.0,"spall_threshold_j":0.0,"response":"soft","provenance":"SOURCE destruction calibration"},
+    {"id":"rock","density_kg_m3":2700.0,"strength_pa":100000000.0,"penetration_work_j_m3":800000000.0,"toughness_j_m2":180000.0,"ricochet_factor":0.24,"spall_threshold_j":300.0,"response":"brittle","provenance":"SOURCE destruction calibration"},
+    {"id":"tissue","density_kg_m3":1000.0,"strength_pa":600000.0,"penetration_work_j_m3":600000.0,"toughness_j_m2":2200.0,"ricochet_factor":0.0,"spall_threshold_j":0.0,"response":"soft","provenance":"SOURCE destruction calibration"},
+    {"id":"armor","density_kg_m3":3000.0,"strength_pa":350000000.0,"penetration_work_j_m3":8000000000.0,"toughness_j_m2":100000.0,"ricochet_factor":0.20,"spall_threshold_j":0.0,"response":"ductile","provenance":"SOURCE destruction calibration"}
+  ]
+}
