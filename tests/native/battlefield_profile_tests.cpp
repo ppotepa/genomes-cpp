@@ -1,4 +1,5 @@
 #include <genomes/gameplay/BattlefieldScenario.hpp>
+#include <genomes/gameplay/BattlefieldRuntime.hpp>
 
 #include <cassert>
 
@@ -21,5 +22,9 @@ int main() {
     assert(profile.memory_ticks == 90U);
     assert(profile.target_switch_ratio == 0.75F);
     assert(profile.fire_alignment_cos == 0.95F);
+    auto runtime = gameplay::BattlefieldRuntime::start(configured);
+    assert(runtime);
+    runtime.value()->fixedUpdate();
+    assert(runtime.value()->snapshot().tick == 1U);
     return 0;
 }

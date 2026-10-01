@@ -82,14 +82,14 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     resolved_buildings_.reset();
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
-    viability_scenario_.reset();
-    auto viability = gameplay::startBattlefieldScenario(
+    battlefield_runtime_.reset();
+    auto viability = gameplay::BattlefieldRuntime::start(
         {.seed = config_.seed,
          .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
          .max_ticks = 240U, .tactical_ai_profile = tactical_ai_profile_},
         jobs_);
     if (viability) {
-        viability_scenario_ = std::move(viability.value());
+        battlefield_runtime_ = std::move(viability.value());
     } else {
         generation_error_ = std::string(viability.error().message);
     }
@@ -176,7 +176,7 @@ void BattlefieldScene::on_exit(SceneContext&) {
     region_streamer_.reset();
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
-    viability_scenario_.reset();
+    battlefield_runtime_.reset();
 #endif
     jobs_ = nullptr;
 }
@@ -317,8 +317,8 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
     (void)dt;
     return;
 #else
-    if (viability_scenario_ != nullptr && !viability_scenario_->complete()) {
-        viability_scenario_->fixedUpdate(dt);
+    if (battlefield_runtime_ != nullptr && !battlefield_runtime_->complete()) {
+        battlefield_runtime_->fixedUpdate(dt);
     }
     if (!infantry_) {
         return;
@@ -493,8 +493,8 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
 #endif
         (void)model.set("units", static_cast<std::int64_t>(infantry_count));
 #if GENOMES_HAS_INFANTRY
-        if (viability_scenario_ != nullptr) {
-            const auto& viability = viability_scenario_->snapshot();
+        if (battlefield_runtime_ != nullptr) {
+            const auto& viability = battlefield_runtime_->snapshot();
             (void)model.set("viability", "Combat slice: tick " + std::to_string(viability.tick) +
                                 " fire " + std::to_string(viability.fired) +
                                 " impact " + std::to_string(viability.impacts) +

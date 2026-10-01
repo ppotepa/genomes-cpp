@@ -4,7 +4,7 @@
 #include <genomes/combat/TacticalAI.hpp>
 #include <genomes/buildings/BuildingModel.hpp>
 #if GENOMES_HAS_INFANTRY
-#include <genomes/gameplay/BattlefieldScenario.hpp>
+#include <genomes/gameplay/BattlefieldRuntime.hpp>
 #endif
 #include <genomes/gameplay/WorldScenario.hpp>
 #if GENOMES_HAS_INFANTRY
@@ -81,7 +81,7 @@ private:
     physics::SimplePhysicsWorld physics_;
     combat::TacticalAIProfile tactical_ai_profile_{};
 #if GENOMES_HAS_INFANTRY
-    std::unique_ptr<gameplay::BattlefieldScenario> viability_scenario_;
+    std::unique_ptr<gameplay::BattlefieldRuntime> battlefield_runtime_;
     std::unique_ptr<infantry::InfantrySimulation> infantry_;
     infantry::InfantryModelCompiler infantry_model_compiler_;
     std::shared_ptr<const infantry::InfantryModelArtifact> infantry_model_artifact_;
