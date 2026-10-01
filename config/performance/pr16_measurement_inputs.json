@@ -1,0 +1,130 @@
+{
+  "$schema": "./pr16_measurement_inputs.schema.json",
+  "schema": "genomes.pr16.measurement_inputs.v1",
+  "status": "PLANNED",
+  "baseline_status": "NOT_AVAILABLE",
+  "baseline": null,
+  "build": {
+    "preset": "release-diligent",
+    "configuration": "Release",
+    "backend": "DILIGENT",
+    "api": "D3D12",
+    "validation": "OFF"
+  },
+  "determinism": {
+    "seeds": [
+      0,
+      8841,
+      1003,
+      1592598566
+    ],
+    "warmup_runs": 3,
+    "measured_runs": 10,
+    "required_metrics": [
+      "median",
+      "p95",
+      "p99",
+      "max",
+      "semantic_hash",
+      "allocations",
+      "bytes"
+    ]
+  },
+  "workloads": [
+    {
+      "id": "infantry.appearance_generation",
+      "domain": "infantry",
+      "entry_point": "benchmarks/infantry/appearance_generation_benchmark.cpp",
+      "inputs": {
+        "seed": 1592598566,
+        "entity_count": 1,
+        "duration_seconds": 1.0,
+        "equipment": "default",
+        "detail": "high"
+      },
+      "d1_correctness": {
+        "required": true,
+        "semantic_hash_source": "reference/fixtures/infantry"
+      },
+      "d2_performance": {
+        "metric": "wall_time",
+        "unit": "microseconds",
+        "target_p95": null,
+        "allowed_regression_percent": null
+      }
+    },
+    {
+      "id": "infantry.animation",
+      "domain": "infantry",
+      "entry_point": "benchmarks/infantry/animation_benchmark.cpp",
+      "inputs": {
+        "seed": 48879,
+        "entity_count": 1000,
+        "duration_seconds": 10.0,
+        "detail": "high",
+        "equipment": "default"
+      },
+      "d1_correctness": {
+        "required": true,
+        "semantic_hash_source": "reference/fixtures/infantry"
+      },
+      "d2_performance": {
+        "metric": "wall_time",
+        "unit": "microseconds",
+        "target_p95": null,
+        "allowed_regression_percent": null
+      }
+    },
+    {
+      "id": "render.full_scene",
+      "domain": "render",
+      "entry_point": "genomes_bench_full_scene",
+      "inputs": {
+        "seed": 1592598566,
+        "entity_count": 100000,
+        "duration_seconds": 10.0,
+        "resolution": [
+          1280,
+          720
+        ]
+      },
+      "d1_correctness": {
+        "required": true,
+        "semantic_hash_source": "presentation snapshot and capture manifest"
+      },
+      "d2_performance": {
+        "metric": "frame_time",
+        "unit": "microseconds",
+        "target_p95": null,
+        "allowed_regression_percent": null
+      }
+    },
+    {
+      "id": "toolkit.geometry",
+      "domain": "toolkit",
+      "entry_point": "genomes_bench_toolkit",
+      "inputs": {
+        "seed": 0,
+        "entity_count": 1,
+        "duration_seconds": 10.0
+      },
+      "d1_correctness": {
+        "required": true,
+        "semantic_hash_source": "geometry regression fixtures"
+      },
+      "d2_performance": {
+        "metric": "wall_time",
+        "unit": "microseconds",
+        "target_p95": null,
+        "allowed_regression_percent": null
+      }
+    }
+  ],
+  "acceptance_gate": {
+    "status": "PLANNED",
+    "requires_user_baseline": true,
+    "d1_must_pass": true,
+    "d2_must_pass": true,
+    "no_optimization_without_baseline": true
+  }
+}

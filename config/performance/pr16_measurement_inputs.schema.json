@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://genomes.example.invalid/schema/pr16-measurement-inputs.v1.json",
+  "title": "Genomes PR16 measurement inputs",
+  "description": "Versioned inputs for the measurement-led optimization gate. This is not a performance baseline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "baseline_status",
+    "build",
+    "determinism",
+    "workloads",
+    "acceptance_gate"
+  ],
+  "properties": {
+    "schema": {
+      "const": "genomes.pr16.measurement_inputs.v1"
+    },
+    "status": {
+      "const": "PLANNED"
+    },
+    "baseline_status": {
+      "enum": [
+        "NOT_AVAILABLE",
+        "AVAILABLE"
+      ]
+    },
+    "baseline": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "commit",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,64}$"
+        },
+        "source": {
+          "enum": [
+            "user"
+          ]
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preset",
+        "configuration",
+        "backend",
+        "api",
+        "validation"
+      ],
+      "properties": {
+        "preset": {
+          "enum": [
+            "release-diligent"
+          ]
+        },
+        "configuration": {
+          "const": "Release"
+        },
+        "backend": {
+          "const": "DILIGENT"
+        },
+        "api": {
+          "const": "D3D12"
+        },
+        "validation": {
+          "const": "OFF"
+        }
+      }
+    },
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seeds",
+        "warmup_runs",
+        "measured_runs",
+        "required_metrics"
+      ],
+      "properties": {
+        "seeds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "warmup_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "measured_runs": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "required_metrics": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "median",
+              "p95",
+              "p99",
+              "max",
+              "semantic_hash",
+              "allocations",
+              "bytes"
+            ]
+          }
+        }
+      }
+    },
+    "workloads": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "domain",
+          "entry_point",
+          "inputs",
+          "d1_correctness",
+          "d2_performance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "domain": {
+            "enum": [
+              "infantry",
+              "render",
+              "toolkit",
+              "world"
+            ]
+          },
+          "entry_point": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputs": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "seed",
+              "entity_count",
+              "duration_seconds"
+            ],
+            "properties": {
+              "seed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "entity_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "duration_seconds": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "detail": {
+                "enum": [
+                  "far",
+                  "world",
+                  "high"
+                ]
+              },
+              "equipment": {
+                "enum": [
+                  "neutral",
+                  "default",
+                  "full"
+                ]
+              },
+              "resolution": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          },
+          "d1_correctness": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "required",
+              "semantic_hash_source"
+            ],
+            "properties": {
+              "required": {
+                "const": true
+              },
+              "semantic_hash_source": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "d2_performance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "metric",
+              "unit",
+              "target_p95",
+              "allowed_regression_percent"
+            ],
+            "properties": {
+              "metric": {
+                "enum": [
+                  "wall_time",
+                  "frame_time",
+                  "tick_time"
+                ]
+              },
+              "unit": {
+                "enum": [
+                  "microseconds",
+                  "milliseconds"
+                ]
+              },
+              "target_p95": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "exclusiveMinimum": 0
+              },
+              "allowed_regression_percent": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "acceptance_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "requires_user_baseline",
+        "d1_must_pass",
+        "d2_must_pass",
+        "no_optimization_without_baseline"
+      ],
+      "properties": {
+        "status": {
+          "const": "PLANNED"
+        },
+        "requires_user_baseline": {
+          "const": true
+        },
+        "d1_must_pass": {
+          "const": true
+        },
+        "d2_must_pass": {
+          "const": true
+        },
+        "no_optimization_without_baseline": {
+          "const": true
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "baseline_status": {
+            "const": "AVAILABLE"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "baseline"
+        ],
+        "properties": {
+          "baseline": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "baseline_status": {
+            "const": "NOT_AVAILABLE"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "baseline": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}
