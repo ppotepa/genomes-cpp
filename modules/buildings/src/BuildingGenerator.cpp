@@ -45,12 +45,25 @@ namespace {
 } // namespace
 
 bool BuildingSpec::valid() const noexcept {
-    return building_id != 0 && seed != 0 && std::isfinite(footprint.x) &&
-           std::isfinite(footprint.y) && std::isfinite(footprint.z) && footprint.x >= 2.0F &&
-           footprint.z >= 2.0F && floors > 0 && floors <= 32 && std::isfinite(floor_height) &&
-           floor_height > 1.5F && floor_height <= 10.0F && std::isfinite(wall_thickness) &&
-           wall_thickness > 0.05F && wall_thickness < std::min(footprint.x, footprint.z) * 0.25F &&
-           rooms_per_floor > 0 && rooms_per_floor <= 16;
+    if (building_id == 0 || seed == 0 || !std::isfinite(footprint.x) ||
+        !std::isfinite(footprint.y) || !std::isfinite(footprint.z) || footprint.x < 2.0F ||
+        footprint.z < 2.0F || floors == 0 || floors > 32 || !std::isfinite(floor_height) ||
+        floor_height <= 1.5F || floor_height > 10.0F || !std::isfinite(wall_thickness) ||
+        wall_thickness <= 0.05F ||
+        wall_thickness >= std::min(footprint.x, footprint.z) * 0.25F || rooms_per_floor == 0 ||
+        rooms_per_floor > 16) {
+        return false;
+    }
+    const float room_width = footprint.x / static_cast<float>(rooms_per_floor) - wall_thickness;
+    const float room_depth = footprint.z - 2.0F * wall_thickness;
+    const float room_height = floor_height - wall_thickness;
+    if (!std::isfinite(room_width) || !std::isfinite(room_depth) || !std::isfinite(room_height) ||
+        room_width <= 0.0F || room_depth <= 0.0F || room_height <= 0.0F) {
+        return false;
+    }
+    constexpr std::size_t maximum = std::numeric_limits<std::size_t>::max();
+    return static_cast<std::size_t>(floors) <= maximum / rooms_per_floor &&
+           static_cast<std::size_t>(floors) <= maximum / (rooms_per_floor + 8U);
 }
 
 foundation::Result<BuildingPlan, foundation::Error> BuildingGenerator::generate(
@@ -68,7 +81,9 @@ foundation::Result<BuildingPlan, foundation::Error> BuildingGenerator::generate(
     plan.parts.reserve(static_cast<std::size_t>(spec.floors) * (spec.rooms_per_floor + 8));
     std::uint64_t content_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
     const float floor_width = spec.footprint.x / static_cast<float>(spec.rooms_per_floor);
+    const float room_width = floor_width - spec.wall_thickness;
     const float room_depth = spec.footprint.z - 2.0F * spec.wall_thickness;
+    const float room_height = spec.floor_height - spec.wall_thickness;
 
     const auto append_part = [&](BuildingPartKind kind, foundation::Vec3 center,
                                  foundation::Vec3 extent, std::uint32_t floor,
@@ -111,7 +126,7 @@ foundation::Result<BuildingPlan, foundation::Error> BuildingGenerator::generate(
                 (static_cast<float>(room_index) + 0.5F);
             const auto id = part_id(spec, "room", floor * spec.rooms_per_floor + room_index);
             plan.rooms.push_back({id, floor, {room_x, wall_y, 0.0F},
-                                  {floor_width - spec.wall_thickness, room_depth, room_depth}});
+                                  {room_width, room_height, room_depth}});
             if (room_index + 1 < spec.rooms_per_floor) {
                 append_part(BuildingPartKind::Wall,
                             {-spec.footprint.x * 0.5F + floor_width *

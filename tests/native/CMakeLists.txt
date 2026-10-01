@@ -267,6 +267,14 @@ genomes_set_project_warnings(genomes_test_world_coordinates)
 genomes_enable_test_assertions(genomes_test_world_coordinates)
 add_test(NAME world.coordinates COMMAND genomes_test_world_coordinates)
 
+add_executable(genomes_test_building_generator
+    buildings/building_generator_tests.cpp)
+target_link_libraries(genomes_test_building_generator PRIVATE genomes::buildings)
+genomes_set_project_warnings(genomes_test_building_generator)
+genomes_enable_test_assertions(genomes_test_building_generator)
+add_test(NAME buildings.generator COMMAND genomes_test_building_generator)
+set_tests_properties(buildings.generator PROPERTIES LABELS "cpu;buildings")
+
 add_executable(genomes_test_flow_field
     navigation/flow_field_tests.cpp)
 target_link_libraries(genomes_test_flow_field PRIVATE genomes::navigation)
