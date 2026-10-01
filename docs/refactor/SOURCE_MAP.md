@@ -29,6 +29,17 @@ present across project CMake files (including tests, benchmarks and conditional
 targets). Target closure remains to be reviewed per package; a declaration
 count is not proof of a clean dependency closure.
 
+### PR17 target-closure audit
+
+Source review at `824f35f` found no in-tree CMake consumer of the
+`genomes::runtime` compatibility aggregate. That bridge was removed, while the
+runtime core and application-scene aliases remain explicit. The
+`genomes::world` aggregate was retained because modules, applications,
+benchmarks and native tests still link it. The source guard in
+`tests/native/architecture_refactor_tracker.cmake` prevents the removed
+runtime aggregate from returning. This closes the source-review slice only;
+configure/build/CTest and external-consumer compatibility are still pending.
+
 ## Public-header inventory
 
 The baseline contains 227 tracked project headers under engine/module/app
