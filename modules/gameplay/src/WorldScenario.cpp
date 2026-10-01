@@ -71,7 +71,8 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
     }
     active_request_ = completed_request;
-    active_artifact_ = std::move(artifact.value());
+    active_artifact_ = std::make_shared<const WorldScenarioArtifact>(
+        std::move(artifact.value()));
     status_.has_active_world = true;
     status_.active_content_hash = active_artifact_->plan.content_hash;
     status_.last_error = {};
@@ -144,11 +145,11 @@ void WorldScenario::cancelPending() noexcept {
 }
 
 const world::WorldPlan* WorldScenario::activePlan() const noexcept {
-    return active_artifact_ ? &active_artifact_->plan : nullptr;
+    return active_artifact_ != nullptr ? &active_artifact_->plan : nullptr;
 }
 
 const WorldScenarioArtifact* WorldScenario::activeArtifact() const noexcept {
-    return active_artifact_ ? &*active_artifact_ : nullptr;
+    return active_artifact_.get();
 }
 
 const world::WorldGenerationRequest* WorldScenario::activeRequest() const noexcept {
@@ -156,7 +157,7 @@ const world::WorldGenerationRequest* WorldScenario::activeRequest() const noexce
 }
 
 WorldSemanticSnapshot WorldScenario::semanticSnapshot() const noexcept {
-    if (!active_artifact_) {
+    if (active_artifact_ == nullptr) {
         return {};
     }
     const world::WorldPlan& plan = active_artifact_->plan;

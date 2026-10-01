@@ -110,7 +110,7 @@ private:
     std::optional<world::WorldGenerationTask> pending_;
     std::optional<world::WorldGenerationRequest> pending_request_;
     std::optional<world::WorldGenerationRequest> active_request_;
-    std::optional<WorldScenarioArtifact> active_artifact_;
+    std::shared_ptr<const WorldScenarioArtifact> active_artifact_;
     WorldScenarioStatus status_{};
 };
 

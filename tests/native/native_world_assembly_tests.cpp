@@ -17,6 +17,7 @@ int main() {
     const auto* artifact = scenario.activeArtifact();
     assert(artifact != nullptr && artifact->valid());
     assert(artifact->revision == world::artifactRevision(artifact->plan));
+    assert(scenario.activePlan() == &artifact->plan);
     assert(artifact->resolved_buildings.size() == artifact->plan.building_sites.size());
 
     world::WorldGenerationRequest invalid = request;
