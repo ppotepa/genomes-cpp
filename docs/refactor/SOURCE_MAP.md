@@ -17,7 +17,7 @@ must never be staged, reset or overwritten by this program.
 | Platform/input/UI | `engine/{platform,input,ui}/CMakeLists.txt` | `genomes::platform`, `input`, `ui`, optional `ui_rml` | PR05, PR12, PR14 |
 | Physics/navigation | `engine/{physics,navigation}/CMakeLists.txt` | `genomes::physics`, `navigation` | PR07, PR09 |
 | Presentation | `engine/render/CMakeLists.txt`, `engine/render/{core,graph,gpu_scene,compute,diligent}` | `genomes::render*`, Diligent-only production backend | PR09, PR13, PR16 |
-| Runtime | `engine/runtime/CMakeLists.txt` | `genomes::runtime_core`, `genomes::game_scenes`, compatibility aggregate `genomes::runtime` | PR08, PR12 |
+| Runtime | `engine/runtime/CMakeLists.txt`, `engine/game_scenes/CMakeLists.txt` | `genomes::runtime_core`, `genomes::game_scenes`, `genomes::application_scenes` | PR08, PR12 |
 | World domains | `engine/world`, `modules/{terrain,hydrology,roads,buildings,world_render}` | `genomes::world_core`, `genomes::world_generation`, aggregate `genomes::world`, and corresponding `genomes::*` libraries | PR03, PR09, PR10 |
 | Combat domains | `modules/{combat,weapons,ballistics,infantry,gameplay}` | corresponding `genomes::*` static libraries | PR02, PR06-PR07, PR10-PR11 |
 | Destruction | `modules/destruction/CMakeLists.txt` | `genomes::destruction` | PR07, PR09 |
@@ -98,7 +98,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | UNREVIEWED |
-| PR08 | `engine/runtime/src` split between runtime core and game scenes, app composition roots | runtime split and product router reviewed; full composition ownership remains UNREVIEWED |
+| PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | world target split reviewed; remaining consumer/namespace migration UNREVIEWED |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | UNREVIEWED |

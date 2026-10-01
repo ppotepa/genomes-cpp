@@ -116,9 +116,7 @@ endif()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/CMakeLists.txt" runtime_targets)
 foreach(required_runtime_target IN ITEMS
         "add_library(genomes_runtime_core STATIC"
-        "add_library(genomes_game_scenes STATIC"
-        "add_library(genomes::runtime_core ALIAS genomes_runtime_core"
-        "add_library(genomes::game_scenes ALIAS genomes_game_scenes")
+        "add_library(genomes::runtime_core ALIAS genomes_runtime_core")
     string(FIND "${runtime_targets}" "${required_runtime_target}" target_position)
     if(target_position EQUAL -1)
         message(FATAL_ERROR "Runtime target split is missing ${required_runtime_target}")
@@ -131,8 +129,8 @@ endif()
 if(runtime_core_links MATCHES "genomes::(gameplay|infantry|buildings|world_render|combat|physics)")
     message(FATAL_ERROR "Runtime core must not link product gameplay targets")
 endif()
-if(runtime_targets MATCHES "src/BuiltinScenes\\.cpp")
-    message(FATAL_ERROR "Neutral product-scene target must not compile the application catalog")
+if(runtime_targets MATCHES "genomes_game_scenes|src/(BattlefieldScene|BuildingLabScene|BuiltinScenes|InfantryPresentation|MainMenuScene|UnitLabScene|WorldConfigScene|WorldLabScene)\\.cpp")
+    message(FATAL_ERROR "Neutral runtime target must not compile product-scene sources")
 endif()
 set(application_scenes_cmake "${GENOMES_SOURCE_DIR}/engine/game_scenes/CMakeLists.txt")
 if(NOT EXISTS "${application_scenes_cmake}")
@@ -140,12 +138,25 @@ if(NOT EXISTS "${application_scenes_cmake}")
 endif()
 file(READ "${application_scenes_cmake}" application_scenes_targets)
 foreach(required_application_scene_text IN ITEMS
-        "add_library(genomes_application_scenes STATIC"
+        "add_library(genomes_game_scenes STATIC"
+        "genomes::runtime_core"
         "genomes::game_scenes"
+        "add_library(genomes_application_scenes STATIC"
         "genomes::application_scenes")
     string(FIND "${application_scenes_targets}" "${required_application_scene_text}" application_scene_position)
     if(application_scene_position EQUAL -1)
         message(FATAL_ERROR "Application scene composition target lost ${required_application_scene_text}")
+    endif()
+endforeach()
+foreach(product_scene_source IN ITEMS
+        BattlefieldScene.cpp BuildingLabScene.cpp BuiltinScenes.cpp
+        InfantryPresentation.cpp MainMenuScene.cpp UnitLabScene.cpp
+        WorldConfigScene.cpp WorldLabScene.cpp)
+    if(NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/${product_scene_source}")
+        message(FATAL_ERROR "Product scene source was not relocated: ${product_scene_source}")
+    endif()
+    if(EXISTS "${GENOMES_SOURCE_DIR}/engine/runtime/src/${product_scene_source}")
+        message(FATAL_ERROR "Product scene source remains under neutral runtime: ${product_scene_source}")
     endif()
 endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_director_source)
@@ -189,7 +200,7 @@ endforeach()
 # migration is in progress, but one session tick must dispatch exactly one
 # authoritative pipeline. Keep the runtime handoff ahead of the compatibility
 # fallback and require an explicit return before the legacy graph can run.
-file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/BattlefieldScene.cpp"
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
      battlefield_scene_source)
 string(FIND "${battlefield_scene_source}" "battlefield_runtime_ != nullptr"
        battlefield_runtime_guard_position)
