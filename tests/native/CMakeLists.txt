@@ -70,6 +70,11 @@ add_test(NAME weapons.catalog_source_contract
         -P "${CMAKE_CURRENT_SOURCE_DIR}/weapons_catalog_guard.cmake")
 set_tests_properties(weapons.catalog_source_contract PROPERTIES
     LABELS "source;cpu;weapons")
+add_test(NAME combat.tactical_ai_catalog_source
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/combat_tactical_ai_catalog_guard.cmake")
+set_tests_properties(combat.tactical_ai_catalog_source PROPERTIES
+    LABELS "source;cpu;combat;content")
 
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp

@@ -11,9 +11,15 @@ int main() {
         std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/tactical-ai.json");
     assert(loaded_profile);
     assert(loaded_profile.value().id == "tactical-ai-default");
+    assert(loaded_profile.value().source.filename() == "tactical-ai.json");
     assert(loaded_profile.value().profile.observation_period_ticks == 12U);
     assert(loaded_profile.value().profile.memory_ticks == 150U);
+    assert(loaded_profile.value().profile.target_switch_ratio == 0.85F);
+    assert(loaded_profile.value().profile.fire_alignment_cos == 0.99756405F);
+    assert(loaded_profile.value().content.package_id == "combat.tactical-ai");
+    assert(loaded_profile.value().content.schema_version == 1U);
     assert(loaded_profile.value().content.sources.size() == 1U);
+    assert(loaded_profile.value().content.sources.front().source_id == "tactical-ai-default");
     assert(loaded_profile.value().content.fingerprint != 0U);
     assert(loaded_profile.value().fingerprint.value != 0U);
     const auto* rifle = weapons::WeaponCatalog::find("rifle");
