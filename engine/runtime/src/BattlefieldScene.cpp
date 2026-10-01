@@ -608,6 +608,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     physics_.bindWorldRevision(world::artifactRevision(*plan_));
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
+    render_mesh->revision = world::artifactRevision(*plan_);
     render_mesh->vertices.reserve(terrain_mesh_->vertices.size());
     render_mesh->indices = terrain_mesh_->indices;
     for (const terrain::TerrainMeshVertex& vertex : terrain_mesh_->vertices) {

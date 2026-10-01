@@ -279,6 +279,7 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "world plan compiled to an empty mesh"});
     }
+    mesh->revision = source_revision;
     return foundation::Result<WorldMeshArtifact, foundation::Error>::success(
         {source_revision, std::move(mesh), std::move(part_draw_ranges)});
 }

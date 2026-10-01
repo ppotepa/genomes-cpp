@@ -39,6 +39,7 @@ int main() {
         plan, terrain.value(), resolved_buildings, revision);
     assert(compiled && compiled.value().mesh);
     assert(compiled.value().source_revision == revision);
+    assert(compiled.value().mesh->revision == revision);
     const auto range = compiled.value().part_draw_ranges.find(part_id);
     assert(range != compiled.value().part_draw_ranges.end());
     assert(range->second.index_count == 36U);
