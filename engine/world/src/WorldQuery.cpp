@@ -1,4 +1,4 @@
-#include <genomes/world/WorldQuery.hpp>
+#include <genomes/world_core/WorldQuery.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace genomes::world {
+namespace genomes::world_core {
 
 namespace {
 
@@ -234,4 +234,4 @@ std::vector<QuerySegmentResult> querySegments(const WorldQuerySnapshot& snapshot
     return results;
 }
 
-} // namespace genomes::world
+} // namespace genomes::world_core

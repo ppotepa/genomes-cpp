@@ -1,6 +1,12 @@
 #include <genomes/world/BuildingSite.hpp>
+#include <genomes/world/WorldQuery.hpp>
+#include <genomes/world/WorldQuerySnapshot.hpp>
+#include <genomes/world/WorldSave.hpp>
 #include <genomes/world/WorldPosition.hpp>
 #include <genomes/world_core/BuildingSite.hpp>
+#include <genomes/world_core/WorldQuery.hpp>
+#include <genomes/world_core/WorldQuerySnapshot.hpp>
+#include <genomes/world_core/WorldSave.hpp>
 #include <genomes/world_core/WorldPosition.hpp>
 
 #include <cassert>
@@ -16,6 +22,14 @@ int main() {
                                  genomes::world_core::BuildingSiteRequest>);
     static_assert(std::is_same_v<genomes::world::BuildingSiteResolution,
                                  genomes::world_core::BuildingSiteResolution>);
+    static_assert(std::is_same_v<genomes::world::WorldQuerySnapshot,
+                                 genomes::world_core::WorldQuerySnapshot>);
+    static_assert(std::is_same_v<genomes::world::WorldQueryService,
+                                 genomes::world_core::WorldQueryService>);
+    static_assert(std::is_same_v<genomes::world::WorldSaveModel,
+                                 genomes::world_core::WorldSaveModel>);
+    static_assert(std::is_same_v<genomes::world::WorldSaveCodec,
+                                 genomes::world_core::WorldSaveCodec>);
 
     const genomes::world_core::WorldCoordinateConfig config{128.0};
     const genomes::world_core::WorldPosition position{129.0, 2.0, -1.0};

@@ -1,4 +1,4 @@
-#include <genomes/world/WorldSave.hpp>
+#include <genomes/world_core/WorldSave.hpp>
 #include <genomes/io/AtomicFile.hpp>
 
 #include <algorithm>
@@ -7,7 +7,7 @@
 #include <cstring>
 #include <limits>
 
-namespace genomes::world {
+namespace genomes::world_core {
 
 namespace {
 
@@ -405,4 +405,4 @@ foundation::Result<WorldSaveModel, foundation::Error> WorldSaveCodec::loadFile(
     return deserialize(bytes.value(), limits);
 }
 
-} // namespace genomes::world
+} // namespace genomes::world_core
