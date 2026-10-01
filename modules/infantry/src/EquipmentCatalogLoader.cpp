@@ -269,12 +269,15 @@ foundation::Result<FrozenEquipmentCatalog, foundation::Error> loadEquipmentCatal
             }
             const auto& required = value.at("required");
             const auto& socket = value.at("socket");
-            if ((!required.is_null() && !required.is_string()) ||
-                (!socket.is_null() && !socket.is_string()) ||
-                (required.is_null() ? expected->required_item.empty()
-                                    : required.get<std::string>() == expected->required_item) == false ||
-                (socket.is_null() ? expected->socket.empty()
-                                  : socket.get<std::string>() == expected->socket) == false) {
+            const bool required_parity = required.is_null()
+                                             ? expected->required_item.empty()
+                                             : required.is_string() &&
+                                                   required.get<std::string>() == expected->required_item;
+            const bool socket_parity = socket.is_null()
+                                           ? expected->socket.empty()
+                                           : socket.is_string() &&
+                                                 socket.get<std::string>() == expected->socket;
+            if (!required_parity || !socket_parity) {
                 return foundation::Result<FrozenEquipmentCatalog, foundation::Error>::failure(
                     catalogError(foundation::ErrorCode::InvalidArgument,
                                  "infantry equipment slot parity mismatch"));
