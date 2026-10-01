@@ -2,6 +2,7 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/world/GridLayout.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/EquipmentCatalog.hpp>
@@ -567,6 +568,16 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         terrain_mesh_ = world_artifacts_->terrain_mesh;
         resolved_buildings_ = world_artifacts_->resolved_buildings;
     }
+    const auto grid_layout = world::GridLayout::forMap(config_.map_size_m);
+    if (!grid_layout.valid()) {
+        generation_error_ = "world request has no valid grid layout";
+        plan_.reset();
+        world_artifacts_.reset();
+        terrain_.reset();
+        terrain_mesh_.reset();
+        resolved_buildings_.reset();
+        return;
+    }
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
     camera_request_.mode = camera::CameraMode::Orbit;
@@ -600,13 +611,10 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     world_mesh_artifact_ = std::move(world_mesh_result.value());
     render_world_mesh_ = world_mesh_artifact_->mesh;
     entities_.clear();
-    const float map_size_f = static_cast<float>(config_.map_size_m);
-    const float half_map_f = map_size_f * 0.5F;
-    const std::uint32_t nav_cells =
-        std::max<std::uint32_t>(2U, config_.map_size_m / 8U);
+    const std::uint32_t nav_cells = grid_layout.cell_count;
     navigation_ = std::make_unique<navigation::GridNavigationWorld>(
-        navigation::NavGridSpec{nav_cells, nav_cells, 8.0F,
-                                {-half_map_f, 0.0F, -half_map_f}});
+        navigation::NavGridSpec{nav_cells, nav_cells, grid_layout.spacing_m,
+                                grid_layout.origin});
     if (navigation_) {
         navigation_->bindWorldRevision(world::artifactRevision(*plan_));
     }
@@ -614,8 +622,11 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         for (std::uint32_t z = 0; z < nav_cells; ++z) {
             for (std::uint32_t x = 0; x < nav_cells; ++x) {
                 const foundation::Vec3 cell = {
-                    -half_map_f + (static_cast<float>(x) + 0.5F) * 8.0F, 0.0F,
-                    -half_map_f + (static_cast<float>(z) + 0.5F) * 8.0F};
+                    grid_layout.origin.x +
+                        (static_cast<float>(x) + 0.5F) * grid_layout.spacing_m,
+                    0.0F,
+                    grid_layout.origin.z +
+                        (static_cast<float>(z) + 0.5F) * grid_layout.spacing_m};
                 if (plan_->hydrology.isWater(cell.x, cell.z)) {
                     (void)navigation_->setBlocked(x, z, true);
                 }
@@ -628,8 +639,11 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
             for (std::uint32_t z = 0; z < nav_cells; ++z) {
                 for (std::uint32_t x = 0; x < nav_cells; ++x) {
                     const foundation::Vec3 cell = {
-                        -half_map_f + (static_cast<float>(x) + 0.5F) * 8.0F, 0.0F,
-                        -half_map_f + (static_cast<float>(z) + 0.5F) * 8.0F};
+                        grid_layout.origin.x +
+                            (static_cast<float>(x) + 0.5F) * grid_layout.spacing_m,
+                        0.0F,
+                        grid_layout.origin.z +
+                            (static_cast<float>(z) + 0.5F) * grid_layout.spacing_m};
                     if (std::abs(cell.x - site.world_position.x) <= radius_x &&
                         std::abs(cell.z - site.world_position.z) <= radius_z) {
                         (void)navigation_->setBlocked(x, z, true);

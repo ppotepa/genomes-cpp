@@ -42,6 +42,12 @@ int main() {
     assert(deterministic_artifact.value().terrain_mesh->indices.size() ==
            artifact->terrain_mesh->indices.size());
 
+    // Battlefield navigation must use the same cell dimensions and origin as
+    // the terrain artifact, rather than a second hardcoded /8 calculation.
+    assert(layout.cell_count == request.map_size_m / 8U);
+    assert(layout.origin.x == -static_cast<float>(request.map_size_m) * 0.5F);
+    assert(layout.origin.z == -static_cast<float>(request.map_size_m) * 0.5F);
+
     world::WorldGenerationRequest invalid = request;
     invalid.map_size_m = 64U;
     assert(!scenario.startNew(invalid));
