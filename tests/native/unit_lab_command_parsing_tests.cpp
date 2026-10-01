@@ -69,5 +69,10 @@ int main() {
     const auto unknown = parseUnitLabCommand("set-unknown", unknown_args);
     assert(!unknown);
     assert(unknown.error().field == "command");
+    const std::array<std::string_view, 2> cli_tokens{"set-camera-mode", "front"};
+    const auto cli_command = parseUnitLabCommandLine(cli_tokens);
+    assert(cli_command && std::holds_alternative<SetCameraMode>(cli_command.value()));
+    const std::array<std::string_view, 0> empty_tokens{};
+    assert(!parseUnitLabCommandLine(empty_tokens));
     return 0;
 }

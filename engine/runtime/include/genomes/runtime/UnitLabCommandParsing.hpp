@@ -245,4 +245,16 @@ parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
         command, "command", command, "unknown unit lab command"));
 }
 
+// Command-line adapters pass the executable's already-tokenized arguments to
+// the same parser. No CLI-specific string-to-domain conversion is permitted
+// after this boundary.
+[[nodiscard]] inline UnitLabCommandResult<UnitLabCommand> parseUnitLabCommandLine(
+    std::span<const std::string_view> tokens) {
+    if (tokens.empty()) {
+        return UnitLabCommandResult<UnitLabCommand>::failure(unitLabDiagnostic(
+            "unit-lab", "command", {}, "unit lab command is missing"));
+    }
+    return parseUnitLabCommand(tokens.front(), tokens.subspan(1U));
+}
+
 } // namespace genomes::runtime
