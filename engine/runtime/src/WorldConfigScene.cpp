@@ -9,6 +9,7 @@
 #include <string>
 #include <charconv>
 #include <cstdlib>
+#include <random>
 #include <utility>
 
 namespace genomes::runtime {
@@ -33,10 +34,12 @@ template <typename T>
 }
 
 [[nodiscard]] std::string entryLabel(WorldConfigEntry entry,
-                                     const WorldGenerationConfig& config) {
+                                     const WorldGenerationConfig& config,
+                                     const WorldSeedInput& seed_input) {
     switch (entry) {
     case WorldConfigEntry::Seed:
-        return "Seed: " + numberText(config.seed);
+        return seed_input.mode == WorldSeedMode::Auto ? "Seed: auto" :
+                                                        "Seed: " + numberText(config.seed);
     case WorldConfigEntry::MapSize:
         return "Map size: " + numberText(config.map_size_m) + " x " +
                numberText(config.map_size_m) + " m";
@@ -68,7 +71,26 @@ template <typename T>
     return {};
 }
 
+[[nodiscard]] std::uint64_t autoSeedEntropy() {
+    std::random_device source;
+    return (static_cast<std::uint64_t>(source()) << 32U) ^
+           static_cast<std::uint64_t>(source());
+}
+
 } // namespace
+
+foundation::Result<proc::Seed, foundation::Error> WorldSeedInput::resolve(
+    std::uint64_t auto_entropy) const noexcept {
+    if (mode == WorldSeedMode::Explicit) {
+        if (explicit_seed == 0U) {
+            return foundation::Result<proc::Seed, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument, "explicit world seed must be nonzero"});
+        }
+        return foundation::Result<proc::Seed, foundation::Error>::success(explicit_seed);
+    }
+    return foundation::Result<proc::Seed, foundation::Error>::success(
+        auto_entropy == 0U ? 1U : auto_entropy);
+}
 
 foundation::SceneId WorldConfigScene::id() const noexcept {
     return foundation::scene_id("scene.world-config");
@@ -78,6 +100,8 @@ void WorldConfigScene::on_enter(SceneContext& context) {
     if (context.world_config != nullptr) {
         state_.config = *context.world_config;
     }
+    state_.seed_input = state_.config.seed == 0U ? WorldSeedInput::automatic() :
+                                                    WorldSeedInput::explicitValue(state_.config.seed);
     context.ui.clear();
 }
 
@@ -114,7 +138,9 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
     auto& model = context.ui.model();
     (void)model.set("title", std::string{"New world"});
     (void)model.set("description", std::string{"A deterministic settlement, roads, parcels and vegetation."});
-    ui::UiFieldState seed{}; seed.value = numberText(state_.config.seed);
+    ui::UiFieldState seed{};
+    seed.value = state_.seed_input.mode == WorldSeedMode::Auto ? std::string{"auto"} :
+                                                                 numberText(state_.config.seed);
     seed.commit_policy = ui::UiCommitPolicy::OnChange; seed.minimum = 0.0;
     (void)model.set_field("seed", std::move(seed));
     ui::UiFieldState size{}; size.value = static_cast<std::int64_t>(state_.config.map_size_m);
@@ -134,7 +160,7 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
     (void)model.set("vegetation_percent", percentage(state_.config.vegetation));
     (void)model.set("buildings_percent", percentage(state_.config.buildings));
     (void)model.set("fenced_parcels_percent", percentage(state_.config.fenced_parcels));
-    (void)model.set("selected", entryLabel(state_.selected, state_.config));
+    (void)model.set("selected", entryLabel(state_.selected, state_.config, state_.seed_input));
     (void)model.set("note", std::string{"The same seed and settings produce the same world plan."});
 }
 
@@ -146,10 +172,15 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
     };
     const auto value = value_of();
     if (action == foundation::stable_id("world.seed")) {
+        if (value == "auto") {
+            state_.seed_input = WorldSeedInput::automatic();
+            return ui::UiActionResult::Handled;
+        }
         std::uint64_t seed{};
         const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
-        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) return ui::UiActionResult::Rejected;
+        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size() || seed == 0U) return ui::UiActionResult::Rejected;
         state_.config.seed = seed;
+        state_.seed_input = WorldSeedInput::explicitValue(seed);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("world.map-size")) {
@@ -174,6 +205,10 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("scene.start-battlefield")) {
+        const auto resolved_seed = state_.seed_input.resolve(autoSeedEntropy());
+        if (!resolved_seed) return ui::UiActionResult::Rejected;
+        state_.config.seed = resolved_seed.value();
+        state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
         context.commands.push({ApplicationCommandKind::StartScenario, state_.config});
         return ui::UiActionResult::Handled;
     }
@@ -214,7 +249,10 @@ void WorldConfigScene::build_presentation(SceneContext& context) {
 void WorldConfigScene::adjust(int direction) noexcept {
     switch (state_.selected) {
     case WorldConfigEntry::Seed:
-        if (direction < 0 && state_.config.seed > 0) {
+        if (state_.seed_input.mode == WorldSeedMode::Auto) {
+            state_.config.seed = 1U;
+            state_.seed_input = WorldSeedInput::explicitValue(1U);
+        } else if (direction < 0 && state_.config.seed > 1U) {
             --state_.config.seed;
         } else if (direction > 0) {
             ++state_.config.seed;
@@ -261,6 +299,10 @@ void WorldConfigScene::adjust(int direction) noexcept {
 
 void WorldConfigScene::activate(SceneContext& context) {
     if (state_.selected == WorldConfigEntry::Start) {
+        const auto resolved_seed = state_.seed_input.resolve(autoSeedEntropy());
+        if (!resolved_seed) return;
+        state_.config.seed = resolved_seed.value();
+        state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
         context.commands.push({ApplicationCommandKind::StartScenario,
                                state_.config});
     } else if (state_.selected == WorldConfigEntry::Back) {

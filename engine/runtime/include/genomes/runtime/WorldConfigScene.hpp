@@ -26,6 +26,7 @@ enum class WorldConfigEntry {
 struct WorldConfigState final {
     WorldConfigEntry selected{WorldConfigEntry::Start};
     WorldGenerationConfig config{};
+    WorldSeedInput seed_input{};
     double preview_time{0.0};
 };
 

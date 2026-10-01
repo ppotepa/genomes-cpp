@@ -31,6 +31,11 @@ private:
 } // namespace
 
 int main() {
+    const auto automatic_seed = genomes::runtime::WorldSeedInput::automatic().resolve(0U);
+    assert(automatic_seed && automatic_seed.value() != 0U);
+    const auto invalid_explicit_seed =
+        genomes::runtime::WorldSeedInput::explicitValue(0U).resolve(123U);
+    assert(!invalid_explicit_seed);
     genomes::jobs::JobSystem jobs{2};
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
