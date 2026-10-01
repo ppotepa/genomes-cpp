@@ -102,7 +102,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | ammo/equipment parity loaders reviewed at `c29b346`; remaining domain migration UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
-| PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | UNREVIEWED |
+| PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `adbeb56`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
