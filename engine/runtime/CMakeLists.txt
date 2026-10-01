@@ -28,7 +28,7 @@ add_library(genomes_game_scenes STATIC
 target_include_directories(genomes_game_scenes PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_game_scenes PUBLIC
-    genomes::runtime_core
+    genomes_runtime_core
     genomes::foundation
     genomes::camera
     genomes::render
