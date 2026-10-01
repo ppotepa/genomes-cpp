@@ -159,7 +159,7 @@ used by this program.
 | PR02 | Infantry state and Unit Lab input | R005-R008 | CODE_READY | 3204f38 | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | CODE_READY | 2194765 | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
-| PR05 | Packages and native plugins | R019-R023 | CODE_READY | 49c89d4 | NOT_RUN | - |
+| PR05 | Packages and native plugins | R019-R023 | CODE_READY | a7814b3 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 2213a25 | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 871dd88 | NOT_RUN | - |
