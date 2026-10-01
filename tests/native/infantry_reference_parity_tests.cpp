@@ -218,7 +218,7 @@ int main() {
         const auto equipment = nlohmann::json::parse(equipment_file);
         if (equipment.at("equipmentSchema") != "EQUIPMENT/v1" ||
             equipment.at("slots").size() != kEquipmentSlotCount ||
-            equipment.at("items").size() != kEquipmentItemCount ||
+            equipment.at("items").size() != EquipmentCatalog::items().size() ||
             equipment.at("loadouts").size() != kInfantryLoadoutCount) {
             std::cerr << "equipment catalog shape mismatch\n";
             return 2;

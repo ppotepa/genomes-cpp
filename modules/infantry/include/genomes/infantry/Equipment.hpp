@@ -16,7 +16,6 @@
 namespace genomes::infantry {
 
 inline constexpr std::size_t kEquipmentSlotCount = 22U;
-inline constexpr std::size_t kEquipmentItemCount = 61U;
 inline constexpr std::size_t kInfantryLoadoutCount = 10U;
 
 enum class EquipmentSlot : std::uint8_t {

@@ -5,7 +5,9 @@
 #include <cmath>
 #include <initializer_list>
 #include <string>
+#include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace genomes::infantry {
 
@@ -66,11 +68,10 @@ private:
     return value;
 }
 
-[[nodiscard]] const std::array<EquipmentItemDefinition, kEquipmentItemCount>& itemDefinitions() {
-    static const std::array<EquipmentItemDefinition, kEquipmentItemCount> value = [] {
-        std::array<EquipmentItemDefinition, kEquipmentItemCount> result{};
-        std::size_t cursor = 0U;
-        const auto add = [&result, &cursor](std::string_view identifier, EquipmentKind kind,
+[[nodiscard]] const std::vector<EquipmentItemDefinition>& itemDefinitions() {
+    static const std::vector<EquipmentItemDefinition> value = [] {
+        std::vector<EquipmentItemDefinition> result;
+        const auto add = [&result](std::string_view identifier, EquipmentKind kind,
                                             std::initializer_list<EquipmentSlot> allowed,
                                             float weight, float scale, float thickness,
                                             std::string_view style) {
@@ -86,12 +87,13 @@ private:
             if (kind == EquipmentKind::Cap) item.visual.coverage = "cap";
             if (kind == EquipmentKind::Helmet) item.visual.coverage = "helmet";
             if (kind == EquipmentKind::Armor) item.visual.thickness = thickness;
-            for (const EquipmentSlot slot : allowed) {
-                if (item.allowed_slot_count < item.allowed_slots.size()) {
-                    item.allowed_slots[item.allowed_slot_count++] = slot;
-                }
+            if (allowed.size() > item.allowed_slots.size()) {
+                throw std::logic_error("equipment item exceeds allowed-slot capacity");
             }
-            result[cursor++] = item;
+            for (const EquipmentSlot slot : allowed) {
+                item.allowed_slots[item.allowed_slot_count++] = slot;
+            }
+            result.push_back(item);
         };
         add("field_cap", EquipmentKind::Cap, {EquipmentSlot::Head}, .16F, 1.0F, .006F, "cap");
         add("patrol_cap", EquipmentKind::Cap, {EquipmentSlot::Head}, .19F, 1.01F, .006F, "patrol");

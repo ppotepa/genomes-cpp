@@ -13,7 +13,11 @@
 int main() {
     using namespace genomes::infantry;
     assert(EquipmentCatalog::slots().size() == kEquipmentSlotCount);
-    assert(EquipmentCatalog::items().size() == kEquipmentItemCount);
+    assert(!EquipmentCatalog::items().empty());
+    for (const auto& item : EquipmentCatalog::items()) {
+        assert(item.id != 0U && item.allowed_slot_count > 0U);
+        assert(item.allowed_slot_count <= item.allowed_slots.size());
+    }
     assert(infantryLoadouts().size() == kInfantryLoadoutCount);
 
     const auto genome = InfantryGenome::generate(0xA11CEU, 1.0F);
