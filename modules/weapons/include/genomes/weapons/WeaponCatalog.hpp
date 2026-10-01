@@ -1,5 +1,7 @@
 #pragma once
 
+#include <genomes/content/ContentSnapshot.hpp>
+#include <genomes/foundation/ConfigHash.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/StableHash.hpp>
@@ -9,7 +11,9 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -86,6 +90,40 @@ public:
     }
     [[nodiscard]] static foundation::Result<void, foundation::Error> validate() noexcept;
 };
+
+// A loaded catalog owns the resolved definitions and their source snapshot.
+// The fixture is a parity manifest; numeric values remain authoritative in
+// the existing native catalog until a value-bearing schema is introduced.
+class FrozenWeaponCatalog final {
+public:
+    [[nodiscard]] std::span<const WeaponDefinition> entries() const noexcept {
+        return definitions_;
+    }
+    [[nodiscard]] const WeaponDefinition* find(WeaponId id) const noexcept;
+    [[nodiscard]] const WeaponDefinition* find(std::string_view identifier) const noexcept {
+        return find(weapon_id(identifier));
+    }
+    [[nodiscard]] std::size_t size() const noexcept { return definitions_.size(); }
+    [[nodiscard]] bool frozen() const noexcept { return frozen_; }
+    [[nodiscard]] std::string_view sourceCommit() const noexcept { return source_commit_; }
+    [[nodiscard]] const content::FrozenContentSnapshot& contentSnapshot() const noexcept {
+        return snapshot_;
+    }
+    [[nodiscard]] foundation::SimConfigHash fingerprint() const noexcept { return fingerprint_; }
+
+private:
+    friend foundation::Result<FrozenWeaponCatalog, foundation::Error> loadWeaponCatalog(
+        const std::filesystem::path& path);
+
+    std::vector<WeaponDefinition> definitions_;
+    std::string source_commit_;
+    content::FrozenContentSnapshot snapshot_{};
+    foundation::SimConfigHash fingerprint_{};
+    bool frozen_{false};
+};
+
+[[nodiscard]] foundation::Result<FrozenWeaponCatalog, foundation::Error>
+loadWeaponCatalog(const std::filesystem::path& path);
 
 struct WeaponVariant final {
     proc::Seed seed{0};

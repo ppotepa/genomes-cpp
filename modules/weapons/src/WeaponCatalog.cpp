@@ -1,12 +1,24 @@
 #include <genomes/weapons/WeaponCatalog.hpp>
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <exception>
+#include <set>
 
 namespace genomes::weapons {
 
 namespace {
+
+constexpr std::string_view kCatalogSchema = "weapons-catalog-fixtures-1";
+constexpr std::string_view kCatalogEvidenceClass = "DiagnosticNativeContract";
+
+[[nodiscard]] foundation::Error catalogError(foundation::ErrorCode code,
+                                              std::string_view message) noexcept {
+    return {code, message};
+}
 
 [[nodiscard]] foundation::Vec3 dimensions(float x, float y, float z) noexcept { return {x, y, z}; }
 
@@ -62,6 +74,37 @@ const std::array<WeaponDefinition, 9> kCatalog{{
     return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
 }
 
+[[nodiscard]] std::uint64_t weaponFingerprint(
+    std::span<const WeaponDefinition> definitions, std::string_view source_commit) noexcept {
+    std::uint64_t hash = foundation::stableHashString(kCatalogSchema);
+    hash = foundation::stableHashCombine(hash, foundation::stableHashString(source_commit));
+    for (const auto& value : definitions) {
+        hash = foundation::stableHashCombine(hash, value.id);
+        hash = foundation::stableHashCombine(hash, foundation::stableHashString(value.identifier));
+        hash = foundation::stableHashCombine(hash, static_cast<std::uint64_t>(value.category));
+        hash = foundation::stableHashCombine(hash, static_cast<std::uint64_t>(value.grip));
+        hash = foundation::stableHashCombine(hash, static_cast<std::uint64_t>(value.mount));
+        hash = foundation::stableHashCombine(hash, value.firearm ? 1U : 0U);
+        hash = foundation::stableHashCombine(hash, value.ammunition_id);
+        for (const auto component : {value.dimensions.x, value.dimensions.y, value.dimensions.z,
+                                     value.muzzle.x, value.muzzle.y, value.muzzle.z,
+                                     value.primary_grip.x, value.primary_grip.y, value.primary_grip.z,
+                                     value.support_grip.x, value.support_grip.y, value.support_grip.z,
+                                     value.stow_anchor.x, value.stow_anchor.y, value.stow_anchor.z,
+                                     value.rounds_per_second, value.muzzle_velocity_mps, value.range_m,
+                                     value.damage, value.visual_length, value.draw_seconds,
+                                     value.holster_seconds, value.fire_interval_seconds,
+                                     value.visual_kick}) {
+            hash = foundation::stableHashCombine(hash, foundation::stableHashFloat(component));
+        }
+        hash = foundation::stableHashCombine(hash, value.version);
+        hash = foundation::stableHashCombine(hash, static_cast<std::uint64_t>(value.family));
+        hash = foundation::stableHashCombine(hash, static_cast<std::uint64_t>(value.visual_kind));
+        hash = foundation::stableHashCombine(hash, value.grip_profile_mask);
+    }
+    return hash;
+}
+
 } // namespace
 
 bool WeaponDefinition::valid() const noexcept {
@@ -110,6 +153,124 @@ foundation::Result<void, foundation::Error> WeaponCatalog::validate() noexcept {
         }
     }
     return foundation::Result<void, foundation::Error>::success();
+}
+
+const WeaponDefinition* FrozenWeaponCatalog::find(WeaponId id) const noexcept {
+    const auto iterator = std::find_if(definitions_.begin(), definitions_.end(), [id](const auto& value) {
+        return value.id == id;
+    });
+    return iterator == definitions_.end() ? nullptr : &*iterator;
+}
+
+foundation::Result<FrozenWeaponCatalog, foundation::Error> loadWeaponCatalog(
+    const std::filesystem::path& path) {
+    auto document = content::readContentText(path);
+    if (!document) {
+        return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(document.error());
+    }
+    try {
+        const nlohmann::json json = nlohmann::json::parse(document.value().text);
+        static const std::set<std::string> fields{
+            "schema", "sourceCommit", "entries", "entryCount", "nonFirearms", "invariants",
+            "evidenceClass"};
+        if (!json.is_object() || json.size() != fields.size()) {
+            return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidArgument,
+                             "unknown or missing weapon catalog fixture fields"));
+        }
+        for (const auto& [key, value] : json.items()) {
+            (void)value;
+            if (!fields.contains(key)) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "unknown weapon catalog fixture field"));
+            }
+        }
+        if (json.at("schema").get<std::string>() != kCatalogSchema ||
+            !json.at("sourceCommit").is_string() ||
+            json.at("sourceCommit").get<std::string>().empty() ||
+            !json.at("entries").is_array() || json.at("entries").empty() ||
+            !json.at("entryCount").is_number_unsigned() ||
+            json.at("entryCount").get<std::size_t>() != json.at("entries").size() ||
+            !json.at("nonFirearms").is_array() || !json.at("invariants").is_array() ||
+            json.at("evidenceClass").get<std::string>() != kCatalogEvidenceClass) {
+            return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidArgument,
+                             "invalid weapon catalog fixture header"));
+        }
+
+        FrozenWeaponCatalog result{};
+        result.source_commit_ = json.at("sourceCommit").get<std::string>();
+        std::set<std::string> seen;
+        for (const auto& value : json.at("entries")) {
+            if (!value.is_string()) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid weapon catalog fixture entry"));
+            }
+            const auto identifier = value.get<std::string>();
+            if (!seen.insert(identifier).second) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "duplicate weapon catalog fixture entry"));
+            }
+            const auto* definition = WeaponCatalog::find(identifier);
+            if (definition == nullptr || !definition->valid()) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::NotFound,
+                                 "weapon catalog fixture entry is not in native catalog"));
+            }
+            result.definitions_.push_back(*definition);
+        }
+
+        std::set<std::string> expected_non_firearms;
+        for (const auto& value : json.at("nonFirearms")) {
+            if (!value.is_string() || !expected_non_firearms.insert(value.get<std::string>()).second) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "invalid weapon catalog non-firearm list"));
+            }
+        }
+        for (const auto& definition : result.definitions_) {
+            if (definition.firearm == expected_non_firearms.contains(std::string{definition.identifier})) {
+                return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                    catalogError(foundation::ErrorCode::InvalidArgument,
+                                 "weapon catalog firearm parity mismatch"));
+            }
+        }
+        static const std::set<std::string> required_invariants{
+            "stable-id", "firearm-ammunition", "finite-dimensions", "attachment-landmarks",
+            "artifact-cache-key"};
+        std::set<std::string> invariants;
+        for (const auto& value : json.at("invariants")) {
+            if (!value.is_string()) invariants.insert("<invalid>");
+            else invariants.insert(value.get<std::string>());
+        }
+        if (!std::includes(invariants.begin(), invariants.end(), required_invariants.begin(),
+                           required_invariants.end())) {
+            return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+                catalogError(foundation::ErrorCode::InvalidArgument,
+                             "weapon catalog fixture invariants are incomplete"));
+        }
+        document.value().provenance.source_id = result.source_commit_;
+        content::ContentSnapshotBuilder snapshot_builder{"weapons.catalog", 1U};
+        auto added = snapshot_builder.add(std::move(document.value().provenance));
+        if (!added) {
+            return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(added.error());
+        }
+        auto snapshot = std::move(snapshot_builder).freeze();
+        if (!snapshot) {
+            return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(snapshot.error());
+        }
+        result.snapshot_ = std::move(snapshot.value());
+        result.fingerprint_ = {weaponFingerprint(result.definitions_, result.source_commit_)};
+        result.frozen_ = true;
+        return foundation::Result<FrozenWeaponCatalog, foundation::Error>::success(std::move(result));
+    } catch (const std::exception&) {
+        return foundation::Result<FrozenWeaponCatalog, foundation::Error>::failure(
+            catalogError(foundation::ErrorCode::InvalidArgument,
+                         "invalid weapon catalog fixture document"));
+    }
 }
 
 bool WeaponVariant::valid() const noexcept {

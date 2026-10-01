@@ -603,6 +603,8 @@ add_test(NAME ballistics.validation COMMAND genomes_test_ballistics_validation)
 add_executable(genomes_test_weapon_catalog_geometry
     weapon_catalog_geometry_tests.cpp)
 target_link_libraries(genomes_test_weapon_catalog_geometry PRIVATE genomes::weapons)
+target_compile_definitions(genomes_test_weapon_catalog_geometry PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_weapon_catalog_geometry)
 genomes_enable_test_assertions(genomes_test_weapon_catalog_geometry)
 add_test(NAME weapons.catalog_geometry COMMAND genomes_test_weapon_catalog_geometry)
