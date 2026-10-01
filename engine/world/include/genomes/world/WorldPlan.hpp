@@ -9,6 +9,7 @@
 #include <genomes/world/CityPlan.hpp>
 #include <genomes/world/GridLayout.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,7 @@
 namespace genomes::world {
 
 inline constexpr std::uint32_t WorldGeneratorVersion = 2;
+inline constexpr std::uint32_t WorldStageFingerprintVersion = 1;
 
 enum class WorldFeatureKind : std::uint8_t {
     TerrainPatch,
@@ -25,6 +27,27 @@ enum class WorldFeatureKind : std::uint8_t {
     Building,
     Vegetation,
     Fence
+};
+
+enum class WorldGenerationStage : std::uint8_t {
+    Terrain,
+    Hydrology,
+    Roads,
+    Buildings,
+    Vegetation,
+};
+
+struct WorldStageFingerprint final {
+    WorldGenerationStage stage{WorldGenerationStage::Terrain};
+    proc::Seed seed{0};
+    std::uint32_t version{0};
+    std::uint64_t dependency_fingerprint{0};
+
+    [[nodiscard]] bool valid() const noexcept {
+        return seed != 0U && version != 0U && dependency_fingerprint != 0U;
+    }
+
+    friend constexpr bool operator==(const WorldStageFingerprint&, const WorldStageFingerprint&) noexcept = default;
 };
 
 struct WorldGenerationRequest final {
@@ -65,7 +88,18 @@ struct WorldPlan final {
     hydrology::HydrologyArtifact hydrology{};
     std::vector<WorldFeature> features;
     std::vector<BuildingSiteRequest> building_sites;
+    std::array<WorldStageFingerprint, 5> stage_fingerprints{};
     std::uint64_t content_hash{0};
+
+    [[nodiscard]] bool hasValidStageFingerprints() const noexcept {
+        for (std::size_t index = 0; index < stage_fingerprints.size(); ++index) {
+            const auto& stage = stage_fingerprints[index];
+            if (stage.stage != static_cast<WorldGenerationStage>(index) || !stage.valid()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     [[nodiscard]] std::size_t count(WorldFeatureKind kind) const noexcept {
         std::size_t result = 0;

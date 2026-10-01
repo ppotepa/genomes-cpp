@@ -179,7 +179,8 @@ WorldSemanticSnapshot WorldScenario::semanticSnapshot() const noexcept {
 
 bool WorldScenario::validCandidate(const world::WorldPlan& plan) noexcept {
     return plan.generator_version == world::WorldGeneratorVersion && plan.seed != 0U &&
-           plan.map_size_m >= 128U && !plan.features.empty() && plan.content_hash != 0U;
+           plan.map_size_m >= 128U && !plan.features.empty() && plan.content_hash != 0U &&
+           plan.hasValidStageFingerprints();
 }
 
 foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifact(

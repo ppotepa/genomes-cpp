@@ -69,6 +69,7 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
     const float map_size = static_cast<float>(request.map_size_m);
     const float half_size = map_size * 0.5F;
     const double area_m2 = static_cast<double>(request.map_size_m) * request.map_size_m;
+    const proc::SeedPath root_path(request.seed);
     const std::uint32_t vegetation_count =
         densityCount(area_m2, request.vegetation, 500.0, 4096);
     plan.features.reserve(1 + 4 + vegetation_count +
@@ -84,6 +85,18 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
     hydrology_spec.seed = request.seed;
     hydrology_spec.map_size_m = request.map_size_m;
     const GridLayout layout = GridLayout::forMap(request.map_size_m);
+    const auto nonzero = [](std::uint64_t value) noexcept {
+        return value == 0U ? std::uint64_t{1U} : value;
+    };
+    std::uint64_t layout_fingerprint = foundation::stableHashU64(layout.cell_count);
+    layout_fingerprint = foundation::stableHashCombine(layout_fingerprint, layout.sample_count);
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, std::bit_cast<std::uint32_t>(layout.spacing_m));
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, std::bit_cast<std::uint32_t>(layout.extent_m));
+    plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Terrain)] = {
+        WorldGenerationStage::Terrain, root_path.child("terrain", 0).seed(),
+        WorldStageFingerprintVersion, nonzero(layout_fingerprint)};
     hydrology_spec.cells_x = layout.cell_count;
     hydrology_spec.cells_z = hydrology_spec.cells_x;
     hydrology_spec.cell_size_m = 8.0F;
@@ -95,6 +108,9 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
             hydrology_result.error());
     }
     plan.hydrology = std::move(hydrology_result.value());
+    plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Hydrology)] = {
+        WorldGenerationStage::Hydrology, root_path.child("river", 0).seed(),
+        hydrology::HydrologyGeneratorVersion, nonzero(plan.hydrology.content_hash)};
     content_hash = foundation::stableHashCombine(content_hash, plan.hydrology.content_hash);
 
     auto append = [&](WorldFeatureKind kind,
@@ -126,6 +142,12 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
         return foundation::Result<WorldPlan, foundation::Error>::failure(city_result.error());
     }
     CityPlan city = std::move(city_result.value());
+    plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Roads)] = {
+        WorldGenerationStage::Roads, root_path.child("roads", 0).seed(),
+        city.generator_version, nonzero(city.road_graph.contentHash())};
+    plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Buildings)] = {
+        WorldGenerationStage::Buildings, root_path.child("buildings", 0).seed(),
+        WorldStageFingerprintVersion, nonzero(city.content_hash)};
     content_hash = foundation::stableHashCombine(content_hash, city.content_hash);
     for (const roads::RoadEdge& edge : city.road_graph.edges()) {
         const foundation::Vec3 start = edge.centerline.start;
@@ -193,7 +215,7 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
         }
     }
 
-    proc::RandomStream vegetation_random(proc::SeedPath(plan.seed).child("vegetation", 0));
+    proc::RandomStream vegetation_random(root_path.child("vegetation", 0));
     for (std::uint32_t index = 0; index < vegetation_count; ++index) {
         const float x = static_cast<float>(vegetation_random.uniformRange(-half_size + 8.0,
                                                                            half_size - 8.0));
@@ -206,6 +228,16 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
     }
 
     plan.city = std::move(city);
+    std::uint64_t vegetation_fingerprint = foundation::stableHashU64(vegetation_count);
+    for (const auto& feature : plan.features) {
+        if (feature.kind == WorldFeatureKind::Vegetation) {
+            vegetation_fingerprint = foundation::stableHashCombine(
+                vegetation_fingerprint, featureHash(feature));
+        }
+    }
+    plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Vegetation)] = {
+        WorldGenerationStage::Vegetation, root_path.child("vegetation", 0).seed(),
+        WorldStageFingerprintVersion, nonzero(vegetation_fingerprint)};
     plan.content_hash = content_hash == 0 ? 1 : content_hash;
     return foundation::Result<WorldPlan, foundation::Error>::success(std::move(plan));
 }

@@ -22,5 +22,11 @@ int main() {
     const auto graphical_snapshot = graphical.semanticSnapshot();
     assert(headless_snapshot.valid() && graphical_snapshot.valid());
     assert(headless_snapshot == graphical_snapshot);
+    const auto* headless_plan = headless.activePlan();
+    const auto* graphical_plan = graphical.activePlan();
+    assert(headless_plan != nullptr && graphical_plan != nullptr);
+    assert(headless_plan->hasValidStageFingerprints());
+    assert(graphical_plan->hasValidStageFingerprints());
+    assert(headless_plan->stage_fingerprints == graphical_plan->stage_fingerprints);
     return 0;
 }
