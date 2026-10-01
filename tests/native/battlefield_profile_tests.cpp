@@ -2,6 +2,7 @@
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
 
 #include <cassert>
+#include <cstdint>
 
 int main() {
     using namespace genomes;
@@ -42,5 +43,27 @@ int main() {
     runtime.value()->fixedUpdate(simulation::TickContext{
         foundation::SimulationTick{3U}, 1.0 / 60.0, 0U});
     assert(runtime.value()->snapshot().tick == 2U);
+
+    // T10: one authoritative EntityId must survive the complete weapon ->
+    // ballistics -> impact -> damage path. A one-tick AI cadence and relaxed
+    // alignment make this a deterministic pipeline regression rather than a
+    // timing/sleep test.
+    gameplay::BattlefieldScenarioConfig pipeline_config{};
+    pipeline_config.max_ticks = 8U;
+    pipeline_config.tactical_ai_profile.observation_period_ticks = 1U;
+    pipeline_config.tactical_ai_profile.memory_ticks = 8U;
+    pipeline_config.tactical_ai_profile.fire_alignment_cos = -1.0F;
+    auto pipeline_runtime = gameplay::BattlefieldRuntime::start(pipeline_config);
+    assert(pipeline_runtime);
+    for (std::uint32_t tick = 0U;
+         tick < pipeline_config.max_ticks && !pipeline_runtime.value()->complete();
+         ++tick) {
+        pipeline_runtime.value()->fixedUpdate();
+    }
+    const auto& pipeline_snapshot = pipeline_runtime.value()->snapshot();
+    assert(pipeline_snapshot.fired > 0U);
+    assert(pipeline_snapshot.impacts > 0U);
+    assert(pipeline_snapshot.accepted_damage > 0U);
+    assert(pipeline_snapshot.physics_steps == pipeline_snapshot.tick);
     return 0;
 }

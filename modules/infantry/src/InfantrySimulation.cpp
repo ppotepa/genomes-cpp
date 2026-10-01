@@ -40,8 +40,8 @@ InfantrySimulation::InfantrySimulation(simulation::EntityStore& entities,
                                        physics::PhysicsWorld* physics,
                                        jobs::JobSystem* jobs,
                                        bool external_physics_step) noexcept
-    : entities_{entities}, navigation_{navigation}, physics_{physics}, jobs_{jobs},
-      external_physics_step_{external_physics_step} {}
+    : entities_{entities}, navigation_{navigation}, physics_{physics},
+      external_physics_step_{external_physics_step}, jobs_{jobs} {}
 
 bool InfantrySimulation::contactMemoryFresh(const Agent& record,
                                              foundation::SimulationTick tick) noexcept {
@@ -144,8 +144,22 @@ void InfantrySimulation::stepPhysics(double dt) noexcept {
     if (physics_ == nullptr || !std::isfinite(dt) || dt <= 0.0) {
         return;
     }
-    physics_->apply(physics_commands_);
+    applyPhysicsCommands();
     physics_->step(static_cast<float>(dt));
+    syncPhysicsState();
+}
+
+void InfantrySimulation::applyPhysicsCommands() noexcept {
+    if (physics_ == nullptr) {
+        return;
+    }
+    physics_->apply(physics_commands_);
+}
+
+void InfantrySimulation::syncPhysicsState() noexcept {
+    if (physics_ == nullptr) {
+        return;
+    }
     syncPhysics();
     buildRenderStates();
 }

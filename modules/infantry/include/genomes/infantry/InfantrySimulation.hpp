@@ -76,6 +76,11 @@ public:
     // fixedUpdate has produced the command buffer. Legacy fixtures retain the
     // default inline behavior for compatibility.
     void stepPhysics(double dt) noexcept;
+    // BattlefieldRuntime owns the PhysicsWorld step. These two operations
+    // expose the command/snapshot halves so the runtime can keep the single
+    // world step in its PhysicsStep callback.
+    void applyPhysicsCommands() noexcept;
+    void syncPhysicsState() noexcept;
     [[nodiscard]] bool externalPhysicsStep() const noexcept {
         return external_physics_step_;
     }

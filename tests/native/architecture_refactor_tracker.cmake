@@ -308,6 +308,43 @@ if(NOT combat_system_header MATCHES "class FixtureHitscan")
     message(FATAL_ERROR "Named FixtureHitscan compatibility fixture was removed")
 endif()
 
+# T10/R031-R032: the runtime pipeline has one explicit physics owner and a
+# declared weapon -> ballistics -> impact -> damage boundary. Infantry may
+# prepare commands and consume the result, but it must not perform the
+# authoritative world step on behalf of BattlefieldScenario.
+file(READ "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldScenario.cpp"
+     battlefield_scenario_source)
+foreach(required_pipeline_text IN ITEMS
+        "queueFire();"
+        "advanceBallistics();"
+        "submitImpact(impact)"
+        "commitDamage()"
+        "infantry_->applyPhysicsCommands();"
+        "physics_.step(static_cast<float>(context.fixed_dt));"
+        "infantry_->syncPhysicsState();"
+        "damage.access.resource_writes")
+    string(FIND "${battlefield_scenario_source}" "${required_pipeline_text}"
+           pipeline_text_position)
+    if(pipeline_text_position EQUAL -1)
+        message(FATAL_ERROR
+                "Battlefield authoritative pipeline contract is missing: ${required_pipeline_text}")
+    endif()
+endforeach()
+if(battlefield_scenario_source MATCHES "infantry_->stepPhysics\\(")
+    message(FATAL_ERROR
+            "BattlefieldScenario must own the single PhysicsWorld::step call")
+endif()
+string(FIND "${battlefield_scenario_source}" "infantry_->applyPhysicsCommands();"
+       pipeline_apply_position)
+string(FIND "${battlefield_scenario_source}"
+       "physics_.step(static_cast<float>(context.fixed_dt));" pipeline_step_position)
+string(FIND "${battlefield_scenario_source}" "infantry_->syncPhysicsState();"
+       pipeline_sync_position)
+if(pipeline_apply_position GREATER pipeline_step_position OR
+   pipeline_step_position GREATER pipeline_sync_position)
+    message(FATAL_ERROR "Battlefield PhysicsStep ownership order is invalid")
+endif()
+
 file(READ "${tracker}" tracker_text)
 
 if(NOT tracker_text MATCHES "4735977aa8b839c8ef53cd7631d8f15dbc0068f1")

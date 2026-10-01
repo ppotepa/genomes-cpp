@@ -305,7 +305,13 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     physics_step.main_thread_only = true;
     physics_step.callback = [this](simulation::SystemContext& context) {
         if (infantry_) {
-            infantry_->stepPhysics(context.fixed_dt);
+            // The runtime is the sole owner of this world step. Infantry only
+            // submits commands and consumes the post-step snapshot; keeping
+            // the actual step here prevents a second physics owner from
+            // entering the authoritative pipeline.
+            infantry_->applyPhysicsCommands();
+            physics_.step(static_cast<float>(context.fixed_dt));
+            infantry_->syncPhysicsState();
         }
     };
     if (!add_system(std::move(physics_step))) {
@@ -340,7 +346,7 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
     damage.access.writes = {foundation::stable_id("component.entity.health"),
                             foundation::stable_id("component.entity.flags")};
     damage.access.resource_reads = {foundation::stable_id("battlefield.projectiles")};
-    damage.access.writes = {foundation::stable_id("battlefield.health")};
+    damage.access.resource_writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
     damage.main_thread_only = true;
     damage.callback = [this](simulation::SystemContext&) { applyImpactDamage(); };
