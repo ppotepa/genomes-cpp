@@ -17,6 +17,19 @@ genomes::buildings::BuildingSpec validSpec() {
     return spec;
 }
 
+genomes::world::BuildingSiteRequest validSite() {
+    genomes::world::BuildingSiteRequest site{};
+    site.request_id = 100;
+    site.parcel_id = 200;
+    site.seed = 300;
+    site.preferred_position = {10.0F, 0.0F, -5.0F};
+    site.preferred_footprint = {6.0F, 1.0F, 4.0F};
+    site.clearance_m = 0.0F;
+    site.buildable_polygon = {{6.0F, -8.0F}, {14.0F, -8.0F},
+                              {14.0F, -2.0F}, {6.0F, -2.0F}};
+    return site;
+}
+
 void roomsUsePositiveFullXyzExtents() {
     const auto generated = genomes::buildings::BuildingGenerator::generate(validSpec());
     assert(generated);
@@ -37,10 +50,29 @@ void narrowManyRoomPlanIsRejectedBeforeReservation() {
     assert(!genomes::buildings::BuildingGenerator::generate(invalid));
 }
 
+void siteRequiresCenteredRotationAlignedRectangle() {
+    const auto valid = genomes::buildings::BuildingGenerator::generateSite(validSite());
+    assert(valid);
+
+    auto self_intersecting = validSite();
+    self_intersecting.buildable_polygon = {{6.0F, -8.0F}, {14.0F, -2.0F},
+                                            {14.0F, -8.0F}, {6.0F, -2.0F}};
+    assert(!genomes::buildings::BuildingGenerator::generateSite(self_intersecting));
+
+    auto asymmetric = validSite();
+    asymmetric.buildable_polygon[0].x = 7.0F;
+    assert(!genomes::buildings::BuildingGenerator::generateSite(asymmetric));
+
+    auto five_points = validSite();
+    five_points.buildable_polygon.push_back({10.0F, -5.0F});
+    assert(!genomes::buildings::BuildingGenerator::generateSite(five_points));
+}
+
 } // namespace
 
 int main() {
     roomsUsePositiveFullXyzExtents();
     narrowManyRoomPlanIsRejectedBeforeReservation();
+    siteRequiresCenteredRotationAlignedRectangle();
     return 0;
 }

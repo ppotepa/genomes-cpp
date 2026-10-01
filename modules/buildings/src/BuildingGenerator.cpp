@@ -13,6 +13,65 @@ namespace genomes::buildings {
 
 namespace {
 
+struct SiteBounds final {
+    float min_x{0.0F};
+    float min_z{0.0F};
+    float max_x{0.0F};
+    float max_z{0.0F};
+};
+
+[[nodiscard]] bool isSupportedSiteRectangle(const world::BuildingSiteRequest& request,
+                                            SiteBounds& bounds) noexcept {
+    constexpr float epsilon = 1.0e-4F;
+    foundation::Vec2 local[4]{};
+    bounds.min_x = std::numeric_limits<float>::max();
+    bounds.min_z = std::numeric_limits<float>::max();
+    bounds.max_x = std::numeric_limits<float>::lowest();
+    bounds.max_z = std::numeric_limits<float>::lowest();
+    const float cosine = std::cos(request.preferred_rotation);
+    const float sine = std::sin(request.preferred_rotation);
+    for (std::size_t index = 0; index < request.buildable_polygon.size(); ++index) {
+        const foundation::Vec2 point = request.buildable_polygon[index];
+        const float dx = point.x - request.preferred_position.x;
+        const float dz = point.y - request.preferred_position.z;
+        local[index] = {dx * cosine + dz * sine, -dx * sine + dz * cosine};
+        bounds.min_x = std::min(bounds.min_x, local[index].x);
+        bounds.min_z = std::min(bounds.min_z, local[index].y);
+        bounds.max_x = std::max(bounds.max_x, local[index].x);
+        bounds.max_z = std::max(bounds.max_z, local[index].y);
+    }
+    if (bounds.max_x - bounds.min_x <= epsilon || bounds.max_z - bounds.min_z <= epsilon ||
+        std::abs(bounds.min_x + bounds.max_x) > epsilon ||
+        std::abs(bounds.min_z + bounds.max_z) > epsilon) {
+        return false;
+    }
+    for (std::size_t index = 0; index < 4; ++index) {
+        const foundation::Vec2 point = local[index];
+        const bool x_corner = std::abs(point.x - bounds.min_x) <= epsilon ||
+                              std::abs(point.x - bounds.max_x) <= epsilon;
+        const bool z_corner = std::abs(point.y - bounds.min_z) <= epsilon ||
+                              std::abs(point.y - bounds.max_z) <= epsilon;
+        if (!x_corner || !z_corner) {
+            return false;
+        }
+        for (std::size_t other = 0; other < index; ++other) {
+            if (std::abs(point.x - local[other].x) <= epsilon &&
+                std::abs(point.y - local[other].y) <= epsilon) {
+                return false;
+            }
+        }
+        const foundation::Vec2 next = local[(index + 1U) % 4U];
+        const bool horizontal = std::abs(point.y - next.y) <= epsilon &&
+                                std::abs(point.x - next.x) > epsilon;
+        const bool vertical = std::abs(point.x - next.x) <= epsilon &&
+                              std::abs(point.y - next.y) > epsilon;
+        if (!horizontal && !vertical) {
+            return false;
+        }
+    }
+    return true;
+}
+
 [[nodiscard]] foundation::StableId part_id(const BuildingSpec& spec,
                                            std::string_view kind,
                                            std::uint32_t index) noexcept {
@@ -156,24 +215,14 @@ foundation::Result<BuildingGenerationResult, foundation::Error> BuildingGenerato
             {foundation::ErrorCode::InvalidArgument, "invalid building site request"});
     }
 
-    float min_x = std::numeric_limits<float>::max();
-    float min_z = std::numeric_limits<float>::max();
-    float max_x = std::numeric_limits<float>::lowest();
-    float max_z = std::numeric_limits<float>::lowest();
-    const float cosine = std::cos(request.preferred_rotation);
-    const float sine = std::sin(request.preferred_rotation);
-    for (const foundation::Vec2 point : request.buildable_polygon) {
-        const float dx = point.x - request.preferred_position.x;
-        const float dz = point.y - request.preferred_position.z;
-        const float local_x = dx * cosine + dz * sine;
-        const float local_z = -dx * sine + dz * cosine;
-        min_x = std::min(min_x, local_x);
-        min_z = std::min(min_z, local_z);
-        max_x = std::max(max_x, local_x);
-        max_z = std::max(max_z, local_z);
+    SiteBounds bounds{};
+    if (!isSupportedSiteRectangle(request, bounds)) {
+        return foundation::Result<BuildingGenerationResult, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument,
+             "building site must be a centered, rotation-aligned rectangle"});
     }
-    const float available_x = max_x - min_x - request.clearance_m * 2.0F;
-    const float available_z = max_z - min_z - request.clearance_m * 2.0F;
+    const float available_x = bounds.max_x - bounds.min_x - request.clearance_m * 2.0F;
+    const float available_z = bounds.max_z - bounds.min_z - request.clearance_m * 2.0F;
     if (!std::isfinite(available_x) || !std::isfinite(available_z) || available_x < 2.0F ||
         available_z < 2.0F) {
         return foundation::Result<BuildingGenerationResult, foundation::Error>::failure(

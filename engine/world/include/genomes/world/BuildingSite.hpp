@@ -39,7 +39,7 @@ struct BuildingSiteRequest final {
     SiteAccessSurface access_surface{SiteAccessSurface::Track};
 
     [[nodiscard]] bool valid() const noexcept {
-        if (request_id == 0 || parcel_id == 0 || seed == 0 || buildable_polygon.size() < 4 ||
+        if (request_id == 0 || parcel_id == 0 || seed == 0 || buildable_polygon.size() != 4 ||
             floors_min == 0 || floors_min > floors_max || floors_max > 32 ||
             !std::isfinite(preferred_position.x) || !std::isfinite(preferred_position.y) ||
             !std::isfinite(preferred_position.z) || !std::isfinite(preferred_footprint.x) ||
