@@ -97,13 +97,13 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR03 | `modules/buildings/src`, world site request users | UNREVIEWED |
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
-| PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R030 and R032 source contract reviewed; R031 ownership extraction remains open |
+| PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R033 source ownership and pipeline reviewed at `be465f4`; BattlefieldScenario is now a thin facade, with CTest/runtime verification pending |
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | neutral `SceneCommand`/typed application-command boundary and physical product-source relocation reviewed at `10b1ba5`; `WorldGenerationConfig` and full composition ownership remain UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | material (`1ba42a6`), ammo (`4d08dc5`), equipment (`c29b346`), weapon (`82efa74`) and existing Tactical AI profile (`f675811`) parity/source contracts reviewed; world/building have no canonical typed loader/schema and appearance remains native-only, so the remaining migration is intentionally UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `d3bb543`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
-| PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
+| PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | R050-R051 source guards and CPU restoration tests reviewed at `7b075a0`; D3D12/GPU acceptance remains user-owned and unverified |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | WAIT_BASELINE |

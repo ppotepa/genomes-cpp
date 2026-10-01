@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **47/55 decisions CODE_READY; 12/18 packages complete**.
+Current source progress: **49/55 decisions CODE_READY; 14/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -51,7 +51,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R028 | PR06 | combat AI | DATA | Tactical AI profile moves without tuning to typed core content; runtime stores no parser/DOM. | CODE_READY | ec69179 | NOT_RUN | - | `tactical-ai.json` is strict-loaded in the game composition root; `BattlefieldScenarioConfig` receives only `TacticalAIProfile`; combat and battlefield profile tests cover parity and injection. |
 | R029 | PR07 | simulation | REF | One `SessionSimulationClock` and `TickContext` own tick, fixed dt and frequency; frame time remains presentation-only. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers tick context. |
 | R030 | PR07 | simulation | REF | Seconds/RPM conversion uses one deterministic ceil-to-next-tick function and preserves 60 Hz behavior. | CODE_READY | 6f7bb15 | NOT_RUN | - | `simulation.session_clock` covers 60 Hz and alternate-rate ceil conversion. |
-| R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | PLANNED | 41bbf2b | NOT_RUN | - | BattlefieldScene delegates each tick exclusively to BattlefieldRuntime whenever it exists, and battlefield world clients now use canonical `world_core`; full presentation/state extraction remains open. |
+| R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | CODE_READY | be465f4 | NOT_RUN | - | `BattlefieldRuntime` now directly owns ECS, infantry, physics, navigation, graph, combat/ballistics and destruction state; `BattlefieldScenario` is a thin compatibility facade. `architecture_refactor_tracker`, `battlefield_pipeline_guard`, and facade regression syntax checks pass; CTest remains `NOT_RUN`. |
 | R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | CODE_READY | e4432bc | NOT_RUN | - | Dedicated source contract now checks WeaponController→FireIntent/FireRequest→BallisticsWorld→ImpactEvent/DamageCommand, packed EntityId source/target mapping, phase order, and exactly one physics step; runtime/CTest verification remains pending. |
 | R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | PLANNED | 10b1ba5 | NOT_RUN | - | Product scene sources live under `engine/game_scenes`; `SceneCommand` is now the neutral runtime transport and typed `ApplicationCommand` is outside runtime. Typed `WorldGenerationConfig` still crosses `SceneContext`/`SceneDirector`, so the full R034 ownership move remains open. |
@@ -71,7 +71,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R048 | PR12 | Unit Lab | REF | View model tracks Geometry/Material/Pose/Presentation/UI dirtiness and only rebuilds affected outputs. | CODE_READY | e280e5d | NOT_RUN | - | `UnitLabDirtyState` retains the five typed categories; `SetAppearancePreset` marks Material/UI only, and presentation creates a material variant without rerunning model compilation or changing geometry/index buffers. |
 | R049 | PR12 | UI/presentation | FIX | Camera, picking and capture use current RmlUi viewport metrics or the last valid rectangle. | CODE_READY | 24e7f84 | NOT_RUN | - | `ui.rml` measures the `unit-viewport` layout at 75/100/150%; `unit_lab` covers normalization and last-valid retention. |
 | R050 | PR13 | render ABI | REF | Existing 69-bone/four-influence/four-morph ABI is named and versioned `SkinnedLayoutProfileV1` in shared C++/HLSL definitions. | CODE_READY | 8ddf046 | NOT_RUN | - | T26 source coverage; user D3D12/GPU acceptance pending. |
-| R051 | PR13 | presentation | FIX | GPU upload retains immutable artifact ownership through submission, retires by fence and publishes revisions atomically after all resources succeed. | PLANNED | 7b075a0 | NOT_RUN | - | Source guards require complete VB/IB/palette candidates, deferred fence ownership, map-copy failure handling, and publication only after success; runtime/GPU evidence remains open. |
+| R051 | PR13 | presentation | FIX | GPU upload retains immutable artifact ownership through submission, retires by fence and publishes revisions atomically after all resources succeed. | CODE_READY | 7b075a0 | NOT_RUN | - | `render.diligent_source_contracts` and `render.diligent_restoration` cover complete VB/IB/palette candidates, immutable ownership, deferred fence retirement, map-copy failure handling, and publication only after success. D3D12 runtime submission/capture remains user verification and is still `NOT_RUN`. |
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | CODE_READY | ceda2e6 | NOT_RUN | - | Shared CMake manifest validation checks schema, provenance, unique family IDs, safe roots and formats; public-header consumer sources cover core targets. Full target-closure review remains open. |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | CODE_READY | e280e5d | NOT_RUN | - | Stable ID/schema are declared, strict typed parsing accepts only `inspection-olive`, the feature card records provenance/determinism/cache/error policy, and a presentation test proves geometry/indices remain unchanged. |
 | R054 | PR16 | performance | REF | Only measured optimizations ship; execution tuning preserves D1/D2 results and meets the stated target/p95 acceptance gate. | PLANNED | - | NOT_RUN | - | `docs/refactor/PR16_MEASUREMENT_GATE.md` plus the versioned input/schema fixture define the gate; user baseline and benchmark evidence are still required. |
@@ -92,13 +92,13 @@ new explicitly versioned capability or contract.
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
-| PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | 41bbf2b | NOT_RUN | - |
+| PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | be465f4 | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | 10b1ba5 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | f4c5cbb | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | PLANNED | f675811 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
 | PR12 | Unified typed command path | R047-R049 | CODE_READY | d3bb543 | NOT_RUN | - |
-| PR13 | Versioned GPU profile and ownership | R050-R051 | PLANNED | 7b075a0 | NOT_RUN | - |
+| PR13 | Versioned GPU profile and ownership | R050-R051 | CODE_READY | 7b075a0 | NOT_RUN | - |
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | PLANNED | - | NOT_RUN | - |
