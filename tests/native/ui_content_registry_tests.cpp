@@ -85,6 +85,29 @@ void duplicateCandidateDoesNotReplacePublishedRegistry() {
     std::filesystem::remove_all(root, cleanup_error);
 }
 
+void nativePluginRequiresTrustedManifest() {
+    const auto root = std::filesystem::temp_directory_path() /
+                      "genomes-ui-content-native-permission";
+    std::error_code cleanup_error;
+    std::filesystem::remove_all(root, cleanup_error);
+    std::filesystem::create_directories(root);
+    writeMod(root, "untrusted", 0, {});
+    writeText(root / "untrusted" / "mod.json",
+              "{\"schema_version\":1,\"id\":\"untrusted\",\"version\":\"1.0.0\","
+              "\"load_priority\":0,\"dependencies\":[],"
+              "\"native_plugin\":\"missing-plugin.dll\",\"trusted_native\":false,"
+              "\"scenes\":[\"scenes/untrusted\"]}");
+    const auto registry = genomes::ui::UiContentRegistry::discover(root);
+    assert(registry);
+    genomes::ui::UiNativePluginManager plugins;
+    genomes::ui::UiPluginError error;
+    assert(!plugins.load(registry.value(), true, &error));
+    assert(!error.message.empty());
+    assert(plugins.registered_scene_controllers().empty());
+    assert(plugins.registered_ui_actions().empty());
+    std::filesystem::remove_all(root, cleanup_error);
+}
+
 } // namespace
 
 int main() {
@@ -117,5 +140,6 @@ int main() {
     assert(plugins.registered_ui_actions().empty());
     registryOrdersDependenciesAndPriorities();
     duplicateCandidateDoesNotReplacePublishedRegistry();
+    nativePluginRequiresTrustedManifest();
     return 0;
 }
