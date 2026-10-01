@@ -1,7 +1,9 @@
 #include <genomes/terrain/HeightField.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 
+#include <array>
 #include <cassert>
+#include <utility>
 
 int main() {
     using namespace genomes;
@@ -22,5 +24,19 @@ int main() {
     // A presentation compiler receives resolved plans; it must not silently
     // regenerate this site or accept a mixed-resolution artifact.
     assert(!world_render::WorldMeshCompiler::compile(plan, terrain.value(), {}));
+
+    buildings::BuildingGenerationResult resolved{};
+    constexpr foundation::StableId part_id = 0xB17U;
+    resolved.plan.parts.push_back({.id = part_id,
+                                   .kind = buildings::BuildingPartKind::Wall,
+                                   .extent = {2.0F, 3.0F, 0.2F}});
+    const std::array<buildings::BuildingGenerationResult, 1U> resolved_buildings{
+        std::move(resolved)};
+    const auto compiled = world_render::WorldMeshCompiler::compile(
+        plan, terrain.value(), resolved_buildings);
+    assert(compiled && compiled.value().mesh);
+    const auto range = compiled.value().part_draw_ranges.find(part_id);
+    assert(range != compiled.value().part_draw_ranges.end());
+    assert(range->second.index_count == 36U);
     return 0;
 }

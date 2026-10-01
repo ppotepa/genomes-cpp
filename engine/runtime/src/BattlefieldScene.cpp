@@ -98,6 +98,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
+    world_mesh_artifact_.reset();
 #if GENOMES_HAS_INFANTRY
     render_infantry_mesh_.reset();
     infantry_skinned_prototype_.reset();
@@ -152,6 +153,7 @@ void BattlefieldScene::on_exit(SceneContext&) {
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
+    world_mesh_artifact_.reset();
     render_infantry_mesh_.reset();
     infantry_skinned_prototype_.reset();
     camera_request_ = {};
@@ -536,6 +538,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
     render_world_mesh_.reset();
+    world_mesh_artifact_.reset();
     render_infantry_mesh_.reset();
     camera_request_ = {};
     const gameplay::WorldScenarioArtifact* shared_artifact =
@@ -599,7 +602,8 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         render_terrain_mesh_.reset();
         return;
     }
-    render_world_mesh_ = world_mesh_result.value();
+    world_mesh_artifact_ = std::move(world_mesh_result.value());
+    render_world_mesh_ = world_mesh_artifact_->mesh;
     entities_.clear();
     const float map_size_f = static_cast<float>(config_.map_size_m);
     const float half_map_f = map_size_f * 0.5F;

@@ -169,16 +169,17 @@ void append_river(render::RenderMesh& mesh,
 
 } // namespace
 
-foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>
+foundation::Result<WorldMeshArtifact, foundation::Error>
 WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightField& terrain,
                            std::span<const buildings::BuildingGenerationResult> resolved_buildings) {
     if (plan.map_size_m == 0 || plan.features.empty() || terrain.width() < 2 ||
         terrain.height() < 2 || !std::isfinite(terrain.cellSize()) || terrain.cellSize() <= 0.0F) {
-        return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::failure(
+        return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid world presentation inputs"});
     }
 
     auto mesh = std::make_shared<render::RenderMesh>();
+    std::unordered_map<foundation::StableId, WorldMeshDrawRange> part_draw_ranges;
     mesh->mesh_id = foundation::stable_id("mesh.world.semantic");
     mesh->vertices.reserve(plan.features.size() * 24);
     mesh->indices.reserve(plan.features.size() * 36);
@@ -221,8 +222,7 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         base.y += terrain.sampleBilinear(feature.position.x, feature.position.z);
         const auto append_result = append_colored_box(*mesh, base, size, color, feature.rotation_y);
         if (!append_result) {
-            return foundation::Result<std::shared_ptr<const render::RenderMesh>,
-                                      foundation::Error>::failure(append_result.error());
+            return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(append_result.error());
         }
     }
 
@@ -240,7 +240,7 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
     // never re-run the building generator: collision, navigation and render
     // need the same semantic BuildingPart IDs and resolutions.
     if (resolved_buildings.size() != plan.building_sites.size()) {
-        return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::failure(
+        return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "building resolution count does not match world plan"});
     }
     for (const buildings::BuildingGenerationResult& generated : resolved_buildings) {
@@ -252,22 +252,30 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
                                                     part.center,
                                                     generated.resolution.rotation_y);
             center.y += terrain_height;
+            const std::size_t first_index = mesh->indices.size();
             const auto append_result = append_centered_box(
                 *mesh, center, part.extent, building_part_color(part.kind),
                 generated.resolution.rotation_y);
             if (!append_result) {
-                return foundation::Result<std::shared_ptr<const render::RenderMesh>,
-                                          foundation::Error>::failure(append_result.error());
+                return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(append_result.error());
+            }
+            const std::size_t index_count = mesh->indices.size() - first_index;
+            if (first_index > std::numeric_limits<std::uint32_t>::max() ||
+                index_count > std::numeric_limits<std::uint32_t>::max() ||
+                !part_draw_ranges.emplace(part.id, WorldMeshDrawRange{
+                    static_cast<std::uint32_t>(first_index), static_cast<std::uint32_t>(index_count)}).second) {
+                return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "duplicate or oversized building part draw range"});
             }
         }
     }
 
     if (mesh->vertices.empty() || mesh->indices.empty()) {
-        return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::failure(
+        return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "world plan compiled to an empty mesh"});
     }
-    return foundation::Result<std::shared_ptr<const render::RenderMesh>, foundation::Error>::success(
-        std::move(mesh));
+    return foundation::Result<WorldMeshArtifact, foundation::Error>::success(
+        {std::move(mesh), std::move(part_draw_ranges)});
 }
 
 } // namespace genomes::world_render

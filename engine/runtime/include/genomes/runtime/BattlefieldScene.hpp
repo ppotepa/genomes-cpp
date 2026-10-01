@@ -27,6 +27,7 @@
 #include <genomes/terrain/TerrainMesh.hpp>
 #include <genomes/world/WorldPlan.hpp>
 #include <genomes/world/WorldRegionStreamer.hpp>
+#include <genomes/world_render/WorldMeshCompiler.hpp>
 
 #include <memory>
 #include <optional>
@@ -67,6 +68,7 @@ private:
     std::optional<terrain::TerrainMesh> terrain_mesh_;
     std::shared_ptr<const render::RenderMesh> render_terrain_mesh_;
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
+    std::optional<world_render::WorldMeshArtifact> world_mesh_artifact_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
     std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
     camera::CameraRequest camera_request_{};
