@@ -39,11 +39,12 @@ void writeMod(const std::filesystem::path& root, const std::string& id, int prio
     writeText(scene_root / "screen.rml", "<rml><body></body></rml>");
 }
 
-void writeNativeManifest(const std::filesystem::path& root, const std::string& id,
+void writeNativeManifest(const std::filesystem::path& root, const std::string& id, int priority,
                          const std::string& plugin_name, bool trusted) {
     writeText(root / id / "mod.json",
               "{\"schema_version\":1,\"id\":\"" + id +
-                  "\",\"version\":\"1.0.0\",\"load_priority\":0,"
+                  "\",\"version\":\"1.0.0\",\"load_priority\":" +
+                  std::to_string(priority) + ","
                   "\"dependencies\":[],\"native_plugin\":\"" + plugin_name +
                   "\",\"trusted_native\":" + (trusted ? "true" : "false") +
                   ",\"scenes\":[\"scenes/" + id + "\"]}");
@@ -130,9 +131,9 @@ void nativePluginFixtureExercisesLoadAndRollback() {
     const auto plugin_name = plugin_source.filename().string();
     std::filesystem::copy_file(plugin_source, root / "good" / plugin_name,
                                std::filesystem::copy_options::overwrite_existing);
-    writeNativeManifest(root, "good", plugin_name, true);
+    writeNativeManifest(root, "good", 0, plugin_name, true);
     writeMod(root, "bad", 1, {});
-    writeNativeManifest(root, "bad", "missing-plugin.dll", true);
+    writeNativeManifest(root, "bad", 1, "missing-plugin.dll", true);
 
     const auto candidate = genomes::ui::UiContentRegistry::discover(root);
     assert(candidate);
