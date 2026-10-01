@@ -211,6 +211,12 @@ genomes_set_project_warnings(genomes_test_session_simulation_clock)
 genomes_enable_test_assertions(genomes_test_session_simulation_clock)
 add_test(NAME simulation.session_clock COMMAND genomes_test_session_simulation_clock)
 
+add_executable(genomes_test_world_grid_layout world_grid_layout_tests.cpp)
+target_link_libraries(genomes_test_world_grid_layout PRIVATE genomes::world)
+genomes_set_project_warnings(genomes_test_world_grid_layout)
+genomes_enable_test_assertions(genomes_test_world_grid_layout)
+add_test(NAME world.grid_layout COMMAND genomes_test_world_grid_layout)
+
 add_executable(genomes_test_system_graph_batch
     simulation/system_graph_batch_tests.cpp)
 target_link_libraries(genomes_test_system_graph_batch PRIVATE genomes::simulation)
