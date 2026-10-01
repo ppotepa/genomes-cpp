@@ -9,7 +9,7 @@
 #include <string_view>
 #include <utility>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 namespace {
 [[nodiscard]] std::string_view value_of(const ui::UiActionArguments& arguments) {
     for (const auto& argument : arguments)
@@ -147,4 +147,4 @@ void WorldLabScene::frame_update(SceneContext& context, double) {
     (void)model.set_field("genome", std::move(genome));
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

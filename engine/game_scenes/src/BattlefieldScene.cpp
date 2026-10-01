@@ -18,17 +18,9 @@
 #include <utility>
 #include <unordered_map>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 namespace {
-
-[[nodiscard]] float sample_ground(const void* context, float x, float z) noexcept {
-    if (context == nullptr) {
-        return 0.0F;
-    }
-    const auto* height_field = static_cast<const terrain::HeightField*>(context);
-    return height_field->sampleBilinear(x, z);
-}
 
 [[nodiscard]] const char* kind_name(world::WorldFeatureKind kind) noexcept {
     switch (kind) {
@@ -75,6 +67,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     jobs_ = context.deterministic_capture ? nullptr : context.jobs;
     elapsed_seconds_ = 0.0;
     generation_error_.clear();
+    simulation_failed_ = false;
     plan_.reset();
     resolved_buildings_.reset();
     scenario_.reset();
@@ -89,6 +82,10 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         battlefield_runtime_ = std::move(viability.value());
     } else {
         generation_error_ = std::string(viability.error().message);
+        // BattlefieldRuntime is the sole production simulation owner.  A
+        // failed start is a terminal scene error, never permission to revive
+        // the former scene-local graph/physics pipeline.
+        simulation_failed_ = true;
     }
 #endif
     terrain_.reset();
@@ -111,20 +108,12 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     camera_request_ = {};
     terrain_min_height_ = 0.0F;
     terrain_max_height_ = 0.0F;
-    entities_.clear();
-    physics_ = physics::SimplePhysicsWorld{};
 #if GENOMES_HAS_INFANTRY
-    infantry_.reset();
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
 #endif
-    navigation_.reset();
-    damage_buffer_.clear();
-    command_buffers_.reset(0);
     simulation_tick_ = {};
-    simulation_failed_ = false;
-    configure_simulation_graph();
 
     if (jobs_ != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
@@ -156,18 +145,11 @@ void BattlefieldScene::on_exit(SceneContext&) {
     infantry_skinned_prototype_.reset();
     camera_request_ = {};
 #if GENOMES_HAS_INFANTRY
-    infantry_.reset();
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
 #endif
-    navigation_.reset();
-    damage_buffer_.clear();
-    simulation_graph_.clear();
-    command_buffers_.reset(0);
     simulation_failed_ = false;
-    physics_ = physics::SimplePhysicsWorld{};
-    entities_.clear();
     region_streamer_.reset();
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
@@ -181,7 +163,7 @@ void BattlefieldScene::initialize_infantry_animation() {
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
-    if (!infantry_ || !infantry_model_artifact_) {
+    if (!battlefield_runtime_ || !infantry_model_artifact_) {
         return;
     }
     auto animation = infantry::AnimationSystem::create(64U);
@@ -190,8 +172,8 @@ void BattlefieldScene::initialize_infantry_animation() {
         return;
     }
     animation_system_ = std::move(animation.value());
-    animation_agents_.reserve(infantry_->renderStates().size());
-    for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+    animation_agents_.reserve(battlefield_runtime_->renderStates().size());
+    for (const infantry::InfantryRenderState& state : battlefield_runtime_->renderStates()) {
         auto locomotion = infantry::LocomotionController::create(
             infantry_model_artifact_->phenotype.body);
         auto face = infantry::FaceAnimator::create(
@@ -214,13 +196,13 @@ void BattlefieldScene::initialize_infantry_animation() {
 }
 
 void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
-    if (!animation_system_ || !infantry_ || !infantry_model_artifact_ ||
+    if (!animation_system_ || !battlefield_runtime_ || !infantry_model_artifact_ ||
         animation_agents_.empty()) {
         return;
     }
     std::unordered_map<std::uint64_t, const infantry::InfantryRenderState*> states;
-    states.reserve(infantry_->renderStates().size());
-    for (const auto& state : infantry_->renderStates()) {
+    states.reserve(battlefield_runtime_->renderStates().size());
+    for (const auto& state : battlefield_runtime_->renderStates()) {
         states.emplace(state.entity.packed(), &state);
     }
 
@@ -331,137 +313,9 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
         evaluate_infantry_animation(static_cast<float>(dt));
         return;
     }
-    if (!infantry_) {
-        return;
-    }
-
-    if (simulation_graph_.compiled()) {
-        const auto result = simulation_graph_.run(simulation_tick_, dt, jobs_, &command_buffers_);
-        if (!result) {
-            generation_error_ = "Simulation graph failed: " +
-                                 std::string(result.error().message);
-            command_buffers_.reset(0);
-            simulation_failed_ = true;
-        } else {
-            const auto committed = simulation::CommandCommitter{}.commit(
-                entities_.ecs(), command_buffers_.buffers());
-            if (!committed) {
-                generation_error_ = "Simulation command commit failed: " +
-                                     std::string(committed.error().message);
-            }
-        }
-    } else {
-        // Keep a safe fallback for a partially constructed scene. Once the
-        // graph is compiled all authoritative updates go through its phases.
-        infantry_->fixedUpdate(dt, simulation_tick_);
-        infantry_->stepPhysics(dt);
-        // The compatibility graph has no authoritative weapon-to-damage
-        // path. Keep its event buffer bounded until BattlefieldRuntime is
-        // available; the legacy adapter is test-only and must not run here.
-        damage_buffer_.clear();
-    }
-    evaluate_infantry_animation(static_cast<float>(dt));
-#endif
-}
-
-void BattlefieldScene::configure_simulation_graph() {
-    simulation_graph_.clear();
-
-#if !GENOMES_HAS_INFANTRY
+    // A missing runtime can only mean that start() failed in on_enter().  Do
+    // not fall back to a second ECS/physics/combat owner in the product scene.
     return;
-#else
-
-    const auto add_system = [this](simulation::SystemDescriptor descriptor) {
-        const auto result = simulation_graph_.add(std::move(descriptor));
-        if (!result) {
-            generation_error_ = "Simulation graph setup failed: " +
-                                 std::string(result.error().message);
-            return false;
-        }
-        return true;
-    };
-
-    constexpr simulation::CadencePolicy every_tick{simulation::CadenceKind::EveryTick};
-
-    simulation::SystemDescriptor infantry_update{};
-    infantry_update.id = foundation::stable_id("system.infantry.update");
-    infantry_update.phase = simulation::SystemPhase::MoveIntent;
-    infantry_update.access.reads = {
-        foundation::stable_id("component.entity.health"),
-        foundation::stable_id("resource.navigation"),
-    };
-    infantry_update.access.writes = {
-        foundation::stable_id("component.entity.position"),
-        foundation::stable_id("component.entity.velocity"),
-        foundation::stable_id("resource.physics.commands"),
-        foundation::stable_id("resource.infantry.state"),
-    };
-    infantry_update.cadence = every_tick;
-    infantry_update.callback = [this](simulation::SystemContext& context) {
-        if (infantry_) {
-            infantry_->fixedUpdate(context.fixed_dt, context.tick);
-        }
-    };
-    if (!add_system(std::move(infantry_update))) {
-        return;
-    }
-
-    simulation::SystemDescriptor physics_step{};
-    physics_step.id = foundation::stable_id("system.physics.step");
-    physics_step.phase = simulation::SystemPhase::PhysicsStep;
-    physics_step.access.reads = {foundation::stable_id("resource.physics.commands")};
-    physics_step.access.writes = {foundation::stable_id("resource.physics.world")};
-    physics_step.cadence = every_tick;
-    physics_step.callback = [this](simulation::SystemContext& context) {
-        if (infantry_) {
-            infantry_->stepPhysics(context.fixed_dt);
-        } else {
-            physics_.step(static_cast<float>(context.fixed_dt));
-        }
-    };
-    if (!add_system(std::move(physics_step))) {
-        return;
-    }
-
-    simulation::SystemDescriptor emit_events{};
-    emit_events.id = foundation::stable_id("system.combat.emit-events");
-    emit_events.phase = simulation::SystemPhase::CombatBallistics;
-    emit_events.access.reads = {
-        foundation::stable_id("component.entity.position"),
-        foundation::stable_id("resource.infantry.state"),
-    };
-    emit_events.access.writes = {foundation::stable_id("resource.combat.events")};
-    emit_events.cadence = every_tick;
-    emit_events.callback = [this](simulation::SystemContext& context) {
-        if (infantry_) {
-            infantry_->emitCombatEvents(context.tick, damage_buffer_);
-        }
-    };
-    if (!add_system(std::move(emit_events))) {
-        return;
-    }
-
-    simulation::SystemDescriptor apply_damage{};
-    apply_damage.id = foundation::stable_id("system.combat.apply-damage");
-    apply_damage.phase = simulation::SystemPhase::DamageDestruction;
-    apply_damage.access.reads = {foundation::stable_id("resource.combat.events")};
-    apply_damage.access.writes = {
-        foundation::stable_id("component.entity.health"),
-        foundation::stable_id("component.entity.flags"),
-    };
-    apply_damage.cadence = every_tick;
-    apply_damage.callback = [this](simulation::SystemContext&) {
-        damage_buffer_.clear();
-    };
-    if (!add_system(std::move(apply_damage))) {
-        return;
-    }
-
-    const auto compiled = simulation_graph_.compile();
-    if (!compiled) {
-        generation_error_ = "Simulation graph compile failed: " +
-                            std::string(compiled.error().message);
-    }
 #endif
 }
 
@@ -497,7 +351,9 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
         (void)model.set("map_size", static_cast<std::int64_t>(plan_->map_size_m));
         (void)model.set("features", feature_summary(*plan_));
 #if GENOMES_HAS_INFANTRY
-        const std::size_t infantry_count = infantry_ ? infantry_->activeCount() : 0U;
+        const std::size_t infantry_count = battlefield_runtime_ != nullptr
+                                                ? battlefield_runtime_->renderStates().size()
+                                                : 0U;
 #else
         constexpr std::size_t infantry_count = 0U;
 #endif
@@ -598,8 +454,6 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     camera_request_.target = {0.0F, 0.0F, 0.0F};
     camera_request_.up = {0.0F, 1.0F, 0.0F};
     camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
-    physics_.setGroundHeightQuery({&*terrain_, &sample_ground});
-    physics_.bindWorldRevision(world::artifactRevision(*plan_));
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
     render_mesh->revision = world::artifactRevision(*plan_);
@@ -622,85 +476,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
     world_mesh_artifact_ = std::move(world_mesh_result.value());
     render_world_mesh_ = world_mesh_artifact_->mesh;
-    entities_.clear();
-    const std::uint32_t nav_cells = grid_layout.cell_count;
-    navigation_ = std::make_unique<navigation::GridNavigationWorld>(
-        navigation::NavGridSpec{nav_cells, nav_cells, grid_layout.spacing_m,
-                                grid_layout.origin});
-    if (navigation_) {
-        navigation_->bindWorldRevision(world::artifactRevision(*plan_));
-    }
-    if (navigation_ && navigation_->valid()) {
-        for (std::uint32_t z = 0; z < nav_cells; ++z) {
-            for (std::uint32_t x = 0; x < nav_cells; ++x) {
-                const foundation::Vec3 cell = {
-                    grid_layout.origin.x +
-                        (static_cast<float>(x) + 0.5F) * grid_layout.spacing_m,
-                    0.0F,
-                    grid_layout.origin.z +
-                        (static_cast<float>(z) + 0.5F) * grid_layout.spacing_m};
-                if (plan_->hydrology.isWater(cell.x, cell.z)) {
-                    (void)navigation_->setBlocked(x, z, true);
-                }
-            }
-        }
-        for (const buildings::BuildingGenerationResult& building : *resolved_buildings_) {
-            const world::BuildingSiteResolution& site = building.resolution;
-            const float radius_x = site.resolved_footprint.x * 0.55F;
-            const float radius_z = site.resolved_footprint.z * 0.55F;
-            for (std::uint32_t z = 0; z < nav_cells; ++z) {
-                for (std::uint32_t x = 0; x < nav_cells; ++x) {
-                    const foundation::Vec3 cell = {
-                        grid_layout.origin.x +
-                            (static_cast<float>(x) + 0.5F) * grid_layout.spacing_m,
-                        0.0F,
-                        grid_layout.origin.z +
-                            (static_cast<float>(z) + 0.5F) * grid_layout.spacing_m};
-                    if (std::abs(cell.x - site.world_position.x) <= radius_x &&
-                        std::abs(cell.z - site.world_position.z) <= radius_z) {
-                        (void)navigation_->setBlocked(x, z, true);
-                    }
-                }
-            }
-        }
-    }
 #if GENOMES_HAS_INFANTRY
-    infantry_ = std::make_unique<infantry::InfantrySimulation>(
-        entities_, navigation_.get(), &physics_, jobs_, true);
-    constexpr std::uint32_t units_per_team = 25;
-    const float map_size = static_cast<float>(config_.map_size_m);
-    const float half_map = map_size * 0.5F;
-    const auto spawn_infantry = [&](infantry::Team team, foundation::Vec3 position,
-                                    const infantry::InfantryGenome& genome,
-                                    std::uint32_t squad_id) {
-        const auto result = infantry_->spawn({team, position, genome,
-                                              {{team, squad_id}},
-                                              weapons::weapon_id("infantry_default")});
-        if (!result) {
-            generation_error_ = std::string(result.error().message);
-        }
-    };
-    for (std::uint32_t index = 0; index < units_per_team; ++index) {
-        const float lateral = 70.0F + static_cast<float>(index % 5) * 12.0F;
-        const float depth = 150.0F + static_cast<float>(index / 5) * 22.0F;
-        const infantry::InfantryGenome genome{
-            1.65F + static_cast<float>(index % 4) * 0.045F,
-            2.7F + static_cast<float>(index % 3) * 0.15F,
-            90.0F,
-            38.0F,
-            100.0F,
-            static_cast<float>(index % 4)};
-        const foundation::Vec3 blue_position{-half_map + lateral, 0.0F, -half_map + depth};
-        const foundation::Vec3 red_position{half_map - lateral, 0.0F, half_map - depth};
-        const float blue_ground = terrain_->sampleBilinear(blue_position.x, blue_position.z);
-        const float red_ground = terrain_->sampleBilinear(red_position.x, red_position.z);
-        spawn_infantry(infantry::Team::Blue,
-                       {blue_position.x, blue_ground + 0.55F, blue_position.z}, genome,
-                       index / 5U);
-        spawn_infantry(infantry::Team::Red,
-                       {red_position.x, red_ground + 0.55F, red_position.z}, genome,
-                       100U + index / 5U);
-    }
+    // BattlefieldRuntime owns the sole authoritative infantry/ECS instance;
+    // presentation consumes its immutable render-state view.
     initialize_infantry_animation();
 #endif
     terrain_min_height_ = std::numeric_limits<float>::max();
@@ -730,7 +508,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                                                    feature.scale, feature.rotation_y});
     }
 #if GENOMES_HAS_INFANTRY
-    if (infantry_) {
+    if (battlefield_runtime_ != nullptr) {
         if (infantry_model_artifact_) {
             if (!infantry_skinned_prototype_) {
                 infantry_skinned_prototype_ = infantry_presentation::makePrototype(
@@ -759,15 +537,17 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 const foundation::StableId red_material =
                     foundation::stable_id("material.infantry.red");
                 context.presentation.instances.reserve(
-                    context.presentation.instances.size() + infantry_->renderStates().size());
+                    context.presentation.instances.size() +
+                        battlefield_runtime_->renderStates().size());
                 context.presentation.skinned_palettes.reserve(
                     context.presentation.skinned_palettes.size() +
-                    infantry_->renderStates().size());
+                    battlefield_runtime_->renderStates().size());
                 std::unordered_map<foundation::StableId, const infantry::AnimationPose*> poses;
                 poses.reserve(animation_poses_.size());
                 for (const auto& pose : animation_poses_) poses.emplace(pose.semantic_id, &pose);
 
-                for (const infantry::InfantryRenderState& state : infantry_->renderStates()) {
+                for (const infantry::InfantryRenderState& state :
+                     battlefield_runtime_->renderStates()) {
                     const foundation::StableId object_id =
                         foundation::stable_id("entity.infantry") ^ state.entity.packed();
                     const foundation::StableId pose_id =
@@ -826,4 +606,4 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
 #endif
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

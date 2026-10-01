@@ -17,7 +17,7 @@
 #include <utility>
 #include <variant>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 struct UnitLabCommandDiagnostic final {
     foundation::ErrorCode code{foundation::ErrorCode::InvalidArgument};
@@ -314,4 +314,4 @@ parseSetAppearancePreset(std::string_view text) {
     return parseUnitLabCommand(tokens.front(), tokens.subspan(1U));
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

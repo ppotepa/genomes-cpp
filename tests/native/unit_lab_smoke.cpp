@@ -30,7 +30,7 @@ int main() {
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
     director.register_scene(unit_lab_id, [] {
-        return std::make_unique<genomes::runtime::UnitLabScene>();
+        return std::make_unique<genomes::game_scenes::UnitLabScene>();
     });
 
     assert(director.start(unit_lab_id));
@@ -180,7 +180,7 @@ int main() {
     genomes::render::PresentationSnapshot gpu_presentation;
     genomes::runtime::SceneContext gpu_context{gpu_commands, gpu_ui, gpu_presentation};
     gpu_context.render_capabilities.gpu_skinning = true;
-    genomes::runtime::UnitLabScene gpu_scene;
+    genomes::game_scenes::UnitLabScene gpu_scene;
     gpu_scene.on_enter(gpu_context);
     gpu_presentation.simulation_tick = 17U;
     gpu_presentation.clear_scene_payload();
@@ -308,7 +308,7 @@ int main() {
     genomes::runtime::SceneDirector async_director(async_renderer, async_ui,
                                                     async_presentation, &async_jobs);
     async_director.register_scene(unit_lab_id, [] {
-        return std::make_unique<genomes::runtime::UnitLabScene>();
+        return std::make_unique<genomes::game_scenes::UnitLabScene>();
     });
     assert(async_director.start(unit_lab_id));
     for (int frame = 0; frame < 5 && async_presentation.skinned_prototypes.empty();

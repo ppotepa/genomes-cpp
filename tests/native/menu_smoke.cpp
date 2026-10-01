@@ -49,10 +49,10 @@ int main() {
     const auto building_profile =
         std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
             loaded_building_profile.value());
-    const auto automatic_seed = genomes::runtime::WorldSeedInput::automatic().resolve(0U);
+    const auto automatic_seed = genomes::application::WorldSeedInput::automatic().resolve(0U);
     assert(automatic_seed && automatic_seed.value() != 0U);
     const auto invalid_explicit_seed =
-        genomes::runtime::WorldSeedInput::explicitValue(0U).resolve(123U);
+        genomes::application::WorldSeedInput::explicitValue(0U).resolve(123U);
     assert(!invalid_explicit_seed);
     {
         genomes::render::NullRenderer unavailable_renderer;
@@ -98,7 +98,7 @@ int main() {
     const auto world_config_id = genomes::foundation::scene_id("scene.world-config");
     const auto battlefield_id = genomes::foundation::scene_id("scene.battlefield");
     director.register_scene(menu_id, [world_profile] {
-        return std::make_unique<genomes::runtime::MainMenuScene>(world_profile);
+        return std::make_unique<genomes::game_scenes::MainMenuScene>(world_profile);
     });
     const auto duplicate_menu = director.register_scene(menu_id, [] {
         return std::make_unique<DummyScene>(genomes::foundation::scene_id("scene.main-menu"));
@@ -109,11 +109,11 @@ int main() {
         return std::make_unique<DummyScene>(unit_lab_id);
     });
     director.register_scene(world_config_id, [world_profile, active_world_config] {
-        return std::make_unique<genomes::runtime::WorldConfigScene>(
+        return std::make_unique<genomes::game_scenes::WorldConfigScene>(
             world_profile, *active_world_config);
     });
     director.register_scene(battlefield_id, [active_world_config, building_profile] {
-        return std::make_unique<genomes::runtime::BattlefieldScene>(
+        return std::make_unique<genomes::game_scenes::BattlefieldScene>(
             *active_world_config, building_profile);
     });
 
@@ -155,13 +155,13 @@ int main() {
     director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == battlefield_id);
-    const auto* battlefield = dynamic_cast<const genomes::runtime::BattlefieldScene*>(
+    const auto* battlefield = dynamic_cast<const genomes::game_scenes::BattlefieldScene*>(
         director.current());
     assert(battlefield != nullptr);
     for (int attempt = 0; attempt < 1000 && battlefield->plan() == nullptr; ++attempt) {
         director.frame_update(1.0 / 60.0);
         std::this_thread::yield();
-        battlefield = dynamic_cast<const genomes::runtime::BattlefieldScene*>(
+        battlefield = dynamic_cast<const genomes::game_scenes::BattlefieldScene*>(
             director.current());
     }
     assert(battlefield != nullptr);

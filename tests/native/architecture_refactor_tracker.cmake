@@ -299,40 +299,38 @@ foreach(removed_runtime_bridge IN ITEMS
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldLabScene.hpp"
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabScene.hpp"
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/InfantryPresentation.hpp"
-        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp")
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabModelRequestGate.hpp")
     if(EXISTS "${removed_runtime_bridge}")
         message(FATAL_ERROR
                 "Retired runtime forwarding header was reintroduced: ${removed_runtime_bridge}")
     endif()
 endforeach()
 
-# The production scene may still carry its legacy graph while the ownership
-# migration is in progress, but one session tick must dispatch exactly one
-# authoritative pipeline. Keep the runtime handoff ahead of the compatibility
-# fallback and require an explicit return before the legacy graph can run.
+# The production scene has one authoritative pipeline.  BattlefieldRuntime
+# owns the ECS, physics and combat tick; a failed start is terminal for the
+# scene and must not revive the removed scene-local graph/physics fallback.
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
      battlefield_scene_source)
-string(FIND "${battlefield_scene_source}" "battlefield_runtime_ != nullptr"
-       battlefield_runtime_guard_position)
-string(FIND "${battlefield_scene_source}" "battlefield_runtime_->fixedUpdate"
-       battlefield_runtime_tick_position)
-string(FIND "${battlefield_scene_source}" "simulation_graph_.run"
-       battlefield_legacy_tick_position)
-if(battlefield_runtime_guard_position EQUAL -1 OR
-   battlefield_runtime_tick_position EQUAL -1 OR
-   battlefield_legacy_tick_position EQUAL -1 OR
-   battlefield_runtime_tick_position GREATER battlefield_legacy_tick_position)
+foreach(removed_battlefield_fallback IN ITEMS
+        "simulation_graph_.run"
+        "simulation_graph_.compiled"
+        "infantry_->fixedUpdate"
+        "infantry_->stepPhysics"
+        "infantry_->emitCombatEvents"
+        "simulation::CommandCommitter")
+    if(battlefield_scene_source MATCHES "${removed_battlefield_fallback}")
+        message(FATAL_ERROR
+                "BattlefieldScene still contains removed legacy fallback: ${removed_battlefield_fallback}")
+    endif()
+endforeach()
+if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->fixedUpdate")
     message(FATAL_ERROR
-            "BattlefieldScene lost the runtime-before-legacy tick handoff")
+            "BattlefieldScene does not dispatch its authoritative BattlefieldRuntime")
 endif()
-math(EXPR battlefield_tick_region_length
-     "${battlefield_legacy_tick_position} - ${battlefield_runtime_tick_position}")
-string(SUBSTRING "${battlefield_scene_source}"
-       ${battlefield_runtime_tick_position} ${battlefield_tick_region_length}
-       battlefield_tick_region)
-if(NOT battlefield_tick_region MATCHES "return;")
+if(NOT battlefield_scene_source MATCHES "simulation_failed_ = true")
     message(FATAL_ERROR
-            "BattlefieldScene may not run its legacy graph after runtime tick")
+            "BattlefieldScene must fail closed when BattlefieldRuntime cannot start")
 endif()
 
 # R032 boundary: FixtureHitscan is an isolated compatibility/unit fixture. It

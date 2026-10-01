@@ -12,7 +12,10 @@
 #include <utility>
 #include <vector>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
+
+using runtime::Scene;
+using runtime::SceneContext;
 
 enum class MainMenuEntry {
     StartScenario,
@@ -70,4 +73,4 @@ private:
     std::vector<std::shared_ptr<const render::RenderMesh>> preview_prototypes_;
 };
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

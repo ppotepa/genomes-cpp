@@ -235,12 +235,12 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
     const auto pause_id = foundation::scene_id("scene.pause");
 
     entries_.push_back({menu_id, [world_profile] {
-        return std::make_unique<runtime::MainMenuScene>(world_profile);
+        return std::make_unique<game_scenes::MainMenuScene>(world_profile);
     }});
     const auto active_world_config = active_world_config_;
     entries_.push_back({world_config_id,
                         [active_world_config, world_profile] {
-                            return std::make_unique<runtime::WorldConfigScene>(
+                            return std::make_unique<game_scenes::WorldConfigScene>(
                                 world_profile, *active_world_config);
                         }});
     const auto building_profile = config.building_profile;
@@ -250,13 +250,13 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
             config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
         entries_.push_back({battlefield_id, [active_world_config, tactical_ai_profile,
                                              building_profile] {
-            return std::make_unique<runtime::BattlefieldScene>(*active_world_config,
+            return std::make_unique<game_scenes::BattlefieldScene>(*active_world_config,
                                                       building_profile,
                                                       tactical_ai_profile);
         }});
 #else
         entries_.push_back({battlefield_id, [active_world_config, building_profile] {
-            return std::make_unique<runtime::BattlefieldScene>(*active_world_config,
+            return std::make_unique<game_scenes::BattlefieldScene>(*active_world_config,
                                                                building_profile);
         }});
 #endif
@@ -269,15 +269,15 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
 #if GENOMES_HAS_INFANTRY
     const auto appearance_catalog = config.appearance_catalog;
     entries_.push_back({unit_lab_id, [appearance_catalog] {
-        return std::make_unique<runtime::UnitLabScene>(appearance_catalog);
+        return std::make_unique<game_scenes::UnitLabScene>(appearance_catalog);
     }});
 #else
     (void)unit_lab_id;
 #endif
     entries_.push_back({building_lab_id, [building_profile] {
-        return std::make_unique<runtime::BuildingLabScene>(building_profile);
+        return std::make_unique<game_scenes::BuildingLabScene>(building_profile);
     }});
-    entries_.push_back({world_lab_id, [] { return std::make_unique<runtime::WorldLabScene>(); }});
+    entries_.push_back({world_lab_id, [] { return std::make_unique<game_scenes::WorldLabScene>(); }});
     entries_.push_back({settings_id, [settings_id] {
         return std::make_unique<PlaceholderScene>(settings_id, "Settings");
     }});

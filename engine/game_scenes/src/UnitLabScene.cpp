@@ -22,7 +22,7 @@
 #include <iterator>
 #include <vector>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 UnitLabViewport unitLabViewport(int framebuffer_width, int framebuffer_height,
                                 double ui_scale) noexcept {
@@ -1265,4 +1265,4 @@ void UnitLabScene::build_presentation(SceneContext& context) {
     dirty_.clear(UnitLabDirtyFlag::Presentation);
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

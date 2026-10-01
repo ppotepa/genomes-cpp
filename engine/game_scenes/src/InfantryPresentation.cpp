@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace genomes::runtime::infantry_presentation {
+namespace genomes::game_scenes::infantry_presentation {
 
 namespace {
 
@@ -332,4 +332,4 @@ std::vector<render::SkinnedBoneTransform> makeLocalPoses(
     return result;
 }
 
-} // namespace genomes::runtime::infantry_presentation
+} // namespace genomes::game_scenes::infantry_presentation

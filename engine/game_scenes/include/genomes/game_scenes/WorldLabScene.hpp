@@ -5,7 +5,10 @@
 #include <cstdint>
 #include <string>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
+
+using runtime::Scene;
+using runtime::SceneContext;
 
 // The native Environment generator is not part of the current runtime. This
 // scene intentionally exposes a session-only prototype so the eventual
@@ -31,4 +34,4 @@ private:
     std::string imported_path_{};
 };
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

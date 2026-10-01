@@ -14,7 +14,7 @@
 #include <span>
 #include <vector>
 
-namespace genomes::runtime::infantry_presentation {
+namespace genomes::game_scenes::infantry_presentation {
 
 #if GENOMES_HAS_INFANTRY
 
@@ -49,4 +49,4 @@ enum class PrototypePreparation {
     std::span<const infantry::RigTransform> pose_bones);
 #endif
 
-} // namespace genomes::runtime::infantry_presentation
+} // namespace genomes::game_scenes::infantry_presentation

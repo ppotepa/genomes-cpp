@@ -6,7 +6,7 @@
 
 int main() {
     using namespace genomes;
-    using namespace genomes::runtime;
+    using namespace genomes::game_scenes;
     UnitLabDirtyState dirty;
     assert(dirty.contains(UnitLabDirtyFlag::Geometry));
     dirty.clearAll();

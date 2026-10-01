@@ -8,7 +8,7 @@
 #include <cmath>
 #include <string_view>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 namespace {
 
@@ -173,4 +173,4 @@ void MainMenuScene::activate(SceneContext& context) {
     }
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

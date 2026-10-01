@@ -10,7 +10,10 @@
 #include <string>
 #include <utility>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
+
+using runtime::Scene;
+using runtime::SceneContext;
 
 class BuildingLabScene final : public Scene {
 public:
@@ -44,4 +47,4 @@ private:
     std::string error_;
 };
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

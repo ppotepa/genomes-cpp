@@ -7,7 +7,7 @@
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/AnimationSystem.hpp>
 #include <genomes/runtime/Scene.hpp>
-#include <genomes/runtime/UnitLabModelRequestGate.hpp>
+#include <genomes/game_scenes/UnitLabModelRequestGate.hpp>
 #include <genomes/jobs/JobHandle.hpp>
 
 #include <memory>
@@ -18,7 +18,10 @@
 #include <utility>
 #include <variant>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
+
+using runtime::Scene;
+using runtime::SceneContext;
 
 struct UnitLabViewport final {
     float left;
@@ -217,4 +220,4 @@ private:
     std::optional<infantry::InfantryModelRequest> queued_model_request_;
 };
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

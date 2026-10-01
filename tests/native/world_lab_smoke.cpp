@@ -29,9 +29,9 @@ int main() {
     const auto menu = genomes::foundation::scene_id("scene.main-menu");
     const auto lab = genomes::foundation::scene_id("scene.world-lab");
     director.register_scene(menu, [world_profile] {
-        return std::make_unique<genomes::runtime::MainMenuScene>(world_profile);
+        return std::make_unique<genomes::game_scenes::MainMenuScene>(world_profile);
     });
-    director.register_scene(lab, [] { return std::make_unique<genomes::runtime::WorldLabScene>(); });
+    director.register_scene(lab, [] { return std::make_unique<genomes::game_scenes::WorldLabScene>(); });
     assert(director.start(menu));
     assert(director.dispatch_ui_action(genomes::foundation::stable_id("scene.open-world-lab"), {}) ==
            genomes::ui::UiActionResult::Handled);

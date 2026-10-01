@@ -30,7 +30,7 @@ foundation::Result<proc::Seed, foundation::Error> WorldSeedInput::resolve(
 
 } // namespace genomes::application
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 namespace {
 
@@ -317,4 +317,4 @@ void WorldConfigScene::activate(SceneContext& context) {
     }
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

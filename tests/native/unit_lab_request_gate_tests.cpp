@@ -1,9 +1,9 @@
-#include <genomes/runtime/UnitLabModelRequestGate.hpp>
+#include <genomes/game_scenes/UnitLabModelRequestGate.hpp>
 
 #include <cassert>
 
 int main() {
-    using namespace genomes::runtime;
+    using namespace genomes::game_scenes;
     UnitLabModelRequestGate gate;
 
     const auto a = gate.submit(10U);

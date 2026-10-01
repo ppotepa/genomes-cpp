@@ -10,7 +10,7 @@
 int main() {
     using namespace genomes;
     using upgrade_test::check;
-    using namespace runtime::infantry_presentation;
+    using namespace game_scenes::infantry_presentation;
     try {
         infantry::InfantryModelCompiler compiler;
         infantry::InfantryModelRequest request;

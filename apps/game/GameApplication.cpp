@@ -33,10 +33,10 @@ struct RunOptions final {
     bool deterministic{false};
     std::uint8_t unitlab_camera_steps{0U},unitlab_locomotion_steps{0U},unitlab_expression_steps{0U};
 #if GENOMES_HAS_INFANTRY
-    std::optional<runtime::SetVariation> unitlab_variation;
-    std::optional<runtime::SetEquipmentSlot> unitlab_equipment;
-    std::optional<runtime::SetGeneOverride> unitlab_gene;
-    std::optional<runtime::SetAppearancePreset> unitlab_appearance;
+    std::optional<game_scenes::SetVariation> unitlab_variation;
+    std::optional<game_scenes::SetEquipmentSlot> unitlab_equipment;
+    std::optional<game_scenes::SetGeneOverride> unitlab_gene;
+    std::optional<game_scenes::SetAppearancePreset> unitlab_appearance;
 #endif
 };
 bool parse_u64(std::string_view text,std::uint64_t& value) {
@@ -67,65 +67,65 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
                 "set-camera-mode", *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetCameraMode>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetCameraMode>(parsed.value()))
                 return {};
             result.unitlab_camera_steps = static_cast<std::uint8_t>(
-                std::get<runtime::SetCameraMode>(parsed.value()).value);
+                std::get<game_scenes::SetCameraMode>(parsed.value()).value);
         } else if (arg=="--unitlab-locomotion") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
                 "set-locomotion-preset", *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
             if (!parsed ||
-                !std::holds_alternative<runtime::SetLocomotionPreset>(parsed.value()))
+                !std::holds_alternative<game_scenes::SetLocomotionPreset>(parsed.value()))
                 return {};
             result.unitlab_locomotion_steps = static_cast<std::uint8_t>(
-                std::get<runtime::SetLocomotionPreset>(parsed.value()).value);
+                std::get<game_scenes::SetLocomotionPreset>(parsed.value()).value);
         } else if (arg=="--unitlab-expression") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
                 "set-expression", *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetExpression>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetExpression>(parsed.value()))
                 return {};
             result.unitlab_expression_steps = static_cast<std::uint8_t>(
-                std::get<runtime::SetExpression>(parsed.value()).value);
+                std::get<game_scenes::SetExpression>(parsed.value()).value);
 #if GENOMES_HAS_INFANTRY
         } else if (arg=="--unitlab-variation") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
                 "set-variation", *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetVariation>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetVariation>(parsed.value()))
                 return {};
-            result.unitlab_variation = std::get<runtime::SetVariation>(parsed.value());
+            result.unitlab_variation = std::get<game_scenes::SetVariation>(parsed.value());
         } else if (arg=="--unitlab-equipment") {
             const auto slot=next(); const auto item=next();
             if (!slot || !item) return {};
             const std::array<std::string_view, 3> tokens{
                 "set-equipment-slot", *slot, *item};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetEquipmentSlot>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetEquipmentSlot>(parsed.value()))
                 return {};
-            result.unitlab_equipment = std::get<runtime::SetEquipmentSlot>(parsed.value());
+            result.unitlab_equipment = std::get<game_scenes::SetEquipmentSlot>(parsed.value());
         } else if (arg=="--unitlab-gene") {
             const auto gene=next(); const auto value=next();
             if (!gene || !value) return {};
             const std::array<std::string_view, 3> tokens{
                 "set-gene-override", *gene, *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetGeneOverride>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetGeneOverride>(parsed.value()))
                 return {};
-            result.unitlab_gene = std::get<runtime::SetGeneOverride>(parsed.value());
+            result.unitlab_gene = std::get<game_scenes::SetGeneOverride>(parsed.value());
         } else if (arg=="--unitlab-appearance") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
                 "set-appearance-preset", *value};
-            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
-            if (!parsed || !std::holds_alternative<runtime::SetAppearancePreset>(parsed.value()))
+            const auto parsed = game_scenes::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<game_scenes::SetAppearancePreset>(parsed.value()))
                 return {};
-            result.unitlab_appearance = std::get<runtime::SetAppearancePreset>(parsed.value());
+            result.unitlab_appearance = std::get<game_scenes::SetAppearancePreset>(parsed.value());
 #endif
         } else {
             std::cerr<<"Unknown argument: "<<arg<<'\n';return {};

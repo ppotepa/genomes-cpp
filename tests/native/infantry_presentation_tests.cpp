@@ -68,12 +68,12 @@ int main() {
 
     const auto model = compiler.compile(request);
     assert(model);
-    const auto first = runtime::infantry_presentation::makePrototype(*model.value().artifact);
-    const auto second = runtime::infantry_presentation::makePrototype(*model.value().artifact);
+    const auto first = game_scenes::infantry_presentation::makePrototype(*model.value().artifact);
+    const auto second = game_scenes::infantry_presentation::makePrototype(*model.value().artifact);
     assert(first);
     assert(first == second);
-    const auto olive = runtime::infantry_presentation::makeMaterialVariant(
-        *first, runtime::kInspectionOliveAppearancePreset, appearance_catalog.value());
+    const auto olive = game_scenes::infantry_presentation::makeMaterialVariant(
+        *first, game_scenes::kInspectionOliveAppearancePreset, appearance_catalog.value());
     assert(olive && olive != first);
     assert(olive->revision != first->revision);
     assert(olive->vertices.size() == first->vertices.size());
@@ -125,9 +125,9 @@ int main() {
         assert(first->morphs[morph].normal_deltas.size() == first->vertices.size());
     }
 
-    const auto bind_local = runtime::infantry_presentation::makeLocalPoses(
+    const auto bind_local = game_scenes::infantry_presentation::makeLocalPoses(
         model.value().artifact->skeleton, {});
-    const auto bind_palette = runtime::infantry_presentation::makeBindPalette(
+    const auto bind_palette = game_scenes::infantry_presentation::makeBindPalette(
         model.value().artifact->skeleton);
     assert(bind_local.size() == infantry::kRigBoneCount);
     assert(bind_palette.size() == infantry::kRigBoneCount);
@@ -137,7 +137,7 @@ int main() {
     const auto changed_model = compiler.compile(changed);
     assert(changed_model);
     const auto changed_prototype =
-        runtime::infantry_presentation::makePrototype(*changed_model.value().artifact);
+        game_scenes::infantry_presentation::makePrototype(*changed_model.value().artifact);
     assert(changed_prototype);
     assert(changed_prototype != first);
     assert(changed_prototype->mesh_id != first->mesh_id);

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <optional>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 struct UnitLabModelRequestToken final {
     std::uint64_t revision{0U};
@@ -80,4 +80,4 @@ private:
     std::optional<UnitLabModelRequestToken> pending_;
 };
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

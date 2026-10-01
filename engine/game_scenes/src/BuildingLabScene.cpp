@@ -13,7 +13,7 @@
 #include <string>
 #include <utility>
 
-namespace genomes::runtime {
+namespace genomes::game_scenes {
 
 namespace {
 
@@ -251,4 +251,4 @@ void BuildingLabScene::apply_selected_damage(float normalized_damage) {
     }
 }
 
-} // namespace genomes::runtime
+} // namespace genomes::game_scenes

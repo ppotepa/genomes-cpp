@@ -50,8 +50,8 @@ private:
 };
 
 // Deliberately named fixture-only damage path. Production weapon flow must
-// use CombatCommandFlow and ballistics; this adapter exists for the legacy
-// BattlefieldScene fallback until that path is fully migrated.
+// use CombatCommandFlow and ballistics; this adapter is retained only for
+// isolated compatibility fixtures and non-authoritative harnesses.
 class FixtureHitscan final {
 public:
     explicit FixtureHitscan(simulation::EntityStore& entities) noexcept
