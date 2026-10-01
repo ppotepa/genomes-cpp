@@ -124,6 +124,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     damage_buffer_.clear();
     command_buffers_.reset(0);
     simulation_tick_ = {};
+    simulation_failed_ = false;
     configure_simulation_graph();
 
     if (jobs_ != nullptr) {
@@ -163,6 +164,7 @@ void BattlefieldScene::on_exit(SceneContext&) {
     damage_buffer_.clear();
     simulation_graph_.clear();
     command_buffers_.reset(0);
+    simulation_failed_ = false;
     physics_ = physics::SimplePhysicsWorld{};
     entities_.clear();
     region_streamer_.reset();
@@ -300,6 +302,9 @@ void BattlefieldScene::handle_input(SceneContext& context, const input::InputFra
 }
 
 void BattlefieldScene::fixed_update(SceneContext&, double dt) {
+    if (simulation_failed_) {
+        return;
+    }
     elapsed_seconds_ += dt;
     simulation_tick_.increment();
 #if !GENOMES_HAS_INFANTRY
@@ -319,6 +324,7 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
             generation_error_ = "Simulation graph failed: " +
                                  std::string(result.error().message);
             command_buffers_.reset(0);
+            simulation_failed_ = true;
         } else {
             const auto committed = simulation::CommandCommitter{}.commit(
                 entities_.ecs(), command_buffers_.buffers());

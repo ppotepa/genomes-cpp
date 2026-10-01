@@ -89,6 +89,7 @@ private:
     combat::DamageBuffer damage_buffer_;
     simulation::SystemGraph simulation_graph_;
     simulation::CommandBufferSet command_buffers_;
+    bool simulation_failed_{false};
     std::unique_ptr<navigation::GridNavigationWorld> navigation_;
     std::unique_ptr<world::WorldRegionStreamer> region_streamer_;
     jobs::JobSystem* jobs_{nullptr};
