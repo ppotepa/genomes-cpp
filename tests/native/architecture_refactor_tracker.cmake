@@ -113,6 +113,34 @@ if(world_compat_position_text MATCHES "struct WorldPosition|struct RegionCoord|s
     message(FATAL_ERROR "Legacy world coordinate header must not own coordinate definitions")
 endif()
 
+set(world_core_site_header
+    "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world_core/BuildingSite.hpp")
+set(world_compat_site_header
+    "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world/BuildingSite.hpp")
+foreach(required_site_header IN ITEMS "${world_core_site_header}" "${world_compat_site_header}")
+    if(NOT EXISTS "${required_site_header}")
+        message(FATAL_ERROR "World site boundary header is missing: ${required_site_header}")
+    endif()
+endforeach()
+file(READ "${world_core_site_header}" world_core_site_text)
+if(NOT world_core_site_text MATCHES "namespace genomes::world_core")
+    message(FATAL_ERROR "Canonical world site header lost world_core namespace")
+endif()
+foreach(required_site_type IN ITEMS "BuildingSiteRequest" "BuildingSiteResolution"
+        "SiteAccessClass" "SiteAccessSurface")
+    if(NOT world_core_site_text MATCHES "${required_site_type}")
+        message(FATAL_ERROR "Canonical world site header is missing ${required_site_type}")
+    endif()
+endforeach()
+file(READ "${world_compat_site_header}" world_compat_site_text)
+if(NOT world_compat_site_text MATCHES
+        "#include[ \t]+<genomes/world_core/BuildingSite\\.hpp>")
+    message(FATAL_ERROR "Legacy world site header must forward to world_core")
+endif()
+if(world_compat_site_text MATCHES "struct BuildingSiteRequest|struct BuildingSiteResolution|enum class SiteAccess")
+    message(FATAL_ERROR "Legacy world site header must not own site definitions")
+endif()
+
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/CMakeLists.txt" runtime_targets)
 foreach(required_runtime_target IN ITEMS
         "add_library(genomes_runtime_core STATIC"
