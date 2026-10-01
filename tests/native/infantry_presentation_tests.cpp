@@ -1,4 +1,5 @@
 #include <genomes/infantry/InfantryModelCompiler.hpp>
+#include <genomes/infantry/AppearanceCatalog.hpp>
 #include <genomes/infantry/RigSchema.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
 #include <genomes/runtime/UnitLabScene.hpp>
@@ -49,6 +50,14 @@ void assertIdentity(const Matrix& matrix) {
 
 int main() {
     using namespace genomes;
+
+    const auto appearance_catalog = infantry::validateAppearanceCatalog();
+    assert(appearance_catalog);
+    const auto* olive_definition = infantry::findAppearancePreset(
+        infantry::kInspectionOliveAppearancePreset);
+    assert(olive_definition != nullptr);
+    assert(olive_definition->schema_version == infantry::kAppearancePresetSchemaVersion);
+    assert(olive_definition->material_region == infantry::AppearanceMaterialRegion::UniformCloth);
 
     infantry::InfantryModelCompiler compiler;
     infantry::InfantryModelRequest request{};

@@ -1,4 +1,5 @@
 #include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/infantry/AppearanceCatalog.hpp>
 
 #include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
@@ -301,18 +302,17 @@ std::vector<std::array<float, 16U>> makeBindPalette(const infantry::SkeletonData
 std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
     const render::SkinnedMeshPrototype& prototype,
     foundation::StableId appearance_preset) {
-    if (appearance_preset == 0U ||
-        appearance_preset != foundation::stable_id("appearance.inspection-olive")) {
+    const auto* definition = infantry::findAppearancePreset(appearance_preset);
+    if (definition == nullptr || !infantry::validateAppearanceCatalog()) {
         return {};
     }
     auto variant = std::make_shared<render::SkinnedMeshPrototype>(prototype);
     variant->revision = foundation::stableHashCombine(prototype.revision, appearance_preset);
     variant->mesh_id = foundation::stableHashCombine(prototype.mesh_id, appearance_preset);
-    constexpr foundation::Color olive{0.20F, 0.25F, 0.16F, 1.0F};
     for (auto& vertex : variant->vertices) {
         if (vertex.material_region == static_cast<std::uint16_t>(
-                infantry::AppearanceMaterialRegion::UniformCloth)) {
-            vertex.color = olive;
+                definition->material_region)) {
+            vertex.color = definition->color;
         }
     }
     return variant;

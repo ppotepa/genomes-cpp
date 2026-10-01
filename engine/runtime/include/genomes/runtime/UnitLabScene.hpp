@@ -2,6 +2,7 @@
 
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/infantry/InfantryModelCompiler.hpp>
+#include <genomes/infantry/AppearanceCatalog.hpp>
 #include <genomes/infantry/LocomotionController.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/AnimationSystem.hpp>
@@ -105,8 +106,9 @@ struct SetGeneOverride final {
 };
 
 inline constexpr foundation::StableId kInspectionOliveAppearancePreset =
-    foundation::stable_id("appearance.inspection-olive");
-inline constexpr std::uint32_t kAppearancePresetSchemaVersion = 1U;
+    infantry::kInspectionOliveAppearancePreset;
+inline constexpr std::uint32_t kAppearancePresetSchemaVersion =
+    infantry::kAppearancePresetSchemaVersion;
 
 struct SetAppearancePreset final {
     foundation::StableId value{0};

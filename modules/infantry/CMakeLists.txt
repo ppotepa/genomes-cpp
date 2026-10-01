@@ -25,6 +25,7 @@ src/AppearanceMorphBuilder.cpp
     src/AnimationSystem.cpp
     src/InfantryDamage.cpp
     src/RagdollController.cpp
+    src/AppearanceCatalog.cpp
     src/InfantryModelCompiler.cpp)
 
 target_include_directories(genomes_infantry PUBLIC
