@@ -96,15 +96,25 @@ parseSetLocomotionPreset(std::string_view text) {
 [[nodiscard]] inline foundation::Result<infantry::FaceExpression, foundation::Error>
 parseUnitLabExpression(std::string_view text) {
     static constexpr std::string_view names[] = {
-        "neutral", "alert", "fear", "anger", "pain", "fatigue", "eyes-closed"};
-    for (std::size_t index = 0U; index < std::size(names); ++index) {
-        if (text == names[index]) {
+        "neutral", "Neutral", "alert", "Alert", "fear", "Fear", "anger", "Anger",
+        "pain", "Pain", "fatigue", "Fatigue", "eyes-closed", "Eyes closed"};
+    for (std::size_t index = 0U; index < std::size(names); index += 2U) {
+        if (text == names[index] || text == names[index + 1U]) {
             return foundation::Result<infantry::FaceExpression, foundation::Error>::success(
-                static_cast<infantry::FaceExpression>(index));
+                static_cast<infantry::FaceExpression>(index / 2U));
         }
     }
     return foundation::Result<infantry::FaceExpression, foundation::Error>::failure(
         {foundation::ErrorCode::InvalidArgument, "unknown unit lab expression"});
+}
+
+[[nodiscard]] inline foundation::Result<SetExpression, foundation::Error>
+parseSetExpression(std::string_view text) {
+    const auto expression = parseUnitLabExpression(text);
+    if (!expression) {
+        return foundation::Result<SetExpression, foundation::Error>::failure(expression.error());
+    }
+    return foundation::Result<SetExpression, foundation::Error>::success({expression.value()});
 }
 
 [[nodiscard]] inline foundation::Result<SetGeneOverride, foundation::Error>

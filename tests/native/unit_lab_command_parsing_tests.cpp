@@ -18,7 +18,8 @@ int main() {
            infantry::BipedPreset::CrouchWalk);
     assert(!parseSetLocomotionPreset("run "));
     assert(parseUnitLabExpression("eyes-closed"));
-    assert(!parseUnitLabExpression("Eyes closed"));
+    assert(parseUnitLabExpression("Eyes closed"));
+    assert(parseSetExpression("anger").value().value == infantry::FaceExpression::Anger);
 
     const auto gene = parseSetGeneOverride("height", "0.82");
     assert(gene && gene.value().gene == infantry::GenomeGene::Height);

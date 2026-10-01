@@ -169,6 +169,16 @@ bool UnitLabScene::applyCommand(SceneContext&, SetLocomotionPreset command) {
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext&, SetExpression command) {
+    if (static_cast<std::uint8_t>(command.value) >= infantry::kFaceExpressionCount) return false;
+    expression_ = command.value;
+    expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
+    if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
+    markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Ui);
+    return true;
+}
+
 bool UnitLabScene::applyCommand(SceneContext& context, SetEquipmentSlot command) {
     const auto slots = infantry::EquipmentCatalog::slots();
     const auto slot = std::find_if(slots.begin(), slots.end(), [&](const auto& candidate) {
@@ -673,14 +683,9 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.expression")) {
-        static constexpr std::array<std::string_view, 7> names{"Neutral", "Alert", "Fear", "Anger", "Pain", "Fatigue", "Eyes closed"};
-        const auto it = std::find(names.begin(), names.end(), text);
-        if (it == names.end()) return ui::UiActionResult::Rejected;
-        expression_ = static_cast<infantry::FaceExpression>(std::distance(names.begin(), it));
-        expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
-        if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
-        markDirty(UnitLabDirtyFlag::Pose);
-        return ui::UiActionResult::Handled;
+        const auto command = parseSetExpression(text);
+        return command && applyCommand(context, command.value())
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.expression-intensity")) {
         double value = 0.0;

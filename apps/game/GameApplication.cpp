@@ -69,9 +69,9 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             result.unitlab_locomotion_steps = static_cast<std::uint8_t>(parsed.value().value);
         } else if (arg=="--unitlab-expression") {
             const auto value=next();if (!value) return {};
-            const auto parsed = runtime::parseUnitLabExpression(*value);
+            const auto parsed = runtime::parseSetExpression(*value);
             if (!parsed) return {};
-            result.unitlab_expression_steps = static_cast<std::uint8_t>(parsed.value());
+            result.unitlab_expression_steps = static_cast<std::uint8_t>(parsed.value().value);
         } else {
             std::cerr<<"Unknown argument: "<<arg<<'\n';return {};
         }

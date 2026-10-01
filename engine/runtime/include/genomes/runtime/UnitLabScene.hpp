@@ -57,6 +57,10 @@ struct SetLocomotionPreset final {
     infantry::BipedPreset value{infantry::BipedPreset::Idle};
 };
 
+struct SetExpression final {
+    infantry::FaceExpression value{infantry::FaceExpression::Neutral};
+};
+
 struct SetEquipmentSlot final {
     infantry::EquipmentSlot slot{infantry::EquipmentSlot::Head};
     infantry::EquipmentOverride value{};
@@ -96,6 +100,7 @@ private:
     bool applyCommand(SceneContext&, SetVariation);
     bool applyCommand(SceneContext&, SetCameraMode);
     bool applyCommand(SceneContext&, SetLocomotionPreset);
+    bool applyCommand(SceneContext&, SetExpression);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool applyCommand(SceneContext&, SetGeneOverride);
     bool executeControl(SceneContext&, Control);
