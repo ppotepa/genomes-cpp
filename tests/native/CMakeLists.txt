@@ -61,6 +61,17 @@ add_test(NAME architecture.public_header_consumer
 set_tests_properties(architecture.public_header_consumer PROPERTIES
     LABELS "source;cpu;architecture")
 
+add_executable(genomes_test_world_core_namespace_boundary
+    world_core_namespace_boundary_tests.cpp)
+target_link_libraries(genomes_test_world_core_namespace_boundary PRIVATE
+    genomes::world_core)
+genomes_set_project_warnings(genomes_test_world_core_namespace_boundary)
+genomes_enable_test_assertions(genomes_test_world_core_namespace_boundary)
+add_test(NAME world_core.namespace_boundary
+    COMMAND genomes_test_world_core_namespace_boundary)
+set_tests_properties(world_core.namespace_boundary PROPERTIES
+    LABELS "source;cpu;architecture;world")
+
 add_test(NAME ui.scene_guard
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_ui_guard.cmake")

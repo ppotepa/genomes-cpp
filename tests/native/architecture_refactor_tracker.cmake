@@ -98,6 +98,28 @@ endforeach()
 if(world_core_links MATCHES "genomes(_|::)(hydrology|roads)")
     message(FATAL_ERROR "World core must not link generation hydrology/roads targets")
 endif()
+set(world_core_position_header
+    "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world_core/WorldPosition.hpp")
+set(world_compat_position_header
+    "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world/WorldPosition.hpp")
+foreach(required_world_position_header IN ITEMS
+        "${world_core_position_header}" "${world_compat_position_header}")
+    if(NOT EXISTS "${required_world_position_header}")
+        message(FATAL_ERROR "World coordinate boundary header is missing: ${required_world_position_header}")
+    endif()
+endforeach()
+file(READ "${world_core_position_header}" world_core_position_text)
+if(NOT world_core_position_text MATCHES "namespace genomes::world_core")
+    message(FATAL_ERROR "Canonical world coordinate header lost world_core namespace")
+endif()
+file(READ "${world_compat_position_header}" world_compat_position_text)
+if(NOT world_compat_position_text MATCHES
+        "#include[ \t]+<genomes/world_core/WorldPosition\\.hpp>")
+    message(FATAL_ERROR "Legacy world coordinate header must forward to world_core")
+endif()
+if(world_compat_position_text MATCHES "struct WorldPosition|struct RegionCoord|struct WorldCoordinateConfig")
+    message(FATAL_ERROR "Legacy world coordinate header must not own coordinate definitions")
+endif()
 
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/CMakeLists.txt" runtime_targets)
 foreach(required_runtime_target IN ITEMS

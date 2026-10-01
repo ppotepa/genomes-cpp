@@ -53,7 +53,7 @@ High-risk public contracts and their first review packages:
 | System graph/ticks/ECS | `engine/simulation/include/genomes/simulation` | PR01/PR07 |
 | Seeds/cache/generation | `engine/proc/include/genomes/proc` | PR04/PR11 |
 | Runtime scenes/commands | `engine/runtime/include/genomes/runtime` | PR08/PR12 |
-| World/query/save | `engine/world/include/genomes/world` | PR04/PR09 |
+| World/query/save | canonical `engine/world/include/genomes/world_core` with compatibility `engine/world/include/genomes/world` | PR04/PR09 |
 | Buildings | `modules/buildings/include/genomes/buildings` | PR03 |
 | Infantry/model compiler | `modules/infantry/include/genomes/infantry` | PR02/PR10/PR11 |
 | Combat/weapons/ballistics | `modules/{combat,weapons,ballistics}/include/genomes` | PR06/PR07/PR10 |

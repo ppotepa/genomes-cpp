@@ -1,63 +1,21 @@
 #pragma once
 
-#include <genomes/foundation/Result.hpp>
-#include <genomes/foundation/StrongId.hpp>
-#include <genomes/foundation/Types.hpp>
-
-#include <compare>
-#include <cmath>
-#include <cstdint>
+#include <genomes/world_core/WorldPosition.hpp>
 
 namespace genomes::world {
 
-struct WorldIdTag;
-struct RegionIdTag;
-
-using WorldId = foundation::StrongId<WorldIdTag>;
-using RegionId = foundation::StrongId<RegionIdTag>;
-
-struct WorldPosition final {
-    double x{0.0};
-    double y{0.0};
-    double z{0.0};
-};
-
-struct RegionLocalPosition final {
-    float x{0.0F};
-    float y{0.0F};
-    float z{0.0F};
-};
-
-struct RegionCoord final {
-    std::int64_t x{0};
-    std::int64_t z{0};
-    std::int32_t layer{0};
-
-    friend constexpr auto operator<=>(const RegionCoord&, const RegionCoord&) noexcept = default;
-};
-
-struct WorldCoordinateConfig final {
-    double region_size_m{256.0};
-
-    [[nodiscard]] bool valid() const noexcept {
-        return std::isfinite(region_size_m) && region_size_m > 0.0;
-    }
-};
-
-[[nodiscard]] RegionCoord regionCoordFor(WorldPosition position,
-                                         const WorldCoordinateConfig& config) noexcept;
-
-[[nodiscard]] WorldPosition regionOrigin(RegionCoord coord,
-                                          const WorldCoordinateConfig& config) noexcept;
-
-[[nodiscard]] RegionLocalPosition toLocal(WorldPosition position,
-                                          RegionCoord coord,
-                                          const WorldCoordinateConfig& config) noexcept;
-
-[[nodiscard]] WorldPosition toGlobal(RegionLocalPosition position,
-                                     RegionCoord coord,
-                                     const WorldCoordinateConfig& config) noexcept;
-
-[[nodiscard]] RegionId regionId(WorldId world, RegionCoord coord) noexcept;
+// Transitional compatibility surface. New neutral consumers include
+// <genomes/world_core/WorldPosition.hpp> and use genomes::world_core.
+using world_core::RegionCoord;
+using world_core::RegionId;
+using world_core::RegionLocalPosition;
+using world_core::WorldCoordinateConfig;
+using world_core::WorldId;
+using world_core::WorldPosition;
+using world_core::regionCoordFor;
+using world_core::regionId;
+using world_core::regionOrigin;
+using world_core::toGlobal;
+using world_core::toLocal;
 
 } // namespace genomes::world

@@ -1,10 +1,10 @@
-#include <genomes/world/WorldPosition.hpp>
+#include <genomes/world_core/WorldPosition.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 
 #include <cmath>
 
-namespace genomes::world {
+namespace genomes::world_core {
 
 RegionCoord regionCoordFor(WorldPosition position,
                            const WorldCoordinateConfig& config) noexcept {
@@ -47,4 +47,4 @@ RegionId regionId(WorldId world, RegionCoord coord) noexcept {
     return RegionId(hash == 0 ? 1 : hash);
 }
 
-} // namespace genomes::world
+} // namespace genomes::world_core
