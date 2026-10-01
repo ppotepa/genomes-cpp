@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <variant>
 
 namespace genomes::runtime {
 
@@ -71,6 +72,10 @@ struct SetGeneOverride final {
     double value{0.5};
 };
 
+using UnitLabCommand = std::variant<SetVariation, SetCameraMode,
+                                    SetLocomotionPreset, SetExpression,
+                                    SetEquipmentSlot, SetGeneOverride>;
+
 class UnitLabScene final : public Scene {
 public:
     ~UnitLabScene() override;
@@ -103,6 +108,7 @@ private:
     bool applyCommand(SceneContext&, SetExpression);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool applyCommand(SceneContext&, SetGeneOverride);
+    bool applyCommand(SceneContext&, const UnitLabCommand&);
     bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest,

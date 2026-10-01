@@ -11,8 +11,10 @@
 #include <iterator>
 #include <string>
 #include <string_view>
+#include <span>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace genomes::runtime {
 
@@ -195,6 +197,52 @@ parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
     }
     return UnitLabCommandResult<SetGeneOverride>::success(
         {*gene, value.value()});
+}
+
+[[nodiscard]] inline UnitLabCommandResult<UnitLabCommand> parseUnitLabCommand(
+    std::string_view command, std::span<const std::string_view> arguments) {
+    const auto invalidArity = [&]() {
+        return UnitLabCommandResult<UnitLabCommand>::failure(unitLabDiagnostic(
+            command, "arguments", {}, "invalid unit lab command argument count"));
+    };
+    if (command == "set-variation") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetVariation(arguments[0]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-camera-mode") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetCameraMode(arguments[0]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-locomotion-preset") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetLocomotionPreset(arguments[0]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-expression") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetExpression(arguments[0]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-equipment-slot") {
+        if (arguments.size() != 2U) return invalidArity();
+        const auto parsed = parseSetEquipmentSlot(arguments[0], arguments[1]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-gene-override") {
+        if (arguments.size() != 2U) return invalidArity();
+        const auto parsed = parseSetGeneOverride(arguments[0], arguments[1]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    return UnitLabCommandResult<UnitLabCommand>::failure(unitLabDiagnostic(
+        command, "command", command, "unknown unit lab command"));
 }
 
 } // namespace genomes::runtime

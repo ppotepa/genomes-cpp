@@ -1,6 +1,8 @@
 #include <genomes/runtime/UnitLabCommandParsing.hpp>
 
 #include <cassert>
+#include <array>
+#include <string_view>
 
 int main() {
     using namespace genomes::runtime;
@@ -44,5 +46,28 @@ int main() {
     const auto invalid_gene = parseSetGeneOverride("not-a-gene", "0.5");
     assert(!invalid_gene);
     assert(invalid_gene.error().field == "gene");
+
+    const std::array<std::string_view, 1> variation_args{"1.25"};
+    const auto typed_variation = parseUnitLabCommand("set-variation", variation_args);
+    assert(typed_variation);
+    assert(std::holds_alternative<SetVariation>(typed_variation.value()));
+    assert(std::get<SetVariation>(typed_variation.value()).value == 1.25F);
+
+    const std::array<std::string_view, 2> equipment_args{"head", "helmet_light"};
+    const auto typed_equipment = parseUnitLabCommand("set-equipment-slot", equipment_args);
+    assert(typed_equipment);
+    assert(std::holds_alternative<SetEquipmentSlot>(typed_equipment.value()));
+    const std::array<std::string_view, 2> trailing_args{"height", "0.5 trailing"};
+    const auto rejected = parseUnitLabCommand("set-gene-override", trailing_args);
+    assert(!rejected);
+    assert(rejected.error().command == "set-gene-override");
+    const std::array<std::string_view, 2> wrong_arity{"1.0", "extra"};
+    const auto arity = parseUnitLabCommand("set-variation", wrong_arity);
+    assert(!arity);
+    assert(arity.error().field == "arguments");
+    const std::array<std::string_view, 1> unknown_args{"x"};
+    const auto unknown = parseUnitLabCommand("set-unknown", unknown_args);
+    assert(!unknown);
+    assert(unknown.error().field == "command");
     return 0;
 }

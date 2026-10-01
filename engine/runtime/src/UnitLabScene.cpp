@@ -210,6 +210,12 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetGeneOverride command) 
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext& context, const UnitLabCommand& command) {
+    return std::visit([this, &context](const auto& typed) {
+        return applyCommand(context, typed);
+    }, command);
+}
+
 bool UnitLabScene::executeControl(SceneContext& context, Control control) {
     switch (control) {
     case Control::Regenerate: ++preview_seed_; rebuildModel(&context); break;
@@ -538,7 +544,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.genome") && !key_of().empty()) {
-        const auto command = parseSetGeneOverride(key_of(), text);
+        const std::array<std::string_view, 2> arguments{key_of(), text};
+        const auto command = parseUnitLabCommand("set-gene-override", arguments);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -576,7 +583,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.equipment-item") && !key_of().empty()) {
-        const auto command = parseSetEquipmentSlot(key_of(), text);
+        const std::array<std::string_view, 2> arguments{key_of(), text};
+        const auto command = parseUnitLabCommand("set-equipment-slot", arguments);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -646,7 +654,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.variation")) {
-        const auto command = parseSetVariation(text);
+        const std::array<std::string_view, 1> arguments{text};
+        const auto command = parseUnitLabCommand("set-variation", arguments);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
@@ -660,20 +669,23 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
     if (action == foundation::stable_id("unit.auto-rotate")) { auto_rotate_ = bool_value(); markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }
     if (action == foundation::stable_id("unit.camera-reset")) return applyCommand(context, {UnitLabCameraMode::ThreeQuarter}) ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     if (action == foundation::stable_id("unit.camera") && !text.empty()) {
-        const auto command = parseSetCameraMode(text);
+        const std::array<std::string_view, 1> arguments{text};
+        const auto command = parseUnitLabCommand("set-camera-mode", arguments);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.locomotion") && !text.empty()) {
         if (!locomotion_ || !locomotion_state_) return ui::UiActionResult::Rejected;
-        const auto command = parseSetLocomotionPreset(text);
+        const std::array<std::string_view, 1> arguments{text};
+        const auto command = parseUnitLabCommand("set-locomotion-preset", arguments);
         if (!command) return ui::UiActionResult::Rejected;
         return applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("unit.expression")) {
-        const auto command = parseSetExpression(text);
+        const std::array<std::string_view, 1> arguments{text};
+        const auto command = parseUnitLabCommand("set-expression", arguments);
         return command && applyCommand(context, command.value())
             ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
