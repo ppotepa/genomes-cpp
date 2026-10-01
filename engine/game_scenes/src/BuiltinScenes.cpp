@@ -1,4 +1,5 @@
 #include <genomes/game_scenes/BuiltinScenes.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/runtime/BattlefieldScene.hpp>
@@ -55,32 +56,23 @@ private:
 } // namespace
 
 void configureBuiltinSceneRouting(SceneDirector& director) {
-    const auto menu_id = foundation::scene_id("scene.main-menu");
-    const auto world_config_id = foundation::scene_id("scene.world-config");
-    const auto battlefield_id = foundation::scene_id("scene.battlefield");
-    const auto unit_lab_id = foundation::scene_id("scene.unit-lab");
-    const auto building_lab_id = foundation::scene_id("scene.building-lab");
-    const auto world_lab_id = foundation::scene_id("scene.world-lab");
-    const auto settings_id = foundation::scene_id("scene.settings");
-    const auto pause_id = foundation::scene_id("scene.pause");
-
     director.set_application_action_router([&director](ui::UiActionId action,
                                                        const ui::UiActionArguments& arguments) {
         auto& ui = director.ui_runtime();
-        const auto push = [&director](ApplicationCommandKind kind) {
-            director.enqueue_command({kind, {}});
+        const auto push = [&director](application::ApplicationCommandKind kind) {
+            director.enqueue_command(application::makeApplicationCommand(kind));
             return ui::UiActionResult::Handled;
         };
         if (action == foundation::stable_id("scene.start-battlefield"))
-            return push(ApplicationCommandKind::StartScenario);
+            return push(application::ApplicationCommandKind::StartScenario);
         if (action == foundation::stable_id("scene.open-unit-lab"))
-            return push(ApplicationCommandKind::OpenUnitLab);
+            return push(application::ApplicationCommandKind::OpenUnitLab);
         if (action == foundation::stable_id("scene.open-building-lab"))
-            return push(ApplicationCommandKind::OpenBuildingLab);
+            return push(application::ApplicationCommandKind::OpenBuildingLab);
         if (action == foundation::stable_id("scene.open-world-config"))
-            return push(ApplicationCommandKind::OpenWorldConfig);
+            return push(application::ApplicationCommandKind::OpenWorldConfig);
         if (action == foundation::stable_id("scene.open-world-lab"))
-            return push(ApplicationCommandKind::OpenWorldLab);
+            return push(application::ApplicationCommandKind::OpenWorldLab);
         if (action == foundation::stable_id("scene.open-settings")) {
             if (ui.routes().top() != nullptr && ui.routes().top()->overlay)
                 return ui::UiActionResult::Rejected;
@@ -100,13 +92,13 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
         if (action == foundation::stable_id("scene.return-main-menu")) {
             if (ui.routes().top() != nullptr &&
                 ui.routes().top()->scene == foundation::scene_id("scene.pause")) {
-                return push(ApplicationCommandKind::ReturnToMainMenu);
+                return push(application::ApplicationCommandKind::ReturnToMainMenu);
             }
             if (ui.routes().top() != nullptr && ui.routes().top()->overlay) {
                 ui.routes().pop();
                 return ui::UiActionResult::Handled;
             }
-            return push(ApplicationCommandKind::ReturnToMainMenu);
+            return push(application::ApplicationCommandKind::ReturnToMainMenu);
         }
         if (action == foundation::stable_id("scene.resume")) {
             if (ui.routes().top() != nullptr &&
@@ -173,30 +165,43 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
             return ui::UiActionResult::Handled;
         }
         if (action == foundation::stable_id("application.quit"))
-            return push(ApplicationCommandKind::Quit);
+            return push(application::ApplicationCommandKind::Quit);
         return ui::UiActionResult::Unknown;
     });
 
-    director.set_application_command_handler([&director, menu_id, world_config_id,
-                                              battlefield_id, unit_lab_id, building_lab_id,
-                                              world_lab_id](const ApplicationCommand& command) {
-        switch (command.kind) {
-        case ApplicationCommandKind::StartScenario:
-            director.set_active_world_config(command.world_config);
+    director.set_scene_command_handler([&director](runtime::SceneCommandPtr command) {
+        const auto menu_id = foundation::scene_id("scene.main-menu");
+        const auto world_config_id = foundation::scene_id("scene.world-config");
+        const auto battlefield_id = foundation::scene_id("scene.battlefield");
+        const auto unit_lab_id = foundation::scene_id("scene.unit-lab");
+        const auto building_lab_id = foundation::scene_id("scene.building-lab");
+        const auto world_lab_id = foundation::scene_id("scene.world-lab");
+        const auto* application_command =
+            dynamic_cast<const application::ApplicationCommand*>(command.get());
+        if (application_command == nullptr) {
+            return;
+        }
+        switch (application_command->kind) {
+        case application::ApplicationCommandKind::StartScenario:
+            director.set_active_world_config(application_command->world_config);
             (void)director.start(battlefield_id);
             break;
-        case ApplicationCommandKind::OpenWorldConfig:
-            director.set_active_world_config(command.world_config);
+        case application::ApplicationCommandKind::OpenWorldConfig:
+            director.set_active_world_config(application_command->world_config);
             (void)director.start(world_config_id);
             break;
-        case ApplicationCommandKind::OpenUnitLab: (void)director.start(unit_lab_id); break;
-        case ApplicationCommandKind::OpenBuildingLab: (void)director.start(building_lab_id); break;
-        case ApplicationCommandKind::OpenWorldLab: (void)director.start(world_lab_id); break;
-        case ApplicationCommandKind::ReturnToMainMenu: (void)director.start(menu_id); break;
-        case ApplicationCommandKind::OpenSettings:
-        case ApplicationCommandKind::OpenPause:
+        case application::ApplicationCommandKind::OpenUnitLab:
+            (void)director.start(unit_lab_id); break;
+        case application::ApplicationCommandKind::OpenBuildingLab:
+            (void)director.start(building_lab_id); break;
+        case application::ApplicationCommandKind::OpenWorldLab:
+            (void)director.start(world_lab_id); break;
+        case application::ApplicationCommandKind::ReturnToMainMenu:
+            (void)director.start(menu_id); break;
+        case application::ApplicationCommandKind::OpenSettings:
+        case application::ApplicationCommandKind::OpenPause:
             break;
-        case ApplicationCommandKind::Quit: director.request_quit(); break;
+        case application::ApplicationCommandKind::Quit: director.request_quit(); break;
         }
     });
 
@@ -264,7 +269,12 @@ void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
 }
 
 void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
-    registerBuiltinScenes(director, BuiltinSceneConfig{.real_battlefield = real_battlefield});
+    BuiltinSceneConfig config{};
+    config.real_battlefield = real_battlefield;
+#if GENOMES_HAS_INFANTRY
+    config.tactical_ai_profile = std::nullopt;
+#endif
+    registerBuiltinScenes(director, std::move(config));
 }
 
 } // namespace genomes::runtime

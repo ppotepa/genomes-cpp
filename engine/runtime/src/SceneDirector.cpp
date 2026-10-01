@@ -251,12 +251,12 @@ void SceneDirector::present() {
 
 void SceneDirector::process_commands() {
     while (!commands_.empty()) {
-        const ApplicationCommand command = commands_.pop();
-        if (application_command_handler_) {
-            application_command_handler_(command);
+        SceneCommandPtr command = commands_.pop();
+        if (scene_command_handler_) {
+            scene_command_handler_(std::move(command));
         } else {
             last_error_ = {foundation::ErrorCode::InvalidState,
-                           "application command handler is not installed"};
+                           "scene command handler is not installed"};
         }
     }
 }

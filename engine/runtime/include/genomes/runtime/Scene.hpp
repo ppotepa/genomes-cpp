@@ -6,32 +6,45 @@
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/camera/Camera.hpp>
-#include <genomes/runtime/ApplicationCommand.hpp>
+#include <genomes/runtime/WorldConfig.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <cstdint>
 #include <deque>
+#include <memory>
 
 namespace genomes::runtime {
 
+// The neutral runtime transports scene commands without knowing which
+// product/application owns their payload. Product layers derive their typed
+// command from this marker and install a handler at the composition root.
+class SceneCommand {
+public:
+    virtual ~SceneCommand() = default;
+};
+
+using SceneCommandPtr = std::unique_ptr<SceneCommand>;
+
 class SceneCommandQueue {
 public:
-    void push(ApplicationCommand command) {
-        commands_.push_back(command);
+    void push(SceneCommandPtr command) {
+        if (command != nullptr) {
+            commands_.push_back(std::move(command));
+        }
     }
 
     [[nodiscard]] bool empty() const noexcept {
         return commands_.empty();
     }
 
-    ApplicationCommand pop() {
-        const ApplicationCommand command = commands_.front();
+    SceneCommandPtr pop() {
+        SceneCommandPtr command = std::move(commands_.front());
         commands_.pop_front();
         return command;
     }
 
 private:
-    std::deque<ApplicationCommand> commands_;
+    std::deque<SceneCommandPtr> commands_;
 };
 
 struct SceneContext {

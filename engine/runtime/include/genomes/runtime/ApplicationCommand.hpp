@@ -1,26 +1,12 @@
 #pragma once
 
-#include <genomes/runtime/WorldConfig.hpp>
-
-#include <cstdint>
+// Transitional compatibility include. ApplicationCommand is owned by the
+// product/application scene layer; runtime transports only SceneCommand.
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 namespace genomes::runtime {
-
-enum class ApplicationCommandKind {
-    StartScenario,
-    OpenWorldConfig,
-    OpenUnitLab,
-    OpenBuildingLab,
-    OpenWorldLab,
-    OpenSettings,
-    OpenPause,
-    ReturnToMainMenu,
-    Quit
-};
-
-struct ApplicationCommand {
-    ApplicationCommandKind kind{ApplicationCommandKind::OpenSettings};
-    WorldGenerationConfig world_config{};
-};
-
+using application::ApplicationCommand;
+using application::ApplicationCommandKind;
+using application::enqueueApplicationCommand;
+using application::makeApplicationCommand;
 } // namespace genomes::runtime

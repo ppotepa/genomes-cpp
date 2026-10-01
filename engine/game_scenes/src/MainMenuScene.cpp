@@ -1,4 +1,5 @@
 #include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/render/ProceduralMeshes.hpp>
@@ -139,26 +140,31 @@ void MainMenuScene::select(MainMenuEntry entry) noexcept {
 void MainMenuScene::activate(SceneContext& context) {
     switch (state_.selected) {
     case MainMenuEntry::StartScenario:
-        context.commands.push({ApplicationCommandKind::OpenWorldConfig,
-                               WorldGenerationConfig{state_.preview_seed}});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenWorldConfig,
+            WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::UnitLab:
-        context.commands.push({ApplicationCommandKind::OpenUnitLab,
-                               WorldGenerationConfig{state_.preview_seed}});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenUnitLab,
+            WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::BuildingLab:
-        context.commands.push({ApplicationCommandKind::OpenBuildingLab,
-                               WorldGenerationConfig{state_.preview_seed}});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenBuildingLab,
+            WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::WorldLab:
-        context.commands.push({ApplicationCommandKind::OpenWorldLab,
-                               WorldGenerationConfig{state_.preview_seed}});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenWorldLab,
+            WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::Settings:
         state_.settings_open = !state_.settings_open;
         break;
     case MainMenuEntry::Quit:
-        context.commands.push({ApplicationCommandKind::Quit, {}});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::Quit);
         break;
     case MainMenuEntry::Count:
         break;

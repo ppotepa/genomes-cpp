@@ -22,7 +22,7 @@ public:
     using Factory = std::function<std::unique_ptr<Scene>()>;
     using ApplicationActionRouter = std::function<ui::UiActionResult(
         ui::UiActionId, const ui::UiActionArguments&)>;
-    using ApplicationCommandHandler = std::function<void(const ApplicationCommand&)>;
+    using SceneCommandHandler = std::function<void(SceneCommandPtr)>;
 
     SceneDirector(render::IRenderer& renderer,
                   ui::UiRuntime& ui,
@@ -32,10 +32,10 @@ public:
     void set_application_action_router(ApplicationActionRouter router) {
         application_action_router_ = std::move(router);
     }
-    void set_application_command_handler(ApplicationCommandHandler handler) {
-        application_command_handler_ = std::move(handler);
+    void set_scene_command_handler(SceneCommandHandler handler) {
+        scene_command_handler_ = std::move(handler);
     }
-    void enqueue_command(ApplicationCommand command) { commands_.push(std::move(command)); }
+    void enqueue_command(SceneCommandPtr command) { commands_.push(std::move(command)); }
     [[nodiscard]] ui::UiRuntime& ui_runtime() noexcept { return ui_; }
     [[nodiscard]] const ui::UiRuntime& ui_runtime() const noexcept { return ui_; }
     [[nodiscard]] foundation::SceneId current_scene_id() const noexcept {
@@ -121,7 +121,7 @@ private:
     double session_ui_scale_{1.0};
     bool session_show_diagnostics_{true};
     ApplicationActionRouter application_action_router_{};
-    ApplicationCommandHandler application_command_handler_{};
+    SceneCommandHandler scene_command_handler_{};
     render::SnapshotExchange presentation_exchange_{3};
 };
 

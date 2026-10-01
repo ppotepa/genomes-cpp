@@ -1,4 +1,5 @@
 #include <genomes/runtime/WorldConfigScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/render/ProceduralMeshes.hpp>
@@ -125,7 +126,8 @@ void WorldConfigScene::handle_input(SceneContext& context, const input::InputFra
     if (input.confirm_pressed) {
         activate(context);
     } else if (input.cancel_pressed) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
     }
 }
 
@@ -209,11 +211,13 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
         if (!resolved_seed) return ui::UiActionResult::Rejected;
         state_.config.seed = resolved_seed.value();
         state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
-        context.commands.push({ApplicationCommandKind::StartScenario, state_.config});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::StartScenario, state_.config);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("scene.return-main-menu")) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
         return ui::UiActionResult::Handled;
     }
     return ui::UiActionResult::Unknown;
@@ -303,10 +307,11 @@ void WorldConfigScene::activate(SceneContext& context) {
         if (!resolved_seed) return;
         state_.config.seed = resolved_seed.value();
         state_.seed_input = WorldSeedInput::explicitValue(resolved_seed.value());
-        context.commands.push({ApplicationCommandKind::StartScenario,
-                               state_.config});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::StartScenario, state_.config);
     } else if (state_.selected == WorldConfigEntry::Back) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
     }
 }
 

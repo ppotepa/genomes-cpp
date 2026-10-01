@@ -1,4 +1,5 @@
 #include <genomes/runtime/WorldLabScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 
@@ -98,7 +99,8 @@ ui::UiActionResult WorldLabScene::handle_ui_action(
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("scene.return-main-menu")) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(context,
+                                                application::ApplicationCommandKind::ReturnToMainMenu);
         return ui::UiActionResult::Handled;
     }
     return ui::UiActionResult::Unknown;

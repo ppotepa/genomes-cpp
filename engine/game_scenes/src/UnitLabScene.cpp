@@ -1,4 +1,5 @@
 #include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 #include <genomes/runtime/UnitLabCommandParsing.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
 
@@ -265,7 +266,10 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
             (void)genome_overrides_.set(infantry::GenomeGene::BodyHipBreadth, 0.0);
         }
         rebuildModel(&context); break;
-    case Control::ReturnToMenu: context.commands.push({ApplicationCommandKind::ReturnToMainMenu}); break;
+    case Control::ReturnToMenu:
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
+        break;
     case Control::CycleLocomotion:
         if (locomotion_ && locomotion_state_) {
             const auto p = locomotion_state_->preset;
@@ -510,7 +514,8 @@ void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& 
         }
     }
     if (input.cancel_pressed || input.confirm_pressed) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
     }
 }
 

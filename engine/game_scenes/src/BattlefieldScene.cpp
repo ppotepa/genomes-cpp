@@ -1,4 +1,5 @@
 #include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
@@ -300,7 +301,8 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
 
 void BattlefieldScene::handle_input(SceneContext& context, const input::InputFrame& input) {
     if (input.cancel_pressed || input.confirm_pressed) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::ReturnToMainMenu);
     }
 }
 

@@ -1,4 +1,5 @@
 #include <genomes/runtime/BuildingLabScene.hpp>
+#include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -93,7 +94,8 @@ void BuildingLabScene::on_exit(SceneContext&) {
 
 void BuildingLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
     if (input.cancel_pressed || input.confirm_pressed) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(context,
+                                                application::ApplicationCommandKind::ReturnToMainMenu);
         return;
     }
     if (plan_.parts.empty()) {
@@ -186,7 +188,8 @@ ui::UiActionResult BuildingLabScene::handle_ui_action(
         return ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("scene.return-main-menu")) {
-        context.commands.push({ApplicationCommandKind::ReturnToMainMenu});
+        application::enqueueApplicationCommand(context,
+                                                application::ApplicationCommandKind::ReturnToMainMenu);
         return ui::UiActionResult::Handled;
     }
     return ui::UiActionResult::Unknown;
