@@ -18,6 +18,10 @@ namespace genomes::runtime {
 class Scene;
 class SceneDirector;
 
+} // namespace genomes::runtime
+
+namespace genomes::application {
+
 struct BuiltinSceneConfig final {
     bool real_battlefield{true};
 #if GENOMES_HAS_INFANTRY
@@ -25,7 +29,7 @@ struct BuiltinSceneConfig final {
 #endif
 };
 
-using BuiltinSceneFactory = std::function<std::unique_ptr<Scene>()>;
+using BuiltinSceneFactory = std::function<std::unique_ptr<runtime::Scene>()>;
 
 struct BuiltinSceneEntry final {
     foundation::SceneId id;
@@ -43,7 +47,7 @@ public:
         return entries_;
     }
 
-    void install(SceneDirector&) const;
+    void install(runtime::SceneDirector&) const;
 
 private:
     std::vector<BuiltinSceneEntry> entries_;
@@ -54,8 +58,20 @@ private:
 // runtime namespace remains a compatibility name while callers migrate to
 // this application-scene header.
 void configureBuiltinSceneRouting(
-    SceneDirector&, std::shared_ptr<application::WorldGenerationConfig> active_config = {});
-void registerBuiltinScenes(SceneDirector&, BuiltinSceneConfig config);
-void registerBuiltinScenes(SceneDirector&, bool real_battlefield = true);
+    runtime::SceneDirector&,
+    std::shared_ptr<WorldGenerationConfig> active_config = {});
+void registerBuiltinScenes(runtime::SceneDirector&, BuiltinSceneConfig config);
+void registerBuiltinScenes(runtime::SceneDirector&, bool real_battlefield = true);
 
+} // namespace genomes::application
+
+// Compatibility aliases for clients that have not yet moved their include
+// and namespace.  Product ownership remains in genomes::application.
+namespace genomes::runtime {
+using BuiltinSceneConfig = application::BuiltinSceneConfig;
+using BuiltinSceneFactory = application::BuiltinSceneFactory;
+using BuiltinSceneEntry = application::BuiltinSceneEntry;
+using BuiltinSceneCatalog = application::BuiltinSceneCatalog;
+using application::configureBuiltinSceneRouting;
+using application::registerBuiltinScenes;
 } // namespace genomes::runtime

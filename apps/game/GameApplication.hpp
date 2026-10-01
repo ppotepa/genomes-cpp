@@ -5,6 +5,7 @@
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
+#include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/simulation/FixedStepClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 #include <genomes/ui/UiNativePluginManager.hpp>
@@ -70,6 +71,9 @@ private:
     // SceneDirector owns CameraController; keeping it after presentation_ makes
     // camera/snapshot state outlive the renderer during orderly destruction.
     runtime::SceneDirector director_;
+    // The composition root owns the product catalog for the whole session;
+    // SceneDirector only owns the registered lifecycle callbacks.
+    std::unique_ptr<application::BuiltinSceneCatalog> scene_catalog_;
     simulation::FixedStepClock clock_;
 #if defined(GENOMES_HAS_RMLUI)
     [[nodiscard]] std::string resolve_document(foundation::SceneId scene) const;

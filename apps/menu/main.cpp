@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <variant>
 
 int main() {
@@ -16,9 +17,10 @@ int main() {
     genomes::runtime::SceneDirector director(renderer, ui, presentation);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
-    genomes::runtime::BuiltinSceneCatalog{
-        genomes::runtime::BuiltinSceneConfig{.real_battlefield = false}}
-        .install(director);
+    genomes::application::BuiltinSceneConfig config{};
+    config.real_battlefield = false;
+    genomes::application::BuiltinSceneCatalog catalog{std::move(config)};
+    catalog.install(director);
 
     if (!director.start(menu_id)) {
         std::cerr << "Could not start main menu\n";

@@ -149,12 +149,13 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
                                  )
     :platform_(std::move(platform)),backend_owner_(std::move(backend_owner)),
      renderer_(std::move(renderer)),jobs_(0U,2U),director_(*renderer_,ui_,presentation_,&jobs_) {
-    runtime::BuiltinSceneConfig scene_config{};
+    application::BuiltinSceneConfig scene_config{};
     scene_config.real_battlefield = true;
 #if GENOMES_HAS_INFANTRY
     scene_config.tactical_ai_profile = tactical_ai_profile;
 #endif
-    runtime::BuiltinSceneCatalog{std::move(scene_config)}.install(director_);
+    scene_catalog_ = std::make_unique<application::BuiltinSceneCatalog>(std::move(scene_config));
+    scene_catalog_->install(director_);
     if (auto content=ui::UiContentRegistry::discover("mods")) {
         content_=std::move(content.value());ui::UiPluginError plugin_error;
 if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
