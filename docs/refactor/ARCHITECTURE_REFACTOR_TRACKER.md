@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **45/55 decisions CODE_READY; 9/18 packages complete**.
+Current source progress: **45/55 decisions CODE_READY; 10/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -96,7 +96,7 @@ new explicitly versioned capability or contract.
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | 68af563 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | PLANNED | f4c5cbb | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | PLANNED | 4d08dc5 | NOT_RUN | - |
-| PR11 | Model compiler, cache, latest-wins | R044-R046 | PLANNED | - | NOT_RUN | - |
+| PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
 | PR12 | Unified typed command path | R047-R049 | PLANNED | 10c9c6e | NOT_RUN | - |
 | PR13 | Versioned GPU profile and ownership | R050-R051 | PLANNED | 4f973cf | NOT_RUN | - |
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |

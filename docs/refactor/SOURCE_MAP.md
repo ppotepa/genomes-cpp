@@ -101,7 +101,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | world target split reviewed; remaining consumer/namespace migration UNREVIEWED |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | UNREVIEWED |
-| PR11 | infantry compiler, artifact cache, Unit Lab controller | UNREVIEWED |
+| PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | UNREVIEWED |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
