@@ -95,14 +95,17 @@ const WeaponDefinition* WeaponCatalog::find(WeaponId id) noexcept {
 
 foundation::Result<void, foundation::Error> WeaponCatalog::validate() noexcept {
     for (std::size_t index = 0U; index < kCatalog.size(); ++index) {
-        if (!kCatalog[index].valid()) {
+        const auto& definition = kCatalog[index];
+        if (!definition.valid() || definition.id != weapon_id(definition.identifier)) {
             return foundation::Result<void, foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidState, "invalid weapon catalog definition"});
         }
         for (std::size_t other = index + 1U; other < kCatalog.size(); ++other) {
-            if (kCatalog[index].id == kCatalog[other].id) {
+            if (definition.id == kCatalog[other].id ||
+                definition.identifier == kCatalog[other].identifier ||
+                weapon_id(definition.identifier) == weapon_id(kCatalog[other].identifier)) {
                 return foundation::Result<void, foundation::Error>::failure(
-                    {foundation::ErrorCode::InvalidState, "duplicate weapon catalog ID"});
+                    {foundation::ErrorCode::InvalidState, "duplicate weapon catalog identifier"});
             }
         }
     }

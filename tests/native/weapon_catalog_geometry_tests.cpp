@@ -6,6 +6,10 @@ int main() {
     using namespace genomes::weapons;
     assert(WeaponCatalog::entries().size() == 9U);
     assert(WeaponCatalog::validate());
+    for (const auto& definition : WeaponCatalog::entries()) {
+        assert(definition.id == weapon_id(definition.identifier));
+        if (definition.firearm) assert(definition.ammunition_id != 0U);
+    }
     const auto* knife = WeaponCatalog::find("knife");
     const auto* grenade = WeaponCatalog::find("grenade");
     const auto* rifle = WeaponCatalog::find("rifle");
