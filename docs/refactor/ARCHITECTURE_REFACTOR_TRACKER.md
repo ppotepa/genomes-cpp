@@ -7,7 +7,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
 Current source progress: **54/55 decisions CODE_READY; 17/18 packages complete**.
-Verification progress: **0/28 acceptance scenarios verified**.
+Verification progress: **1/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
 means that the implementation and source review for a row are complete.
@@ -204,7 +204,7 @@ each final row must cite the exact test name and tested SHA.
 | T22 | PR05 | Dependency order beats priority; ready ties resolve by priority then ID. | `ui.content_registry` CTest | NOT_RUN |
 | T23 | PR05 | Windows rooted/traversal/noncanonical/reparse paths fail before reading outside root. | `ui.content_registry` CTest | NOT_RUN |
 | T24 | PR05 | Duplicate/colliding second mod rolls back candidate and preserves prior frozen snapshot. | `ui.content_registry` CTest | NOT_RUN |
-| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | `ui.content_registry` + `ui.route_lifecycle` CTest; native A/B fixture records live-host unload callbacks in dependent-first order | NOT_RUN |
+| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | `ui.content_registry` + `ui.route_lifecycle` CTest; native A/B fixture records live-host unload callbacks in dependent-first order | PASS | acc0f9d6b968c97e1a2481c79f74ac20405a525b |
 | T26 | PR13 | C++/HLSL ABI constants/layout/version agree; wrong profile and overflow fail; publication is atomic. | CPU CTest + user D3D12/GPU acceptance | NOT_RUN |
 | T27 | PR08/PR14 | Minimal runtime links no gameplay/infantry/buildings and infantry-OFF composition reports unavailable. | dependency guard + build | NOT_RUN |
 | T28 | PR12/PR14 | Structural RML controls and viewport scales 75/100/150% map correctly without geometry rebuild. | `ui.rml_smoke` + `runtime.unit_lab_smoke` + `ui.scene_guard` | NOT_RUN |
