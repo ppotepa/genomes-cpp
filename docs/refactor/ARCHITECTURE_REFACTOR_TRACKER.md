@@ -100,7 +100,7 @@ new explicitly versioned capability or contract.
 | PR12 | Unified typed command path | R047-R049 | PLANNED | - | NOT_RUN | - |
 | PR13 | Versioned GPU profile and ownership | R050-R051 | PLANNED | - | NOT_RUN | - |
 | PR14 | CMake, presets, guards and hygiene | R052 | PLANNED | - | NOT_RUN | - |
-| PR15 | Data-only feature pilot | R053 | PLANNED | - | NOT_RUN | - |
+| PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | PLANNED | - | NOT_RUN | - |
 | PR17 | Migration closure | R055 | PLANNED | - | NOT_RUN | - |
 
