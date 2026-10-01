@@ -79,6 +79,13 @@ int main() {
     assert(rml_gene && std::holds_alternative<SetGeneOverride>(rml_gene.value()));
     const auto rml_camera = parseUnitLabRmlCommand("unit.camera", {}, "Front");
     assert(rml_camera && std::holds_alternative<SetCameraMode>(rml_camera.value()));
+    const auto rml_locomotion = parseUnitLabRmlCommand("unit.locomotion", {}, "Run");
+    assert(rml_locomotion && std::holds_alternative<SetLocomotionPreset>(rml_locomotion.value()));
+    const auto rml_expression = parseUnitLabRmlCommand("unit.expression", {}, "Anger");
+    assert(rml_expression && std::holds_alternative<SetExpression>(rml_expression.value()));
+    const auto rml_appearance = parseUnitLabRmlCommand(
+        "unit.appearance-preset", {}, "inspection-olive");
+    assert(rml_appearance && std::holds_alternative<SetAppearancePreset>(rml_appearance.value()));
     const auto rml_bad_number = parseUnitLabRmlCommand("unit.variation", {}, "1.25 trailing");
     assert(!rml_bad_number && rml_bad_number.error().command == "set-variation");
     assert(rml_bad_number.error().field == "variation");
