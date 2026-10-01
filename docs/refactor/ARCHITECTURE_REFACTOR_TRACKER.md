@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **53/55 decisions CODE_READY; 17/18 packages complete**.
+Current source progress: **54/55 decisions CODE_READY; 17/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -75,11 +75,80 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | CODE_READY | ceda2e6 | NOT_RUN | - | Shared CMake manifest validation checks schema, provenance, unique family IDs, safe roots and formats; public-header consumer sources cover core targets. Full target-closure review remains open. |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | CODE_READY | e280e5d | NOT_RUN | - | Stable ID/schema are declared, strict typed parsing accepts only `inspection-olive`, the feature card records provenance/determinism/cache/error policy, and a presentation test proves geometry/indices remain unchanged. |
 | R054 | PR16 | performance | REF | Only measured optimizations ship; execution tuning preserves D1/D2 results and meets the stated target/p95 acceptance gate. | CODE_READY | 8908d43 | NOT_RUN | - | `PR16_MEASUREMENT_GATE.md`, the versioned input/schema fixture and both infantry benchmark consumers agree on the required profile, seeds, warmups, raw samples, metrics and D1/D2 gate. Reports explicitly remain `BASELINE_REQUIRED`; allocations/bytes are `NOT_INSTRUMENTED`, no optimization is implemented, and user baseline/evidence are still required. |
-| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | PLANNED | d789c5a | NOT_RUN | - | CodeGraph/source review removed five in-tree-unused runtime forwarding headers (`ApplicationCommand`, `WorldConfig`, `BuiltinScenes`, `WorldConfigScene`, `BattlefieldScene`) and then split every project CMake world client to `world_core` or `world_generation`, removing the unused `genomes::world` aggregate and guarding its return. Legacy domain configuration, external-consumer compatibility and final dependency review/dispositions remain open. |
+| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | ACCEPTED_DEFERRED | 7d4d3b5 | NOT_RUN | - | CodeGraph/source review removed the proven-unused runtime forwarding and product-scene headers, split every project CMake world client to `world_core` or `world_generation`, and added explicit target/header guards. Final dispositions are recorded below. External-consumer compatibility, legacy configuration-path review and user-owned build/CTest/GPU evidence remain outside this source-only slice. |
 
 Kinds: `REF` preserves behavior/contracts while moving ownership, `FIX` requires
 a counterexample regression, `DATA` requires old/new parity, and `EXT` creates a
 new explicitly versioned capability or contract.
+
+## Final disposition register
+
+This table is normative for the source-level disposition of every decision. An
+`implemented` row has a reviewed implementation at its Code SHA, but is not a
+claim that the user-owned configure, build, CTest, benchmark or GPU acceptance
+has passed. `verified` requires the corresponding exact tested SHA and evidence
+in the decision and acceptance registers; there are currently no such rows.
+`accepted-deferred` records an explicit remaining scope or evidence dependency
+and does not increase the CODE_READY numerator. `rejected-with-reason` is not
+used by this program.
+
+| ID | Final disposition | Code SHA | Rationale / remaining gate |
+|---|---|---|---|
+| R001 | implemented | 31217c0 | Fence contract and regression source are present; T03 is NOT_RUN. |
+| R002 | implemented | bf46621 | Lifecycle state and queue transition source are present; T04 is NOT_RUN. |
+| R003 | implemented | bf46621 | Owner-thread shutdown and launcher rollback source are present; T05 is NOT_RUN. |
+| R004 | implemented | 70ba38c | SystemGraph drain/failure source and regression are present; T01-T02 are NOT_RUN. |
+| R005 | implemented | db10398 | Independent waypoint/target steering source is present; T06 is NOT_RUN. |
+| R006 | implemented | 47f82bd | SquadKey and optional membership source are present; T07 is NOT_RUN. |
+| R007 | implemented | 4b705c4 | Generational sidecar ownership source is present; T08 is NOT_RUN. |
+| R008 | implemented | 3204f38 | Bounded variation validation source is present; T11 is NOT_RUN. |
+| R009 | implemented | d12134a | Full XYZ extent and room-axis contract source is present; T15 is NOT_RUN. |
+| R010 | implemented | d12134a | Finite validation and checked reservation source is present; T15 is NOT_RUN. |
+| R011 | implemented | f36b571 | Rectangular-site-only validation source is present; T16 is NOT_RUN. |
+| R012 | implemented | 9951f25 | Semantic stable PartKey source is present; T17 is NOT_RUN. |
+| R013 | implemented | 9951f25 | Versioned v2 content identity source is present; T17 is NOT_RUN. |
+| R014 | implemented | 5e11834 | Metadata/header separation source is present; T20-T21 are NOT_RUN. |
+| R015 | implemented | 5e11834 | Canonical save round-trip source is present; T20 is NOT_RUN. |
+| R016 | implemented | 6f22437 | Save limits and checked allocation source is present; T21 is NOT_RUN. |
+| R017 | implemented | d686ba7 | Explicit nonzero seed resolution source is present; T20 is NOT_RUN. |
+| R018 | implemented | 5e11834 | Atomic-file error-category source is present; T21 is NOT_RUN. |
+| R019 | implemented | b69670d | Root-safe bounded resource resolution source is present; T23 is NOT_RUN. |
+| R020 | implemented | 56b05e5 | Stable dependency/priority ordering source is present; T22 is NOT_RUN. |
+| R021 | implemented | 76cd265 | Candidate registry and frozen publication source is present; T24 is NOT_RUN. |
+| R022 | implemented | 76cd265 | Owning diagnostic source is present; T22-T24 are NOT_RUN. |
+| R023 | implemented | 10601b2 | Native-plugin permission, rollback and lifetime source is present; T25 is NOT_RUN. |
+| R024 | implemented | c69491c | Bounded content snapshot source is present; T22-T24 are NOT_RUN. |
+| R025 | implemented | e195e39 | Layered configuration/freeze source is present; T27-T28 are NOT_RUN. |
+| R026 | implemented | e195e39 | Strict fields, references and owned text source is present; T27-T28 are NOT_RUN. |
+| R027 | implemented | 559ba9f | Typed canonical hash source is present; T27-T28 are NOT_RUN. |
+| R028 | implemented | ec69179 | Typed Tactical AI profile migration source is present; T09-T10 are NOT_RUN. |
+| R029 | implemented | 6f7bb15 | Session clock/TickContext source is present; T09 is NOT_RUN. |
+| R030 | implemented | 6f7bb15 | Deterministic ceil-to-next-tick source is present; T09 is NOT_RUN. |
+| R031 | implemented | be465f4 | BattlefieldRuntime ownership source is present; T09-T10 are NOT_RUN. |
+| R032 | implemented | e4432bc | Single physics/combat pipeline source contract is present; T10 is NOT_RUN. |
+| R033 | implemented | e1db796 | Failed-tick freeze and snapshot-retention source is present; T09-T10 are NOT_RUN. |
+| R034 | implemented | 67fe486 | Product-scene ownership and neutral runtime source is present; T25/T27 are NOT_RUN. |
+| R035 | implemented | 59b0a1d | Composition root and action-router source is present; T25/T27 are NOT_RUN. |
+| R036 | implemented | 361b36c | Duplicate registration and unavailable-feature source is present; T25/T27 are NOT_RUN. |
+| R037 | implemented | f4c5cbb | World-core/generation boundary source is present; T18-T19 are NOT_RUN. |
+| R038 | implemented | 0803931 | Shared GridLayout and divisibility validation source is present; T18 is NOT_RUN. |
+| R039 | implemented | 730705b | Revision-bound resolved artifact source is present; T19 is NOT_RUN. |
+| R040 | implemented | b939538 | Plan-consuming mesh compiler source is present; T19 is NOT_RUN. |
+| R041 | implemented | 8edbbe6 | Per-stage seed/version/fingerprint source is present; T18-T19 are NOT_RUN. |
+| R042 | implemented | 8908d43 | Typed domain/world/building profile source is present; parity/runtime verification is NOT_RUN. |
+| R043 | implemented | 69e90ef | Data-derived equipment and owned text source is present; T11 is NOT_RUN. |
+| R044 | implemented | ea738c7 | Immutable model artifact/compiler source is present; T12-T14 are NOT_RUN. |
+| R045 | implemented | 01d170f | Deep-size cache accounting source is present; T12 is NOT_RUN. |
+| R046 | implemented | 3260064 | Latest-wins request gate and drain source is present; T13 is NOT_RUN. |
+| R047 | implemented | d3bb543 | Shared typed UI/CLI boundary source is present; T11/T28 are NOT_RUN. |
+| R048 | implemented | e280e5d | Typed dirty-category source is present; T13/T28 are NOT_RUN. |
+| R049 | implemented | 24e7f84 | Viewport metrics and last-valid retention source is present; T28 is NOT_RUN. |
+| R050 | implemented | 8ddf046 | Versioned C++/HLSL skin ABI source is present; T26 is NOT_RUN. |
+| R051 | implemented | 7b075a0 | Atomic GPU ownership/publication source contract is present; T26 is NOT_RUN. |
+| R052 | implemented | ceda2e6 | CMake/guard/header source slice is present; T27-T28 and closure review remain NOT_RUN. |
+| R053 | implemented | e280e5d | Data-only inspection-olive source slice is present; T13/T28 are NOT_RUN. |
+| R054 | implemented | 8908d43 | Measurement harness/source contract is present; baseline and optimization gate are deferred pending user evidence. |
+| R055 | accepted-deferred | 7d4d3b5 | In-tree target/header closure and per-row dispositions are reviewed. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
 
 ## Package register
 
@@ -102,7 +171,7 @@ new explicitly versioned capability or contract.
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | CODE_READY | 8908d43 | NOT_RUN | - |
-| PR17 | Migration closure | R055 | PLANNED | fc660bd | NOT_RUN | - |
+| PR17 | Migration closure | R055 | ACCEPTED_DEFERRED | 7d4d3b5 | NOT_RUN | - |
 
 ## Acceptance scenario register
 

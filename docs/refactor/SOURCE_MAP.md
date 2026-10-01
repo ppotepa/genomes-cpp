@@ -31,7 +31,7 @@ count is not proof of a clean dependency closure.
 
 ### PR17 target-closure audit
 
-Source review at `824f35f` found no in-tree CMake consumer of the
+Source review at `7d4d3b5` found no in-tree CMake consumer of the
 `genomes::runtime` compatibility aggregate. That bridge was removed, while the
 runtime core and application-scene aliases remain explicit. The
 `genomes::world` aggregate was removed at `d789c5a` after all project CMake
@@ -55,11 +55,13 @@ as equally public:
   engine API;
 - compatibility candidates to audit in PR08/PR09/PR17:
   active runtime paths remain
-  `engine/runtime/include/genomes/runtime/{BuildingLabScene,MainMenuScene,UnitLabScene,WorldLabScene}.hpp`;
+  product-scene headers now live under
+  `engine/game_scenes/include/genomes/game_scenes/` after the `7d4d3b5`
+  relocation;
   the former `BattlefieldScene`, `BuiltinScenes`, `WorldConfigScene` and command/config bridges
   were retired after in-tree impact review at `7d56de8`. The application-owned
   `engine/game_scenes/include/genomes/game_scenes/BuiltinScenes.hpp` is canonical,
-  and the broad `modules/world/include/genomes/world/**` surface.
+  and the broad `engine/world/include/genomes/world/**` compatibility surface.
 
 High-risk public contracts and their first review packages:
 
@@ -102,7 +104,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R033 source ownership and pipeline reviewed at `be465f4`; BattlefieldScenario is now a thin facade, with CTest/runtime verification pending |
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | neutral `SceneCommand`/typed application-command boundary and physical product-source relocation reviewed at `10b1ba5`; application-owned `WorldGenerationConfig` boundary reviewed at `67fe486`; application catalog/factory ownership and action routing reviewed at `59b0a1d`; CTest/runtime verification remains pending |
-| PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
+| PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; all in-tree CMake consumers now name the narrow targets, and the former aggregate was removed/guarded at `d789c5a` |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | material (`1ba42a6`), ammo (`4d08dc5`), equipment (`c29b346`), weapon (`82efa74`), Tactical AI (`f675811`), appearance (`52ab4a6`) and world/building profiles (`8908d43`) have parity/source contracts, strict loaders, provenance/fingerprints and frozen runtime ownership; CTest/runtime verification remains pending |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `d3bb543`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
@@ -110,7 +112,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema and fixture-consuming infantry benchmarks reviewed at `8908d43`; reports retain raw samples and explicitly show `BASELINE_REQUIRED`; WAIT_BASELINE for user evidence |
-| PR17 | compatibility headers, old config paths and fallbacks | five proven-unused runtime forwarding headers removed at `7d56de8`; all in-tree `genomes::world` CMake links split to `world_core`/`world_generation` at `d789c5a`; WAIT_PRIOR_PACKAGES for legacy config/external compatibility closure |
+| PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime header boundary and all in-tree `genomes::world` CMake links reviewed at `7d4d3b5`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
 
 ## Literal classification K1-K6
 
