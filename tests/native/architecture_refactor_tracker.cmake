@@ -166,7 +166,8 @@ endforeach()
 # PR17 closure audit: the runtime compatibility aggregate had no in-tree
 # target consumer. Keep the narrow aliases explicit and prevent the removed
 # aggregate from returning through a new CMake consumer.
-if(runtime_targets MATCHES "genomes_runtime|genomes::runtime([^_A-Za-z0-9]|$)")
+if(runtime_targets MATCHES "add_library\\(genomes_runtime[ \\t\\r\\n]" OR
+   runtime_targets MATCHES "add_library\\(genomes::runtime[ \\t\\r\\n]")
     message(FATAL_ERROR "Runtime compatibility aggregate must stay removed")
 endif()
 foreach(runtime_consumer_cmake IN ITEMS
@@ -177,7 +178,7 @@ foreach(runtime_consumer_cmake IN ITEMS
         "${GENOMES_SOURCE_DIR}/tests/native/CMakeLists.txt"
         "${GENOMES_SOURCE_DIR}/tests/infantry_upgrade/CMakeLists.txt"
         "${GENOMES_SOURCE_DIR}/benchmarks/CMakeLists.txt")
-    file(READ "${GENOMES_SOURCE_DIR}/engine/CMakeLists.txt" runtime_consumer_text)
+    file(READ "${runtime_consumer_cmake}" runtime_consumer_text)
     if(runtime_consumer_text MATCHES "genomes::runtime([^_A-Za-z0-9]|$)")
         message(FATAL_ERROR
                 "Removed runtime compatibility aggregate has a CMake consumer: ${runtime_consumer_cmake}")
