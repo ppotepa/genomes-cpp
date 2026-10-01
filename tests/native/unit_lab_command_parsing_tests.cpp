@@ -5,6 +5,7 @@
 #include <string_view>
 
 int main() {
+    using namespace genomes;
     using namespace genomes::runtime;
     UnitLabDirtyState dirty;
     assert(dirty.contains(UnitLabDirtyFlag::Geometry));
