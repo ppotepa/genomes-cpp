@@ -2,7 +2,7 @@
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
-#include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/game_scenes/BattlefieldScene.hpp>
 #include <genomes/runtime/BuildingLabScene.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/Scene.hpp>
@@ -10,7 +10,7 @@
 #if GENOMES_HAS_INFANTRY
 #include <genomes/runtime/UnitLabScene.hpp>
 #endif
-#include <genomes/runtime/WorldConfigScene.hpp>
+#include <genomes/game_scenes/WorldConfigScene.hpp>
 #include <genomes/runtime/WorldLabScene.hpp>
 
 #include <memory>
@@ -55,7 +55,9 @@ private:
 
 } // namespace
 
-void configureBuiltinSceneRouting(SceneDirector& director) {
+void configureBuiltinSceneRouting(
+    SceneDirector& director,
+    std::shared_ptr<application::WorldGenerationConfig> active_world_config) {
     director.set_application_action_router([&director](ui::UiActionId action,
                                                        const ui::UiActionArguments& arguments) {
         auto& ui = director.ui_runtime();
@@ -169,7 +171,8 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
         return ui::UiActionResult::Unknown;
     });
 
-    director.set_scene_command_handler([&director](runtime::SceneCommandPtr command) {
+    director.set_scene_command_handler(
+        [&director, active_world_config](runtime::SceneCommandPtr command) {
         const auto menu_id = foundation::scene_id("scene.main-menu");
         const auto world_config_id = foundation::scene_id("scene.world-config");
         const auto battlefield_id = foundation::scene_id("scene.battlefield");
@@ -183,11 +186,13 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
         }
         switch (application_command->kind) {
         case application::ApplicationCommandKind::StartScenario:
-            director.set_active_world_config(application_command->world_config);
+            if (active_world_config != nullptr)
+                *active_world_config = application_command->world_config;
             (void)director.start(battlefield_id);
             break;
         case application::ApplicationCommandKind::OpenWorldConfig:
-            director.set_active_world_config(application_command->world_config);
+            if (active_world_config != nullptr)
+                *active_world_config = application_command->world_config;
             (void)director.start(world_config_id);
             break;
         case application::ApplicationCommandKind::OpenUnitLab:
@@ -203,11 +208,12 @@ void configureBuiltinSceneRouting(SceneDirector& director) {
             break;
         case application::ApplicationCommandKind::Quit: director.request_quit(); break;
         }
-    });
+        });
 
 }
 
 BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
+    active_world_config_ = std::make_shared<application::WorldGenerationConfig>();
     const auto menu_id = foundation::scene_id("scene.main-menu");
     const auto world_config_id = foundation::scene_id("scene.world-config");
     const auto battlefield_id = foundation::scene_id("scene.battlefield");
@@ -218,18 +224,23 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
     const auto pause_id = foundation::scene_id("scene.pause");
 
     entries_.push_back({menu_id, [] { return std::make_unique<MainMenuScene>(); }});
+    const auto active_world_config = active_world_config_;
     entries_.push_back({world_config_id,
-                        [] { return std::make_unique<WorldConfigScene>(); }});
+                        [active_world_config] {
+                            return std::make_unique<WorldConfigScene>(*active_world_config);
+                        }});
     if (config.real_battlefield) {
 #if GENOMES_HAS_INFANTRY
         const auto tactical_ai_profile =
             config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
-        entries_.push_back({battlefield_id, [tactical_ai_profile] {
-            return std::make_unique<BattlefieldScene>(tactical_ai_profile);
+        entries_.push_back({battlefield_id, [active_world_config, tactical_ai_profile] {
+            return std::make_unique<BattlefieldScene>(*active_world_config,
+                                                      tactical_ai_profile);
         }});
 #else
-        entries_.push_back({battlefield_id,
-                            [] { return std::make_unique<BattlefieldScene>(); }});
+        entries_.push_back({battlefield_id, [active_world_config] {
+            return std::make_unique<BattlefieldScene>(*active_world_config);
+        }});
 #endif
     } else {
         entries_.push_back({battlefield_id, [battlefield_id] {
@@ -254,7 +265,7 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
 }
 
 void BuiltinSceneCatalog::install(SceneDirector& director) const {
-    configureBuiltinSceneRouting(director);
+    configureBuiltinSceneRouting(director, active_world_config_);
     for (const auto& entry : entries_) director.register_scene(entry.id, entry.factory);
 #if !GENOMES_HAS_INFANTRY
     director.register_unavailable_scene(

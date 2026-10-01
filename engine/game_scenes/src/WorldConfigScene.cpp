@@ -1,4 +1,4 @@
-#include <genomes/runtime/WorldConfigScene.hpp>
+#include <genomes/game_scenes/WorldConfigScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/Types.hpp>
@@ -12,6 +12,23 @@
 #include <cstdlib>
 #include <random>
 #include <utility>
+
+namespace genomes::application {
+
+foundation::Result<proc::Seed, foundation::Error> WorldSeedInput::resolve(
+    std::uint64_t auto_entropy) const noexcept {
+    if (mode == WorldSeedMode::Explicit) {
+        if (explicit_seed == 0U) {
+            return foundation::Result<proc::Seed, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument, "explicit world seed must be nonzero"});
+        }
+        return foundation::Result<proc::Seed, foundation::Error>::success(explicit_seed);
+    }
+    return foundation::Result<proc::Seed, foundation::Error>::success(
+        auto_entropy == 0U ? 1U : auto_entropy);
+}
+
+} // namespace genomes::application
 
 namespace genomes::runtime {
 
@@ -80,27 +97,12 @@ template <typename T>
 
 } // namespace
 
-foundation::Result<proc::Seed, foundation::Error> WorldSeedInput::resolve(
-    std::uint64_t auto_entropy) const noexcept {
-    if (mode == WorldSeedMode::Explicit) {
-        if (explicit_seed == 0U) {
-            return foundation::Result<proc::Seed, foundation::Error>::failure(
-                {foundation::ErrorCode::InvalidArgument, "explicit world seed must be nonzero"});
-        }
-        return foundation::Result<proc::Seed, foundation::Error>::success(explicit_seed);
-    }
-    return foundation::Result<proc::Seed, foundation::Error>::success(
-        auto_entropy == 0U ? 1U : auto_entropy);
-}
-
 foundation::SceneId WorldConfigScene::id() const noexcept {
     return foundation::scene_id("scene.world-config");
 }
 
 void WorldConfigScene::on_enter(SceneContext& context) {
-    if (context.world_config != nullptr) {
-        state_.config = *context.world_config;
-    }
+    state_.config = initial_config_;
     state_.seed_input = state_.config.seed == 0U ? WorldSeedInput::automatic() :
                                                     WorldSeedInput::explicitValue(state_.config.seed);
     context.ui.clear();

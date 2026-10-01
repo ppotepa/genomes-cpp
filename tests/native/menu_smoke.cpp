@@ -58,8 +58,9 @@ int main() {
         genomes::render::PresentationSnapshot catalog_presentation;
         genomes::runtime::SceneDirector catalog_director(
             catalog_renderer, catalog_ui, catalog_presentation);
-        genomes::runtime::BuiltinSceneCatalog catalog{
-            genomes::runtime::BuiltinSceneConfig{.real_battlefield = false}};
+        genomes::runtime::BuiltinSceneConfig catalog_config{};
+        catalog_config.real_battlefield = false;
+        genomes::runtime::BuiltinSceneCatalog catalog{catalog_config};
         assert(!catalog.entries().empty());
         catalog.install(catalog_director);
         assert(catalog_director.start(genomes::foundation::scene_id("scene.main-menu")));
@@ -131,9 +132,6 @@ int main() {
     director.handle_input({.confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
     assert(director.current()->id() == battlefield_id);
-    assert(director.active_world_config() != nullptr);
-    assert(director.active_world_config()->seed == 0x5EED2026ull);
-    assert(director.active_world_config()->map_size_m == 600);
     const auto* battlefield = dynamic_cast<const genomes::runtime::BattlefieldScene*>(
         director.current());
     assert(battlefield != nullptr);

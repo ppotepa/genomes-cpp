@@ -142,22 +142,22 @@ void MainMenuScene::activate(SceneContext& context) {
     case MainMenuEntry::StartScenario:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenWorldConfig,
-            WorldGenerationConfig{state_.preview_seed});
+            application::WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::UnitLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenUnitLab,
-            WorldGenerationConfig{state_.preview_seed});
+            application::WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::BuildingLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenBuildingLab,
-            WorldGenerationConfig{state_.preview_seed});
+            application::WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::WorldLab:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenWorldLab,
-            WorldGenerationConfig{state_.preview_seed});
+            application::WorldGenerationConfig{state_.preview_seed});
         break;
     case MainMenuEntry::Settings:
         state_.settings_open = !state_.settings_open;

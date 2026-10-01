@@ -6,7 +6,6 @@
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/camera/Camera.hpp>
-#include <genomes/runtime/WorldConfig.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <cstdint>
@@ -51,7 +50,6 @@ struct SceneContext {
     SceneCommandQueue& commands;
     ui::UiRuntime& ui;
     render::PresentationSnapshot& presentation;
-    const WorldGenerationConfig* world_config{nullptr};
     jobs::JobSystem* jobs{nullptr};
     render::RenderCapabilities render_capabilities{};
     // Previous completed renderer frame. This is diagnostic/presentation data,

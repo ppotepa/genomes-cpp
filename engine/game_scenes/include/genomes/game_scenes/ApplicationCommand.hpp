@@ -1,7 +1,7 @@
 #pragma once
 
 #include <genomes/runtime/Scene.hpp>
-#include <genomes/world/WorldPlan.hpp>
+#include <genomes/game_scenes/WorldConfig.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -26,22 +26,22 @@ enum class ApplicationCommandKind : std::uint8_t {
 
 struct ApplicationCommand final : runtime::SceneCommand {
     ApplicationCommand(ApplicationCommandKind command_kind,
-                       world::WorldGenerationRequest config = {})
+                       WorldGenerationConfig config = {})
         : kind(command_kind), world_config(std::move(config)) {}
 
     ApplicationCommandKind kind{ApplicationCommandKind::OpenSettings};
-    world::WorldGenerationRequest world_config{};
+    WorldGenerationConfig world_config{};
 };
 
 [[nodiscard]] inline runtime::SceneCommandPtr makeApplicationCommand(
     ApplicationCommandKind kind,
-    world::WorldGenerationRequest config = {}) {
+    WorldGenerationConfig config = {}) {
     return std::make_unique<ApplicationCommand>(kind, std::move(config));
 }
 
 inline void enqueueApplicationCommand(runtime::SceneContext& context,
                                       ApplicationCommandKind kind,
-                                      world::WorldGenerationRequest config = {}) {
+                                      WorldGenerationConfig config = {}) {
     context.commands.push(makeApplicationCommand(kind, std::move(config)));
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/game_scenes/WorldConfig.hpp>
 
 #include <functional>
 #include <memory>
@@ -46,12 +47,14 @@ public:
 
 private:
     std::vector<BuiltinSceneEntry> entries_;
+    std::shared_ptr<application::WorldGenerationConfig> active_world_config_;
 };
 
 // The application composition root owns the built-in scene catalog.  The
 // runtime namespace remains a compatibility name while callers migrate to
 // this application-scene header.
-void configureBuiltinSceneRouting(SceneDirector&);
+void configureBuiltinSceneRouting(
+    SceneDirector&, std::shared_ptr<application::WorldGenerationConfig> active_config = {});
 void registerBuiltinScenes(SceneDirector&, BuiltinSceneConfig config);
 void registerBuiltinScenes(SceneDirector&, bool real_battlefield = true);
 

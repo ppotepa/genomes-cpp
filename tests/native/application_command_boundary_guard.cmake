@@ -13,6 +13,9 @@ file(READ "${_runtime_dir}/include/genomes/runtime/Scene.hpp" _scene)
 file(READ "${_runtime_dir}/include/genomes/runtime/SceneDirector.hpp" _director)
 file(READ "${_runtime_dir}/include/genomes/runtime/ApplicationCommand.hpp"
      _compatibility)
+file(READ "${_game_scenes_dir}/include/genomes/game_scenes/WorldConfig.hpp"
+     _world_config)
+file(READ "${_runtime_dir}/CMakeLists.txt" _runtime_cmake)
 
 if(NOT _application_command MATCHES "namespace genomes::application")
     message(FATAL_ERROR "ApplicationCommand must be owned by genomes::application")
@@ -34,6 +37,18 @@ endif()
 if(NOT _compatibility MATCHES "Transitional compatibility include")
     message(FATAL_ERROR "legacy runtime command include must be an explicit compatibility bridge")
 endif()
+if(NOT _world_config MATCHES "namespace genomes::application")
+    message(FATAL_ERROR "WorldGenerationConfig must be owned by the application scene layer")
+endif()
+if(_scene MATCHES "WorldGenerationConfig|WorldSeedInput|genomes/runtime/WorldConfig")
+    message(FATAL_ERROR "neutral Scene.hpp must not depend on world-generation configuration")
+endif()
+if(_director MATCHES "WorldGenerationConfig|WorldSeedInput|genomes/runtime/WorldConfig")
+    message(FATAL_ERROR "neutral SceneDirector must not depend on world-generation configuration")
+endif()
+if(_runtime_cmake MATCHES "world/include|proc/include|hydrology/include|roads/include")
+    message(FATAL_ERROR "runtime_core must not export world-generation include directories")
+endif()
 
 foreach(_source
         BattlefieldScene.cpp
@@ -52,4 +67,4 @@ foreach(_source
     endif()
 endforeach()
 
-message(STATUS "Application command boundary guard passed; WorldGenerationConfig remains a separate R034 migration")
+message(STATUS "Application command and R034 world-config boundary guard passed")

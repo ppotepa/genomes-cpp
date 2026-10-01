@@ -2,13 +2,7 @@ add_library(genomes_runtime_core STATIC
     src/SceneDirector.cpp)
 
 target_include_directories(genomes_runtime_core PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    # Transitional WorldGenerationConfig compatibility in SceneContext. This
-    # is an include-only edge; runtime_core must not link world generation.
-    "${CMAKE_CURRENT_SOURCE_DIR}/../world/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../proc/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/hydrology/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/roads/include")
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_runtime_core PUBLIC
     genomes::foundation
     genomes::jobs

@@ -13,8 +13,8 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
     : renderer_(renderer), ui_(ui), presentation_(presentation), jobs_{jobs} {}
 
 SceneContext SceneDirector::make_context() noexcept {
-    return {commands_, ui_, presentation_, active_world_config_ ? &*active_world_config_ : nullptr,
-            jobs_, renderer_.capabilities(), renderer_.uploadTelemetry(),
+    return {commands_, ui_, presentation_, jobs_, renderer_.capabilities(),
+            renderer_.uploadTelemetry(),
             deterministic_capture_, framebuffer_width_, framebuffer_height_, session_ui_scale_,
             &presentation_.camera_request,
             &presentation_.has_camera_request};

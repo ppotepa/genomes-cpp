@@ -11,7 +11,6 @@
 
 #include <functional>
 #include <memory>
-#include <optional>
 #include <unordered_map>
 #include <utility>
 
@@ -40,9 +39,6 @@ public:
     [[nodiscard]] const ui::UiRuntime& ui_runtime() const noexcept { return ui_; }
     [[nodiscard]] foundation::SceneId current_scene_id() const noexcept {
         return current_ != nullptr ? current_->id() : foundation::SceneId{0};
-    }
-    void set_active_world_config(WorldGenerationConfig config) {
-        active_world_config_ = std::move(config);
     }
     [[nodiscard]] double session_ui_scale() const noexcept { return session_ui_scale_; }
     void set_session_ui_scale(double value) noexcept { session_ui_scale_ = value; }
@@ -82,10 +78,6 @@ public:
         return quit_requested_;
     }
 
-    [[nodiscard]] const WorldGenerationConfig* active_world_config() const noexcept {
-        return active_world_config_ ? &*active_world_config_ : nullptr;
-    }
-
     [[nodiscard]] const foundation::Error& last_error() const noexcept {
         return last_error_;
     }
@@ -103,7 +95,6 @@ private:
     std::unordered_map<foundation::SceneId, foundation::Error> unavailable_scenes_;
     bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
-    std::optional<WorldGenerationConfig> active_world_config_;
     jobs::JobSystem* jobs_{nullptr};
     bool quit_requested_{false};
     foundation::Error last_error_{};

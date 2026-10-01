@@ -1,4 +1,4 @@
-#include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/game_scenes/BattlefieldScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
@@ -73,9 +73,6 @@ foundation::SceneId BattlefieldScene::id() const noexcept {
 
 void BattlefieldScene::on_enter(SceneContext& context) {
     jobs_ = context.deterministic_capture ? nullptr : context.jobs;
-    if (context.world_config != nullptr) {
-        config_ = *context.world_config;
-    }
     elapsed_seconds_ = 0.0;
     generation_error_.clear();
     plan_.reset();
