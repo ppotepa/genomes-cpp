@@ -148,7 +148,7 @@ used by this program.
 | R052 | implemented | 7b97268 | Target visibility/dependency closure guard, narrow public-header consumers and the runtime simulation-header dependency are present; duplicate target-closure registration is removed; T27-T28 and configure/build verification remain NOT_RUN. |
 | R053 | implemented | e280e5d | Data-only inspection-olive source slice is present; T13/T28 are NOT_RUN. |
 | R054 | implemented | 8908d43 | Measurement harness/source contract is present; baseline and optimization gate are deferred pending user evidence. |
-| R055 | accepted-deferred | 6d402eb | In-tree target/header/fallback/CLI closure, infantry-off/Unit Lab namespace clients and all 55 per-row dispositions are reviewed and guard-checked. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
+| R055 | accepted-deferred | 6d402eb | In-tree target/header/fallback/CLI closure, infantry-off/Unit Lab namespace clients and all 55 per-row dispositions are reviewed and guard-checked. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T25 is PASS at `acc0f9d6b968c97e1a2481c79f74ac20405a525b`, while T01-T24 and T26-T28 remain NOT_RUN. |
 
 ## Package register
 
