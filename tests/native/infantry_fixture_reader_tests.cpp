@@ -5,11 +5,30 @@
 #include <cassert>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <string>
 
 int main() {
     using namespace genomes::test::infantry_fixture;
+    const auto manifest_path = std::filesystem::path(GENOMES_SOURCE_DIR) /
+                               "reference/fixtures/manifest.json";
+    std::ifstream manifest_input(manifest_path);
+    assert(manifest_input);
+    const nlohmann::json fixture_manifest = nlohmann::json::parse(manifest_input);
+    assert(fixture_manifest.at("schema") == "genomes.fixture-manifest.v1");
+    assert(fixture_manifest.at("generator") ==
+           "tools/reference/export_infantry_reference.cjs");
+    assert(fixture_manifest.at("families").is_array());
+    assert(fixture_manifest.at("families").size() >= 5U);
+    for (const auto& family : fixture_manifest.at("families")) {
+        assert(family.at("id").is_string());
+        assert(family.at("root").is_string());
+        assert(family.at("format").is_string());
+        const auto root = std::filesystem::path(GENOMES_SOURCE_DIR) /
+                          "reference/fixtures" / family.at("root").get<std::string>();
+        assert(std::filesystem::is_directory(root));
+    }
     Stream expected{"positions", ScalarType::Float32, 3U, std::vector<std::byte>(12U)};
     Stream actual = expected;
     const std::array<float, 3U> left{1.0F, 2.0F, 3.0F};

@@ -6,6 +6,12 @@ const vm = require('vm');
 const crypto = require('crypto');
 
 const referenceRoot = path.resolve(__dirname, '..');
+const fixtureManifestPath = path.resolve(__dirname, '../../../reference/fixtures/manifest.json');
+const fixtureManifest = JSON.parse(fs.readFileSync(fixtureManifestPath, 'utf8'));
+if (fixtureManifest.schema !== 'genomes.fixture-manifest.v1' ||
+    fixtureManifest.generator !== 'tools/reference/export_infantry_reference.cjs') {
+  throw new Error(`unsupported fixture manifest: ${fixtureManifestPath}`);
+}
 global.window = global;
 global.THREE = require('../tests/numeric_math.cjs');
 THREE.Quaternion.prototype.dot = function dot(q) {

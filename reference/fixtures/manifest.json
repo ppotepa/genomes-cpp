@@ -1,0 +1,20 @@
+{
+  "schema": "genomes.fixture-manifest.v1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "sourceTree": "50e15a425f00611df1900b3d56c1d382978ec19e",
+  "generator": "tools/reference/export_infantry_reference.cjs",
+  "families": [
+    { "id": "infantry.full-avatar", "root": "infantry/full-avatar", "format": "gnif+json" },
+    { "id": "infantry.animation", "root": "infantry", "format": "gnif+json" },
+    { "id": "infantry.surface", "root": "infantry", "format": "gnif+json" },
+    { "id": "infantry.equipment", "root": "infantry", "format": "gnif+json" },
+    { "id": "infantry.weapon", "root": "infantry", "format": "gnif+json" },
+    { "id": "ballistics", "root": "ballistics", "format": "json" },
+    { "id": "compute", "root": "compute", "format": "json" },
+    { "id": "destruction", "root": "destruction", "format": "json" },
+    { "id": "navigation", "root": "navigation", "format": "json" },
+    { "id": "render", "root": "render", "format": "json" },
+    { "id": "viewer", "root": "viewer", "format": "json" },
+    { "id": "world", "root": "world", "format": "json" }
+  ]
+}

@@ -61,6 +61,20 @@ if(NOT found_infantry_off_test)
     message(FATAL_ERROR "Test preset matrix is missing headless-core-infantry-off")
 endif()
 
+set(fixture_manifest "${GENOMES_SOURCE_DIR}/reference/fixtures/manifest.json")
+if(NOT EXISTS "${fixture_manifest}")
+    message(FATAL_ERROR "Missing normative fixture manifest")
+endif()
+file(READ "${fixture_manifest}" fixture_manifest_text)
+string(JSON fixture_schema GET "${fixture_manifest_text}" schema)
+if(NOT fixture_schema STREQUAL "genomes.fixture-manifest.v1")
+    message(FATAL_ERROR "Unsupported fixture manifest schema")
+endif()
+string(JSON fixture_family_count LENGTH "${fixture_manifest_text}" families)
+if(fixture_family_count LESS 1)
+    message(FATAL_ERROR "Fixture manifest has no families")
+endif()
+
 file(READ "${GENOMES_SOURCE_DIR}/engine/world/CMakeLists.txt" world_targets)
 foreach(required_world_target IN ITEMS
         "add_library(genomes_world_core STATIC"
