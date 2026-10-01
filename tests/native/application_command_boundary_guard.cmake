@@ -11,8 +11,6 @@ file(READ "${_game_scenes_dir}/include/genomes/game_scenes/ApplicationCommand.hp
      _application_command)
 file(READ "${_runtime_dir}/include/genomes/runtime/Scene.hpp" _scene)
 file(READ "${_runtime_dir}/include/genomes/runtime/SceneDirector.hpp" _director)
-file(READ "${_runtime_dir}/include/genomes/runtime/ApplicationCommand.hpp"
-     _compatibility)
 file(READ "${_game_scenes_dir}/include/genomes/game_scenes/WorldConfig.hpp"
      _world_config)
 file(READ "${_runtime_dir}/CMakeLists.txt" _runtime_cmake)
@@ -34,9 +32,13 @@ if(_director MATCHES "ApplicationCommand" OR
    _director MATCHES "application_command_handler")
     message(FATAL_ERROR "neutral SceneDirector must not name application command payloads")
 endif()
-if(NOT _compatibility MATCHES "Transitional compatibility include")
-    message(FATAL_ERROR "legacy runtime command include must be an explicit compatibility bridge")
-endif()
+foreach(_removed_bridge IN ITEMS
+        "${_runtime_dir}/include/genomes/runtime/ApplicationCommand.hpp"
+        "${_runtime_dir}/include/genomes/runtime/WorldConfig.hpp")
+    if(EXISTS "${_removed_bridge}")
+        message(FATAL_ERROR "unused runtime compatibility bridge remains: ${_removed_bridge}")
+    endif()
+endforeach()
 if(NOT _world_config MATCHES "namespace genomes::application")
     message(FATAL_ERROR "WorldGenerationConfig must be owned by the application scene layer")
 endif()

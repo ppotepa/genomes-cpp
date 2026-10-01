@@ -260,6 +260,21 @@ foreach(runtime_consumer_cmake IN ITEMS
     endif()
 endforeach()
 
+# PR17 closure audit: CodeGraph found no project clients for these former
+# runtime forwarding paths after tests moved to canonical application headers.
+# Keep the deletion explicit so an obsolete bridge cannot silently return.
+foreach(removed_runtime_bridge IN ITEMS
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/ApplicationCommand.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldConfig.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BuiltinScenes.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldConfigScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BattlefieldScene.hpp")
+    if(EXISTS "${removed_runtime_bridge}")
+        message(FATAL_ERROR
+                "Retired runtime forwarding header was reintroduced: ${removed_runtime_bridge}")
+    endif()
+endforeach()
+
 # The production scene may still carry its legacy graph while the ownership
 # migration is in progress, but one session tick must dispatch exactly one
 # authoritative pipeline. Keep the runtime handoff ahead of the compatibility
@@ -294,7 +309,7 @@ endif()
 # boundary; authoritative firing is FireIntent -> FireRequest -> Ballistics ->
 # ImpactEvent/DamageCommand. Keep the named adapter itself in combat for tests.
 foreach(production_weapon_consumer IN ITEMS
-        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BattlefieldScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/BattlefieldScene.hpp"
         "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
         "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldRuntime.hpp"
         "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldScenario.hpp"

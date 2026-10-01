@@ -1,10 +1,10 @@
 #include <genomes/render/NullRenderer.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
-#include <genomes/runtime/BattlefieldScene.hpp>
+#include <genomes/game_scenes/BattlefieldScene.hpp>
 #include <genomes/runtime/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
-#include <genomes/runtime/WorldConfigScene.hpp>
+#include <genomes/game_scenes/WorldConfigScene.hpp>
 
 #include <cassert>
 #include <memory>
