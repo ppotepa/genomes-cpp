@@ -124,7 +124,7 @@ used by this program.
 | R028 | implemented | ec69179 | Typed Tactical AI profile migration source is present; T09-T10 are NOT_RUN. |
 | R029 | implemented | 635313c | Session clock/TickContext propagation and source contract are present; T09 is NOT_RUN. |
 | R030 | implemented | 6f7bb15 | Deterministic ceil-to-next-tick source is present; T09 is NOT_RUN. |
-| R031 | implemented | 5e204ea | BattlefieldRuntime ownership and single-scene pipeline source is present; T09-T10 are NOT_RUN. |
+| R031 | implemented | 2213a25 | BattlefieldRuntime ownership and single-scene pipeline source is present; explicit inline/parallel execution policy and T09 parity test are present; T09-T10 are NOT_RUN. |
 | R032 | implemented | 635313c | Complete authoritative phase pipeline and single physics/combat source contract are present; T10 is NOT_RUN. |
 | R033 | implemented | 635313c | Failed-tick freeze and snapshot-retention source are present; T09-T10 are NOT_RUN. |
 | R034 | implemented | 871dd88 | Product-scene namespace/ownership and neutral runtime source is present; T25/T27 are NOT_RUN. |
@@ -161,12 +161,12 @@ used by this program.
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
-| PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 635313c | NOT_RUN | - |
+| PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 2213a25 | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 871dd88 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | 635313c | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | CODE_READY | 8908d43 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
-| PR12 | Unified typed command path | R047-R049 | CODE_READY | d3bb543 | NOT_RUN | - |
+| PR12 | Unified typed command path | R047-R049 | CODE_READY | 99c301f | NOT_RUN | - |
 | PR13 | Versioned GPU profile and ownership | R050-R051 | CODE_READY | 7b075a0 | NOT_RUN | - |
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | 7b97268 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
