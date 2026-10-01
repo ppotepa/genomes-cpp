@@ -107,6 +107,16 @@ file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_dir
 if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene")
     message(FATAL_ERROR "Neutral SceneDirector still includes a product scene")
 endif()
+foreach(product_consumer IN ITEMS
+        "${GENOMES_SOURCE_DIR}/apps/game/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/apps/menu/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/tests/native/CMakeLists.txt"
+        "${GENOMES_SOURCE_DIR}/tests/infantry_upgrade/CMakeLists.txt")
+    file(READ "${product_consumer}" product_consumer_text)
+    if(product_consumer_text MATCHES "genomes::runtime([^_A-Za-z0-9]|$)")
+        message(FATAL_ERROR "Product consumer still links compatibility genomes::runtime: ${product_consumer}")
+    endif()
+endforeach()
 
 file(READ "${tracker}" tracker_text)
 
