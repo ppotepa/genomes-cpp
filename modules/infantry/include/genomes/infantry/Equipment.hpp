@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <string_view>
 
 namespace genomes::infantry {
@@ -59,8 +60,8 @@ enum class EquipmentKind : std::uint8_t {
 };
 
 struct EquipmentVisualDefinition final {
-    std::string_view style{};
-    std::string_view coverage{};
+    std::string style{};
+    std::string coverage{};
     float ease{0.0F};
     float width{0.0F};
     float shaft{0.0F};
@@ -73,21 +74,21 @@ struct EquipmentVisualDefinition final {
 
 struct EquipmentSlotDefinition final {
     EquipmentSlot slot{};
-    std::string_view identifier{};
-    std::string_view required_item{};
-    std::string_view socket{};
+    std::string identifier{};
+    std::string required_item{};
+    std::string socket{};
 };
 
 struct EquipmentItemDefinition final {
     foundation::StableId id{0};
-    std::string_view identifier{};
+    std::string identifier{};
     EquipmentKind kind{EquipmentKind::Clothing};
     std::array<EquipmentSlot, 7U> allowed_slots{};
     std::uint8_t allowed_slot_count{0};
     float weight_kg{0.0F};
     float fit_scale{1.0F};
     float fit_thickness{0.0F};
-    std::string_view style{};
+    std::string style{};
     EquipmentVisualDefinition visual{};
 
     [[nodiscard]] bool allows(EquipmentSlot slot) const noexcept;

@@ -3,6 +3,7 @@
 #include <genomes/infantry/Equipment.hpp>
 
 #include <span>
+#include <string>
 
 namespace genomes::infantry {
 
@@ -28,7 +29,7 @@ struct LoadoutChoice final {
 
 struct InfantryLoadout final {
     foundation::StableId id{0};
-    std::string_view identifier{};
+    std::string identifier{};
     std::array<LoadoutChoice, kEquipmentSlotCount> choices{};
 };
 

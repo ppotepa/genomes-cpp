@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 int main() {
     using namespace genomes::infantry;
@@ -22,6 +23,16 @@ int main() {
     }
     assert(EquipmentCatalog::findItem("pouch_utility")->allowed_slot_count == 7U);
     assert(infantryLoadouts().size() == kInfantryLoadoutCount);
+
+    // Catalog records own loader-provided text; no definition may retain a
+    // view into a temporary JSON/parser buffer.
+    std::string transient_identifier = "loaded-item";
+    EquipmentItemDefinition owned{};
+    owned.identifier = transient_identifier;
+    owned.visual.style = transient_identifier;
+    transient_identifier.clear();
+    assert(owned.identifier == "loaded-item");
+    assert(owned.visual.style == "loaded-item");
 
     const auto genome = InfantryGenome::generate(0xA11CEU, 1.0F);
     assert(genome);
