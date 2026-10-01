@@ -75,5 +75,9 @@ int main() {
     assert(pipeline_snapshot.impacts > 0U);
     assert(pipeline_snapshot.accepted_damage > 0U);
     assert(pipeline_snapshot.physics_steps == pipeline_snapshot.tick);
+    assert(pipeline_snapshot.last_shot_source.isValid());
+    assert(pipeline_snapshot.last_impact_source == pipeline_snapshot.last_shot_source);
+    assert(pipeline_snapshot.last_impact_target.isValid());
+    assert(pipeline_snapshot.last_impact_target != pipeline_snapshot.last_impact_source);
     return 0;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/combat/TacticalAI.hpp>
+#include <genomes/simulation/Entity.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -57,6 +58,11 @@ struct BattlefieldScenarioSnapshot final {
     std::size_t alive_units{0U};
     float destruction_damage{0.0F};
     std::size_t destruction_holes{0U};
+    // Last authoritative combat identity, retained for deterministic
+    // integration diagnostics without exposing mutable runtime storage.
+    simulation::EntityId last_shot_source{};
+    simulation::EntityId last_impact_source{};
+    simulation::EntityId last_impact_target{};
     bool complete{false};
     std::string error;
 };

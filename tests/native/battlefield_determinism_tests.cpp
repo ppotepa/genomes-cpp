@@ -45,6 +45,9 @@ void assertSameSnapshot(const genomes::gameplay::BattlefieldScenarioSnapshot& ex
     assert(expected.alive_units == actual.alive_units);
     assert(expected.destruction_damage == actual.destruction_damage);
     assert(expected.destruction_holes == actual.destruction_holes);
+    assert(expected.last_shot_source == actual.last_shot_source);
+    assert(expected.last_impact_source == actual.last_impact_source);
+    assert(expected.last_impact_target == actual.last_impact_target);
     assert(expected.complete == actual.complete);
     assert(expected.error == actual.error);
 }

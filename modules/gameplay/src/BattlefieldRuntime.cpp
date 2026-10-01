@@ -686,6 +686,7 @@ void BattlefieldRuntime::queueFire() noexcept {
             request.tick.value, request.seed, false, {}, {}, {}, {}};
         if (ballistics_ != nullptr && ballistics_->queueFire(ballistic_request).accepted) {
             projectile_sources_[projectile_value] = fromPacked(request.source);
+            snapshot_.last_shot_source = fromPacked(request.source);
             ++snapshot_.fired;
         }
     }
@@ -729,6 +730,8 @@ void BattlefieldRuntime::applyImpactDamage() noexcept {
                                          weapon_spec_.damage,
                                          simulation_tick_,
                                          contact.trace.impact_index};
+        snapshot_.last_impact_source = source->second;
+        snapshot_.last_impact_target = target_entity;
         (void)combat_flow_.submitImpact(impact);
     }
     const auto damage_commands = combat_flow_.commitDamage();
