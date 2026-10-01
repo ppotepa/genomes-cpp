@@ -44,6 +44,21 @@ add_test(NAME architecture.refactor_tracker
         -P "${CMAKE_CURRENT_SOURCE_DIR}/architecture_refactor_tracker.cmake")
 set_tests_properties(architecture.refactor_tracker PROPERTIES
     LABELS "source;cpu;architecture")
+
+add_executable(genomes_test_public_header_consumer public_header_consumer.cpp)
+target_link_libraries(genomes_test_public_header_consumer PRIVATE
+    genomes::content
+    genomes::gameplay
+    genomes::navigation
+    genomes::physics
+    genomes::world_render)
+genomes_set_project_warnings(genomes_test_public_header_consumer)
+genomes_enable_test_assertions(genomes_test_public_header_consumer)
+add_test(NAME architecture.public_header_consumer
+    COMMAND genomes_test_public_header_consumer)
+set_tests_properties(architecture.public_header_consumer PROPERTIES
+    LABELS "source;cpu;architecture")
+
 add_test(NAME ui.scene_guard
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_ui_guard.cmake")
