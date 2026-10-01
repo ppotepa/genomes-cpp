@@ -58,6 +58,9 @@ public:
     void handle_input(const input::InputFrame&);
     [[nodiscard]] ui::UiActionResult dispatch_ui_action(
         ui::UiActionId action, const ui::UiActionArguments& arguments);
+    void fixed_update(const simulation::TickContext& context);
+    // Compatibility entry point for legacy callers that have only a fixed
+    // duration. Production application code must pass the session context.
     void fixed_update(double dt);
     void frame_update(double dt);
     void present();
@@ -111,6 +114,7 @@ private:
     std::uint64_t scene_epoch_{0};
     double session_ui_scale_{1.0};
     bool session_show_diagnostics_{true};
+    foundation::SimulationTick compatibility_tick_{};
     ApplicationActionRouter application_action_router_{};
     SceneCommandHandler scene_command_handler_{};
     render::SnapshotExchange presentation_exchange_{3};

@@ -7,7 +7,7 @@
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
-#include <genomes/simulation/FixedStepClock.hpp>
+#include <genomes/simulation/SessionSimulationClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 #include <genomes/ui/UiNativePluginManager.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
@@ -80,7 +80,10 @@ private:
     // The composition root owns the product catalog for the whole session;
     // SceneDirector only owns the registered lifecycle callbacks.
     std::unique_ptr<application::BuiltinSceneCatalog> scene_catalog_;
-    simulation::FixedStepClock clock_;
+    // The application owns the single session clock. Scenes receive the
+    // resulting TickContext through the director; frame time remains a
+    // presentation-only input.
+    simulation::SessionSimulationClock clock_;
 #if defined(GENOMES_HAS_RMLUI)
     [[nodiscard]] std::string resolve_document(foundation::SceneId scene) const;
     std::unique_ptr<platform::SdlFileDialogService> file_dialog_service_;

@@ -1,5 +1,6 @@
 #include <genomes/gameplay/BattlefieldScenario.hpp>
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
+#include <genomes/world/WorldArtifactRevision.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -28,6 +29,12 @@ int main() {
     assert(scenario.value()->snapshot().physics_steps == 1U);
     auto runtime = gameplay::BattlefieldRuntime::start(configured);
     assert(runtime);
+    assert(!runtime.value()->bindWorldArtifactRevision(0U));
+    constexpr world::WorldArtifactRevision artifact_revision{0xA11CEU};
+    assert(runtime.value()->bindWorldArtifactRevision(artifact_revision));
+    assert(runtime.value()->worldArtifactRevision() == artifact_revision);
+    assert(runtime.value()->bindWorldArtifactRevision(artifact_revision));
+    assert(!runtime.value()->bindWorldArtifactRevision(artifact_revision + 1U));
     runtime.value()->fixedUpdate();
     assert(runtime.value()->snapshot().tick == 1U);
     assert(runtime.value()->snapshot().physics_steps == 1U);

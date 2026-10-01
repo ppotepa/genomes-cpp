@@ -81,6 +81,10 @@ public:
     // world step in its PhysicsStep callback.
     void applyPhysicsCommands() noexcept;
     void syncPhysicsState() noexcept;
+    // Presentation extraction is a distinct pipeline phase for production
+    // runtimes.  Fixtures may still use stepPhysics(), which keeps the
+    // historical inline extraction behavior.
+    void extractPresentation() noexcept;
     [[nodiscard]] bool externalPhysicsStep() const noexcept {
         return external_physics_step_;
     }

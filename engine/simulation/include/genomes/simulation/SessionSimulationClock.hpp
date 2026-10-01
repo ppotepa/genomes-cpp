@@ -30,6 +30,10 @@ public:
     [[nodiscard]] FixedStepAdvanceResult advanceBy(foundation::Nanoseconds frame_delta,
                                                     Callback&& callback) noexcept {
         return clock_.advanceBy(frame_delta, [&callback](double fixed_dt, foundation::SimulationTick tick) {
+            // FixedStepClock invokes the callback before advancing its
+            // internal cursor.  A session context names the tick being
+            // executed, so expose the one-based next tick to consumers.
+            tick.increment();
             callback(TickContext{tick, fixed_dt, SessionSimulationTickRateHz});
         });
     }

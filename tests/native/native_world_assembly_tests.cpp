@@ -54,6 +54,12 @@ int main() {
     assert(deterministic_artifact.value().terrain_mesh->indices.size() ==
            artifact->terrain_mesh->indices.size());
 
+    // The resolved artifact owns one revision. The production battlefield
+    // binds collision/navigation consumers to that same revision before
+    // publishing render products; stale or mixed revisions are rejected.
+    assert(artifact->revision != 0U);
+    assert(artifact->destruction_invalidations->worldRevision() == artifact->revision);
+
     // Battlefield navigation must use the same cell dimensions and origin as
     // the terrain artifact, rather than a second hardcoded /8 calculation.
     assert(layout.cell_count == request.map_size_m / 8U);

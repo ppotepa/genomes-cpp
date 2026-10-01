@@ -152,12 +152,25 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     return true;
 }
 
+void SceneDirector::fixed_update(const simulation::TickContext& tick_context) {
+    if (!current_) {
+        return;
+    }
+    SceneContext scene_context = make_context();
+    current_->fixed_update(scene_context, tick_context);
+}
+
 void SceneDirector::fixed_update(double dt) {
     if (!current_) {
         return;
     }
-    SceneContext context = make_context();
-    current_->fixed_update(context, dt);
+    simulation::TickContext context{};
+    context.tick = compatibility_tick_;
+    context.tick.increment();
+    context.fixed_dt_seconds = dt;
+    context.tick_rate_hz = simulation::SessionSimulationTickRateHz;
+    compatibility_tick_ = context.tick;
+    fixed_update(context);
 }
 
 void SceneDirector::frame_update(double dt) {

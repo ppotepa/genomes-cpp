@@ -24,6 +24,7 @@
 #include <genomes/simulation/SystemGraph.hpp>
 #include <genomes/spatial/SpatialGrid.hpp>
 #include <genomes/world_core/WorldQuerySnapshot.hpp>
+#include <genomes/world/WorldArtifactRevision.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 #include <genomes/weapons/WeaponController.hpp>
 
@@ -51,10 +52,21 @@ public:
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept;
     void fixedUpdate(const simulation::TickContext& context) noexcept;
 
+    // Bind the authoritative resolved-world revision to the collision and
+    // navigation consumers owned by this runtime. A runtime may be bound
+    // once; attempting to switch it to a different world is rejected so a
+    // tick cannot observe mixed world revisions.
+    [[nodiscard]] bool bindWorldArtifactRevision(
+        world::WorldArtifactRevision revision) noexcept;
+    [[nodiscard]] world::WorldArtifactRevision worldArtifactRevision() const noexcept {
+        return world_artifact_revision_;
+    }
+
     [[nodiscard]] const BattlefieldScenarioSnapshot& snapshot() const noexcept {
         return snapshot_;
     }
     [[nodiscard]] bool complete() const noexcept { return snapshot_.complete; }
+    [[nodiscard]] BattlefieldRuntimeState state() const noexcept { return state_; }
     [[nodiscard]] const simulation::WorldEcs& ecs() const noexcept { return entities_.ecs(); }
     [[nodiscard]] const combat::TacticalAIProfile& tacticalProfile() const noexcept {
         return tactical_ai_.profile();
@@ -82,6 +94,7 @@ private:
     void queueFire() noexcept;
     void advanceBallistics() noexcept;
     void applyImpactDamage() noexcept;
+    void commitSnapshot() noexcept;
     [[nodiscard]] TargetRuntime* target(simulation::EntityId entity) noexcept;
     [[nodiscard]] const TargetRuntime* target(simulation::EntityId entity) const noexcept;
     [[nodiscard]] static bool provideContact(void*, const world_core::QuerySegmentHit&,
@@ -123,8 +136,10 @@ private:
     std::unordered_map<std::uint64_t, simulation::EntityId> projectile_sources_;
     std::vector<ballistics::BallisticsContact> ballistic_contacts_;
     combat::DamageBuffer damage_buffer_;
+    world::WorldArtifactRevision world_artifact_revision_{0U};
 
     BattlefieldScenarioSnapshot snapshot_{};
+    BattlefieldRuntimeState state_{BattlefieldRuntimeState::Running};
 };
 
 } // namespace genomes::gameplay

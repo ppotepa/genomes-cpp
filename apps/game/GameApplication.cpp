@@ -423,7 +423,10 @@ int GameApplication::run(int argc,char** argv) {
             director_.handle_input(platform_frame.input);
 #endif
         }
-        const auto advance=clock_.advanceBy(elapsed,[&](double dt,foundation::SimulationTick) noexcept {director_.fixed_update(dt);});
+        const auto advance = clock_.advanceBy(
+            elapsed, [&](const simulation::TickContext& context) noexcept {
+                director_.fixed_update(context);
+            });
         director_.set_presentation_timing(advance.first_tick,advance.next_tick,advance.interpolation_alpha);
         const double dt=std::chrono::duration<double>(elapsed).count();director_.frame_update(dt);
 #if defined(GENOMES_HAS_RMLUI)

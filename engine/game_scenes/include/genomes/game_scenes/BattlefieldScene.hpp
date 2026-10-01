@@ -47,7 +47,7 @@ public:
     void on_enter(SceneContext&) override;
     void on_exit(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;
-    void fixed_update(SceneContext&, double) override;
+    void fixed_update(SceneContext&, const simulation::TickContext&) override;
     void frame_update(SceneContext&, double) override;
     void build_presentation(SceneContext&) override;
 
@@ -60,7 +60,7 @@ private:
     void finalize_plan(world::WorldPlan plan);
 #if GENOMES_HAS_INFANTRY
     void initialize_infantry_animation();
-    void evaluate_infantry_animation(float fixed_dt_seconds);
+    void evaluate_infantry_animation(const simulation::TickContext& context);
 #endif
 
     application::WorldGenerationConfig config_{};
@@ -99,8 +99,6 @@ private:
     std::string generation_error_;
     float terrain_min_height_{0.0F};
     float terrain_max_height_{0.0F};
-    double elapsed_seconds_{0.0};
-    foundation::SimulationTick simulation_tick_{};
 };
 
 } // namespace genomes::game_scenes

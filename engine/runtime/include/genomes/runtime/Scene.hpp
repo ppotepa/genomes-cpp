@@ -6,6 +6,7 @@
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/camera/Camera.hpp>
+#include <genomes/simulation/SessionSimulationClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <cstdint>
@@ -83,6 +84,14 @@ public:
     virtual ui::UiActionResult handle_ui_action(
         SceneContext&, ui::UiActionId, const ui::UiActionArguments&) {
         return ui::UiActionResult::Unknown;
+    }
+    // The session clock is the sole owner of simulation tick, fixed dt and
+    // frequency.  The double overload remains as a compatibility hook for
+    // scenes that only need a duration; new simulation owners override the
+    // TickContext overload.
+    virtual void fixed_update(SceneContext& context,
+                              const simulation::TickContext& tick) {
+        fixed_update(context, tick.fixed_dt_seconds);
     }
     virtual void fixed_update(SceneContext&, double) {}
     virtual void frame_update(SceneContext&, double) {}

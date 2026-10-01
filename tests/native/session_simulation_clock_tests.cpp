@@ -14,8 +14,10 @@ int main() {
         [&contexts](const simulation::TickContext& context) {
             assert(context.tick_rate_hz == 60U);
             assert(context.fixed_dt_seconds == 1.0 / 60.0);
+            assert(context.tick.value == 1U);
             ++contexts;
         });
     assert(result.steps_executed == contexts);
+    assert(clock.currentTick().value == 1U);
     return 0;
 }

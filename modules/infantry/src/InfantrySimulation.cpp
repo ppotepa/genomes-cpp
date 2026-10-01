@@ -137,7 +137,9 @@ void InfantrySimulation::fixedUpdate(double dt, foundation::SimulationTick tick)
     if (physics_ != nullptr && !external_physics_step_) {
         stepPhysics(dt);
     }
-    buildRenderStates();
+    if (!external_physics_step_) {
+        buildRenderStates();
+    }
 }
 
 void InfantrySimulation::stepPhysics(double dt) noexcept {
@@ -147,6 +149,7 @@ void InfantrySimulation::stepPhysics(double dt) noexcept {
     applyPhysicsCommands();
     physics_->step(static_cast<float>(dt));
     syncPhysicsState();
+    extractPresentation();
 }
 
 void InfantrySimulation::applyPhysicsCommands() noexcept {
@@ -161,6 +164,9 @@ void InfantrySimulation::syncPhysicsState() noexcept {
         return;
     }
     syncPhysics();
+}
+
+void InfantrySimulation::extractPresentation() noexcept {
     buildRenderStates();
 }
 

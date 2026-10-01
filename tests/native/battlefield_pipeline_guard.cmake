@@ -8,6 +8,54 @@ if(NOT EXISTS "${source}")
 endif()
 file(READ "${source}" battlefield)
 
+# R032/R033: the authoritative runtime declares the complete tick boundary,
+# including the hand-off into presentation extraction.  Keep these checks
+# source-based so they remain useful before the user-owned build matrix runs.
+foreach(required_phase IN ITEMS
+        "SystemPhase::Navigate"
+        "SystemPhase::MoveIntent"
+        "SystemPhase::PhysicsCommands"
+        "SystemPhase::PhysicsStep"
+        "SystemPhase::Commit"
+        "SystemPhase::PresentationExtract"
+        "battlefield.navigate"
+        "battlefield.move-intent"
+        "battlefield.physics-commands"
+        "battlefield.physics-step"
+        "battlefield.commit"
+        "battlefield.presentation-extract"
+        "infantry_->applyPhysicsCommands();"
+        "physics_.step(static_cast<float>(context.fixed_dt));"
+        "infantry_->syncPhysicsState();"
+        "infantry_->extractPresentation();"
+        "const BattlefieldScenarioSnapshot last_good_snapshot = snapshot_;"
+        "snapshot_ = last_good_snapshot;"
+        "state_ = BattlefieldRuntimeState::Failed"
+        "state_ != BattlefieldRuntimeState::Running")
+    string(FIND "${battlefield}" "${required_phase}" phase_position)
+    if(phase_position EQUAL -1)
+        message(FATAL_ERROR
+                "BattlefieldRuntime is missing R032/R033 contract: ${required_phase}")
+    endif()
+endforeach()
+
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::Navigate" navigate_phase)
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::MoveIntent" move_intent_phase)
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::PhysicsCommands"
+       physics_commands_phase)
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::PhysicsStep" physics_step_phase)
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::Commit" commit_phase)
+string(FIND "${battlefield}" "phase = simulation::SystemPhase::PresentationExtract"
+       presentation_phase)
+if(navigate_phase GREATER move_intent_phase OR
+   move_intent_phase GREATER physics_commands_phase OR
+   physics_commands_phase GREATER physics_step_phase OR
+   physics_step_phase GREATER commit_phase OR
+   commit_phase GREATER presentation_phase)
+    message(FATAL_ERROR
+            "BattlefieldRuntime phase order must be Navigate -> PhysicsCommands -> PhysicsStep -> Commit -> PresentationExtract")
+endif()
+
 # R032 requires one typed production path. Keep the complete hand-off visible
 # in the source so a compatibility hitscan shortcut cannot silently become the
 # authoritative implementation again.

@@ -49,6 +49,16 @@ add_test(NAME simulation.battlefield_pipeline_source_contract
         -P "${CMAKE_CURRENT_SOURCE_DIR}/battlefield_pipeline_guard.cmake")
 set_tests_properties(simulation.battlefield_pipeline_source_contract PROPERTIES
     LABELS "source;cpu;simulation;combat")
+add_test(NAME simulation.session_clock_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/session_simulation_clock_guard.cmake")
+set_tests_properties(simulation.session_clock_source_contract PROPERTIES
+    LABELS "source;cpu;simulation;architecture")
+add_test(NAME world.resolved_artifact_revision_source_contract
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/resolved_world_artifact_guard.cmake")
+set_tests_properties(world.resolved_artifact_revision_source_contract PROPERTIES
+    LABELS "source;cpu;world;architecture")
 add_test(NAME architecture.composition_root
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/composition_root_guard.cmake")

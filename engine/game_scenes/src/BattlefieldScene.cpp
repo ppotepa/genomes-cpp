@@ -65,7 +65,6 @@ foundation::SceneId BattlefieldScene::id() const noexcept {
 
 void BattlefieldScene::on_enter(SceneContext& context) {
     jobs_ = context.deterministic_capture ? nullptr : context.jobs;
-    elapsed_seconds_ = 0.0;
     generation_error_.clear();
     simulation_failed_ = false;
     plan_.reset();
@@ -113,8 +112,6 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     animation_agents_.clear();
     animation_poses_.clear();
 #endif
-    simulation_tick_ = {};
-
     if (jobs_ != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
         const auto requested = scenario_->requestNew(config_);
@@ -195,7 +192,7 @@ void BattlefieldScene::initialize_infantry_animation() {
     }
 }
 
-void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
+void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext& context) {
     if (!animation_system_ || !battlefield_runtime_ || !infantry_model_artifact_ ||
         animation_agents_.empty()) {
         return;
@@ -268,8 +265,8 @@ void BattlefieldScene::evaluate_infantry_animation(float fixed_dt_seconds) {
         return;
     }
     const auto result = animation_system_->evaluate(
-        std::span<infantry::AnimationEntity>(entities), simulation_tick_.value,
-        fixed_dt_seconds, jobs_);
+        std::span<infantry::AnimationEntity>(entities), context.tick.value,
+        context.fixed_dt_seconds, jobs_);
     if (!result) {
         generation_error_ = std::string(result.error().message);
         return;
@@ -285,30 +282,26 @@ void BattlefieldScene::handle_input(SceneContext& context, const input::InputFra
     }
 }
 
-void BattlefieldScene::fixed_update(SceneContext&, double dt) {
+void BattlefieldScene::fixed_update(SceneContext&, const simulation::TickContext& context) {
     if (simulation_failed_) {
         return;
     }
-    elapsed_seconds_ += dt;
-    simulation_tick_.increment();
 #if !GENOMES_HAS_INFANTRY
-    (void)dt;
+    (void)context;
     return;
 #else
-    const simulation::TickContext tick_context{
-        simulation_tick_, dt, simulation::SessionSimulationTickRateHz};
     if (battlefield_runtime_ != nullptr) {
         if (!battlefield_runtime_->complete()) {
             // BattlefieldRuntime is the sole authoritative owner for this
             // tick; the scene only forwards the clock and extracts results.
-            battlefield_runtime_->fixedUpdate(tick_context);
+            battlefield_runtime_->fixedUpdate(context);
         }
         if (!battlefield_runtime_->snapshot().error.empty()) {
             generation_error_ = "Battlefield runtime failed: " +
                                 battlefield_runtime_->snapshot().error;
             simulation_failed_ = true;
         }
-        evaluate_infantry_animation(static_cast<float>(dt));
+        evaluate_infantry_animation(context);
         return;
     }
     // A missing runtime can only mean that start() failed in on_enter().  Do
@@ -434,6 +427,18 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         terrain_mesh_ = world_artifacts_->terrain_mesh;
         resolved_buildings_ = world_artifacts_->resolved_buildings;
     }
+ #if GENOMES_HAS_INFANTRY
+    if (battlefield_runtime_ != nullptr &&
+        !battlefield_runtime_->bindWorldArtifactRevision(world_artifacts_->revision)) {
+        generation_error_ = "battlefield consumers rejected the resolved world revision";
+        plan_.reset();
+        world_artifacts_.reset();
+        terrain_.reset();
+        terrain_mesh_.reset();
+        resolved_buildings_.reset();
+        return;
+    }
+ #endif
     const auto grid_layout = world::GridLayout::forMap(config_.map_size_m);
     if (!grid_layout.valid()) {
         generation_error_ = "world request has no valid grid layout";
@@ -588,7 +593,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                          {state.height / model_height, state.height / model_height,
                           state.height / model_height},
                          state.heading,
-                         simulation_tick_.value,
+                         battlefield_runtime_->snapshot().tick,
                          instance_flags,
                          state.team == infantry::Team::Red
                              ? foundation::Color{1.0F, 0.78F, 0.72F, 1.0F}

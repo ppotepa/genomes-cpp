@@ -24,6 +24,15 @@ struct BattlefieldScenarioConfig final {
     }
 };
 
+// A runtime failure is terminal for the current session.  Keeping this
+// state separate from the presentation snapshot lets the last committed
+// snapshot remain inspectable while still making future ticks a no-op.
+enum class BattlefieldRuntimeState : std::uint8_t {
+    Running,
+    Completed,
+    Failed,
+};
+
 struct BattlefieldScenarioSnapshot final {
     std::uint64_t tick{0U};
     std::uint32_t map_size_m{25U};

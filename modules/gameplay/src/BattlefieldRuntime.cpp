@@ -255,7 +255,11 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     sense.access.resource_writes = {foundation::stable_id("battlefield.perception")};
     sense.cadence = every_tick;
     sense.main_thread_only = true;
-    sense.callback = [this](simulation::SystemContext&) { runPerception(); };
+    sense.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty()) {
+            runPerception();
+        }
+    };
     if (!add_system(std::move(sense))) {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidState, "battlefield sense graph setup failed"));
@@ -271,28 +275,77 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     decide.access.resource_writes = {foundation::stable_id("battlefield.intent")};
     decide.cadence = every_tick;
     decide.main_thread_only = true;
-    decide.callback = [this](simulation::SystemContext&) { runDecision(); };
+    decide.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty()) {
+            runDecision();
+        }
+    };
     if (!add_system(std::move(decide))) {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidState, "battlefield decision graph setup failed"));
     }
 
-    simulation::SystemDescriptor move{};
-    move.id = foundation::stable_id("battlefield.move");
-    move.phase = simulation::SystemPhase::MoveIntent;
-    move.access.reads = {foundation::stable_id("component.entity.health"),
-                         foundation::stable_id("component.entity.position")};
-    move.access.writes = {foundation::stable_id("component.entity.position"),
-                          foundation::stable_id("component.entity.velocity")};
-    move.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
-    move.cadence = every_tick;
-    move.main_thread_only = true;
-    move.callback = [this](simulation::SystemContext& context) {
-        infantry_->fixedUpdate(context.fixed_dt, context.tick);
+    simulation::SystemDescriptor navigate{};
+    navigate.id = foundation::stable_id("battlefield.navigate");
+    navigate.phase = simulation::SystemPhase::Navigate;
+    navigate.access.reads = {foundation::stable_id("component.entity.health"),
+                             foundation::stable_id("component.entity.position")};
+    navigate.access.writes = {foundation::stable_id("component.entity.position"),
+                              foundation::stable_id("component.entity.velocity")};
+    navigate.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
+    navigate.cadence = every_tick;
+    navigate.main_thread_only = true;
+    navigate.callback = [this](simulation::SystemContext& context) {
+        if (snapshot_.error.empty()) {
+            infantry_->fixedUpdate(context.fixed_dt, context.tick);
+        }
     };
-    if (!add_system(std::move(move))) {
+    if (!add_system(std::move(navigate))) {
         return foundation::Result<void, foundation::Error>::failure(
-            scenarioError(foundation::ErrorCode::InvalidState, "battlefield move graph setup failed"));
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield navigation graph setup failed"));
+    }
+
+    // Keep the movement command boundary explicit even though the current
+    // infantry adapter computes navigation and movement intents together. A
+    // later split can move the route solver behind Navigate without changing
+    // the authoritative phase contract or physics ownership.
+    simulation::SystemDescriptor move_intent{};
+    move_intent.id = foundation::stable_id("battlefield.move-intent");
+    move_intent.phase = simulation::SystemPhase::MoveIntent;
+    move_intent.access.reads = {foundation::stable_id("component.entity.position"),
+                                foundation::stable_id("component.entity.velocity")};
+    move_intent.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
+    move_intent.access.resource_writes = {foundation::stable_id("battlefield.physics")};
+    move_intent.cadence = every_tick;
+    move_intent.main_thread_only = true;
+    move_intent.callback = [](simulation::SystemContext&) {
+        // InfantrySimulation::fixedUpdate has already emitted the command
+        // buffer in Navigate; this phase is the typed hand-off boundary.
+    };
+    if (!add_system(std::move(move_intent))) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield move-intent graph setup failed"));
+    }
+
+    simulation::SystemDescriptor physics_commands{};
+    physics_commands.id = foundation::stable_id("battlefield.physics-commands");
+    physics_commands.phase = simulation::SystemPhase::PhysicsCommands;
+    physics_commands.access.reads = {foundation::stable_id("component.entity.velocity")};
+    physics_commands.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
+    physics_commands.access.resource_writes = {foundation::stable_id("battlefield.physics")};
+    physics_commands.cadence = every_tick;
+    physics_commands.main_thread_only = true;
+    physics_commands.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty() && infantry_) {
+            infantry_->applyPhysicsCommands();
+        }
+    };
+    if (!add_system(std::move(physics_commands))) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield physics-command graph setup failed"));
     }
 
     simulation::SystemDescriptor physics_step{};
@@ -306,14 +359,12 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_step.cadence = every_tick;
     physics_step.main_thread_only = true;
     physics_step.callback = [this](simulation::SystemContext& context) {
-        if (infantry_) {
+        if (snapshot_.error.empty() && infantry_) {
             // The runtime is the sole owner of this world step. Infantry only
             // submits commands and consumes the post-step snapshot; keeping
             // the actual step here prevents a second physics owner from
             // entering the authoritative pipeline.
-            infantry_->applyPhysicsCommands();
             physics_.step(static_cast<float>(context.fixed_dt));
-            infantry_->syncPhysicsState();
         }
     };
     if (!add_system(std::move(physics_step))) {
@@ -332,8 +383,10 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     combat.cadence = every_tick;
     combat.main_thread_only = true;
     combat.callback = [this](simulation::SystemContext&) {
-        queueFire();
-        advanceBallistics();
+        if (snapshot_.error.empty()) {
+            queueFire();
+            advanceBallistics();
+        }
     };
     if (!add_system(std::move(combat))) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -351,17 +404,78 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     damage.access.resource_writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
     damage.main_thread_only = true;
-    damage.callback = [this](simulation::SystemContext&) { applyImpactDamage(); };
+    damage.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty()) {
+            applyImpactDamage();
+        }
+    };
     if (!add_system(std::move(damage))) {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidState,
                           "battlefield damage graph setup failed"));
+    }
+
+    simulation::SystemDescriptor commit{};
+    commit.id = foundation::stable_id("battlefield.commit");
+    commit.phase = simulation::SystemPhase::Commit;
+    commit.access.reads = {foundation::stable_id("component.entity.health"),
+                           foundation::stable_id("component.entity.flags")};
+    commit.access.resource_reads = {foundation::stable_id("battlefield.projectiles"),
+                                    foundation::stable_id("battlefield.health")};
+    commit.access.resource_writes = {foundation::stable_id("battlefield.snapshot")};
+    commit.cadence = every_tick;
+    commit.main_thread_only = true;
+    commit.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty()) {
+            commitSnapshot();
+        }
+    };
+    if (!add_system(std::move(commit))) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield commit graph setup failed"));
+    }
+
+    simulation::SystemDescriptor presentation{};
+    presentation.id = foundation::stable_id("battlefield.presentation-extract");
+    presentation.phase = simulation::SystemPhase::PresentationExtract;
+    presentation.access.reads = {foundation::stable_id("component.entity.position"),
+                                 foundation::stable_id("component.entity.heading")};
+    presentation.access.resource_reads = {foundation::stable_id("battlefield.snapshot")};
+    presentation.access.resource_writes = {
+        foundation::stable_id("battlefield.presentation")};
+    presentation.cadence = every_tick;
+    presentation.main_thread_only = true;
+    presentation.callback = [this](simulation::SystemContext&) {
+        if (snapshot_.error.empty() && infantry_) {
+            infantry_->syncPhysicsState();
+            infantry_->extractPresentation();
+        }
+    };
+    if (!add_system(std::move(presentation))) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield presentation graph setup failed"));
     }
     const auto compiled = graph_.compile();
     if (!compiled) {
         return foundation::Result<void, foundation::Error>::failure(compiled.error());
     }
     return foundation::Result<void, foundation::Error>::success();
+}
+
+bool BattlefieldRuntime::bindWorldArtifactRevision(
+    world::WorldArtifactRevision revision) noexcept {
+    if (revision == 0U || navigation_ == nullptr) {
+        return false;
+    }
+    if (world_artifact_revision_ != 0U && world_artifact_revision_ != revision) {
+        return false;
+    }
+    physics_.bindWorldRevision(revision);
+    navigation_->bindWorldRevision(revision);
+    world_artifact_revision_ = revision;
+    return true;
 }
 
 void BattlefieldRuntime::fixedUpdate(double dt) noexcept {
@@ -377,19 +491,32 @@ void BattlefieldRuntime::fixedUpdate(double dt) noexcept {
 }
 
 void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noexcept {
-    if (snapshot_.complete || !std::isfinite(context.fixed_dt_seconds) ||
+    if (state_ != BattlefieldRuntimeState::Running || snapshot_.complete ||
+        !std::isfinite(context.fixed_dt_seconds) ||
         context.fixed_dt_seconds <= 0.0 || context.tick_rate_hz == 0U ||
         context.tick.value <= simulation_tick_.value) {
         return;
     }
+    const BattlefieldScenarioSnapshot last_good_snapshot = snapshot_;
+    const foundation::SimulationTick last_good_tick = simulation_tick_;
     simulation_tick_ = context.tick;
     snapshot_.tick = context.tick.value;
     const auto result = graph_.run(simulation_tick_, context.fixed_dt_seconds, nullptr, nullptr);
-    if (!result) {
-        snapshot_.error = result.error().message;
+    if (!result || !snapshot_.error.empty()) {
+        const std::string error = result ? snapshot_.error : result.error().message;
+        snapshot_ = last_good_snapshot;
+        snapshot_.error = error;
         snapshot_.complete = true;
+        state_ = BattlefieldRuntimeState::Failed;
+        simulation_tick_ = last_good_tick;
         return;
     }
+    if (snapshot_.complete) {
+        state_ = BattlefieldRuntimeState::Completed;
+    }
+}
+
+void BattlefieldRuntime::commitSnapshot() noexcept {
     snapshot_.ecs_entities = entities_.ecs().entityCount();
     snapshot_.active_projectiles = ballistics_ == nullptr ? 0U : ballistics_->activeCount();
     snapshot_.physics_steps = physics_.stepCount();
