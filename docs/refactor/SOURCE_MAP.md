@@ -18,7 +18,7 @@ must never be staged, reset or overwritten by this program.
 | Physics/navigation | `engine/{physics,navigation}/CMakeLists.txt` | `genomes::physics`, `navigation` | PR07, PR09 |
 | Presentation | `engine/render/CMakeLists.txt`, `engine/render/{core,graph,gpu_scene,compute,diligent}` | `genomes::render*`, Diligent-only production backend | PR09, PR13, PR16 |
 | Runtime | `engine/runtime/CMakeLists.txt` | `genomes::runtime` (currently also owns product scenes) | PR08, PR12 |
-| World domains | `modules/{world,terrain,hydrology,roads,buildings,world_render}` | corresponding `genomes::*` static libraries | PR03, PR09, PR10 |
+| World domains | `engine/world`, `modules/{terrain,hydrology,roads,buildings,world_render}` | `genomes::world_core`, `genomes::world_generation`, aggregate `genomes::world`, and corresponding `genomes::*` libraries | PR03, PR09, PR10 |
 | Combat domains | `modules/{combat,weapons,ballistics,infantry,gameplay}` | corresponding `genomes::*` static libraries | PR02, PR06-PR07, PR10-PR11 |
 | Destruction | `modules/destruction/CMakeLists.txt` | `genomes::destruction` | PR07, PR09 |
 | Applications | `apps/{game,headless,menu,proc_viewer,asset_probe,render_smoke}` | product and diagnostic executables | PR06, PR08, PR12, PR15 |
@@ -53,7 +53,7 @@ High-risk public contracts and their first review packages:
 | System graph/ticks/ECS | `engine/simulation/include/genomes/simulation` | PR01/PR07 |
 | Seeds/cache/generation | `engine/proc/include/genomes/proc` | PR04/PR11 |
 | Runtime scenes/commands | `engine/runtime/include/genomes/runtime` | PR08/PR12 |
-| World/query/save | `modules/world/include/genomes/world` | PR04/PR09 |
+| World/query/save | `engine/world/include/genomes/world` | PR04/PR09 |
 | Buildings | `modules/buildings/include/genomes/buildings` | PR03 |
 | Infantry/model compiler | `modules/infantry/include/genomes/infantry` | PR02/PR10/PR11 |
 | Combat/weapons/ballistics | `modules/{combat,weapons,ballistics}/include/genomes` | PR06/PR07/PR10 |
@@ -86,7 +86,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | UNREVIEWED |
 | PR08 | `engine/runtime/src`, app composition roots | UNREVIEWED |
-| PR09 | world/terrain/hydrology/roads/buildings/world_render sources | UNREVIEWED |
+| PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | world target split reviewed; remaining consumer/namespace migration UNREVIEWED |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | UNREVIEWED |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | UNREVIEWED |
@@ -122,4 +122,3 @@ excluded from K3/K4 migration unless a package explicitly names them.
   rebasing immediately before changes.
 - PR17 must use CodeGraph impact/affected before removing any forwarding header
   or broad namespace surface.
-
