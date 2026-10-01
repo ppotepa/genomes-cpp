@@ -33,7 +33,8 @@ constexpr float kTargetHalfExtent = 0.5F;
 
 BattlefieldScenario::BattlefieldScenario(BattlefieldScenarioConfig config,
                                          jobs::JobSystem* jobs)
-    : config_{config}, jobs_{jobs}, combat_{entities_} {}
+    : config_{config}, jobs_{jobs}, combat_{entities_},
+      tactical_ai_{config.tactical_ai_profile} {}
 
 foundation::Result<std::unique_ptr<BattlefieldScenario>, foundation::Error>
 BattlefieldScenario::startBattlefieldScenario(const BattlefieldScenarioConfig& config,

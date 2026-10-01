@@ -177,6 +177,12 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_unit_lab_smoke)
     add_test(NAME runtime.unit_lab_smoke COMMAND genomes_test_unit_lab_smoke)
 
+    add_executable(genomes_test_battlefield_profile battlefield_profile_tests.cpp)
+    target_link_libraries(genomes_test_battlefield_profile PRIVATE genomes::gameplay)
+    genomes_set_project_warnings(genomes_test_battlefield_profile)
+    genomes_enable_test_assertions(genomes_test_battlefield_profile)
+    add_test(NAME gameplay.battlefield_profile COMMAND genomes_test_battlefield_profile)
+
     add_executable(genomes_test_infantry_presentation infantry_presentation_tests.cpp)
     target_link_libraries(genomes_test_infantry_presentation PRIVATE genomes::runtime)
     genomes_set_project_warnings(genomes_test_infantry_presentation)

@@ -40,10 +40,11 @@ struct BattlefieldScenarioConfig final {
     std::uint32_t map_size_m{25U};
     float fixed_step_seconds{1.0F / 60.0F};
     std::uint32_t max_ticks{240U};
+    combat::TacticalAIProfile tactical_ai_profile{};
 
     [[nodiscard]] bool valid() const noexcept {
         return seed != 0U && map_size_m == 25U && fixed_step_seconds > 0.0F &&
-               max_ticks > 0U;
+               max_ticks > 0U && tactical_ai_profile.valid();
     }
 };
 
@@ -83,6 +84,9 @@ public:
     }
     [[nodiscard]] bool complete() const noexcept { return snapshot_.complete; }
     [[nodiscard]] const simulation::WorldEcs& ecs() const noexcept { return entities_.ecs(); }
+    [[nodiscard]] const combat::TacticalAIProfile& tacticalProfile() const noexcept {
+        return tactical_ai_.profile();
+    }
     [[nodiscard]] const std::vector<infantry::InfantryRenderState>& renderStates() const noexcept {
         return infantry_->renderStates();
     }
