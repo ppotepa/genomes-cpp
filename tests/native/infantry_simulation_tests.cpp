@@ -1,5 +1,6 @@
 #include <genomes/infantry/InfantrySimulation.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
+#include <genomes/physics/PhysicsWorld.hpp>
 #include <genomes/simulation/EntityStore.hpp>
 
 #include <cassert>
@@ -107,11 +108,25 @@ void staleAgentSidecarCannotAttachToReusedEntityIndex() {
     assert(infantry.renderStates().empty());
 }
 
+void externalPhysicsOwnerStepsExactlyOnce() {
+    genomes::simulation::EntityStore entities;
+    genomes::physics::SimplePhysicsWorld physics;
+    genomes::infantry::InfantrySimulation infantry(entities, nullptr, &physics, nullptr, true);
+    const auto generated = genomes::infantry::InfantryGenome::generate(4);
+    assert(generated);
+    assert(infantry.spawn({genomes::infantry::Team::Blue, {}, generated.value(), {}}));
+    infantry.fixedUpdate(1.0 / 60.0, {});
+    assert(physics.stepCount() == 0U);
+    infantry.stepPhysics(1.0 / 60.0);
+    assert(physics.stepCount() == 1U);
+}
+
 } // namespace
 
 int main() {
     nearbyWaypointDoesNotMakeDistantTargetEngage();
     squadContactsRequireMatchingSideAndExplicitMembership();
     staleAgentSidecarCannotAttachToReusedEntityIndex();
+    externalPhysicsOwnerStepsExactlyOnce();
     return 0;
 }

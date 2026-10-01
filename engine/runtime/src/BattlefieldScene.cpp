@@ -343,6 +343,7 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
         // Keep a safe fallback for a partially constructed scene. Once the
         // graph is compiled all authoritative updates go through its phases.
         infantry_->fixedUpdate(dt, simulation_tick_);
+        infantry_->stepPhysics(dt);
         if (combat_) {
             infantry_->emitCombatEvents(simulation_tick_, damage_buffer_);
             const combat::CombatApplyResult combat_result = combat_->apply(damage_buffer_);
@@ -402,7 +403,11 @@ void BattlefieldScene::configure_simulation_graph() {
     physics_step.access.writes = {foundation::stable_id("resource.physics.world")};
     physics_step.cadence = every_tick;
     physics_step.callback = [this](simulation::SystemContext& context) {
-        physics_.step(static_cast<float>(context.fixed_dt));
+        if (infantry_) {
+            infantry_->stepPhysics(context.fixed_dt);
+        } else {
+            physics_.step(static_cast<float>(context.fixed_dt));
+        }
     };
     if (!add_system(std::move(physics_step))) {
         return;
@@ -663,7 +668,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
 #if GENOMES_HAS_INFANTRY
     infantry_ = std::make_unique<infantry::InfantrySimulation>(
-        entities_, navigation_.get(), &physics_, jobs_);
+        entities_, navigation_.get(), &physics_, jobs_, true);
     combat_ = std::make_unique<combat::CombatSystem>(entities_);
     constexpr std::uint32_t units_per_team = 25;
     const float map_size = static_cast<float>(config_.map_size_m);

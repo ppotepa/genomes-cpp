@@ -65,12 +65,20 @@ public:
     explicit InfantrySimulation(simulation::EntityStore& entities,
                                 navigation::NavigationWorld* navigation = nullptr,
                                 physics::PhysicsWorld* physics = nullptr,
-                                jobs::JobSystem* jobs = nullptr) noexcept;
+                                jobs::JobSystem* jobs = nullptr,
+                                bool external_physics_step = false) noexcept;
 
     [[nodiscard]] foundation::Result<simulation::EntityId, foundation::Error> spawn(
         const InfantrySpawn&);
     void remove(simulation::EntityId) noexcept;
     void fixedUpdate(double dt, foundation::SimulationTick tick) noexcept;
+    // Production graphs call this exactly once in PhysicsStep after
+    // fixedUpdate has produced the command buffer. Legacy fixtures retain the
+    // default inline behavior for compatibility.
+    void stepPhysics(double dt) noexcept;
+    [[nodiscard]] bool externalPhysicsStep() const noexcept {
+        return external_physics_step_;
+    }
     void emitCombatEvents(foundation::SimulationTick tick, combat::DamageBuffer&) noexcept;
 
     [[nodiscard]] const std::vector<InfantryRenderState>& renderStates() const noexcept {
@@ -131,6 +139,8 @@ private:
     simulation::EntityStore& entities_;
     navigation::NavigationWorld* navigation_{nullptr};
     physics::PhysicsWorld* physics_{nullptr};
+    bool external_physics_step_{false};
+    physics::PhysicsCommandBuffer physics_commands_{};
     spatial::UniformGrid spatial_index_{16.0F};
     jobs::JobSystem* jobs_{nullptr};
     std::vector<Agent> agents_;

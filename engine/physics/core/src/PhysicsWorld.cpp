@@ -137,6 +137,7 @@ void SimplePhysicsWorld::step(float dt) noexcept {
     if (!std::isfinite(dt) || dt <= 0.0F) {
         return;
     }
+    ++step_count_;
     for (Slot& slot : slots_) {
         if (!slot.alive || slot.state.type != BodyType::Dynamic) {
             continue;

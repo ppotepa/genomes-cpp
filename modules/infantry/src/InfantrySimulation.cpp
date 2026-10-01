@@ -38,8 +38,10 @@ constexpr std::uint64_t kContactMemoryTicks = 180;
 InfantrySimulation::InfantrySimulation(simulation::EntityStore& entities,
                                        navigation::NavigationWorld* navigation,
                                        physics::PhysicsWorld* physics,
-                                       jobs::JobSystem* jobs) noexcept
-    : entities_{entities}, navigation_{navigation}, physics_{physics}, jobs_{jobs} {}
+                                       jobs::JobSystem* jobs,
+                                       bool external_physics_step) noexcept
+    : entities_{entities}, navigation_{navigation}, physics_{physics}, jobs_{jobs},
+      external_physics_step_{external_physics_step} {}
 
 bool InfantrySimulation::contactMemoryFresh(const Agent& record,
                                              foundation::SimulationTick tick) noexcept {
@@ -130,13 +132,21 @@ void InfantrySimulation::fixedUpdate(double dt, foundation::SimulationTick tick)
             remove(entity);
         }
     });
-    physics::PhysicsCommandBuffer physics_commands;
-    steer(dt, tick, physics_ != nullptr ? &physics_commands : nullptr);
-    if (physics_ != nullptr) {
-        physics_->apply(physics_commands);
-        physics_->step(static_cast<float>(dt));
-        syncPhysics();
+    physics_commands_.clear();
+    steer(dt, tick, physics_ != nullptr ? &physics_commands_ : nullptr);
+    if (physics_ != nullptr && !external_physics_step_) {
+        stepPhysics(dt);
     }
+    buildRenderStates();
+}
+
+void InfantrySimulation::stepPhysics(double dt) noexcept {
+    if (physics_ == nullptr || !std::isfinite(dt) || dt <= 0.0) {
+        return;
+    }
+    physics_->apply(physics_commands_);
+    physics_->step(static_cast<float>(dt));
+    syncPhysics();
     buildRenderStates();
 }
 

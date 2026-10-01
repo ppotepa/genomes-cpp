@@ -153,6 +153,7 @@ public:
     [[nodiscard]] std::uint64_t worldRevision() const noexcept { return world_revision_; }
 
     [[nodiscard]] std::size_t bodyCount() const noexcept { return live_body_count_; }
+    [[nodiscard]] std::uint64_t stepCount() const noexcept { return step_count_; }
 
 private:
     struct Slot final {
@@ -169,6 +170,7 @@ private:
     std::uint64_t world_revision_{0U};
     std::vector<Slot> slots_;
     std::size_t live_body_count_{0};
+    std::uint64_t step_count_{0U};
 };
 
 } // namespace genomes::physics
