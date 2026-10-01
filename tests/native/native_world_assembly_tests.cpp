@@ -34,6 +34,14 @@ int main() {
     assert(scenario.activePlan() == &artifact->plan);
     assert(artifact->resolved_buildings->size() == artifact->plan.building_sites.size());
 
+    const auto deterministic_artifact = gameplay::WorldScenario::compileArtifact(
+        artifact->plan, request);
+    assert(deterministic_artifact && deterministic_artifact.value().valid());
+    assert(deterministic_artifact.value().revision == artifact->revision);
+    assert(deterministic_artifact.value().terrain->width() == artifact->terrain->width());
+    assert(deterministic_artifact.value().terrain_mesh->indices.size() ==
+           artifact->terrain_mesh->indices.size());
+
     world::WorldGenerationRequest invalid = request;
     invalid.map_size_m = 64U;
     assert(!scenario.startNew(invalid));

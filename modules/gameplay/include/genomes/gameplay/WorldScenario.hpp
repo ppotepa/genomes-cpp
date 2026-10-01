@@ -110,11 +110,15 @@ public:
     [[nodiscard]] WorldSemanticSnapshot semanticSnapshot() const noexcept;
     [[nodiscard]] const WorldScenarioStatus& status() const noexcept { return status_; }
 
-private:
-    [[nodiscard]] static bool validCandidate(const world::WorldPlan& plan) noexcept;
+    // Compile a generated plan into the same immutable, revision-bound handoff
+    // used by the asynchronous scenario.  Deterministic/headless callers use
+    // this entry point instead of maintaining a second terrain/building path.
     [[nodiscard]] static foundation::Result<ResolvedWorldArtifacts, foundation::Error>
     compileArtifact(world::WorldPlan plan,
                     const world::WorldGenerationRequest& request);
+
+private:
+    [[nodiscard]] static bool validCandidate(const world::WorldPlan& plan) noexcept;
 
     jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;

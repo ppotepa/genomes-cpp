@@ -2,8 +2,6 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
-#include <genomes/proc/SeedPath.hpp>
-#include <genomes/terrain/TerrainGenerator.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/EquipmentCatalog.hpp>
@@ -557,44 +555,17 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         plan_.reset();
         return;
     } else {
-        auto resolved_buildings =
-            std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
-        resolved_buildings->reserve(plan_->building_sites.size());
-        for (const world::BuildingSiteRequest& site : plan_->building_sites) {
-            auto resolved = buildings::BuildingGenerator::generateSite(site);
-            if (!resolved) {
-                generation_error_ = std::string(resolved.error().message);
-                plan_.reset();
-                return;
-            }
-            resolved_buildings->push_back(std::move(resolved.value()));
-        }
-        resolved_buildings_ = std::move(resolved_buildings);
-        terrain::TerrainSpec terrain_spec{};
-        terrain_spec.world_id = world::WorldId(foundation::stableHashU64(config_.seed));
-        terrain_spec.region = {0, 0, 0};
-        terrain_spec.coordinates.region_size_m = static_cast<double>(config_.map_size_m);
-        terrain_spec.seed_path = proc::SeedPath(config_.seed).child("terrain", 0);
-        terrain_spec.samples_x = std::max<std::uint32_t>(2, config_.map_size_m / 8 + 1);
-        terrain_spec.samples_z = terrain_spec.samples_x;
-        terrain_spec.cell_size_m = 8.0F;
-        terrain_spec.origin_offset_x = -static_cast<double>(config_.map_size_m) * 0.5;
-        terrain_spec.origin_offset_z = -static_cast<double>(config_.map_size_m) * 0.5;
-        const auto terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
-        if (!terrain_result) {
-            generation_error_ = std::string(terrain_result.error().message);
+        const auto resolved = gameplay::WorldScenario::compileArtifact(*plan_, config_);
+        if (!resolved) {
+            generation_error_ = std::string(resolved.error().message);
             plan_.reset();
             return;
         }
-        terrain_ = std::make_shared<const terrain::HeightField>(std::move(terrain_result.value()));
-        const auto mesh_result = terrain::TerrainMeshBuilder::build(*terrain_);
-        if (!mesh_result) {
-            generation_error_ = std::string(mesh_result.error().message);
-            plan_.reset();
-            terrain_.reset();
-            return;
-        }
-        terrain_mesh_ = std::make_shared<const terrain::TerrainMesh>(std::move(mesh_result.value()));
+        world_artifacts_ = std::make_shared<const gameplay::WorldScenarioArtifact>(
+            std::move(resolved.value()));
+        terrain_ = world_artifacts_->terrain;
+        terrain_mesh_ = world_artifacts_->terrain_mesh;
+        resolved_buildings_ = world_artifacts_->resolved_buildings;
     }
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
