@@ -33,6 +33,9 @@ struct RunOptions final {
     bool deterministic{false};
     std::uint8_t unitlab_camera_steps{0U},unitlab_locomotion_steps{0U},unitlab_expression_steps{0U};
 #if GENOMES_HAS_INFANTRY
+    std::optional<runtime::SetVariation> unitlab_variation;
+    std::optional<runtime::SetEquipmentSlot> unitlab_equipment;
+    std::optional<runtime::SetGeneOverride> unitlab_gene;
     std::optional<runtime::SetAppearancePreset> unitlab_appearance;
 #endif
 };
@@ -89,6 +92,32 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             result.unitlab_expression_steps = static_cast<std::uint8_t>(
                 std::get<runtime::SetExpression>(parsed.value()).value);
 #if GENOMES_HAS_INFANTRY
+        } else if (arg=="--unitlab-variation") {
+            const auto value=next();if (!value) return {};
+            const std::array<std::string_view, 2> tokens{
+                "set-variation", *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetVariation>(parsed.value()))
+                return {};
+            result.unitlab_variation = std::get<runtime::SetVariation>(parsed.value());
+        } else if (arg=="--unitlab-equipment") {
+            const auto slot=next(); const auto item=next();
+            if (!slot || !item) return {};
+            const std::array<std::string_view, 3> tokens{
+                "set-equipment-slot", *slot, *item};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetEquipmentSlot>(parsed.value()))
+                return {};
+            result.unitlab_equipment = std::get<runtime::SetEquipmentSlot>(parsed.value());
+        } else if (arg=="--unitlab-gene") {
+            const auto gene=next(); const auto value=next();
+            if (!gene || !value) return {};
+            const std::array<std::string_view, 3> tokens{
+                "set-gene-override", *gene, *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetGeneOverride>(parsed.value()))
+                return {};
+            result.unitlab_gene = std::get<runtime::SetGeneOverride>(parsed.value());
         } else if (arg=="--unitlab-appearance") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
@@ -254,6 +283,7 @@ int GameApplication::run(int argc,char** argv) {
         std::cerr<<"Usage: genomes_game [--unit-lab|--battlefield|--building-lab] "
             "[--unitlab-camera 3q|front|side|back|face|hands] [--unitlab-locomotion idle|walk|run|crouch] "
             "[--unitlab-expression neutral|alert|fear|anger|pain|fatigue|eyes-closed] "
+            "[--unitlab-variation 0..1.75] [--unitlab-equipment SLOT ITEM] [--unitlab-gene GENE VALUE] "
             "[--unitlab-appearance inspection-olive] "
             "[--frames N] [--deterministic] [--capture FILE.png --capture-frame N]\n";
         return 2;
@@ -274,6 +304,57 @@ int GameApplication::run(int argc,char** argv) {
             std::cerr<<"Could not select deterministic UnitLab state\n";return 1;
         }
 #if GENOMES_HAS_INFANTRY
+        if (options.unitlab_variation) {
+            const auto text = std::to_string(options.unitlab_variation->value);
+            if (director_.dispatch_ui_action(
+                    foundation::stable_id("unit.variation"),
+                    ui::UiActionArguments{{"value", text}}) !=
+                ui::UiActionResult::Handled) {
+                std::cerr<<"Could not select UnitLab variation\n";return 1;
+            }
+        }
+        if (options.unitlab_equipment) {
+            const auto& command = *options.unitlab_equipment;
+            const auto& slots = infantry::EquipmentCatalog::slots();
+            const auto slot = std::find_if(slots.begin(), slots.end(), [&](const auto& value) {
+                return value.slot == command.slot;
+            });
+            if (slot == slots.end()) {
+                std::cerr<<"Could not serialize UnitLab equipment slot\n";return 1;
+            }
+            std::string item = "auto";
+            if (command.value.specified) {
+                if (command.value.empty) item = "none";
+                else {
+                    const auto* definition = infantry::EquipmentCatalog::findItem(
+                        command.value.definition_id);
+                    if (!definition) {
+                        std::cerr<<"Could not serialize UnitLab equipment item\n";return 1;
+                    }
+                    item = std::string{definition->identifier};
+                }
+            }
+            if (director_.dispatch_ui_action(
+                    foundation::stable_id("unit.equipment-item"),
+                    ui::UiActionArguments{{"key", std::string{slot->identifier}}, {"value", item}}) !=
+                ui::UiActionResult::Handled) {
+                std::cerr<<"Could not select UnitLab equipment\n";return 1;
+            }
+        }
+        if (options.unitlab_gene) {
+            const auto& command = *options.unitlab_gene;
+            const auto gene = infantry::genomeGeneName(command.gene);
+            if (gene.empty()) {
+                std::cerr<<"Could not serialize UnitLab gene\n";return 1;
+            }
+            if (director_.dispatch_ui_action(
+                    foundation::stable_id("unit.genome"),
+                    ui::UiActionArguments{{"key", std::string{gene}},
+                                           {"value", std::to_string(command.value)}}) !=
+                ui::UiActionResult::Handled) {
+                std::cerr<<"Could not select UnitLab gene\n";return 1;
+            }
+        }
         if (options.unitlab_appearance) {
             const auto preset = runtime::unitLabAppearancePresetName(
                 options.unitlab_appearance->value);

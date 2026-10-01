@@ -56,7 +56,8 @@ endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp" _unit_commands)
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/UnitLabScene.cpp" _unit_scene)
 foreach(_control IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
-                          "unit.expression" "unit.equipment-item" "unit.genome")
+                          "unit.expression" "unit.equipment-item" "unit.genome"
+                          "unit.appearance-preset")
     string(FIND "${_unit_rml}" "data-control=\"${_control}\"" _rml_control)
     if(_rml_control LESS 0)
         message(FATAL_ERROR "Unit Lab RmlUi control missing: ${_control}")
@@ -66,13 +67,37 @@ foreach(_control IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
         message(FATAL_ERROR "Unit Lab typed RmlUi adapter missing: ${_control}")
     endif()
 endforeach()
-string(FIND "${_unit_scene}" "parseUnitLabRmlCommand" _rml_adapter_use)
-if(_rml_adapter_use LESS 0)
-    message(FATAL_ERROR "Unit Lab scene does not use the RmlUi typed-command adapter")
-endif()
+foreach(_scene_adapter IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
+                                "unit.expression" "unit.equipment-item" "unit.genome"
+                                "unit.appearance-preset")
+    string(REGEX MATCH
+        "parseUnitLabRmlCommand[ \t\r\n]*\\([ \t\r\n]*\"${_scene_adapter}\""
+        _scene_adapter_match "${_unit_scene}")
+    if(NOT _scene_adapter_match)
+        message(FATAL_ERROR "Unit Lab scene does not route ${_scene_adapter} through the RmlUi typed-command adapter")
+    endif()
+endforeach()
 string(FIND "${_unit_scene}" "parseUnitLabCommand(" _legacy_parser_use)
 if(NOT _legacy_parser_use LESS 0)
     message(FATAL_ERROR "Unit Lab scene still parses RmlUi values through the CLI adapter")
+endif()
+
+# The application CLI must validate every Unit Lab command through the same
+# typed parser before dispatching a UI action. Keep this guard structural: it
+# does not claim that a built executable or CTest has run.
+file(READ "${GENOMES_SOURCE_DIR}/apps/game/GameApplication.cpp" _game_application)
+foreach(_cli_option IN ITEMS "--unitlab-variation" "--unitlab-camera"
+                             "--unitlab-locomotion" "--unitlab-expression"
+                             "--unitlab-equipment" "--unitlab-gene"
+                             "--unitlab-appearance")
+    string(FIND "${_game_application}" "${_cli_option}" _cli_option_found)
+    if(_cli_option_found LESS 0)
+        message(FATAL_ERROR "Unit Lab CLI option missing: ${_cli_option}")
+    endif()
+endforeach()
+string(FIND "${_game_application}" "parseUnitLabCommandLine" _cli_parser_use)
+if(_cli_parser_use LESS 0)
+    message(FATAL_ERROR "Unit Lab CLI does not use the shared typed-command parser")
 endif()
 
 if(NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/ui/include/genomes/ui/UiDataModel.hpp" OR
