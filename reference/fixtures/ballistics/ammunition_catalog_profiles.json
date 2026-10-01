@@ -1,0 +1,36 @@
+{
+  "schema": "ballistics-ammunition-catalog-1",
+  "sourceCommit": "da885ca68b2ae63154a004574fed00eb9dfeb458",
+  "entries": [
+    {
+      "id": "battlefield.ammo.556",
+      "strategy_id": "battlefield.556.fmj",
+      "caliber_id": "battlefield.556",
+      "variant_id": "battlefield.standard",
+      "mass_kg": 0.004,
+      "diameter_m": 0.00556,
+      "drag_diameter_m": 0.00556,
+      "muzzle_velocity_mps": 870.0,
+      "inertia_factor": 0.25,
+      "version": 1,
+      "provenance": "FAST_VIABILITY_AGENT_PLAN",
+      "explosive_energy_j": 0.0,
+      "strategy": {
+        "id": "battlefield.556.fmj",
+        "caliber_id": "battlefield.556",
+        "variant_id": "battlefield.standard",
+        "construction": "full_metal_jacket",
+        "drag_coefficient": 0.3,
+        "contact_work_scale": 1.0,
+        "ricochet_threshold": 0.35,
+        "breakup_energy_threshold": 0.0,
+        "fragment_mass_fraction": 0.0,
+        "max_fragments": 0,
+        "explosive": false,
+        "version": 1,
+        "fuze": "none",
+        "nose_crush_work_j": 0.0
+      }
+    }
+  ]
+}

@@ -1,7 +1,15 @@
 #include <genomes/ballistics/ProjectileState.hpp>
 
+#include <genomes/content/ContentSnapshot.hpp>
+#include <genomes/foundation/ConfigHash.hpp>
+
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
+#include <exception>
+#include <set>
+#include <string>
 #include <limits>
 #include <utility>
 
@@ -18,6 +26,38 @@ constexpr float kEpsilon = 1.0e-6F;
 [[nodiscard]] float dot(foundation::Vec3 left, foundation::Vec3 right) noexcept {
     return left.x * right.x + left.y * right.y + left.z * right.z;
 }
+
+constexpr std::string_view kAmmunitionCatalogSchema = "ballistics-ammunition-catalog-1";
+
+[[nodiscard]] foundation::Error ammunitionCatalogError(foundation::ErrorCode code,
+                                                       std::string_view message) noexcept {
+    return {code, message};
+}
+
+[[nodiscard]] std::optional<ConstructionKind> constructionFromJson(
+    const nlohmann::json& value) {
+    if (!value.is_string()) {
+        return std::nullopt;
+    }
+    const auto name = value.get<std::string>();
+    if (name == "full_metal_jacket") return ConstructionKind::FullMetalJacket;
+    if (name == "soft_point") return ConstructionKind::SoftPoint;
+    if (name == "armor_piercing") return ConstructionKind::ArmorPiercing;
+    if (name == "high_explosive") return ConstructionKind::HighExplosive;
+    if (name == "fragmentation") return ConstructionKind::Fragmentation;
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<FuzeMode> fuzeFromJson(const nlohmann::json& value) {
+    if (!value.is_string()) {
+        return std::nullopt;
+    }
+    const auto name = value.get<std::string>();
+    if (name == "none") return FuzeMode::None;
+    if (name == "armed_contact") return FuzeMode::ArmedContact;
+    return std::nullopt;
+}
+
 
 [[nodiscard]] foundation::Vec3 cross(foundation::Vec3 left,
                                      foundation::Vec3 right) noexcept {
@@ -355,6 +395,217 @@ foundation::Result<void, foundation::Error> AmmunitionCatalog::freeze() {
     });
     frozen_ = true;
     return foundation::Result<void, foundation::Error>::success();
+}
+
+foundation::Result<AmmunitionCatalog, foundation::Error> AmmunitionCatalog::load(
+    const std::filesystem::path& path) {
+    auto document = content::readContentText(path);
+    if (!document) {
+        return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(document.error());
+    }
+    try {
+        const nlohmann::json json = nlohmann::json::parse(document.value().text);
+        static const std::set<std::string> fields{"schema", "sourceCommit", "entries"};
+        if (!json.is_object() || json.size() != fields.size()) {
+            return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                       "unknown or missing ammunition catalog fields"));
+        }
+        for (const auto& [key, value] : json.items()) {
+            (void)value;
+            if (!fields.contains(key)) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "unknown ammunition catalog field"));
+            }
+        }
+        if (json.at("schema").get<std::string>() != kAmmunitionCatalogSchema ||
+            !json.at("sourceCommit").is_string() ||
+            json.at("sourceCommit").get<std::string>().empty() ||
+            !json.at("entries").is_array() || json.at("entries").empty()) {
+            return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                       "invalid ammunition catalog header"));
+        }
+
+        static const std::set<std::string> entry_fields{
+            "id", "strategy_id", "caliber_id", "variant_id", "mass_kg", "diameter_m",
+            "drag_diameter_m", "muzzle_velocity_mps", "inertia_factor", "version",
+            "provenance", "explosive_energy_j", "strategy"};
+        static const std::set<std::string> strategy_fields{
+            "id", "caliber_id", "variant_id", "construction", "drag_coefficient",
+            "contact_work_scale", "ricochet_threshold", "breakup_energy_threshold",
+            "fragment_mass_fraction", "max_fragments", "explosive", "version", "fuze",
+            "nose_crush_work_j"};
+
+        AmmunitionCatalog result{};
+        result.source_commit_ = json.at("sourceCommit").get<std::string>();
+        for (const auto& item : json.at("entries")) {
+            if (!item.is_object() || item.size() != entry_fields.size()) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "invalid ammunition catalog entry fields"));
+            }
+            for (const auto& [key, value] : item.items()) {
+                (void)value;
+                if (!entry_fields.contains(key)) {
+                    return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                        ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                               "unknown ammunition catalog entry field"));
+                }
+            }
+            const auto& strategy_json = item.at("strategy");
+            if (!strategy_json.is_object() || strategy_json.size() != strategy_fields.size()) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "invalid ammunition strategy fields"));
+            }
+            for (const auto& [key, value] : strategy_json.items()) {
+                (void)value;
+                if (!strategy_fields.contains(key)) {
+                    return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                        ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                               "unknown ammunition strategy field"));
+                }
+            }
+            const auto string_field = [&item](std::string_view key) {
+                return item.at(std::string{key}).is_string() &&
+                       !item.at(std::string{key}).get<std::string>().empty();
+            };
+            const auto strategy_string_field = [&strategy_json](std::string_view key) {
+                return strategy_json.at(std::string{key}).is_string() &&
+                       !strategy_json.at(std::string{key}).get<std::string>().empty();
+            };
+            if (!string_field("id") || !string_field("strategy_id") ||
+                !string_field("caliber_id") || !string_field("variant_id") ||
+                !string_field("provenance") || !strategy_string_field("id") ||
+                !strategy_string_field("caliber_id") || !strategy_string_field("variant_id")) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "invalid ammunition catalog identity"));
+            }
+            const auto construction = constructionFromJson(strategy_json.at("construction"));
+            const auto fuze = fuzeFromJson(strategy_json.at("fuze"));
+            if (!construction.has_value() || !fuze.has_value()) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "invalid ammunition strategy enum"));
+            }
+            const auto number = [&item](std::string_view key) {
+                return item.at(std::string{key}).is_number();
+            };
+            const auto strategy_number = [&strategy_json](std::string_view key) {
+                return strategy_json.at(std::string{key}).is_number();
+            };
+            if (!number("mass_kg") || !number("diameter_m") ||
+                !number("drag_diameter_m") || !number("muzzle_velocity_mps") ||
+                !number("inertia_factor") || !number("version") ||
+                !number("explosive_energy_j") || !strategy_number("drag_coefficient") ||
+                !strategy_number("contact_work_scale") || !strategy_number("ricochet_threshold") ||
+                !strategy_number("breakup_energy_threshold") ||
+                !strategy_number("fragment_mass_fraction") ||
+                !strategy_number("max_fragments") || !strategy_number("version") ||
+                !strategy_number("nose_crush_work_j") || !strategy_json.at("explosive").is_boolean()) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                           "invalid ammunition catalog numeric value"));
+            }
+
+            AmmunitionStrategy strategy{};
+            strategy.id = strategy_id(strategy_json.at("id").get<std::string>());
+            strategy.caliber_id = caliber_id(strategy_json.at("caliber_id").get<std::string>());
+            strategy.variant_id = variant_id(strategy_json.at("variant_id").get<std::string>());
+            strategy.construction = *construction;
+            strategy.drag_coefficient = strategy_json.at("drag_coefficient").get<float>();
+            strategy.contact_work_scale = strategy_json.at("contact_work_scale").get<float>();
+            strategy.ricochet_threshold = strategy_json.at("ricochet_threshold").get<float>();
+            strategy.breakup_energy_threshold =
+                strategy_json.at("breakup_energy_threshold").get<float>();
+            strategy.fragment_mass_fraction =
+                strategy_json.at("fragment_mass_fraction").get<float>();
+            strategy.max_fragments = strategy_json.at("max_fragments").get<std::uint32_t>();
+            strategy.explosive = strategy_json.at("explosive").get<bool>();
+            strategy.version = strategy_json.at("version").get<std::uint32_t>();
+            strategy.fuze = *fuze;
+            strategy.nose_crush_work_j = strategy_json.at("nose_crush_work_j").get<float>();
+
+            AmmunitionDefinition definition{};
+            definition.id = ammunition_id(item.at("id").get<std::string>());
+            definition.strategy_id_value = strategy_id(item.at("strategy_id").get<std::string>());
+            definition.caliber_id_value = caliber_id(item.at("caliber_id").get<std::string>());
+            definition.variant_id_value = variant_id(item.at("variant_id").get<std::string>());
+            definition.mass_kg = item.at("mass_kg").get<float>();
+            definition.diameter_m = item.at("diameter_m").get<float>();
+            definition.drag_diameter_m = item.at("drag_diameter_m").get<float>();
+            definition.muzzle_velocity_mps = item.at("muzzle_velocity_mps").get<float>();
+            definition.inertia_factor = item.at("inertia_factor").get<float>();
+            definition.version = item.at("version").get<std::uint32_t>();
+            definition.provenance = item.at("provenance").get<std::string>();
+            definition.explosive_energy_j = item.at("explosive_energy_j").get<float>();
+            const auto added = result.add(std::move(definition), std::move(strategy));
+            if (!added) {
+                return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                    added.error());
+            }
+        }
+        if (!result.freeze()) {
+            return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+                ammunitionCatalogError(foundation::ErrorCode::InvalidState,
+                                       "ammunition catalog could not be frozen"));
+        }
+        document.value().provenance.source_id = result.source_commit_;
+        content::ContentSnapshotBuilder snapshot_builder{"ballistics.ammunition", 1U};
+        if (auto added = snapshot_builder.add(std::move(document.value().provenance)); !added) {
+            return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(added.error());
+        }
+        auto snapshot = std::move(snapshot_builder).freeze();
+        if (!snapshot) {
+            return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(snapshot.error());
+        }
+        result.snapshot_ = std::move(snapshot.value());
+        std::uint64_t fingerprint = foundation::stableHashString(kAmmunitionCatalogSchema);
+        fingerprint = foundation::stableHashCombine(
+            fingerprint, foundation::stableHashString(result.source_commit_));
+        for (const Entry& entry : result.entries_) {
+            const auto& value = entry.definition;
+            const auto& strategy = entry.strategy;
+            fingerprint = foundation::stableHashCombine(fingerprint, value.id.value());
+            fingerprint = foundation::stableHashCombine(fingerprint, value.strategy_id_value.value());
+            fingerprint = foundation::stableHashCombine(fingerprint, value.caliber_id_value.value());
+            fingerprint = foundation::stableHashCombine(fingerprint, value.variant_id_value.value());
+            for (const float component : {value.mass_kg, value.diameter_m, value.drag_diameter_m,
+                                          value.muzzle_velocity_mps, value.inertia_factor,
+                                          value.explosive_energy_j, strategy.drag_coefficient,
+                                          strategy.contact_work_scale, strategy.ricochet_threshold,
+                                          strategy.breakup_energy_threshold,
+                                          strategy.fragment_mass_fraction,
+                                          strategy.nose_crush_work_j}) {
+                fingerprint = foundation::stableHashCombine(
+                    fingerprint, foundation::stableHashFloat(component));
+            }
+            fingerprint = foundation::stableHashCombine(fingerprint, value.version);
+            fingerprint = foundation::stableHashCombine(fingerprint, strategy.max_fragments);
+            fingerprint = foundation::stableHashCombine(fingerprint, strategy.explosive ? 1U : 0U);
+            fingerprint = foundation::stableHashCombine(fingerprint, strategy.version);
+            fingerprint = foundation::stableHashCombine(fingerprint,
+                                                         static_cast<std::uint64_t>(strategy.construction));
+            fingerprint = foundation::stableHashCombine(fingerprint,
+                                                         static_cast<std::uint64_t>(strategy.fuze));
+            fingerprint = foundation::stableHashCombine(
+                fingerprint, foundation::stableHashString(value.provenance));
+        }
+        result.fingerprint_ = {fingerprint};
+        return foundation::Result<AmmunitionCatalog, foundation::Error>::success(std::move(result));
+    } catch (const std::exception&) {
+        return foundation::Result<AmmunitionCatalog, foundation::Error>::failure(
+            ammunitionCatalogError(foundation::ErrorCode::InvalidArgument,
+                                   "invalid ammunition catalog document"));
+    }
+}
+
+foundation::Result<AmmunitionCatalog, foundation::Error> loadAmmunitionCatalog(
+    const std::filesystem::path& path) {
+    return AmmunitionCatalog::load(path);
 }
 
 const AmmunitionDefinition* AmmunitionCatalog::find(AmmunitionId id) const noexcept {

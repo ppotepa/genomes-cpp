@@ -245,8 +245,8 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
             : infantry::BoneId::Hips;
         markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::CycleVariation:
-        return applyCommand(context, {variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
-                                      : variation_ < 1.75F ? 1.75F : 0.5F});
+        return applyCommand(context, SetVariation{variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
+                                                   : variation_ < 1.75F ? 1.75F : 0.5F});
     case Control::CycleLoadout:
         if (!infantry::infantryLoadouts().empty()) {
             loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();

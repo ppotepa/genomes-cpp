@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.21)
+
+if(NOT DEFINED GENOMES_SOURCE_DIR)
+    message(FATAL_ERROR "GENOMES_SOURCE_DIR is required")
+endif()
+
+set(header "${GENOMES_SOURCE_DIR}/modules/ballistics/include/genomes/ballistics/AmmunitionCatalog.hpp")
+set(source "${GENOMES_SOURCE_DIR}/modules/ballistics/src/ProjectileState.cpp")
+set(fixture "${GENOMES_SOURCE_DIR}/reference/fixtures/ballistics/ammunition_catalog_profiles.json")
+foreach(required IN ITEMS "${header}" "${source}" "${fixture}")
+    if(NOT EXISTS "${required}")
+        message(FATAL_ERROR "Missing ammunition catalog source: ${required}")
+    endif()
+endforeach()
+
+file(READ "${header}" header_text)
+file(READ "${source}" source_text)
+file(READ "${fixture}" fixture_text)
+foreach(required IN ITEMS "FrozenContentSnapshot" "SimConfigHash" "sourceCommit()"
+                           "loadAmmunitionCatalog" "contentSnapshot()")
+    string(FIND "${header_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Ammunition catalog header misses ${required}")
+    endif()
+endforeach()
+foreach(required IN ITEMS "readContentText" "ContentSnapshotBuilder" "unknown ammunition catalog"
+                           "could not be frozen" "fingerprint_")
+    string(FIND "${source_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Ammunition catalog loader misses ${required}")
+    endif()
+endforeach()
+foreach(required IN ITEMS "ballistics-ammunition-catalog-1" "battlefield.ammo.556"
+                           "battlefield.556.fmj" "full_metal_jacket")
+    string(FIND "${fixture_text}" "${required}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Ammunition catalog fixture misses ${required}")
+    endif()
+endforeach()
+
+message(STATUS "Ammunition catalog source contract inspected")

@@ -50,6 +50,12 @@ add_test(NAME architecture.composition_root
 set_tests_properties(architecture.composition_root PROPERTIES
     LABELS "source;cpu;architecture")
 
+add_test(NAME ballistics.ammunition_catalog_source
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/ballistics_ammunition_catalog_guard.cmake")
+set_tests_properties(ballistics.ammunition_catalog_source PROPERTIES
+    LABELS "source;cpu;ballistics")
+
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp
     public_header_content.cpp
@@ -604,6 +610,15 @@ target_compile_definitions(genomes_test_ballistics_validation PRIVATE
 genomes_set_project_warnings(genomes_test_ballistics_validation)
 genomes_enable_test_assertions(genomes_test_ballistics_validation)
 add_test(NAME ballistics.validation COMMAND genomes_test_ballistics_validation)
+
+add_executable(genomes_test_ballistics_ammunition_catalog
+    ballistics_ammunition_catalog_tests.cpp)
+target_link_libraries(genomes_test_ballistics_ammunition_catalog PRIVATE genomes::ballistics)
+target_compile_definitions(genomes_test_ballistics_ammunition_catalog PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+genomes_set_project_warnings(genomes_test_ballistics_ammunition_catalog)
+genomes_enable_test_assertions(genomes_test_ballistics_ammunition_catalog)
+add_test(NAME ballistics.ammunition_catalog COMMAND genomes_test_ballistics_ammunition_catalog)
 
 add_executable(genomes_test_weapon_catalog_geometry
     weapon_catalog_geometry_tests.cpp)

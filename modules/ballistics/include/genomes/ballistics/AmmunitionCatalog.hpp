@@ -1,11 +1,16 @@
 #pragma once
 
 #include <genomes/ballistics/AmmunitionStrategy.hpp>
+#include <genomes/content/ContentSnapshot.hpp>
+#include <genomes/foundation/ConfigHash.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -41,7 +46,9 @@ struct AmmunitionDefinition final {
     float muzzle_velocity_mps{0.0F};
     float inertia_factor{0.25F};
     std::uint32_t version{1};
-    std::string_view provenance{};
+    // Loaded definitions own their provenance text.  This keeps a frozen
+    // catalog independent from the parser document lifetime.
+    std::string provenance{};
     float explosive_energy_j{0.0F};
 
     [[nodiscard]] bool valid() const noexcept;
@@ -57,6 +64,14 @@ public:
     [[nodiscard]] const AmmunitionStrategy* strategy(StrategyId) const noexcept;
     [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
     [[nodiscard]] bool frozen() const noexcept { return frozen_; }
+    [[nodiscard]] std::string_view sourceCommit() const noexcept { return source_commit_; }
+    [[nodiscard]] const content::FrozenContentSnapshot* contentSnapshot() const noexcept {
+        return snapshot_.has_value() ? &*snapshot_ : nullptr;
+    }
+    [[nodiscard]] foundation::SimConfigHash fingerprint() const noexcept { return fingerprint_; }
+
+    [[nodiscard]] static foundation::Result<AmmunitionCatalog, foundation::Error> load(
+        const std::filesystem::path& path);
 
 private:
     struct Entry final {
@@ -65,7 +80,15 @@ private:
     };
 
     std::vector<Entry> entries_;
+    std::string source_commit_;
+    std::optional<content::FrozenContentSnapshot> snapshot_;
+    foundation::SimConfigHash fingerprint_{};
     bool frozen_{false};
 };
+
+// The fixture loader resolves and validates domain values before exposing the
+// catalog. Runtime consumers receive this immutable/frozen value, never JSON.
+[[nodiscard]] foundation::Result<AmmunitionCatalog, foundation::Error>
+loadAmmunitionCatalog(const std::filesystem::path& path);
 
 } // namespace genomes::ballistics
