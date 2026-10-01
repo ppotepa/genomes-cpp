@@ -142,6 +142,13 @@ void UnitLabScene::markDirty(UnitLabDirtyFlag flag) noexcept {
     }
 }
 
+bool UnitLabScene::applyCommand(SceneContext& context, SetVariation command) {
+    if (!infantry::isValidVariation(command.value)) return false;
+    variation_ = command.value;
+    rebuildModel(&context);
+    return true;
+}
+
 bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) {
     switch (control) {
     case 0: ++preview_seed_; rebuildModel(&context); break;
@@ -167,10 +174,8 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             : infantry::BoneId::Hips;
         markDirty(UnitLabDirtyFlag::Ui); break;
     case 11:
-        variation_ = variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
-                     : variation_ < 1.75F ? 1.75F : 0.5F;
-        rebuildModel(&context);
-        break;
+        return applyCommand(context, {variation_ < 1.0F ? 1.0F : variation_ < 1.5F ? 1.5F
+                                      : variation_ < 1.75F ? 1.75F : 0.5F});
     case 12:
         if (!infantry::infantryLoadouts().empty()) {
             loadout_index_ = (loadout_index_ + 1U) % infantry::infantryLoadouts().size();
@@ -604,9 +609,8 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
                                             std::chars_format::general);
         if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
             !infantry::isValidVariation(value)) return ui::UiActionResult::Rejected;
-        variation_ = static_cast<float>(value);
-        rebuildModel(&context);
-        return ui::UiActionResult::Handled;
+        return applyCommand(context, {static_cast<float>(value)})
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
     }
     const auto bool_value = [&]() -> bool { return text == "true" || text == "1"; };
     if (action == foundation::stable_id("unit.surface")) { show_surface_ = bool_value(); markDirty(UnitLabDirtyFlag::Ui); return ui::UiActionResult::Handled; }

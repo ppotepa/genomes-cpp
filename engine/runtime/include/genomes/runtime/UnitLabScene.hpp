@@ -43,6 +43,10 @@ enum class UnitLabDirtyFlag : std::uint8_t {
     Ui,
 };
 
+struct SetVariation final {
+    float value{1.0F};
+};
+
 class UnitLabScene final : public Scene {
 public:
     ~UnitLabScene() override;
@@ -60,6 +64,7 @@ public:
 
 private:
     void markDirty(UnitLabDirtyFlag flag) noexcept;
+    bool applyCommand(SceneContext&, SetVariation);
     bool activateControl(SceneContext&, std::uint8_t control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
