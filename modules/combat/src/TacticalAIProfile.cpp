@@ -4,6 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <array>
 #include <exception>
 #include <fstream>
 #include <set>
@@ -53,13 +54,16 @@ foundation::Result<TacticalAIProfileSnapshot, foundation::Error> loadTacticalAIP
             return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidArgument, "invalid tactical AI profile values"});
         }
-        std::uint64_t hash = foundation::stableHashString(result.id);
-        hash = foundation::stableHashCombine(hash, result.profile.observation_period_ticks);
-        hash = foundation::stableHashCombine(hash, result.profile.memory_ticks);
-        hash = foundation::stableHashCombine(
-            hash, foundation::stableHashFloat(result.profile.target_switch_ratio));
-        result.fingerprint = {foundation::stableHashCombine(
-            hash, foundation::stableHashFloat(result.profile.fire_alignment_cos))};
+        const std::array<foundation::CanonicalConfigField, 5U> fingerprint_fields{{
+            {"id", foundation::stableHashString(result.id)},
+            {"observation_period_ticks", result.profile.observation_period_ticks},
+            {"memory_ticks", result.profile.memory_ticks},
+            {"target_switch_ratio",
+             foundation::stableHashFloat(result.profile.target_switch_ratio)},
+            {"fire_alignment_cos", foundation::stableHashFloat(result.profile.fire_alignment_cos)},
+        }};
+        result.fingerprint = foundation::makeSimConfigHash(
+            "combat.tactical-ai.v1", fingerprint_fields);
         return foundation::Result<TacticalAIProfileSnapshot, foundation::Error>::success(
             std::move(result));
     } catch (const std::exception&) {

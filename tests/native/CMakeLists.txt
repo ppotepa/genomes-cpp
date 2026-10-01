@@ -108,6 +108,12 @@ genomes_enable_test_assertions(genomes_test_foundation_smoke)
 
 add_test(NAME foundation_smoke COMMAND genomes_test_foundation_smoke)
 
+add_executable(genomes_test_config_hash config_hash_tests.cpp)
+target_link_libraries(genomes_test_config_hash PRIVATE genomes::foundation)
+genomes_set_project_warnings(genomes_test_config_hash)
+genomes_enable_test_assertions(genomes_test_config_hash)
+add_test(NAME foundation.config_hash COMMAND genomes_test_config_hash)
+
 add_executable(genomes_test_artifact_cache artifact_cache_tests.cpp)
 target_link_libraries(genomes_test_artifact_cache PRIVATE genomes::proc)
 genomes_set_project_warnings(genomes_test_artifact_cache)
