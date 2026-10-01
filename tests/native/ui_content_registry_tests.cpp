@@ -29,7 +29,7 @@ int main() {
     assert(registry.find_scene("scene.pause") != nullptr);
     genomes::ui::UiNativePluginManager plugins;
     genomes::ui::UiPluginError plugin_error;
-    assert(plugins.load(registry, &plugin_error));
+    assert(plugins.load(registry, false, &plugin_error));
     assert(plugins.registered_scene_controllers().empty());
     assert(plugins.registered_ui_actions().empty());
     return 0;

@@ -101,7 +101,7 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
     runtime::registerBuiltinScenes(director_,true);
     if (auto content=ui::UiContentRegistry::discover("mods")) {
         content_=std::move(content.value());ui::UiPluginError plugin_error;
-        if (!plugins_.load(content_,&plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
+if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
     } else std::cerr<<"UI content discovery failed: "<<content.error().message<<'\n';
     ui_.set_route_resolver([this](ui::UiRoute& route) {
         const auto* manifest = content_.find_scene(route.scene);

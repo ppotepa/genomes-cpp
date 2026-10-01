@@ -85,10 +85,12 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
             mod.load_priority = json.value("load_priority", 0);
             mod.dependencies = strings(json, "dependencies");
             if (json.contains("native_plugin")) {
-                if (!json.at("native_plugin").is_string()) {
+                if (!json.at("native_plugin").is_string() || !json.contains("trusted_native") ||
+                    !json.at("trusted_native").is_boolean()) {
                     return fail("native_plugin must be a string: " + mod.id);
                 }
                 mod.native_plugin = json.at("native_plugin").get<std::string>();
+                mod.trusted_native = json.at("trusted_native").get<bool>();
             }
             mod.root = entry.path();
             if (!mod_ids.insert(mod.id).second) {

@@ -26,6 +26,7 @@ struct UiModManifest final {
     int load_priority{0};
     std::vector<std::string> dependencies;
     std::string native_plugin;
+    bool trusted_native{false};
     std::vector<UiSceneManifest> scenes;
     std::filesystem::path root;
 };
