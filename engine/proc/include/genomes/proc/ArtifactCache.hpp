@@ -42,6 +42,10 @@ struct ArtifactCacheOptions final {
     foundation::MemoryTelemetry* telemetry{nullptr};
 };
 
+struct ArtifactMemoryUsage final {
+    std::size_t retained_bytes{0U};
+};
+
 // Thread-safe immutable-artifact cache. The cache stores shared const values;
 // callers can read an artifact concurrently, but no cache entry can be mutated
 // through the returned pointer.
@@ -62,11 +66,11 @@ public:
     template <class T>
     void store(const ArtifactKey& key,
                std::shared_ptr<const T> value,
-               std::size_t estimated_bytes = sizeof(T)) {
+               ArtifactMemoryUsage usage) {
         if (!value) {
             return;
         }
-        storeRaw(key, std::type_index(typeid(T)), std::move(value), estimated_bytes);
+        storeRaw(key, std::type_index(typeid(T)), std::move(value), usage.retained_bytes);
     }
 
     void setByteBudget(std::size_t byte_budget) noexcept;

@@ -84,8 +84,14 @@ WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest&
                 if (generated) {
                     if (cache) {
                         try {
+                            const WorldPlan& plan = generated.value();
+                            const std::size_t deep_bytes = sizeof(WorldPlan) +
+                                plan.features.size() * sizeof(WorldFeature) +
+                                plan.building_sites.size() * sizeof(BuildingSiteRequest) +
+                                plan.city.parcels.size() * sizeof(CityParcel);
                             cache->store<WorldPlan>(
-                                cache_key, std::make_shared<const WorldPlan>(generated.value()));
+                                cache_key, std::make_shared<const WorldPlan>(generated.value()),
+                                {deep_bytes});
                         } catch (...) {
                             // Cache exhaustion or allocation failure is a
                             // cache miss condition, not a world-generation
