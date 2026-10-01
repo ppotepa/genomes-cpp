@@ -2,6 +2,7 @@
 
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
+#include <genomes/buildings/BuildingModel.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/terrain/HeightField.hpp>
@@ -44,6 +45,7 @@ struct WorldScenarioArtifact final {
     world::WorldPlan plan{};
     std::optional<terrain::HeightField> terrain;
     std::optional<terrain::TerrainMesh> terrain_mesh;
+    std::vector<buildings::BuildingGenerationResult> resolved_buildings;
     // Canonical empty-entity save package. Keeping this beside the generated
     // plan makes persistence and streaming consume the same content hash.
     std::vector<std::byte> save_package;
@@ -52,7 +54,8 @@ struct WorldScenarioArtifact final {
         return plan.content_hash != 0U && !plan.features.empty() && terrain.has_value() &&
                terrain_mesh.has_value() && terrain->width() >= 2U &&
                terrain->height() >= 2U && !terrain_mesh->vertices.empty() &&
-               !terrain_mesh->indices.empty() && !save_package.empty();
+               !terrain_mesh->indices.empty() &&
+               resolved_buildings.size() == plan.building_sites.size() && !save_package.empty();
     }
 };
 

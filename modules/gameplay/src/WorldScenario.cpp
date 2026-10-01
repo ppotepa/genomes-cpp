@@ -213,6 +213,15 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
 
     WorldScenarioArtifact artifact{};
     artifact.plan = std::move(plan);
+    artifact.resolved_buildings.reserve(artifact.plan.building_sites.size());
+    for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
+        auto building = buildings::BuildingGenerator::generateSite(site);
+        if (!building) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                building.error());
+        }
+        artifact.resolved_buildings.push_back(std::move(building.value()));
+    }
     artifact.terrain = std::move(terrain_field);
     artifact.terrain_mesh = std::move(mesh_result.value());
     world::WorldSaveModel save{};

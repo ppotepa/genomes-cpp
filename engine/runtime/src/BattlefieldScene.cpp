@@ -524,16 +524,6 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
 void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     plan_ = std::move(plan);
     resolved_buildings_.clear();
-    resolved_buildings_.reserve(plan_->building_sites.size());
-    for (const world::BuildingSiteRequest& site : plan_->building_sites) {
-        auto resolved = buildings::BuildingGenerator::generateSite(site);
-        if (!resolved) {
-            generation_error_ = std::string(resolved.error().message);
-            plan_.reset();
-            return;
-        }
-        resolved_buildings_.push_back(std::move(resolved.value()));
-    }
     terrain_.reset();
     terrain_mesh_.reset();
     render_terrain_mesh_.reset();
@@ -544,10 +534,22 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     const gameplay::WorldScenarioArtifact* shared_artifact =
         scenario_ != nullptr ? scenario_->activeArtifact() : nullptr;
     if (shared_artifact != nullptr && shared_artifact->plan.content_hash == plan_->content_hash &&
-        shared_artifact->terrain.has_value() && shared_artifact->terrain_mesh.has_value()) {
+        shared_artifact->terrain.has_value() && shared_artifact->terrain_mesh.has_value() &&
+        shared_artifact->resolved_buildings.size() == plan_->building_sites.size()) {
         terrain_ = shared_artifact->terrain;
         terrain_mesh_ = shared_artifact->terrain_mesh;
+        resolved_buildings_ = shared_artifact->resolved_buildings;
     } else {
+        resolved_buildings_.reserve(plan_->building_sites.size());
+        for (const world::BuildingSiteRequest& site : plan_->building_sites) {
+            auto resolved = buildings::BuildingGenerator::generateSite(site);
+            if (!resolved) {
+                generation_error_ = std::string(resolved.error().message);
+                plan_.reset();
+                return;
+            }
+            resolved_buildings_.push_back(std::move(resolved.value()));
+        }
         terrain::TerrainSpec terrain_spec{};
         terrain_spec.world_id = world::WorldId(foundation::stableHashU64(config_.seed));
         terrain_spec.region = {0, 0, 0};

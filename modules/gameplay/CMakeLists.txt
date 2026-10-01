@@ -11,6 +11,7 @@ target_link_libraries(genomes_gameplay PUBLIC
     genomes::foundation
     genomes::jobs
     genomes::world
+    genomes::buildings
     genomes::terrain
     genomes::simulation)
 if(GENOMES_ENABLE_INFANTRY)

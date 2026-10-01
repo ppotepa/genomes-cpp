@@ -14,6 +14,9 @@ int main() {
     const auto first_hash = scenario.status().active_content_hash;
     assert(first_hash != 0U && scenario.activeRequest() != nullptr);
     assert(scenario.activeRequest()->seed == request.seed);
+    const auto* artifact = scenario.activeArtifact();
+    assert(artifact != nullptr && artifact->valid());
+    assert(artifact->resolved_buildings.size() == artifact->plan.building_sites.size());
 
     world::WorldGenerationRequest invalid = request;
     invalid.map_size_m = 64U;
