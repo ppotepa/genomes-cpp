@@ -20,6 +20,13 @@ enum class ShutdownMode {
     CancelPending
 };
 
+enum class JobSystemState : std::uint8_t {
+    Running,
+    ClosingDrain,
+    ClosingCancel,
+    Stopped,
+};
+
 class JobFence final {
 public:
     // A fence is armed once. Construct a new instance for each batch rather
@@ -42,9 +49,11 @@ private:
 class JobSystem final {
 public:
     using JobFunction = std::function<void(JobContext&)>;
+    using WorkerLauncher = std::function<std::thread(std::function<void()>)>;
 
     explicit JobSystem(std::uint32_t worker_count = 0,
-                       std::uint32_t reserved_main_threads = 1);
+                       std::uint32_t reserved_main_threads = 1,
+                       WorkerLauncher worker_launcher = {});
     ~JobSystem();
 
     JobSystem(const JobSystem&) = delete;
@@ -58,9 +67,8 @@ public:
         return static_cast<std::uint32_t>(workers_.size());
     }
 
-    [[nodiscard]] bool isCancellationRequested() const noexcept {
-        return cancellation_requested_.load(std::memory_order_acquire);
-    }
+    [[nodiscard]] JobSystemState state() const noexcept;
+    [[nodiscard]] bool isCancellationRequested() const noexcept;
 
 private:
     struct JobNode final {
@@ -80,9 +88,8 @@ private:
     std::condition_variable queue_condition_;
     std::deque<JobNode> queue_;
     std::vector<std::thread> workers_;
-    std::atomic<bool> stopping_{false};
-    std::atomic<bool> accepting_{true};
-    std::atomic<bool> cancellation_requested_{false};
+    std::thread::id owner_thread_;
+    JobSystemState state_{JobSystemState::Running};
 };
 
 } // namespace genomes::jobs

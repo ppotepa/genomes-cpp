@@ -1,7 +1,7 @@
 #include <genomes/jobs/JobSystem.hpp>
 
 #include <algorithm>
-#include <chrono>
+#include <exception>
 #include <utility>
 
 namespace genomes::jobs {
@@ -35,20 +35,51 @@ void JobFence::wait() const noexcept {
     condition_.wait(lock, [this] { return pending_ == 0; });
 }
 
-JobSystem::JobSystem(std::uint32_t worker_count, std::uint32_t reserved_main_threads) {
+JobSystem::JobSystem(std::uint32_t worker_count,
+                     std::uint32_t reserved_main_threads,
+                     WorkerLauncher worker_launcher)
+    : owner_thread_(std::this_thread::get_id()) {
     if (worker_count == 0) {
         const std::uint32_t hardware = std::thread::hardware_concurrency();
         const std::uint32_t reserved = std::min(reserved_main_threads, hardware);
         worker_count = std::max<std::uint32_t>(1, hardware > reserved ? hardware - reserved : 1);
     }
 
+    if (!worker_launcher) {
+        worker_launcher = [](std::function<void()> entry) {
+            return std::thread(std::move(entry));
+        };
+    }
+
     workers_.reserve(worker_count);
-    for (std::uint32_t index = 0; index < worker_count; ++index) {
-        workers_.emplace_back([this, index] { workerLoop(index); });
+    try {
+        for (std::uint32_t index = 0; index < worker_count; ++index) {
+            workers_.push_back(worker_launcher([this, index] { workerLoop(index); }));
+        }
+    } catch (...) {
+        {
+            std::lock_guard lock(queue_mutex_);
+            state_ = JobSystemState::ClosingCancel;
+        }
+        queue_condition_.notify_all();
+        for (std::thread& worker : workers_) {
+            if (worker.joinable()) {
+                worker.join();
+            }
+        }
+        workers_.clear();
+        {
+            std::lock_guard lock(queue_mutex_);
+            state_ = JobSystemState::Stopped;
+        }
+        throw;
     }
 }
 
 JobSystem::~JobSystem() {
+    if (isCurrentWorker()) {
+        std::terminate();
+    }
     shutdown(ShutdownMode::Drain);
 }
 
@@ -62,7 +93,7 @@ JobHandle JobSystem::submit(JobFunction function) {
 
     {
         std::lock_guard lock(queue_mutex_);
-        if (!accepting_.load(std::memory_order_acquire)) {
+        if (state_ != JobSystemState::Running) {
             state->finish(true, {});
             return handle;
         }
@@ -91,22 +122,24 @@ void JobSystem::wait(const JobHandle& handle) const noexcept {
 }
 
 void JobSystem::shutdown(ShutdownMode mode) noexcept {
-    bool expected = false;
-    if (!stopping_.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
-        return;
+    if (isCurrentWorker() || std::this_thread::get_id() != owner_thread_) {
+        std::terminate();
     }
 
-    accepting_.store(false, std::memory_order_release);
-    if (mode == ShutdownMode::CancelPending) {
-        cancellation_requested_.store(true, std::memory_order_release);
-        std::deque<JobNode> canceled;
-        {
-            std::lock_guard lock(queue_mutex_);
+    std::deque<JobNode> canceled;
+    {
+        std::lock_guard lock(queue_mutex_);
+        if (state_ != JobSystemState::Running) {
+            return;
+        }
+        state_ = mode == ShutdownMode::Drain ? JobSystemState::ClosingDrain
+                                             : JobSystemState::ClosingCancel;
+        if (state_ == JobSystemState::ClosingCancel) {
             canceled.swap(queue_);
         }
-        for (JobNode& node : canceled) {
-            node.state->finish(true, {});
-        }
+    }
+    for (JobNode& node : canceled) {
+        node.state->finish(true, {});
     }
 
     queue_condition_.notify_all();
@@ -116,13 +149,17 @@ void JobSystem::shutdown(ShutdownMode mode) noexcept {
         }
     }
     workers_.clear();
+    {
+        std::lock_guard lock(queue_mutex_);
+        state_ = JobSystemState::Stopped;
+    }
 }
 
 bool JobSystem::executeOne(std::uint32_t worker_index) noexcept {
     JobNode node;
     {
         std::lock_guard lock(queue_mutex_);
-        if (queue_.empty()) {
+        if (state_ == JobSystemState::ClosingCancel || queue_.empty()) {
             return false;
         }
         node = std::move(queue_.front());
@@ -139,9 +176,12 @@ void JobSystem::workerLoop(std::uint32_t worker_index) noexcept {
         {
             std::unique_lock lock(queue_mutex_);
             queue_condition_.wait(lock, [this] {
-                return stopping_.load(std::memory_order_acquire) || !queue_.empty();
+                return state_ != JobSystemState::Running || !queue_.empty();
             });
-            if (queue_.empty() && stopping_.load(std::memory_order_acquire)) {
+            if (queue_.empty() && state_ != JobSystemState::Running) {
+                break;
+            }
+            if (state_ == JobSystemState::ClosingCancel) {
                 break;
             }
         }
@@ -162,6 +202,15 @@ void JobSystem::execute(JobNode node, std::uint32_t worker_index) noexcept {
 
 bool JobSystem::isCurrentWorker() const noexcept {
     return current_worker_system_ == this;
+}
+
+JobSystemState JobSystem::state() const noexcept {
+    std::lock_guard lock(queue_mutex_);
+    return state_;
+}
+
+bool JobSystem::isCancellationRequested() const noexcept {
+    return state() == JobSystemState::ClosingCancel;
 }
 
 bool JobContext::isCancellationRequested() const noexcept {
