@@ -9,8 +9,10 @@
 #include <genomes/combat/AIModelRegistry.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace genomes::combat {
@@ -25,6 +27,16 @@ struct TacticalAIProfile final {
 
     [[nodiscard]] bool valid() const noexcept;
 };
+
+struct TacticalAIProfileSnapshot final {
+    TacticalAIProfile profile{};
+    std::string id;
+    std::filesystem::path source;
+    std::uint64_t fingerprint{0U};
+};
+
+[[nodiscard]] foundation::Result<TacticalAIProfileSnapshot, foundation::Error>
+loadTacticalAIProfile(const std::filesystem::path& path);
 
 struct VisibleTarget final {
     simulation::EntityId id{};

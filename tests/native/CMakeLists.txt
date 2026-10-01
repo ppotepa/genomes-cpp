@@ -546,6 +546,8 @@ add_test(NAME combat.visibility_batch COMMAND genomes_test_visibility_batch)
 add_executable(genomes_test_tactical_ai
     tactical_ai_tests.cpp)
 target_link_libraries(genomes_test_tactical_ai PRIVATE genomes::combat)
+target_compile_definitions(genomes_test_tactical_ai PRIVATE
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_tactical_ai)
 genomes_enable_test_assertions(genomes_test_tactical_ai)
 add_test(NAME combat.tactical_ai COMMAND genomes_test_tactical_ai)

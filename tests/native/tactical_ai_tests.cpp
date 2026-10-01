@@ -2,13 +2,21 @@
 #include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <vector>
 
 int main() {
     using namespace genomes;
+    const auto loaded_profile = combat::loadTacticalAIProfile(
+        std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/tactical-ai.json");
+    assert(loaded_profile);
+    assert(loaded_profile.value().id == "tactical-ai-default");
+    assert(loaded_profile.value().profile.observation_period_ticks == 12U);
+    assert(loaded_profile.value().profile.memory_ticks == 150U);
+    assert(loaded_profile.value().fingerprint != 0U);
     const auto* rifle = weapons::WeaponCatalog::find("rifle");
     assert(rifle != nullptr);
-    combat::TacticalAIProfile profile{};
+    combat::TacticalAIProfile profile = loaded_profile.value().profile;
     combat::TacticalAISystem ai(profile);
     assert(ai.registerDefaults());
 

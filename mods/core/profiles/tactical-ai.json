@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "tactical-ai-default",
+  "observation_period_ticks": 12,
+  "memory_ticks": 150,
+  "target_switch_ratio": 0.85,
+  "fire_alignment_cos": 0.99756405
+}
