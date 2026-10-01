@@ -99,7 +99,7 @@
           "minItems": 1,
           "items": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 1
           }
         },
         "warmup_runs": {
@@ -170,7 +170,7 @@
             "properties": {
               "seed": {
                 "type": "integer",
-                "minimum": 0
+                "minimum": 1
               },
               "entity_count": {
                 "type": "integer",

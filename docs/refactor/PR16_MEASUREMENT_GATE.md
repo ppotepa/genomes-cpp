@@ -19,7 +19,7 @@ and fixes the inputs that must remain unchanged between reference and candidate
 runs:
 
 - Release, `release-diligent`, Diligent/D3D12, validation off;
-- the four deterministic seeds and the workload-specific counts/resolution;
+- the four deterministic, nonzero resolved seeds and the workload-specific counts/resolution;
 - three warmups followed by ten measured runs;
 - median, p95, p99, max, semantic hash, allocation count and allocated bytes.
 
