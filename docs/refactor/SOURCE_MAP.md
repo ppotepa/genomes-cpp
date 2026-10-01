@@ -85,7 +85,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | UNREVIEWED |
-| PR08 | `engine/runtime/src` split between runtime core and game scenes, app composition roots | target split reviewed; application routing remains UNREVIEWED |
+| PR08 | `engine/runtime/src` split between runtime core and game scenes, app composition roots | runtime split and product router reviewed; full composition ownership remains UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | world target split reviewed; remaining consumer/namespace migration UNREVIEWED |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | UNREVIEWED |
