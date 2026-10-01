@@ -301,7 +301,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
         std::vector<foundation::StableId> allowed;
         allowed.reserve(items.size());
         for (const auto& item : items) if (item.allows(slot)) allowed.push_back(item.id);
-        auto& current = equipment_overrides_.slots[slot_index];
+        auto current = equipment_overrides_.slots[slot_index];
         if (!current.specified) {
             current = infantry::EquipmentOverride::nullValue();
         } else if (current.empty) {
@@ -314,8 +314,7 @@ bool UnitLabScene::activateControl(SceneContext& context, std::uint8_t control) 
             else
                 current = infantry::EquipmentOverride::item(*std::next(found));
         }
-        rebuildModel(&context);
-        break;
+        return applyCommand(context, {slot, current});
     }
     case 24:
         equipment_overrides_ = {};
