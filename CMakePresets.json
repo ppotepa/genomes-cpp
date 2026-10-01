@@ -65,6 +65,12 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
+      "name": "headless-core-infantry-off", "displayName": "Lightweight toolkit headless core infantry OFF",
+      "inherits": "headless-core-debug",
+      "binaryDir": "${sourceDir}/build/headless-core-infantry-off",
+      "cacheVariables": { "GENOMES_ENABLE_INFANTRY": "OFF" }
+    },
+    {
       "name": "toolkit-full-debug", "displayName": "Lightweight toolkit full Debug",
       "inherits": "headless-core-debug",
       "binaryDir": "${sourceDir}/build/toolkit-full-debug",
@@ -90,6 +96,7 @@
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt" },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug" },
     { "name": "headless-core-release", "configurePreset": "headless-core-release" },
+    { "name": "headless-core-infantry-off", "configurePreset": "headless-core-infantry-off" },
     { "name": "toolkit-full-debug", "configurePreset": "toolkit-full-debug" },
     { "name": "toolkit-full-release", "configurePreset": "toolkit-full-release" }
   ],
@@ -103,6 +110,7 @@
     { "name": "headless-infantry-meshopt", "configurePreset": "headless-infantry-meshopt", "output": { "outputOnFailure": true } },
     { "name": "headless-core-debug", "configurePreset": "headless-core-debug", "output": { "outputOnFailure": true } },
     { "name": "headless-core-release", "configurePreset": "headless-core-release", "output": { "outputOnFailure": true } },
+    { "name": "headless-core-infantry-off", "configurePreset": "headless-core-infantry-off", "output": { "outputOnFailure": true } },
     { "name": "toolkit-full-debug", "configurePreset": "toolkit-full-debug", "output": { "outputOnFailure": true } },
     { "name": "toolkit-full-release", "configurePreset": "toolkit-full-release", "output": { "outputOnFailure": true } }
   ]
