@@ -376,6 +376,9 @@ void InfantrySimulation::steer(double dt,
         }
         foundation::Vec3 steering_target = live_target ? *target_position
                                                         : record->last_known_target_position;
+        const float target_distance = live_target
+                                          ? std::sqrt(distance_squared(*position, *target_position))
+                                          : 0.0F;
         if (record->route_cursor < record->route.size()) {
             const foundation::Vec3 route_point = record->route[record->route_cursor];
             const float route_distance = std::sqrt(distance_squared(*position, route_point));
@@ -389,7 +392,9 @@ void InfantrySimulation::steer(double dt,
         const foundation::Vec3 direction =
             normalize_horizontal(subtract(steering_target, *position));
         const float distance = std::sqrt(distance_squared(*position, steering_target));
-        if (live_target && distance <= record->genome.attack_range) {
+        // Route waypoints direct movement only. Engagement range is always
+        // evaluated against the current live target, never the next waypoint.
+        if (live_target && target_distance <= record->genome.attack_range) {
             *velocity = {};
             record->state = AgentState::Engage;
             if (physics_commands != nullptr && record->body.isValid()) {

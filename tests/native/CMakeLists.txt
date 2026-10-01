@@ -165,6 +165,12 @@ if(GENOMES_ENABLE_RMLUI)
 endif()
 
 if(GENOMES_ENABLE_INFANTRY)
+    add_executable(genomes_test_infantry_simulation infantry_simulation_tests.cpp)
+    target_link_libraries(genomes_test_infantry_simulation PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_simulation)
+    genomes_enable_test_assertions(genomes_test_infantry_simulation)
+    add_test(NAME infantry.simulation COMMAND genomes_test_infantry_simulation)
+
     add_executable(genomes_test_unit_lab_smoke unit_lab_smoke.cpp)
     target_link_libraries(genomes_test_unit_lab_smoke PRIVATE genomes::runtime)
     genomes_set_project_warnings(genomes_test_unit_lab_smoke)
