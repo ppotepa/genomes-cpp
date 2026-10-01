@@ -44,6 +44,11 @@ add_test(NAME architecture.refactor_tracker
         -P "${CMAKE_CURRENT_SOURCE_DIR}/architecture_refactor_tracker.cmake")
 set_tests_properties(architecture.refactor_tracker PROPERTIES
     LABELS "source;cpu;architecture")
+add_test(NAME architecture.composition_root
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/composition_root_guard.cmake")
+set_tests_properties(architecture.composition_root PROPERTIES
+    LABELS "source;cpu;architecture")
 
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp

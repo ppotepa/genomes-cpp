@@ -141,6 +141,37 @@ if(world_compat_site_text MATCHES "struct BuildingSiteRequest|struct BuildingSit
     message(FATAL_ERROR "Legacy world site header must not own site definitions")
 endif()
 
+foreach(world_boundary IN ITEMS
+        "WorldQuery.hpp" "WorldQuerySnapshot.hpp" "DirtyBounds.hpp" "WorldSave.hpp")
+    set(world_core_boundary_header
+        "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world_core/${world_boundary}")
+    set(world_compat_boundary_header
+        "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world/${world_boundary}")
+    foreach(required_boundary_header IN ITEMS
+            "${world_core_boundary_header}" "${world_compat_boundary_header}")
+        if(NOT EXISTS "${required_boundary_header}")
+            message(FATAL_ERROR "World core boundary header is missing: ${required_boundary_header}")
+        endif()
+    endforeach()
+    file(READ "${world_core_boundary_header}" world_core_boundary_text)
+    file(READ "${world_compat_boundary_header}" world_compat_boundary_text)
+    if(NOT world_core_boundary_text MATCHES "namespace genomes::world_core")
+        message(FATAL_ERROR "Canonical world core header lost world_core namespace: ${world_boundary}")
+    endif()
+    if(NOT world_compat_boundary_text MATCHES
+            "#include[ \\t]+<genomes/world_core/${world_boundary}>")
+        message(FATAL_ERROR "Legacy world header must forward to world_core: ${world_boundary}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world/WorldSave.hpp" world_save_compat_text)
+if(world_save_compat_text MATCHES "struct WorldSaveMetadata|class WorldSaveCodec")
+    message(FATAL_ERROR "Legacy world save header must not own save definitions")
+endif()
+file(READ "${GENOMES_SOURCE_DIR}/engine/world/include/genomes/world/WorldQuerySnapshot.hpp" world_query_compat_text)
+if(world_query_compat_text MATCHES "struct QueryCandidate|class WorldQuerySnapshot")
+    message(FATAL_ERROR "Legacy world query header must not own query definitions")
+endif()
+
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/CMakeLists.txt" runtime_targets)
 foreach(required_runtime_target IN ITEMS
         "add_library(genomes_runtime_core STATIC"
@@ -187,6 +218,7 @@ foreach(product_scene_source IN ITEMS
         message(FATAL_ERROR "Product scene source remains under neutral runtime: ${product_scene_source}")
     endif()
 endforeach()
+
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_director_source)
 if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene|scene\\.|settings\\.|application\\.")
     message(FATAL_ERROR "Neutral SceneDirector still includes a product scene")
