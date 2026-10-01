@@ -225,6 +225,29 @@ if(NOT battlefield_tick_region MATCHES "return;")
             "BattlefieldScene may not run its legacy graph after runtime tick")
 endif()
 
+# R032 boundary: FixtureHitscan is an isolated compatibility/unit fixture. It
+# must not be reachable from the production runtime or gameplay ownership
+# boundary; authoritative firing is FireIntent -> FireRequest -> Ballistics ->
+# ImpactEvent/DamageCommand. Keep the named adapter itself in combat for tests.
+foreach(production_weapon_consumer IN ITEMS
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BattlefieldScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
+        "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldRuntime.hpp"
+        "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldScenario.hpp"
+        "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldRuntime.cpp"
+        "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldScenario.cpp")
+    file(READ "${production_weapon_consumer}" production_weapon_consumer_text)
+    if(production_weapon_consumer_text MATCHES "FixtureHitscan")
+        message(FATAL_ERROR
+                "Production battlefield path must not reference FixtureHitscan: ${production_weapon_consumer}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/modules/combat/include/genomes/combat/CombatSystem.hpp"
+     combat_system_header)
+if(NOT combat_system_header MATCHES "class FixtureHitscan")
+    message(FATAL_ERROR "Named FixtureHitscan compatibility fixture was removed")
+endif()
+
 file(READ "${tracker}" tracker_text)
 
 if(NOT tracker_text MATCHES "4735977aa8b839c8ef53cd7631d8f15dbc0068f1")

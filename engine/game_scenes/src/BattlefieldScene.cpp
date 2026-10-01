@@ -121,7 +121,6 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     animation_agents_.clear();
     animation_poses_.clear();
 #endif
-    fixture_hitscan_.reset();
     navigation_.reset();
     damage_buffer_.clear();
     command_buffers_.reset(0);
@@ -164,7 +163,6 @@ void BattlefieldScene::on_exit(SceneContext&) {
     animation_agents_.clear();
     animation_poses_.clear();
 #endif
-    fixture_hitscan_.reset();
     navigation_.reset();
     damage_buffer_.clear();
     simulation_graph_.clear();
@@ -358,11 +356,10 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
         // graph is compiled all authoritative updates go through its phases.
         infantry_->fixedUpdate(dt, simulation_tick_);
         infantry_->stepPhysics(dt);
-        if (fixture_hitscan_) {
-            infantry_->emitCombatEvents(simulation_tick_, damage_buffer_);
-            const combat::CombatApplyResult combat_result = fixture_hitscan_->apply(damage_buffer_);
-            (void)combat_result;
-        }
+        // The compatibility graph has no authoritative weapon-to-damage
+        // path. Keep its event buffer bounded until BattlefieldRuntime is
+        // available; the legacy adapter is test-only and must not run here.
+        damage_buffer_.clear();
     }
     evaluate_infantry_animation(static_cast<float>(dt));
 #endif
@@ -455,12 +452,7 @@ void BattlefieldScene::configure_simulation_graph() {
     };
     apply_damage.cadence = every_tick;
     apply_damage.callback = [this](simulation::SystemContext&) {
-        if (fixture_hitscan_) {
-            const combat::CombatApplyResult combat_result = fixture_hitscan_->apply(damage_buffer_);
-            (void)combat_result;
-        } else {
-            damage_buffer_.clear();
-        }
+        damage_buffer_.clear();
     };
     if (!add_system(std::move(apply_damage))) {
         return;
@@ -670,7 +662,6 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
 #if GENOMES_HAS_INFANTRY
     infantry_ = std::make_unique<infantry::InfantrySimulation>(
         entities_, navigation_.get(), &physics_, jobs_, true);
-    fixture_hitscan_ = std::make_unique<combat::FixtureHitscan>(entities_);
     constexpr std::uint32_t units_per_team = 25;
     const float map_size = static_cast<float>(config_.map_size_m);
     const float half_map = map_size * 0.5F;

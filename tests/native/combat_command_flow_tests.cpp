@@ -33,5 +33,20 @@ int main() {
     assert(damage.value().front().target == target);
     flow.clear();
     assert(flow.presentation().empty());
+
+    // FixtureHitscan remains available for isolated legacy/unit fixtures, but
+    // production BattlefieldRuntime does not own or invoke this adapter.
+    simulation::EntityStore entities;
+    const auto fixture_target = entities.create({{}, {}, 0.0F, 10.0F,
+                                                  simulation::EntityAlive});
+    assert(fixture_target);
+    combat::FixtureHitscan fixture_hitscan{entities};
+    combat::DamageBuffer fixture_damage;
+    fixture_damage.push({simulation::EntityId{2U, 1U}, fixture_target.value(), 2.0F,
+                         combat::DamageType::Kinetic,
+                         {5U}});
+    const auto fixture_result = fixture_hitscan.apply(fixture_damage);
+    assert(fixture_result.accepted_events == 1U);
+    assert(*entities.health(fixture_target.value()) == 8.0F);
     return 0;
 }
