@@ -157,14 +157,14 @@ genomes_enable_test_assertions(genomes_test_memory_budget)
 add_test(NAME foundation.memory_budget COMMAND genomes_test_memory_budget)
 
 add_executable(genomes_test_menu_smoke menu_smoke.cpp)
-target_link_libraries(genomes_test_menu_smoke PRIVATE genomes::game_scenes)
+target_link_libraries(genomes_test_menu_smoke PRIVATE genomes::application_scenes)
 genomes_set_project_warnings(genomes_test_menu_smoke)
 genomes_enable_test_assertions(genomes_test_menu_smoke)
 
 add_test(NAME menu_smoke COMMAND genomes_test_menu_smoke)
 
 add_executable(genomes_test_world_lab_smoke world_lab_smoke.cpp)
-target_link_libraries(genomes_test_world_lab_smoke PRIVATE genomes::game_scenes)
+target_link_libraries(genomes_test_world_lab_smoke PRIVATE genomes::application_scenes)
 genomes_set_project_warnings(genomes_test_world_lab_smoke)
 genomes_enable_test_assertions(genomes_test_world_lab_smoke)
 add_test(NAME runtime.world_lab_smoke COMMAND genomes_test_world_lab_smoke)

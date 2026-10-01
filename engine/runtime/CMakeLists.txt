@@ -20,7 +20,6 @@ genomes_set_project_warnings(genomes_runtime_core)
 add_library(genomes_game_scenes STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
-    src/BuiltinScenes.cpp
     src/MainMenuScene.cpp
     src/WorldConfigScene.cpp
     src/WorldLabScene.cpp)
