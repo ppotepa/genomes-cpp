@@ -188,8 +188,8 @@ each final row must cite the exact test name and tested SHA.
 | T06 | PR02 | Near waypoint plus distant enemy moves but does not engage/fire. | infantry AI CTest | NOT_RUN |
 | T07 | PR02 | Same numeric squad on opposing sides and two no-squad units share no contacts. | squad CTest | NOT_RUN |
 | T08 | PR02 | Reused ECS index with another generation/type cannot access stale agent sidecars. | infantry/ECS CTest | NOT_RUN |
-| T09 | PR07 | Tick results match inline, one-worker and N-worker execution. | simulation CTest | NOT_RUN |
-| T10 | PR07 | One EntityId flows command→weapon→ballistics→hit/damage; physics steps once. | integration CTest | NOT_RUN |
+| T09 | PR07 | Tick results match inline, one-worker and N-worker execution. | `simulation.battlefield_determinism` CTest | NOT_RUN |
+| T10 | PR07 | One EntityId flows command→weapon→ballistics→hit/damage; physics steps once. | `gameplay.battlefield_profile` CTest | NOT_RUN |
 | T11 | PR02/PR12 | Variation boundaries and identical UI/CLI/test typed-command effects; invalid numbers fail. | Unit Lab command CTest | NOT_RUN |
 | T12 | PR11 | Cache hit shares artifact without deep copy; budget/eviction/pinned accounting is exact. | cache CTest | NOT_RUN |
 | T13 | PR11/PR12 | A→B→C publishes only C across success/failure/cancel and avoids unrelated rebuilds. | Unit Lab controller CTest | NOT_RUN |
@@ -201,13 +201,13 @@ each final row must cite the exact test name and tested SHA.
 | T19 | PR09 | One revision shares BuildingId/PartId through generation/render/collision/nav; mixed revisions fail. | world integration CTest | NOT_RUN |
 | T20 | PR04 | Nonempty canonical save round-trips byte-identically; duplicates and seed zero fail. | save CTest | NOT_RUN |
 | T21 | PR04 | Truncation, overflow, checksum/version errors and every resource limit fail before excess allocation. | save CTest | NOT_RUN |
-| T22 | PR05 | Dependency order beats priority; ready ties resolve by priority then ID. | mod registry CTest | NOT_RUN |
-| T23 | PR05 | Windows rooted/traversal/noncanonical/reparse paths fail before reading outside root. | resolver CTest | NOT_RUN |
-| T24 | PR05 | Duplicate/colliding second mod rolls back candidate and preserves prior frozen snapshot. | content CTest | NOT_RUN |
-| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | plugin/scene CTest | NOT_RUN |
+| T22 | PR05 | Dependency order beats priority; ready ties resolve by priority then ID. | `ui.content_registry` CTest | NOT_RUN |
+| T23 | PR05 | Windows rooted/traversal/noncanonical/reparse paths fail before reading outside root. | `ui.content_registry` CTest | NOT_RUN |
+| T24 | PR05 | Duplicate/colliding second mod rolls back candidate and preserves prior frozen snapshot. | `ui.content_registry` CTest | NOT_RUN |
+| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | `ui.content_registry` + `ui.route_lifecycle` CTest (native lifecycle fixture still required) | NOT_RUN |
 | T26 | PR13 | C++/HLSL ABI constants/layout/version agree; wrong profile and overflow fail; publication is atomic. | CPU CTest + user D3D12/GPU acceptance | NOT_RUN |
 | T27 | PR08/PR14 | Minimal runtime links no gameplay/infantry/buildings and infantry-OFF composition reports unavailable. | dependency guard + build | NOT_RUN |
-| T28 | PR12/PR14 | Structural RML controls and viewport scales 75/100/150% map correctly without geometry rebuild. | UI CTest | NOT_RUN |
+| T28 | PR12/PR14 | Structural RML controls and viewport scales 75/100/150% map correctly without geometry rebuild. | `ui.rml_smoke` + `runtime.unit_lab_smoke` + `ui.scene_guard` | NOT_RUN |
 
 ## Baseline findings
 
