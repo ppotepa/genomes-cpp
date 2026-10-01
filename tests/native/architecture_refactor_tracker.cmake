@@ -419,6 +419,20 @@ if(NOT decision_count EQUAL 55)
     message(FATAL_ERROR "Expected 55 decision rows, found ${decision_count}")
 endif()
 
+# The final-disposition register is intentionally separate from implementation
+# and verification columns. Keep one explicit, controlled disposition for each
+# decision so an unresolved R row cannot hide behind CODE_READY arithmetic.
+string(REGEX MATCHALL "\\| R[0-9][0-9][0-9] \\| (implemented|verified|accepted-deferred|rejected-with-reason) \\|"
+       disposition_rows "${tracker_text}")
+list(LENGTH disposition_rows disposition_count)
+if(NOT disposition_count EQUAL 55)
+    message(FATAL_ERROR
+            "Expected 55 final-disposition rows, found ${disposition_count}")
+endif()
+if(NOT tracker_text MATCHES "## Final disposition register")
+    message(FATAL_ERROR "Architecture tracker lost final disposition register")
+endif()
+
 string(REGEX MATCHALL "\n\\| PR[0-9][0-9] \\|" package_register_rows "${tracker_text}")
 list(LENGTH package_register_rows package_count)
 if(NOT package_count EQUAL 18)
