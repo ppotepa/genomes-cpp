@@ -191,16 +191,22 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
              "world artifact request and generated plan do not match"});
     }
 
+    const world::GridLayout layout = world::GridLayout::forMap(request.map_size_m);
+    if (!layout.valid()) {
+        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "world request has no valid grid layout"});
+    }
+
     terrain::TerrainSpec terrain_spec{};
     terrain_spec.world_id = world::WorldId(foundation::stableHashU64(request.seed));
     terrain_spec.region = {0, 0, 0};
     terrain_spec.coordinates.region_size_m = static_cast<double>(request.map_size_m);
     terrain_spec.seed_path = proc::SeedPath(request.seed).child("terrain", 0);
-    terrain_spec.samples_x = std::max<std::uint32_t>(2U, request.map_size_m / 8U + 1U);
-    terrain_spec.samples_z = terrain_spec.samples_x;
-    terrain_spec.cell_size_m = 8.0F;
-    terrain_spec.origin_offset_x = -static_cast<double>(request.map_size_m) * 0.5;
-    terrain_spec.origin_offset_z = -static_cast<double>(request.map_size_m) * 0.5;
+    terrain_spec.samples_x = layout.sample_count;
+    terrain_spec.samples_z = layout.sample_count;
+    terrain_spec.cell_size_m = layout.spacing_m;
+    terrain_spec.origin_offset_x = static_cast<double>(layout.origin.x);
+    terrain_spec.origin_offset_z = static_cast<double>(layout.origin.z);
     const auto terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
     if (!terrain_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(

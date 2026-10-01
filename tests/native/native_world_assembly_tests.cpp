@@ -1,4 +1,5 @@
 #include <genomes/gameplay/WorldScenario.hpp>
+#include <genomes/world/GridLayout.hpp>
 
 #include <cassert>
 
@@ -17,6 +18,10 @@ int main() {
     const auto* artifact = scenario.activeArtifact();
     const auto artifact_handle = scenario.activeArtifactHandle();
     assert(artifact != nullptr && artifact->valid());
+    const auto layout = world::GridLayout::forMap(request.map_size_m);
+    assert(layout.valid());
+    assert(artifact->terrain->width() == layout.sample_count);
+    assert(artifact->terrain->height() == layout.sample_count);
     assert(artifact_handle.get() == artifact);
     assert(artifact->revision == world::artifactRevision(artifact->plan));
     assert(artifact->destruction_invalidations != nullptr);
