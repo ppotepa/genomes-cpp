@@ -309,10 +309,20 @@ genomes_set_project_warnings(genomes_test_world_lab_smoke)
 genomes_enable_test_assertions(genomes_test_world_lab_smoke)
 add_test(NAME runtime.world_lab_smoke COMMAND genomes_test_world_lab_smoke)
 
+add_library(genomes_test_native_ui_plugin SHARED
+    plugins/ui_test_plugin.cpp)
+target_include_directories(genomes_test_native_ui_plugin PRIVATE
+    "${CMAKE_SOURCE_DIR}/engine/ui/include")
+set_target_properties(genomes_test_native_ui_plugin PROPERTIES
+    PREFIX "")
+genomes_set_project_warnings(genomes_test_native_ui_plugin)
+
 add_executable(genomes_test_ui_content_registry ui_content_registry_tests.cpp)
 target_link_libraries(genomes_test_ui_content_registry PRIVATE genomes::ui)
 target_compile_definitions(genomes_test_ui_content_registry PRIVATE
-    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+    GENOMES_TEST_NATIVE_PLUGIN_PATH="$<TARGET_FILE:genomes_test_native_ui_plugin>")
+add_dependencies(genomes_test_ui_content_registry genomes_test_native_ui_plugin)
 genomes_set_project_warnings(genomes_test_ui_content_registry)
 genomes_enable_test_assertions(genomes_test_ui_content_registry)
 add_test(NAME ui.content_registry COMMAND genomes_test_ui_content_registry)
@@ -462,6 +472,22 @@ genomes_set_project_warnings(genomes_test_job_system_lifecycle)
 genomes_enable_test_assertions(genomes_test_job_system_lifecycle)
 add_test(NAME jobs.lifecycle COMMAND genomes_test_job_system_lifecycle)
 set_tests_properties(jobs.lifecycle PROPERTIES LABELS "cpu;jobs")
+
+add_executable(genomes_test_job_system_worker_violation
+    jobs/job_system_worker_violation.cpp)
+target_link_libraries(genomes_test_job_system_worker_violation PRIVATE genomes::jobs)
+genomes_set_project_warnings(genomes_test_job_system_worker_violation)
+genomes_enable_test_assertions(genomes_test_job_system_worker_violation)
+add_test(NAME jobs.worker_shutdown_violation
+    COMMAND genomes_test_job_system_worker_violation --shutdown)
+add_test(NAME jobs.worker_destructor_violation
+    COMMAND genomes_test_job_system_worker_violation --destructor)
+set_tests_properties(jobs.worker_shutdown_violation jobs.worker_destructor_violation
+    PROPERTIES
+        LABELS "cpu;jobs"
+        TIMEOUT 5
+        WILL_FAIL TRUE
+        PASS_REGULAR_EXPRESSION "genomes\\.jobs\\.worker_shutdown\\.terminate")
 
 add_executable(genomes_test_thread_scaling_gate
     stress/thread_scaling_smoke.cpp)
