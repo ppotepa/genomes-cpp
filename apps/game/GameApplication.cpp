@@ -95,10 +95,19 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
 GameApplication::~GameApplication()=default;
 GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform,
                                  std::unique_ptr<render::IRenderer> renderer,
-                                 std::unique_ptr<render::RenderBackend> backend_owner)
+                                 std::unique_ptr<render::RenderBackend> backend_owner
+#if GENOMES_HAS_INFANTRY
+                                 , combat::TacticalAIProfile tactical_ai_profile
+#endif
+                                 )
     :platform_(std::move(platform)),backend_owner_(std::move(backend_owner)),
      renderer_(std::move(renderer)),jobs_(0U,2U),director_(*renderer_,ui_,presentation_,&jobs_) {
-    runtime::registerBuiltinScenes(director_,true);
+    runtime::BuiltinSceneConfig scene_config{};
+    scene_config.real_battlefield = true;
+#if GENOMES_HAS_INFANTRY
+    scene_config.tactical_ai_profile = tactical_ai_profile;
+#endif
+    runtime::registerBuiltinScenes(director_, std::move(scene_config));
     if (auto content=ui::UiContentRegistry::discover("mods")) {
         content_=std::move(content.value());ui::UiPluginError plugin_error;
 if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
@@ -205,7 +214,16 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
     if (!created_backend) return Result::failure(created_backend.error());
     auto backend=std::move(created_backend.value());
     std::unique_ptr<render::IRenderer> renderer=std::make_unique<render::DiligentSceneRenderer>(*backend);
-    return Result::success(std::unique_ptr<GameApplication>{new GameApplication{std::move(platform),std::move(renderer),std::move(backend)}});
+#if GENOMES_HAS_INFANTRY
+    auto tactical_ai_profile = combat::loadTacticalAIProfile("mods/core/profiles/tactical-ai.json");
+    if (!tactical_ai_profile) return Result::failure(tactical_ai_profile.error());
+    return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
+        std::move(platform), std::move(renderer), std::move(backend),
+        tactical_ai_profile.value().profile}});
+#else
+    return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
+        std::move(platform), std::move(renderer), std::move(backend)}});
+#endif
 }
 foundation::Result<void,foundation::Error> GameApplication::resize_renderer(std::uint32_t w,std::uint32_t h) {
     auto* backend=dynamic_cast<render::DiligentBackend*>(backend_owner_.get());

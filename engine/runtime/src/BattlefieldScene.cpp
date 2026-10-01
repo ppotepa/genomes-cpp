@@ -86,7 +86,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     auto viability = gameplay::startBattlefieldScenario(
         {.seed = config_.seed,
          .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
-         .max_ticks = 240U},
+         .max_ticks = 240U, .tactical_ai_profile = tactical_ai_profile_},
         jobs_);
     if (viability) {
         viability_scenario_ = std::move(viability.value());

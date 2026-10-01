@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/combat/CombatSystem.hpp>
+#include <genomes/combat/TacticalAI.hpp>
 #include <genomes/buildings/BuildingModel.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/gameplay/BattlefieldScenario.hpp>
@@ -38,6 +39,9 @@ namespace genomes::runtime {
 
 class BattlefieldScene final : public Scene {
 public:
+    explicit BattlefieldScene(combat::TacticalAIProfile tactical_ai_profile = {})
+        : tactical_ai_profile_{tactical_ai_profile} {}
+
     [[nodiscard]] foundation::SceneId id() const noexcept override;
 
     void on_enter(SceneContext&) override;
@@ -74,6 +78,7 @@ private:
     camera::CameraRequest camera_request_{};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_;
+    combat::TacticalAIProfile tactical_ai_profile_{};
 #if GENOMES_HAS_INFANTRY
     std::unique_ptr<gameplay::BattlefieldScenario> viability_scenario_;
     std::unique_ptr<infantry::InfantrySimulation> infantry_;

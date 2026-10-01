@@ -8,6 +8,9 @@
 #include <genomes/simulation/FixedStepClock.hpp>
 #include <genomes/ui/UiRuntime.hpp>
 #include <genomes/ui/UiNativePluginManager.hpp>
+#if GENOMES_HAS_INFANTRY
+#include <genomes/combat/TacticalAI.hpp>
+#endif
 
 #if defined(GENOMES_HAS_RMLUI)
 #include <RmlUiRuntime.hpp>
@@ -45,7 +48,11 @@ public:
 private:
     GameApplication(std::unique_ptr<platform::SdlPlatform> platform,
                     std::unique_ptr<render::IRenderer> renderer,
-                    std::unique_ptr<render::RenderBackend> backend_owner = {});
+                    std::unique_ptr<render::RenderBackend> backend_owner = {}
+#if GENOMES_HAS_INFANTRY
+                    , combat::TacticalAIProfile tactical_ai_profile = {}
+#endif
+                    );
 
     [[nodiscard]] foundation::Result<void, foundation::Error> resize_renderer(
         std::uint32_t width, std::uint32_t height);

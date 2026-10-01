@@ -41,7 +41,7 @@ private:
 
 } // namespace
 
-void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
+void registerBuiltinScenes(SceneDirector& director, BuiltinSceneConfig config) {
     const auto menu_id = foundation::scene_id("scene.main-menu");
     const auto world_config_id = foundation::scene_id("scene.world-config");
     const auto battlefield_id = foundation::scene_id("scene.battlefield");
@@ -54,9 +54,16 @@ void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
     director.register_scene(menu_id, [] { return std::make_unique<MainMenuScene>(); });
     director.register_scene(world_config_id,
                             [] { return std::make_unique<WorldConfigScene>(); });
-    if (real_battlefield) {
+    if (config.real_battlefield) {
+#if GENOMES_HAS_INFANTRY
+        const auto tactical_ai_profile = config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
+        director.register_scene(battlefield_id, [tactical_ai_profile] {
+            return std::make_unique<BattlefieldScene>(tactical_ai_profile);
+        });
+#else
         director.register_scene(battlefield_id,
                                 [] { return std::make_unique<BattlefieldScene>(); });
+#endif
     } else {
         director.register_scene(battlefield_id, [battlefield_id] {
             return std::make_unique<PlaceholderScene>(battlefield_id,
@@ -79,6 +86,10 @@ void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
     director.register_scene(pause_id, [pause_id] {
         return std::make_unique<PlaceholderScene>(pause_id, "Pause");
     });
+}
+
+void registerBuiltinScenes(SceneDirector& director, bool real_battlefield) {
+    registerBuiltinScenes(director, BuiltinSceneConfig{.real_battlefield = real_battlefield});
 }
 
 } // namespace genomes::runtime
