@@ -116,7 +116,7 @@ used by this program.
 | R020 | implemented | 56b05e5 | Stable dependency/priority ordering source is present; T22 is NOT_RUN. |
 | R021 | implemented | 76cd265 | Candidate registry and frozen publication source is present; T24 is NOT_RUN. |
 | R022 | implemented | 76cd265 | Owning diagnostic source is present; T22-T24 are NOT_RUN. |
-| R023 | implemented | 10601b2 | Native-plugin permission, rollback and lifetime source is present; T25 is NOT_RUN. |
+| R023 | implemented | 10601b2 | Native-plugin permission, rollback and lifetime source is present; the `ui.content_registry` fixture covers trust and partial-load rollback, while reverse unload/lifetime and T25 remain NOT_RUN. |
 | R024 | implemented | c69491c | Bounded content snapshot source is present; T22-T24 are NOT_RUN. |
 | R025 | implemented | e195e39 | Layered configuration/freeze source is present; T27-T28 are NOT_RUN. |
 | R026 | implemented | e195e39 | Strict fields, references and owned text source is present; T27-T28 are NOT_RUN. |
@@ -155,11 +155,11 @@ used by this program.
 | Package | Scope | Decisions | Implementation | Code SHA | Verification | Verified SHA |
 |---|---|---:|---|---|---|---|
 | PR00 | Baseline, tracker and source map | R001-R055 | CODE_READY | 6bdbe74 | NOT_RUN | - |
-| PR01 | Jobs and SystemGraph lifetime | R001-R004 | CODE_READY | bf46621 | NOT_RUN | - |
+| PR01 | Jobs and SystemGraph lifetime | R001-R004 | CODE_READY | 863f049 | NOT_RUN | - |
 | PR02 | Infantry state and Unit Lab input | R005-R008 | CODE_READY | 3204f38 | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | CODE_READY | 2194765 | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | 6f22437 | NOT_RUN | - |
-| PR05 | Packages and native plugins | R019-R023 | CODE_READY | bc29c7b | NOT_RUN | - |
+| PR05 | Packages and native plugins | R019-R023 | CODE_READY | 49c89d4 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 2213a25 | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 871dd88 | NOT_RUN | - |
@@ -184,7 +184,7 @@ each final row must cite the exact test name and tested SHA.
 | T02 | PR01 | Batch completion order is reversed; first observed failure is stable and successors do not run. | deterministic latches/barriers | NOT_RUN |
 | T03 | PR01 | Fence rejects over-signal without mutation and wakes multiple waiters exactly once. | jobs CTest | NOT_RUN |
 | T04 | PR01 | Drain executes accepted queue; CancelPending cancels queued handles while active work finishes. | jobs CTest | NOT_RUN |
-| T05 | PR01 | Nested helping wait works; launcher N failure rolls back; worker shutdown violation is detected before join. | jobs CTest | NOT_RUN |
+| T05 | PR01 | Nested helping wait works; launcher N failure rolls back; worker shutdown violation is detected before join. | `jobs.core`, `jobs.lifecycle`, `jobs.worker_shutdown_violation`, `jobs.worker_destructor_violation` CTest | NOT_RUN |
 | T06 | PR02 | Near waypoint plus distant enemy moves but does not engage/fire. | infantry AI CTest | NOT_RUN |
 | T07 | PR02 | Same numeric squad on opposing sides and two no-squad units share no contacts. | squad CTest | NOT_RUN |
 | T08 | PR02 | Reused ECS index with another generation/type cannot access stale agent sidecars. | infantry/ECS CTest | NOT_RUN |
@@ -204,7 +204,7 @@ each final row must cite the exact test name and tested SHA.
 | T22 | PR05 | Dependency order beats priority; ready ties resolve by priority then ID. | `ui.content_registry` CTest | NOT_RUN |
 | T23 | PR05 | Windows rooted/traversal/noncanonical/reparse paths fail before reading outside root. | `ui.content_registry` CTest | NOT_RUN |
 | T24 | PR05 | Duplicate/colliding second mod rolls back candidate and preserves prior frozen snapshot. | `ui.content_registry` CTest | NOT_RUN |
-| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | `ui.content_registry` + `ui.route_lifecycle` CTest (native lifecycle fixture still required) | NOT_RUN |
+| T25 | PR05/PR08 | Plugin partial load rolls back, host context survives callbacks, unload is reverse dependency order; scene lifecycle errors/cancel cleanly. | `ui.content_registry` + `ui.route_lifecycle` CTest (reverse unload/lifetime evidence still required) | NOT_RUN |
 | T26 | PR13 | C++/HLSL ABI constants/layout/version agree; wrong profile and overflow fail; publication is atomic. | CPU CTest + user D3D12/GPU acceptance | NOT_RUN |
 | T27 | PR08/PR14 | Minimal runtime links no gameplay/infantry/buildings and infantry-OFF composition reports unavailable. | dependency guard + build | NOT_RUN |
 | T28 | PR12/PR14 | Structural RML controls and viewport scales 75/100/150% map correctly without geometry rebuild. | `ui.rml_smoke` + `runtime.unit_lab_smoke` + `ui.scene_guard` | NOT_RUN |
