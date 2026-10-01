@@ -53,9 +53,11 @@ as equally public:
 - application composition headers: `apps/**/*.hpp`; these are consumers, not
   engine API;
 - compatibility candidates to audit in PR08/PR09/PR17:
-  `engine/runtime/include/genomes/runtime/{BattlefieldScene,BuildingLabScene,MainMenuScene,UnitLabScene,WorldConfigScene,WorldLabScene}.hpp`,
-  plus the application-owned `engine/game_scenes/include/genomes/game_scenes/BuiltinScenes.hpp`
-  and its runtime compatibility forwarding header,
+  active runtime paths remain
+  `engine/runtime/include/genomes/runtime/{BuildingLabScene,MainMenuScene,UnitLabScene,WorldLabScene}.hpp`;
+  the former `BattlefieldScene`, `BuiltinScenes`, `WorldConfigScene` and command/config bridges
+  were retired after in-tree impact review at `7d56de8`. The application-owned
+  `engine/game_scenes/include/genomes/game_scenes/BuiltinScenes.hpp` is canonical,
   and the broad `modules/world/include/genomes/world/**` surface.
 
 High-risk public contracts and their first review packages:
