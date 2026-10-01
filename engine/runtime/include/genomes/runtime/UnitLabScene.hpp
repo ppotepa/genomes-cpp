@@ -70,12 +70,9 @@ private:
         return static_cast<std::uint8_t>(1U << static_cast<std::uint8_t>(flag));
     }
 
-    static constexpr std::uint8_t kAll =
-        bit(UnitLabDirtyFlag::Geometry) |
-        bit(UnitLabDirtyFlag::Material) |
-        bit(UnitLabDirtyFlag::Pose) |
-        bit(UnitLabDirtyFlag::Presentation) |
-        bit(UnitLabDirtyFlag::Ui);
+    // Keep the aggregate mask a constant expression on both MSVC and Clang;
+    // the five enum values are deliberately contiguous and occupy bits 0..4.
+    static constexpr std::uint8_t kAll = 0x1FU;
     std::uint8_t mask_{kAll};
 };
 
