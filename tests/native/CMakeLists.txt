@@ -75,6 +75,11 @@ add_test(NAME combat.tactical_ai_catalog_source
         -P "${CMAKE_CURRENT_SOURCE_DIR}/combat_tactical_ai_catalog_guard.cmake")
 set_tests_properties(combat.tactical_ai_catalog_source PROPERTIES
     LABELS "source;cpu;combat;content")
+add_test(NAME infantry.appearance_catalog_source
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/appearance_catalog_guard.cmake")
+set_tests_properties(infantry.appearance_catalog_source PROPERTIES
+    LABELS "source;cpu;infantry;content")
 
 add_executable(genomes_test_public_header_consumer
     public_header_consumer.cpp
@@ -289,6 +294,8 @@ if(GENOMES_ENABLE_INFANTRY)
 
     add_executable(genomes_test_infantry_presentation infantry_presentation_tests.cpp)
     target_link_libraries(genomes_test_infantry_presentation PRIVATE genomes::game_scenes)
+    target_compile_definitions(genomes_test_infantry_presentation PRIVATE
+        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     genomes_set_project_warnings(genomes_test_infantry_presentation)
     genomes_enable_test_assertions(genomes_test_infantry_presentation)
     add_test(NAME infantry.presentation COMMAND genomes_test_infantry_presentation)

@@ -11,6 +11,7 @@
 #include <genomes/ui/UiNativePluginManager.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/combat/TacticalAI.hpp>
+#include <genomes/infantry/AppearanceCatalog.hpp>
 #endif
 
 #if defined(GENOMES_HAS_RMLUI)
@@ -52,6 +53,7 @@ private:
                     std::unique_ptr<render::RenderBackend> backend_owner = {}
 #if GENOMES_HAS_INFANTRY
                     , combat::TacticalAIProfile tactical_ai_profile = {}
+                    , std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog = {}
 #endif
                     );
 

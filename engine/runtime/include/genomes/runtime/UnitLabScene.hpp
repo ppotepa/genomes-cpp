@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <utility>
 #include <variant>
 
 namespace genomes::runtime {
@@ -118,6 +119,9 @@ using UnitLabCommand = std::variant<SetVariation, SetCameraMode,
 
 class UnitLabScene final : public Scene {
 public:
+    explicit UnitLabScene(
+        std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog = {})
+        : appearance_catalog_{std::move(appearance_catalog)} {}
     ~UnitLabScene() override;
 
     [[nodiscard]] foundation::SceneId id() const noexcept override;
@@ -193,6 +197,7 @@ private:
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
     std::shared_ptr<const infantry::InfantryModelArtifact> model_artifact_;
+    std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog_;
     std::optional<infantry::LocomotionController> locomotion_;
     std::optional<infantry::LocomotionState> locomotion_state_;
     std::optional<infantry::FaceAnimator> face_animator_;

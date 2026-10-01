@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "id": "appearance-catalog-v1",
+  "presets": [
+    {
+      "id": "appearance.inspection-olive",
+      "schema_version": 1,
+      "material_region": "uniformCloth",
+      "color": [0.2, 0.25, 0.16, 1.0]
+    }
+  ]
+}

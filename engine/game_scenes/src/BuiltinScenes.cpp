@@ -253,7 +253,10 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
         }});
     }
 #if GENOMES_HAS_INFANTRY
-    entries_.push_back({unit_lab_id, [] { return std::make_unique<runtime::UnitLabScene>(); }});
+    const auto appearance_catalog = config.appearance_catalog;
+    entries_.push_back({unit_lab_id, [appearance_catalog] {
+        return std::make_unique<runtime::UnitLabScene>(appearance_catalog);
+    }});
 #else
     (void)unit_lab_id;
 #endif

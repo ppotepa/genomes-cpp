@@ -6,6 +6,7 @@
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/InfantryModelCompiler.hpp>
+#include <genomes/infantry/AppearanceCatalog.hpp>
 #endif
 
 #include <array>
@@ -33,7 +34,8 @@ enum class PrototypePreparation {
 // morph buffers from the immutable prototype and receive a distinct revision.
 [[nodiscard]] std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
     const render::SkinnedMeshPrototype& prototype,
-    foundation::StableId appearance_preset);
+    foundation::StableId appearance_preset,
+    const infantry::FrozenAppearanceCatalog& catalog);
 
 [[nodiscard]] std::vector<std::array<float, 16U>> makeBindPalette(
     const infantry::SkeletonData& skeleton);

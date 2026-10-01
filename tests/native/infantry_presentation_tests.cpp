@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <filesystem>
 
 namespace {
 
@@ -51,9 +52,11 @@ void assertIdentity(const Matrix& matrix) {
 int main() {
     using namespace genomes;
 
-    const auto appearance_catalog = infantry::validateAppearanceCatalog();
+    const auto appearance_catalog = infantry::loadAppearanceCatalog(
+        std::filesystem::path{GENOMES_SOURCE_DIR} / "mods/core/profiles/appearance.json");
     assert(appearance_catalog);
-    const auto* olive_definition = infantry::findAppearancePreset(
+    assert(appearance_catalog.value().frozen());
+    const auto* olive_definition = appearance_catalog.value().find(
         infantry::kInspectionOliveAppearancePreset);
     assert(olive_definition != nullptr);
     assert(olive_definition->schema_version == infantry::kAppearancePresetSchemaVersion);
@@ -70,7 +73,7 @@ int main() {
     assert(first);
     assert(first == second);
     const auto olive = runtime::infantry_presentation::makeMaterialVariant(
-        *first, runtime::kInspectionOliveAppearancePreset);
+        *first, runtime::kInspectionOliveAppearancePreset, appearance_catalog.value());
     assert(olive && olive != first);
     assert(olive->revision != first->revision);
     assert(olive->vertices.size() == first->vertices.size());

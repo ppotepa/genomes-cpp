@@ -206,7 +206,8 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetGeneOverride command) 
 }
 
 bool UnitLabScene::applyCommand(SceneContext&, SetAppearancePreset command) {
-    if (command.value != 0U && command.value != kInspectionOliveAppearancePreset) {
+    if (command.value != 0U &&
+        (appearance_catalog_ == nullptr || appearance_catalog_->find(command.value) == nullptr)) {
         return false;
     }
     appearance_preset_ = command.value;
@@ -1000,8 +1001,11 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             if (!base_prototype) return;
             skinned_prototype_ = appearance_preset_ == 0U
                 ? base_prototype
-                : infantry_presentation::makeMaterialVariant(*base_prototype,
-                                                               appearance_preset_);
+                : appearance_catalog_ == nullptr
+                    ? std::shared_ptr<const render::SkinnedMeshPrototype>{}
+                    : infantry_presentation::makeMaterialVariant(*base_prototype,
+                                                                  appearance_preset_,
+                                                                  *appearance_catalog_);
             if (!skinned_prototype_) return;
             skinned_prototype_model_key_ = model_artifact_->cache_key;
             dirty_.clear(UnitLabDirtyFlag::Geometry);

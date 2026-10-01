@@ -35,6 +35,7 @@ target_include_directories(genomes_infantry PRIVATE
     "${CMAKE_SOURCE_DIR}/external/json/single_include")
 target_link_libraries(genomes_infantry PUBLIC
 genomes::foundation
+    genomes::content
 genomes::geometry
     genomes::simulation
     genomes::spatial

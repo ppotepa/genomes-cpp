@@ -301,9 +301,10 @@ std::vector<std::array<float, 16U>> makeBindPalette(const infantry::SkeletonData
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
     const render::SkinnedMeshPrototype& prototype,
-    foundation::StableId appearance_preset) {
-    const auto* definition = infantry::findAppearancePreset(appearance_preset);
-    if (definition == nullptr || !infantry::validateAppearanceCatalog()) {
+    foundation::StableId appearance_preset,
+    const infantry::FrozenAppearanceCatalog& catalog) {
+    const auto* definition = catalog.find(appearance_preset);
+    if (definition == nullptr || !catalog.frozen()) {
         return {};
     }
     auto variant = std::make_shared<render::SkinnedMeshPrototype>(prototype);

@@ -145,6 +145,7 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
                                  std::unique_ptr<render::RenderBackend> backend_owner
 #if GENOMES_HAS_INFANTRY
                                  , combat::TacticalAIProfile tactical_ai_profile
+                                 , std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog
 #endif
                                  )
     :platform_(std::move(platform)),backend_owner_(std::move(backend_owner)),
@@ -153,6 +154,7 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
     scene_config.real_battlefield = true;
 #if GENOMES_HAS_INFANTRY
     scene_config.tactical_ai_profile = tactical_ai_profile;
+    scene_config.appearance_catalog = std::move(appearance_catalog);
 #endif
     scene_catalog_ = std::make_unique<application::BuiltinSceneCatalog>(std::move(scene_config));
     scene_catalog_->install(director_);
@@ -265,9 +267,14 @@ foundation::Result<std::unique_ptr<GameApplication>,foundation::Error> GameAppli
 #if GENOMES_HAS_INFANTRY
     auto tactical_ai_profile = combat::loadTacticalAIProfile("mods/core/profiles/tactical-ai.json");
     if (!tactical_ai_profile) return Result::failure(tactical_ai_profile.error());
+    auto appearance_catalog = infantry::loadAppearanceCatalog(
+        "mods/core/profiles/appearance.json");
+    if (!appearance_catalog) return Result::failure(appearance_catalog.error());
     return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
         std::move(platform), std::move(renderer), std::move(backend),
-        tactical_ai_profile.value().profile}});
+        tactical_ai_profile.value().profile,
+        std::make_shared<const infantry::FrozenAppearanceCatalog>(
+            std::move(appearance_catalog.value()))}});
 #else
     return Result::success(std::unique_ptr<GameApplication>{new GameApplication{
         std::move(platform), std::move(renderer), std::move(backend)}});
