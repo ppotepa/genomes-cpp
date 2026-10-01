@@ -6,6 +6,7 @@
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/AnimationSystem.hpp>
 #include <genomes/runtime/Scene.hpp>
+#include <genomes/runtime/UnitLabModelRequestGate.hpp>
 #include <genomes/jobs/JobHandle.hpp>
 
 #include <memory>
@@ -98,7 +99,8 @@ private:
     bool applyCommand(SceneContext&, SetGeneOverride);
     bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
-    void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
+    void startModelRequest(SceneContext&, infantry::InfantryModelRequest,
+                           UnitLabModelRequestToken);
     void publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
                                                foundation::Error>&& result);
 
@@ -155,8 +157,7 @@ private:
     };
     std::shared_ptr<PendingModelResult> pending_model_result_;
     jobs::JobHandle model_job_;
-    std::uint64_t model_revision_{0};
-    foundation::StableId model_request_key_{0};
+    UnitLabModelRequestGate model_request_gate_;
     std::optional<infantry::InfantryModelRequest> queued_model_request_;
 };
 

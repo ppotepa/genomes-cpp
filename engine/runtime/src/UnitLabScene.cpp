@@ -385,40 +385,39 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
-    model_request_key_ = infantry::InfantryModelCompiler::canonicalRequestKey(request);
-    if (context != nullptr && context->jobs != nullptr &&
-        !context->deterministic_capture && model_job_.valid() &&
-        !model_job_.isComplete()) {
-        // Keep at most one active compile and one overwriteable request.  The
-        // current prototype remains visible while the newest request waits.
-        queued_model_request_ = std::move(request);
-        markDirty(UnitLabDirtyFlag::Ui);
-        return;
-    }
+    const auto request_key = infantry::InfantryModelCompiler::canonicalRequestKey(request);
     if (context != nullptr && context->jobs != nullptr && !context->deterministic_capture) {
-        startModelRequest(*context, std::move(request));
+        const auto submission = model_request_gate_.submit(request_key);
+        if (submission.queued) {
+            // Keep at most one active compile and one overwriteable request.
+            // The current prototype remains visible while the newest request waits.
+            queued_model_request_ = std::move(request);
+            markDirty(UnitLabDirtyFlag::Ui);
+            return;
+        }
+        startModelRequest(*context, std::move(request), submission.token);
         return;
     }
-    ++model_revision_;
-    publishModelResult(model_compiler_.compile(request));
+    const auto submission = model_request_gate_.submit(request_key);
+    auto result = model_compiler_.compile(request);
+    const auto completion = model_request_gate_.complete(submission.token);
+    if (completion.action == UnitLabModelRequestAction::Publish) {
+        publishModelResult(std::move(result));
+    }
 }
 
 void UnitLabScene::startModelRequest(SceneContext& context,
-                                     infantry::InfantryModelRequest request) {
-    // Every rebuild owns a revision.  A queued/older job can therefore not
-    // publish a result after the preview has changed underneath it.
-    const auto revision = ++model_revision_;
-    const auto request_key = infantry::InfantryModelCompiler::canonicalRequestKey(request);
-    model_request_key_ = request_key;
+                                     infantry::InfantryModelRequest request,
+                                     UnitLabModelRequestToken token) {
     const auto pending = std::make_shared<PendingModelResult>();
     pending_model_result_ = pending;
     model_job_ = context.jobs->submit(
-            [this, request, revision, request_key, pending](jobs::JobContext&) mutable {
+            [this, request, token, pending](jobs::JobContext&) mutable {
                 auto result = model_compiler_.compile(request);
                 {
                     std::lock_guard lock(pending->mutex);
-                    pending->revision = revision;
-                    pending->request_key = request_key;
+                    pending->revision = token.revision;
+                    pending->request_key = token.request_key;
                     pending->result = std::move(result);
                 }
             });
@@ -426,6 +425,7 @@ void UnitLabScene::startModelRequest(SceneContext& context,
 }
 
 void UnitLabScene::on_enter(SceneContext& context) {
+    model_request_gate_.cancel();
     elapsed_seconds_ = 0.0;
     fixed_tick_ = 0;
     fixed_accumulator_ = 0.0F;
@@ -456,6 +456,7 @@ void UnitLabScene::on_exit(SceneContext&) {
     }
     pending_model_result_.reset();
     queued_model_request_.reset();
+    model_request_gate_.cancel();
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
@@ -773,18 +774,19 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
                     result = std::move(pending_model_result_->result);
                 }
             }
-            if (result && revision == model_revision_ && request_key == model_request_key_ &&
-                !queued_model_request_) {
+            const auto completion = model_request_gate_.complete({revision, request_key});
+            if (result && completion.action == UnitLabModelRequestAction::Publish) {
                 publishModelResult(std::move(*result));
+            }
+            if (completion.action == UnitLabModelRequestAction::StartPending &&
+                queued_model_request_) {
+                auto request = std::move(*queued_model_request_);
+                queued_model_request_.reset();
+                startModelRequest(context, std::move(request), completion.next);
             }
         }
         model_job_ = {};
         pending_model_result_.reset();
-        if (queued_model_request_) {
-            auto request = std::move(*queued_model_request_);
-            queued_model_request_.reset();
-            startModelRequest(context, std::move(request));
-        }
     }
     if (!ui_dirty_) return;
     ui_dirty_ = false;
