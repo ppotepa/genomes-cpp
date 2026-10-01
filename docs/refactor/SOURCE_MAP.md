@@ -17,7 +17,7 @@ must never be staged, reset or overwritten by this program.
 | Platform/input/UI | `engine/{platform,input,ui}/CMakeLists.txt` | `genomes::platform`, `input`, `ui`, optional `ui_rml` | PR05, PR12, PR14 |
 | Physics/navigation | `engine/{physics,navigation}/CMakeLists.txt` | `genomes::physics`, `navigation` | PR07, PR09 |
 | Presentation | `engine/render/CMakeLists.txt`, `engine/render/{core,graph,gpu_scene,compute,diligent}` | `genomes::render*`, Diligent-only production backend | PR09, PR13, PR16 |
-| Runtime | `engine/runtime/CMakeLists.txt` | `genomes::runtime` (currently also owns product scenes) | PR08, PR12 |
+| Runtime | `engine/runtime/CMakeLists.txt` | `genomes::runtime_core`, `genomes::game_scenes`, compatibility aggregate `genomes::runtime` | PR08, PR12 |
 | World domains | `engine/world`, `modules/{terrain,hydrology,roads,buildings,world_render}` | `genomes::world_core`, `genomes::world_generation`, aggregate `genomes::world`, and corresponding `genomes::*` libraries | PR03, PR09, PR10 |
 | Combat domains | `modules/{combat,weapons,ballistics,infantry,gameplay}` | corresponding `genomes::*` static libraries | PR02, PR06-PR07, PR10-PR11 |
 | Destruction | `modules/destruction/CMakeLists.txt` | `genomes::destruction` | PR07, PR09 |
