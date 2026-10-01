@@ -50,6 +50,22 @@ foreach(_required IN ITEMS "scene.open-building-lab" "scene.open-world-lab" "dis
     endif()
 endforeach()
 
+# T28: UI density is a bounded presentation setting. Keep the RmlUi range and
+# the application-side clamp aligned at the supported 75/100/150% endpoints.
+file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/settings/screen.rml" _settings_rml)
+foreach(_scale_contract IN ITEMS "min=\"0.75\"" "max=\"1.5\"" "step=\"0.05\"")
+    string(FIND "${_settings_rml}" "${_scale_contract}" _scale_contract_found)
+    if(_scale_contract_found LESS 0)
+        message(FATAL_ERROR "settings RmlUi scale control misses ${_scale_contract}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BuiltinScenes.cpp" _builtin_scenes)
+string(FIND "${_builtin_scenes}" "std::clamp" _scale_clamp)
+string(FIND "${_builtin_scenes}" "0.75, 1.50" _scale_clamp_range)
+if(_scale_clamp LESS 0 OR _scale_clamp_range LESS 0)
+    message(FATAL_ERROR "application UI scale clamp is not bounded to 0.75..1.50")
+endif()
+
 # T11/T28: the Unit Lab's RmlUi controls must have one typed-command adapter.
 # The document remains a string boundary, but scene code must not dispatch a
 # control by independently parsing its value or rebuilding geometry here.

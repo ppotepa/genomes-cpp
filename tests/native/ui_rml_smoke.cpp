@@ -143,7 +143,8 @@ int main() {
                a.y < b.y + b.height && b.y < a.y + a.height;
     };
     for (const auto& [width, height, scale] : {
-            std::tuple{1280, 720, 1.0F}, std::tuple{1280, 720, 1.5F},
+            std::tuple{1280, 720, 0.75F}, std::tuple{1280, 720, 1.0F},
+            std::tuple{1280, 720, 1.5F}, std::tuple{1920, 1080, 0.75F},
             std::tuple{1920, 1080, 1.0F}, std::tuple{1920, 1080, 1.5F}}) {
         runtime.resize(width, height);
         runtime.set_density_ratio(scale);

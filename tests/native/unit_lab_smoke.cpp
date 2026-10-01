@@ -16,7 +16,8 @@
 
 int main() {
     for (const auto& [width, height, scale] : {
-            std::tuple{1280, 720, 1.0}, std::tuple{1280, 720, 1.5},
+            std::tuple{1280, 720, 0.75}, std::tuple{1280, 720, 1.0},
+            std::tuple{1280, 720, 1.5}, std::tuple{1920, 1080, 0.75},
             std::tuple{1920, 1080, 1.0}, std::tuple{1920, 1080, 1.5}}) {
         const auto viewport = genomes::game_scenes::unitLabViewport(width, height, scale);
         assert(viewport.left == 0.0F && viewport.top == 0.0F);
@@ -76,6 +77,14 @@ int main() {
     const auto initial_scene_epoch = presentation.scene_epoch;
     assert(initial_scene_epoch != 0U);
     const auto stable_prototype = presentation.skinned_prototypes.front();
+    for (const auto scale : {0.75, 1.0, 1.5}) {
+        director.set_session_ui_scale(scale);
+        director.frame_update(1.0 / 60.0);
+        assert(presentation.skinned_prototypes.size() == 1U);
+        // UI density is a presentation/layout concern. It must not mark the
+        // immutable Unit Lab model geometry dirty or trigger a recompilation.
+        assert(presentation.skinned_prototypes.front() == stable_prototype);
+    }
     const auto home_camera = presentation.camera;
     genomes::input::InputFrame orbit{};
     orbit.viewport_width = 1280;
