@@ -89,7 +89,7 @@ void ArtifactCache::evictLocked() {
 }
 
 void ArtifactCache::trackExternalPinLocked(const ErasedValue& value, std::size_t bytes) {
-    if (value && value.use_count() > std::size_t{1}) {
+    if (value && value.use_count() > 1L) {
         evicted_pins_.push_back({value, bytes});
     }
 }
@@ -136,7 +136,7 @@ ArtifactCacheStats ArtifactCache::stats() const noexcept {
     std::size_t shared_bytes = 0U;
     for (const auto& [key, entry] : entries_) {
         (void)key;
-        if (entry.value.use_count() > std::size_t{1}) shared_bytes += entry.bytes;
+        if (entry.value.use_count() > 1L) shared_bytes += entry.bytes;
     }
     std::size_t externally_pinned_bytes = 0U;
     for (const auto& pin : evicted_pins_) externally_pinned_bytes += pin.bytes;
