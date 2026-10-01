@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **39/55 decisions CODE_READY; 6/18 packages complete**.
+Current source progress: **39/55 decisions CODE_READY; 7/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -91,7 +91,7 @@ new explicitly versioned capability or contract.
 | PR03 | Building generator contract | R009-R013 | CODE_READY | 2194765 | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | CODE_READY | d686ba7 | NOT_RUN | - |
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
-| PR06 | Typed profile infrastructure | R024-R028 | PLANNED | - | NOT_RUN | - |
+| PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | PLANNED | - | NOT_RUN | - |
 | PR08 | Product scenes outside runtime | R034-R036 | PLANNED | - | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | PLANNED | - | NOT_RUN | - |
