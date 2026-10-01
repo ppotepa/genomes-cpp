@@ -81,6 +81,9 @@ public:
                                                  std::memory_order_acquire);
     }
 
+    [[nodiscard]] static foundation::StableId canonicalRequestKey(
+        const InfantryModelRequest&) noexcept;
+
     [[nodiscard]] foundation::Result<InfantryModelArtifact, foundation::Error>
     compile(const InfantryModelRequest& request);
 

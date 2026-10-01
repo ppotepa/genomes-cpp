@@ -127,11 +127,13 @@ private:
     struct PendingModelResult final {
         mutable std::mutex mutex;
         std::optional<infantry::InfantryModelCompiler::CompileRevision> revision;
+        std::optional<foundation::StableId> request_key;
         std::optional<foundation::Result<infantry::InfantryModelArtifact, foundation::Error>> result;
     };
     std::shared_ptr<PendingModelResult> pending_model_result_;
     jobs::JobHandle model_job_;
     infantry::InfantryModelCompiler::CompileRevision model_revision_{0};
+    foundation::StableId model_request_key_{0};
     std::optional<infantry::InfantryModelRequest> queued_model_request_;
 };
 

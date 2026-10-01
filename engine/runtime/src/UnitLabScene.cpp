@@ -357,6 +357,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
+    model_request_key_ = infantry::InfantryModelCompiler::canonicalRequestKey(request);
     if (context != nullptr && context->jobs != nullptr &&
         !context->deterministic_capture && model_job_.valid() &&
         !model_job_.isComplete()) {
@@ -382,14 +383,17 @@ void UnitLabScene::startModelRequest(SceneContext& context,
     // publish a result after the preview has changed underneath it.
     const auto revision = model_compiler_.beginRevision();
     model_revision_ = revision;
+    const auto request_key = infantry::InfantryModelCompiler::canonicalRequestKey(request);
+    model_request_key_ = request_key;
     const auto pending = std::make_shared<PendingModelResult>();
     pending_model_result_ = pending;
     model_job_ = context.jobs->submit(
-            [this, request, revision, pending](jobs::JobContext&) mutable {
+            [this, request, revision, request_key, pending](jobs::JobContext&) mutable {
                 auto result = model_compiler_.compile(request, revision);
                 {
                     std::lock_guard lock(pending->mutex);
                     pending->revision = revision;
+                    pending->request_key = request_key;
                     pending->result = std::move(result);
                 }
             });
@@ -739,14 +743,18 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
             std::optional<foundation::Result<infantry::InfantryModelArtifact,
                                               foundation::Error>> result;
             infantry::InfantryModelCompiler::CompileRevision revision = 0U;
+            foundation::StableId request_key = 0U;
             {
                 std::lock_guard lock(pending_model_result_->mutex);
-                if (pending_model_result_->revision && pending_model_result_->result) {
+                if (pending_model_result_->revision && pending_model_result_->request_key &&
+                    pending_model_result_->result) {
                     revision = *pending_model_result_->revision;
+                    request_key = *pending_model_result_->request_key;
                     result = std::move(pending_model_result_->result);
                 }
             }
-            if (result && revision == model_revision_ && !queued_model_request_) {
+            if (result && revision == model_revision_ && request_key == model_request_key_ &&
+                !queued_model_request_) {
                 publishModelResult(std::move(*result));
             }
         }

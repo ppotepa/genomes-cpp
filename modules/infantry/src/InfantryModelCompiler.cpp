@@ -8,6 +8,38 @@
 
 namespace genomes::infantry {
 
+foundation::StableId InfantryModelCompiler::canonicalRequestKey(
+    const InfantryModelRequest& request) noexcept {
+    foundation::StableId request_key = foundation::stableHashCombine(
+        foundation::stable_id("infantry.model.request"), InfantryGeneratorVersion);
+    request_key = foundation::stableHashCombine(request_key, request.seed);
+    request_key = foundation::stableHashCombine(request_key,
+                                                foundation::stableHashDouble(request.variation));
+    request_key = foundation::stableHashCombine(request_key,
+        static_cast<std::uint32_t>(request.detail_level));
+    request_key = foundation::stableHashCombine(request_key, request.genome_overrides.hash());
+    request_key = foundation::stableHashCombine(request_key, request.loadout_id);
+    request_key = foundation::stableHashCombine(request_key,
+                                                static_cast<std::uint64_t>(request.side));
+    request_key = foundation::stableHashCombine(request_key,
+                                                foundation::stableHashDouble(request.wear));
+    for (const EquipmentOverride& override : request.equipment_overrides.slots) {
+        request_key = foundation::stableHashCombine(request_key, override.specified ? 1U : 0U);
+        request_key = foundation::stableHashCombine(request_key, override.empty ? 1U : 0U);
+        request_key = foundation::stableHashCombine(request_key, override.definition_id);
+    }
+    const foundation::Color colors[]{request.uniform_color, request.palette.uniform,
+                                      request.palette.trousers, request.palette.leather,
+                                      request.palette.metal};
+    for (const auto& color : colors) {
+        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.r));
+        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.g));
+        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.b));
+        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.a));
+    }
+    return request_key;
+}
+
 foundation::Result<InfantryModelArtifact, foundation::Error>
 InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     return compile(request, 0U);
@@ -30,40 +62,7 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request,
         return cancellation({foundation::ErrorCode::InvalidState,
                               "infantry model compilation cancelled"});
     }
-    foundation::StableId request_key = foundation::stableHashCombine(
-        foundation::stable_id("infantry.model.request"), InfantryGeneratorVersion);
-    request_key = foundation::stableHashCombine(request_key, request.seed);
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashDouble(request.variation));
-    request_key = foundation::stableHashCombine(
-        request_key, static_cast<std::uint32_t>(request.detail_level));
-    request_key = foundation::stableHashCombine(request_key, request.genome_overrides.hash());
-    request_key = foundation::stableHashCombine(request_key, request.loadout_id);
-    request_key = foundation::stableHashCombine(request_key,
-                                                static_cast<std::uint64_t>(request.side));
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashDouble(request.wear));
-    for (const EquipmentOverride& override : request.equipment_overrides.slots) {
-        request_key = foundation::stableHashCombine(request_key, override.specified ? 1U : 0U);
-        request_key = foundation::stableHashCombine(request_key, override.empty ? 1U : 0U);
-        request_key = foundation::stableHashCombine(request_key, override.definition_id);
-    }
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashFloat(request.uniform_color.r));
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashFloat(request.uniform_color.g));
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashFloat(request.uniform_color.b));
-    request_key = foundation::stableHashCombine(request_key,
-                                                foundation::stableHashFloat(request.uniform_color.a));
-    const foundation::Color palette_colors[]{request.palette.uniform, request.palette.trousers,
-                                              request.palette.leather, request.palette.metal};
-    for (const auto& color : palette_colors) {
-        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.r));
-        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.g));
-        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.b));
-        request_key = foundation::stableHashCombine(request_key, foundation::stableHashFloat(color.a));
-    }
+    const foundation::StableId request_key = canonicalRequestKey(request);
     {
         std::scoped_lock lock(mutex_);
         if (const auto found = cache_.find(request_key); found != cache_.end()) {

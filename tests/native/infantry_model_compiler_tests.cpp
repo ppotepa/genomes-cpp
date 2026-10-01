@@ -11,6 +11,13 @@ int main() {
     InfantryModelRequest valid{};
     valid.seed = 0x5EED2026U;
     valid.uniform_color = kDefaultUniformColor;
+    const auto base_request_key = InfantryModelCompiler::canonicalRequestKey(valid);
+    auto changed_request = valid;
+    changed_request.variation = 1.1;
+    assert(InfantryModelCompiler::canonicalRequestKey(changed_request) != base_request_key);
+    changed_request = valid;
+    changed_request.palette.metal.r = 0.31F;
+    assert(InfantryModelCompiler::canonicalRequestKey(changed_request) != base_request_key);
     const auto first = compiler.compile(valid);
     assert(first);
     const auto previous_key = first.value().cache_key;
