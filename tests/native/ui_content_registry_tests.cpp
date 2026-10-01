@@ -39,6 +39,16 @@ void writeMod(const std::filesystem::path& root, const std::string& id, int prio
     writeText(scene_root / "screen.rml", "<rml><body></body></rml>");
 }
 
+void writeNativeManifest(const std::filesystem::path& root, const std::string& id,
+                         const std::string& plugin_name, bool trusted) {
+    writeText(root / id / "mod.json",
+              "{\"schema_version\":1,\"id\":\"" + id +
+                  "\",\"version\":\"1.0.0\",\"load_priority\":0,"
+                  "\"dependencies\":[],\"native_plugin\":\"" + plugin_name +
+                  "\",\"trusted_native\":" + (trusted ? "true" : "false") +
+                  ",\"scenes\":[\"scenes/" + id + "\"]}");
+}
+
 void registryOrdersDependenciesAndPriorities() {
     const auto root = std::filesystem::temp_directory_path() /
                       "genomes-ui-content-registry-contract";
@@ -108,6 +118,47 @@ void nativePluginRequiresTrustedManifest() {
     std::filesystem::remove_all(root, cleanup_error);
 }
 
+void nativePluginFixtureExercisesLoadAndRollback() {
+    const auto plugin_source = std::filesystem::path{GENOMES_TEST_NATIVE_PLUGIN_PATH};
+    assert(std::filesystem::is_regular_file(plugin_source));
+    const auto root = std::filesystem::temp_directory_path() /
+                      "genomes-ui-content-native-fixture";
+    std::error_code cleanup_error;
+    std::filesystem::remove_all(root, cleanup_error);
+    std::filesystem::create_directories(root);
+    writeMod(root, "good", 0, {});
+    const auto plugin_name = plugin_source.filename().string();
+    std::filesystem::copy_file(plugin_source, root / "good" / plugin_name,
+                               std::filesystem::copy_options::overwrite_existing);
+    writeNativeManifest(root, "good", plugin_name, true);
+    writeMod(root, "bad", 1, {});
+    writeNativeManifest(root, "bad", "missing-plugin.dll", true);
+
+    const auto candidate = genomes::ui::UiContentRegistry::discover(root);
+    assert(candidate);
+    genomes::ui::UiNativePluginManager plugins;
+    genomes::ui::UiPluginError error;
+    // The good plugin is loaded first, then the missing second plugin fails;
+    // the manager must unload the partial candidate and clear registrations.
+    assert(!plugins.load(candidate.value(), true, &error));
+    assert(!error.message.empty());
+    assert(plugins.registered_scene_controllers().empty());
+    assert(plugins.registered_ui_actions().empty());
+
+    std::filesystem::remove_all(root / "bad", cleanup_error);
+    const auto successful = genomes::ui::UiContentRegistry::discover(root);
+    assert(successful);
+    assert(plugins.load(successful.value(), true, &error));
+    assert(plugins.registered_scene_controllers().size() == 1U);
+    assert(plugins.registered_ui_actions().size() == 1U);
+    assert(plugins.registered_scene_controllers().front() == "test.plugin.scene");
+    assert(plugins.registered_ui_actions().front() == "test.plugin.action");
+    plugins.unload();
+    assert(plugins.registered_scene_controllers().empty());
+    assert(plugins.registered_ui_actions().empty());
+    std::filesystem::remove_all(root, cleanup_error);
+}
+
 } // namespace
 
 int main() {
@@ -141,5 +192,6 @@ int main() {
     registryOrdersDependenciesAndPriorities();
     duplicateCandidateDoesNotReplacePublishedRegistry();
     nativePluginRequiresTrustedManifest();
+    nativePluginFixtureExercisesLoadAndRollback();
     return 0;
 }
