@@ -25,6 +25,18 @@ int main() {
     assert(document.value().provenance.content_hash != 0U);
     assert(!content::readContentText(resolved.value(), {.maximum_bytes = 2U}));
 
+    const auto manifest_path = root / "mod.json";
+    {
+        std::ofstream stream(manifest_path, std::ios::binary);
+        stream << "{\"schema_version\":1,\"id\":\"test\",\"version\":\"1.0\","
+                  "\"load_priority\":2,\"dependencies\":[\"core\"],\"domain_field\":true}";
+    }
+    const auto manifest = content::readContentManifest(manifest_path);
+    assert(manifest && manifest.value().manifest.id == "test");
+    assert(manifest.value().manifest.load_priority == 2);
+    assert(manifest.value().manifest.dependencies == std::vector<std::string>{"core"});
+    assert(!manifest.value().document.text.empty());
+
     content::ContentSnapshotBuilder first{"test.content", 1U};
     auto first_provenance = document.value().provenance;
     first_provenance.source_id = "profile";

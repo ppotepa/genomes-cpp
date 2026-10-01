@@ -35,7 +35,13 @@ struct ContentManifest final {
     std::string id;
     std::uint32_t schema_version{0U};
     std::string version;
+    int load_priority{0};
     std::vector<std::string> dependencies;
+};
+
+struct ContentManifestDocument final {
+    ContentManifest manifest;
+    ContentDocument document;
 };
 
 struct FrozenContentSnapshot final {
@@ -50,6 +56,9 @@ resolveContentPath(const std::filesystem::path& root, const std::filesystem::pat
 
 [[nodiscard]] foundation::Result<ContentDocument, foundation::Error>
 readContentText(const std::filesystem::path& path, ContentReadLimits limits = {});
+
+[[nodiscard]] foundation::Result<ContentManifestDocument, foundation::Error>
+readContentManifest(const std::filesystem::path& path, ContentReadLimits limits = {});
 
 class ContentSnapshotBuilder final {
 public:

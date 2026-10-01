@@ -82,19 +82,15 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
             if (entry.is_symlink() || !manifest_path) {
                 return fail("mod is missing mod.json: " + entry.path().string());
             }
-            auto manifest = content::readContentText(*manifest_path, {MaximumManifestBytes});
+            auto manifest = content::readContentManifest(*manifest_path, {MaximumManifestBytes});
             if (!manifest) return fail("mod is missing mod.json: " + entry.path().string());
-            const Json json = Json::parse(manifest.value().text);
-            if (!json.contains("schema_version") || json.at("schema_version") != 1 ||
-                !required_string(json, "id") || !required_string(json, "version")) {
-                return fail("invalid mod manifest: " + manifest_path->string());
-            }
+            const Json json = Json::parse(manifest.value().document.text);
 
             UiModManifest mod{};
-            mod.id = json.at("id").get<std::string>();
-            mod.version = json.at("version").get<std::string>();
-            mod.load_priority = json.value("load_priority", 0);
-            mod.dependencies = strings(json, "dependencies");
+            mod.id = manifest.value().manifest.id;
+            mod.version = manifest.value().manifest.version;
+            mod.load_priority = manifest.value().manifest.load_priority;
+            mod.dependencies = manifest.value().manifest.dependencies;
             if (json.contains("native_plugin")) {
                 if (!json.at("native_plugin").is_string() || !json.contains("trusted_native") ||
                     !json.at("trusted_native").is_boolean()) {

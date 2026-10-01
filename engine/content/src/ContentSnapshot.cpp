@@ -2,9 +2,13 @@
 
 #include <genomes/foundation/StableHash.hpp>
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
+#include <exception>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <utility>
 
 namespace genomes::content {
@@ -85,6 +89,69 @@ readContentText(const std::filesystem::path& path, ContentReadLimits limits) {
     result.provenance.path = path;
     result.provenance.content_hash = foundation::stableHashString(result.text);
     return foundation::Result<ContentDocument, foundation::Error>::success(std::move(result));
+}
+
+foundation::Result<ContentManifestDocument, foundation::Error>
+readContentManifest(const std::filesystem::path& path, ContentReadLimits limits) {
+    auto document = readContentText(path, limits);
+    if (!document) {
+        return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+            document.error());
+    }
+    try {
+        const nlohmann::json json = nlohmann::json::parse(document.value().text);
+        if (!json.is_object() || !json.contains("schema_version") ||
+            !json.at("schema_version").is_number_unsigned() ||
+            !json.contains("id") || !json.at("id").is_string() ||
+            !json.contains("version") || !json.at("version").is_string()) {
+            return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                error(foundation::ErrorCode::InvalidArgument, "invalid content manifest header"));
+        }
+        const auto schema_version = json.at("schema_version").get<std::uint64_t>();
+        if (schema_version > std::numeric_limits<std::uint32_t>::max()) {
+            return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                error(foundation::ErrorCode::OutOfRange, "content manifest schema is out of range"));
+        }
+        ContentManifest manifest{};
+        manifest.schema_version = static_cast<std::uint32_t>(schema_version);
+        manifest.id = json.at("id").get<std::string>();
+        manifest.version = json.at("version").get<std::string>();
+        if (manifest.schema_version != 1U || manifest.id.empty() || manifest.version.empty()) {
+            return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                error(foundation::ErrorCode::InvalidArgument, "invalid content manifest values"));
+        }
+        if (json.contains("load_priority")) {
+            if (!json.at("load_priority").is_number_integer()) {
+                return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                    error(foundation::ErrorCode::InvalidArgument, "invalid content manifest priority"));
+            }
+            const auto priority = json.at("load_priority").get<std::int64_t>();
+            if (priority < std::numeric_limits<int>::min() ||
+                priority > std::numeric_limits<int>::max()) {
+                return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                    error(foundation::ErrorCode::OutOfRange, "content manifest priority is out of range"));
+            }
+            manifest.load_priority = static_cast<int>(priority);
+        }
+        if (json.contains("dependencies")) {
+            if (!json.at("dependencies").is_array()) {
+                return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                    error(foundation::ErrorCode::InvalidArgument, "invalid content manifest dependencies"));
+            }
+            for (const auto& item : json.at("dependencies")) {
+                if (!item.is_string() || item.get<std::string>().empty()) {
+                    return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+                        error(foundation::ErrorCode::InvalidArgument, "invalid content manifest dependency"));
+                }
+                manifest.dependencies.push_back(item.get<std::string>());
+            }
+        }
+        return foundation::Result<ContentManifestDocument, foundation::Error>::success(
+            {std::move(manifest), std::move(document.value())});
+    } catch (const std::exception&) {
+        return foundation::Result<ContentManifestDocument, foundation::Error>::failure(
+            error(foundation::ErrorCode::InvalidArgument, "invalid content manifest document"));
+    }
 }
 
 ContentSnapshotBuilder::ContentSnapshotBuilder(std::string package_id,
