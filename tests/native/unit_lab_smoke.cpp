@@ -18,7 +18,7 @@ int main() {
     for (const auto& [width, height, scale] : {
             std::tuple{1280, 720, 1.0}, std::tuple{1280, 720, 1.5},
             std::tuple{1920, 1080, 1.0}, std::tuple{1920, 1080, 1.5}}) {
-        const auto viewport = genomes::runtime::unitLabViewport(width, height, scale);
+        const auto viewport = genomes::game_scenes::unitLabViewport(width, height, scale);
         assert(viewport.left == 0.0F && viewport.top == 0.0F);
         assert(viewport.width == 1.0F && viewport.height == 1.0F);
         assert(std::isfinite(viewport.projection_offset_x));
@@ -193,7 +193,7 @@ int main() {
     assert(gpu_presentation.has_camera_request);
     assert(gpu_presentation.camera_request.preset ==
            genomes::camera::CameraPreset::UnitLab);
-    const auto expected_viewport = genomes::runtime::unitLabViewport(1280, 720, 1.0);
+    const auto expected_viewport = genomes::game_scenes::unitLabViewport(1280, 720, 1.0);
     assert(std::abs(gpu_presentation.camera.viewport_left - expected_viewport.left) < 1.0e-6F);
     assert(std::abs(gpu_presentation.camera.viewport_width - expected_viewport.width) < 1.0e-6F);
     assert(gpu_presentation.camera.viewport_left == 0.0F);

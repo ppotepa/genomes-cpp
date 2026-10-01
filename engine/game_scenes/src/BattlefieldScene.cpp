@@ -299,10 +299,8 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
         simulation_tick_, dt, simulation::SessionSimulationTickRateHz};
     if (battlefield_runtime_ != nullptr) {
         if (!battlefield_runtime_->complete()) {
-            // The runtime is the sole authoritative owner for this tick. The
-            // scene graph remains a compatibility fallback until its state is
-            // transferred into BattlefieldRuntime; running both would advance
-            // two ECS/physics/combat pipelines for one session tick.
+            // BattlefieldRuntime is the sole authoritative owner for this
+            // tick; the scene only forwards the clock and extracts results.
             battlefield_runtime_->fixedUpdate(tick_context);
         }
         if (!battlefield_runtime_->snapshot().error.empty()) {

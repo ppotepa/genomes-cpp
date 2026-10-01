@@ -63,6 +63,7 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             const auto value=next();if (!value) return {};
             auto& count=arg=="--frames"?result.max_frames:result.capture_frame;
             if (!parse_u64(*value,count) || (arg=="--capture-frame"&&count==0)) return {};
+#if GENOMES_HAS_INFANTRY
         } else if (arg=="--unitlab-camera") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
@@ -91,7 +92,6 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
                 return {};
             result.unitlab_expression_steps = static_cast<std::uint8_t>(
                 std::get<game_scenes::SetExpression>(parsed.value()).value);
-#if GENOMES_HAS_INFANTRY
         } else if (arg=="--unitlab-variation") {
             const auto value=next();if (!value) return {};
             const std::array<std::string_view, 2> tokens{
