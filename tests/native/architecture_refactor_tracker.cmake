@@ -61,6 +61,18 @@ if(NOT found_infantry_off_test)
     message(FATAL_ERROR "Test preset matrix is missing headless-core-infantry-off")
 endif()
 
+file(READ "${GENOMES_SOURCE_DIR}/engine/world/CMakeLists.txt" world_targets)
+foreach(required_world_target IN ITEMS
+        "add_library(genomes_world_core STATIC"
+        "add_library(genomes_world_generation STATIC"
+        "add_library(genomes::world_core ALIAS genomes_world_core"
+        "add_library(genomes::world_generation ALIAS genomes_world_generation")
+    string(FIND "${world_targets}" "${required_world_target}" target_position)
+    if(target_position EQUAL -1)
+        message(FATAL_ERROR "World target split is missing ${required_world_target}")
+    endif()
+endforeach()
+
 file(READ "${tracker}" tracker_text)
 
 if(NOT tracker_text MATCHES "4735977aa8b839c8ef53cd7631d8f15dbc0068f1")

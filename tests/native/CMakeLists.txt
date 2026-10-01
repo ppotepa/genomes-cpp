@@ -51,6 +51,8 @@ target_link_libraries(genomes_test_public_header_consumer PRIVATE
     genomes::gameplay
     genomes::navigation
     genomes::physics
+    genomes::world_core
+    genomes::world_generation
     genomes::world_render)
 genomes_set_project_warnings(genomes_test_public_header_consumer)
 genomes_enable_test_assertions(genomes_test_public_header_consumer)

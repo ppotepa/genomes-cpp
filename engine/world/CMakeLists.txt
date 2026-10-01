@@ -1,18 +1,45 @@
-add_library(genomes_world STATIC
+add_library(genomes_world_core STATIC
+    src/WorldPosition.cpp
+    src/WorldQuery.cpp
+    src/WorldSave.cpp)
+
+target_include_directories(genomes_world_core PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(genomes_world_core PUBLIC
+    genomes::foundation
+    genomes::proc
+    genomes::io
+    genomes_hydrology
+    genomes_roads)
+target_compile_features(genomes_world_core PUBLIC cxx_std_20)
+genomes_set_project_warnings(genomes_world_core)
+
+add_library(genomes_world_generation STATIC
     src/CityGenerator.cpp
     src/WorldGenerationTask.cpp
     src/WorldRegionStreamer.cpp
-    src/WorldPosition.cpp
     src/WorldGenerator.cpp
-    src/WorldQuery.cpp
-    src/WorldStreamer.cpp
-    src/WorldSave.cpp)
+    src/WorldStreamer.cpp)
 
-target_include_directories(genomes_world PUBLIC
+target_include_directories(genomes_world_generation PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(genomes_world PUBLIC genomes::foundation genomes::proc genomes_hydrology
-                                           genomes_roads genomes::io)
-target_compile_features(genomes_world PUBLIC cxx_std_20)
-genomes_set_project_warnings(genomes_world)
+target_link_libraries(genomes_world_generation PUBLIC
+    genomes_world_core
+    genomes::foundation
+    genomes::proc
+    genomes_hydrology
+    genomes_roads)
+target_compile_features(genomes_world_generation PUBLIC cxx_std_20)
+genomes_set_project_warnings(genomes_world_generation)
 
+# Compatibility aggregate. New code should depend on the narrow core or the
+# generation service explicitly; existing clients retain genomes::world while
+# the migration is completed.
+add_library(genomes_world INTERFACE)
+target_link_libraries(genomes_world INTERFACE
+    genomes_world_core
+    genomes_world_generation)
+
+add_library(genomes::world_core ALIAS genomes_world_core)
+add_library(genomes::world_generation ALIAS genomes_world_generation)
 add_library(genomes::world ALIAS genomes_world)
