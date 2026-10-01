@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **39/55 decisions CODE_READY; 7/18 packages complete**.
+Current source progress: **40/55 decisions CODE_READY; 7/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -61,7 +61,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 31f820e | NOT_RUN | - | `world.grid_layout` covers valid bounds and 129/601 rejection. |
 | R039 | PR09 | world | REF | One immutable `ResolvedWorldArtifacts` revision feeds render/collision/navigation/destruction. | PLANNED | - | NOT_RUN | - | - |
 | R040 | PR09 | world render | REF | Mesh compiler consumes resolved building plans and `PartId` draw ranges; it never invokes the generator. | CODE_READY | b939538 | NOT_RUN | - | `world.mesh_compiler` covers missing resolutions and stable part range output; user CTest pending. |
-| R041 | PR09 | world generation | REF | Each generation stage has its own SeedPath, version and dependency fingerprint. | PLANNED | - | NOT_RUN | - | - |
+| R041 | PR09 | world generation | REF | Each generation stage has its own SeedPath, version and dependency fingerprint. | CODE_READY | 8edbbe6 | NOT_RUN | - | `integration.world_parity` covers complete deterministic terrain/hydrology/roads/buildings/vegetation stage fingerprints; `WorldScenario` rejects candidates without them. |
 | R042 | PR10 | domain catalogs | DATA | Equipment, weapon/ammo, material, AI, world/building and appearance migrate in that order to typed frozen catalogs. | PLANNED | - | NOT_RUN | - | - |
 | R043 | PR10 | infantry | FIX | Equipment size derives from data, capacity is validated, spawn resolves WeaponId through the shared catalog, and loaded text owns storage. | PLANNED | - | NOT_RUN | - | - |
 | R044 | PR11 | infantry | REF | Model compiler accepts a canonical immutable request and returns shared immutable artifact plus key without preview state. | CODE_READY | ea738c7 | NOT_RUN | - | `infantry.model_compiler` covers canonical legacy-color normalization, artifact-key identity and shared-pointer cache hits; Unit Lab owns latest-wins revision gating. |
