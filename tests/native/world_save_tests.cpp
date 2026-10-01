@@ -51,6 +51,47 @@ int main() {
     const auto memory_limited = world::WorldSaveCodec::deserialize(first.value(), no_working_memory);
     assert(!memory_limited && memory_limited.error().code == foundation::ErrorCode::OutOfRange);
 
+    // Every externally supplied bound is checked before the codec reserves or
+    // copies the corresponding collection/payload. Keep these limits below the
+    // already encoded model so this remains a deterministic pre-allocation
+    // regression rather than an allocation-failure test.
+    world::WorldSaveLimits file_limited{};
+    file_limited.max_file_bytes = first.value().size() - 1U;
+    assert(!world::WorldSaveCodec::serialize(model, file_limited));
+    const auto file_limited_load = world::WorldSaveCodec::deserialize(first.value(), file_limited);
+    assert(!file_limited_load &&
+           file_limited_load.error().code == foundation::ErrorCode::OutOfRange);
+
+    world::WorldSaveLimits region_limited{};
+    region_limited.max_regions = 1U;
+    assert(!world::WorldSaveCodec::serialize(model, region_limited));
+    const auto region_limited_load =
+        world::WorldSaveCodec::deserialize(first.value(), region_limited);
+    assert(!region_limited_load &&
+           region_limited_load.error().code == foundation::ErrorCode::OutOfRange);
+
+    world::WorldSaveLimits entity_limited{};
+    entity_limited.max_entities = 1U;
+    assert(!world::WorldSaveCodec::serialize(model, entity_limited));
+    const auto entity_limited_load =
+        world::WorldSaveCodec::deserialize(first.value(), entity_limited);
+    assert(!entity_limited_load &&
+           entity_limited_load.error().code == foundation::ErrorCode::OutOfRange);
+
+    world::WorldSaveLimits destroyed_limited{};
+    destroyed_limited.max_destroyed_objects = 3U;
+    assert(!world::WorldSaveCodec::serialize(model, destroyed_limited));
+    const auto destroyed_limited_load =
+        world::WorldSaveCodec::deserialize(first.value(), destroyed_limited);
+    assert(!destroyed_limited_load &&
+           destroyed_limited_load.error().code == foundation::ErrorCode::OutOfRange);
+
+    world::WorldSaveLimits invalid_limits{};
+    invalid_limits.max_file_bytes = world::WorldSaveHeaderBytes - 1U;
+    const auto invalid_limit_save = world::WorldSaveCodec::serialize(model, invalid_limits);
+    assert(!invalid_limit_save &&
+           invalid_limit_save.error().code == foundation::ErrorCode::InvalidArgument);
+
     const std::filesystem::path path = "genomes_world_save_test.bin";
     std::error_code ignored;
     std::filesystem::remove(path, ignored);
