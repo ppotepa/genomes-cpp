@@ -6,6 +6,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "$schema",
     "schema",
     "status",
     "baseline_status",
@@ -15,6 +16,9 @@
     "acceptance_gate"
   ],
   "properties": {
+    "$schema": {
+      "const": "./pr16_measurement_inputs.schema.json"
+    },
     "schema": {
       "const": "genomes.pr16.measurement_inputs.v1"
     },

@@ -23,11 +23,11 @@ runs:
 - three warmups followed by ten measured runs;
 - median, p95, p99, max, semantic hash, allocation count and allocated bytes.
 
-The entry-point names identify the intended benchmark sources/targets. The two
-infantry source benchmarks are listed as inputs even though their executable
-registration is a follow-up implementation task. Adding a new executable or
-changing a workload input requires a schema/fixture revision and a new review;
-it is not an optimization result.
+The entry-point names identify the intended benchmark sources/targets. The
+infantry source benchmarks are registered in `benchmarks/CMakeLists.txt`, but
+they are not yet consumers of this fixture's seed, warmup, metric, or report
+contract. Adding a new executable or changing a workload input requires a
+schema/fixture revision and a new review; it is not an optimization result.
 
 ## D1/D2 acceptance
 
