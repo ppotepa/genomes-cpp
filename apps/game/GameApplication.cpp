@@ -270,7 +270,8 @@ int GameApplication::run(int argc,char** argv) {
             }
             if (director_.dispatch_ui_action(
                     foundation::stable_id("unit.appearance-preset"),
-                    {{"value", preset}}) != ui::UiActionResult::Handled) {
+                    ui::UiActionArguments{{"value", std::string{preset}}}) !=
+                ui::UiActionResult::Handled) {
                 std::cerr<<"Could not select UnitLab appearance preset\n";return 1;
             }
         }
