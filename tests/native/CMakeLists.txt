@@ -45,7 +45,16 @@ add_test(NAME architecture.refactor_tracker
 set_tests_properties(architecture.refactor_tracker PROPERTIES
     LABELS "source;cpu;architecture")
 
-add_executable(genomes_test_public_header_consumer public_header_consumer.cpp)
+add_executable(genomes_test_public_header_consumer
+    public_header_consumer.cpp
+    public_header_content.cpp
+    public_header_gameplay.cpp
+    public_header_navigation.cpp
+    public_header_physics.cpp
+    public_header_world.cpp
+    public_header_world_core.cpp
+    public_header_world_generation.cpp
+    public_header_world_render.cpp)
 target_link_libraries(genomes_test_public_header_consumer PRIVATE
     genomes::content
     genomes::gameplay

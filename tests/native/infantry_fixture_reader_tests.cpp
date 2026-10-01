@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <set>
 #include <string>
 
 int main() {
@@ -19,12 +20,21 @@ int main() {
     assert(fixture_manifest.at("schema") == "genomes.fixture-manifest.v1");
     assert(fixture_manifest.at("generator") ==
            "tools/reference/export_infantry_reference.cjs");
+    for (const char* provenance_field : {"sourceCommit", "sourceTree"}) {
+        const auto value = fixture_manifest.at(provenance_field).get<std::string>();
+        assert(value.size() == 40U);
+        assert(value.find_first_not_of("0123456789abcdefABCDEF") == std::string::npos);
+    }
     assert(fixture_manifest.at("families").is_array());
     assert(fixture_manifest.at("families").size() >= 5U);
+    std::set<std::string> family_ids;
     for (const auto& family : fixture_manifest.at("families")) {
         assert(family.at("id").is_string());
         assert(family.at("root").is_string());
         assert(family.at("format").is_string());
+        assert(family_ids.insert(family.at("id").get<std::string>()).second);
+        const auto format = family.at("format").get<std::string>();
+        assert(format == "json" || format == "gnif+json");
         const auto root = std::filesystem::path(GENOMES_SOURCE_DIR) /
                           "reference/fixtures" / family.at("root").get<std::string>();
         assert(std::filesystem::is_directory(root));

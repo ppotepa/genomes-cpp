@@ -2,6 +2,9 @@ if(NOT DEFINED GENOMES_SOURCE_DIR)
     message(FATAL_ERROR "GENOMES_SOURCE_DIR is required")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${GENOMES_SOURCE_DIR}/cmake")
+include(GenomesFixtureManifest)
+
 set(tracker "${GENOMES_SOURCE_DIR}/docs/refactor/ARCHITECTURE_REFACTOR_TRACKER.md")
 set(source_map "${GENOMES_SOURCE_DIR}/docs/refactor/SOURCE_MAP.md")
 foreach(required_file IN ITEMS "${tracker}" "${source_map}")
@@ -61,19 +64,8 @@ if(NOT found_infantry_off_test)
     message(FATAL_ERROR "Test preset matrix is missing headless-core-infantry-off")
 endif()
 
-set(fixture_manifest "${GENOMES_SOURCE_DIR}/reference/fixtures/manifest.json")
-if(NOT EXISTS "${fixture_manifest}")
-    message(FATAL_ERROR "Missing normative fixture manifest")
-endif()
-file(READ "${fixture_manifest}" fixture_manifest_text)
-string(JSON fixture_schema GET "${fixture_manifest_text}" schema)
-if(NOT fixture_schema STREQUAL "genomes.fixture-manifest.v1")
-    message(FATAL_ERROR "Unsupported fixture manifest schema")
-endif()
-string(JSON fixture_family_count LENGTH "${fixture_manifest_text}" families)
-if(fixture_family_count LESS 1)
-    message(FATAL_ERROR "Fixture manifest has no families")
-endif()
+genomes_validate_fixture_manifest(
+    "${GENOMES_SOURCE_DIR}/reference/fixtures/manifest.json")
 
 file(READ "${GENOMES_SOURCE_DIR}/engine/world/CMakeLists.txt" world_targets)
 foreach(required_world_target IN ITEMS
