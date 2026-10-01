@@ -974,10 +974,12 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
 
 void UnitLabScene::build_presentation(SceneContext& context) {
     if (model_artifact_) {
-        if (!skinned_prototype_ ||
+        if (geometry_dirty_ || material_dirty_ || !skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
             skinned_prototype_ = infantry_presentation::makePrototype(*model_artifact_);
             skinned_prototype_model_key_ = model_artifact_->cache_key;
+            geometry_dirty_ = false;
+            material_dirty_ = false;
         }
         context.presentation.skinned_prototypes.push_back(skinned_prototype_);
         render::SkinnedBonePalette palette{};
@@ -998,6 +1000,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         palette.local_poses = infantry_presentation::makeLocalPoses(model_artifact_->skeleton,
                                                                     pose_bones);
         context.presentation.skinned_palettes.push_back(std::move(palette));
+        pose_dirty_ = false;
         if (!context.render_capabilities.gpu_skinning) {
             auto render_mesh = std::make_shared<render::RenderMesh>(
                 render::deformSkinnedCPU(*skinned_prototype_,
