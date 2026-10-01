@@ -36,26 +36,26 @@ bool UiNativePluginManager::load(const UiContentRegistry& registry, bool allow_n
             return false;
         }
         const auto relative = std::filesystem::path{mod.native_plugin};
-        if (!relative.is_relative() || relative.lexically_normal().string().starts_with("..")) {
+        const auto path = UiContentRegistry::resolve_path(mod.root, relative);
+        if (!path) {
             set_error(error, "native plugin escapes mod root: " + mod.id);
             unload();
             return false;
         }
-        const auto path = (mod.root / relative).lexically_normal();
-        if (!std::filesystem::is_regular_file(path)) {
-            set_error(error, "native plugin is missing: " + path.string());
+        if (!std::filesystem::is_regular_file(*path)) {
+            set_error(error, "native plugin is missing: " + path->string());
             unload();
             return false;
         }
 #if defined(_WIN32)
-        auto handle = LoadLibraryW(path.wstring().c_str());
-        if (handle == nullptr) { set_error(error, "cannot load native plugin: " + path.string()); unload(); return false; }
+        auto handle = LoadLibraryW(path->wstring().c_str());
+        if (handle == nullptr) { set_error(error, "cannot load native plugin: " + path->string()); unload(); return false; }
         auto version = reinterpret_cast<uint32_t (*)()>(GetProcAddress(handle, "genomes_mod_api_version"));
         auto load_fn = reinterpret_cast<int (*)(const GenomesModHostApi*)>(GetProcAddress(handle, "genomes_mod_load"));
         auto unload_fn = reinterpret_cast<void (*)()>(GetProcAddress(handle, "genomes_mod_unload"));
 #else
-        auto handle = dlopen(path.string().c_str(), RTLD_NOW | RTLD_LOCAL);
-        if (handle == nullptr) { set_error(error, "cannot load native plugin: " + path.string()); unload(); return false; }
+        auto handle = dlopen(path->string().c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (handle == nullptr) { set_error(error, "cannot load native plugin: " + path->string()); unload(); return false; }
         auto version = reinterpret_cast<uint32_t (*)()>(dlsym(handle, "genomes_mod_api_version"));
         auto load_fn = reinterpret_cast<int (*)(const GenomesModHostApi*)>(dlsym(handle, "genomes_mod_load"));
         auto unload_fn = reinterpret_cast<void (*)()>(dlsym(handle, "genomes_mod_unload"));

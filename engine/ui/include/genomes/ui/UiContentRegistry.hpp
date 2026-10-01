@@ -4,6 +4,7 @@
 #include <genomes/foundation/Types.hpp>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -40,6 +41,8 @@ public:
     using Result = foundation::Result<UiContentRegistry, UiContentError>;
 
     static Result discover(const std::filesystem::path& mods_root);
+    [[nodiscard]] static std::optional<std::filesystem::path> resolve_path(
+        const std::filesystem::path& root, const std::filesystem::path& relative) noexcept;
 
     [[nodiscard]] const std::vector<UiModManifest>& mods() const noexcept { return mods_; }
     [[nodiscard]] const UiSceneManifest* find_scene(const std::string& id) const noexcept;

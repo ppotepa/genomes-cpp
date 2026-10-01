@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <fstream>
 #include <functional>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
@@ -42,7 +43,8 @@ using Json = nlohmann::json;
 }
 
 [[nodiscard]] bool traversal_free(const std::filesystem::path& path) noexcept {
-    if (path.empty() || path.is_absolute()) {
+    if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() ||
+        path.lexically_normal() != path) {
         return false;
     }
     for (const auto& component : path) {
@@ -68,15 +70,15 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
             if (!entry.is_directory()) {
                 continue;
             }
-            const auto manifest_path = entry.path() / "mod.json";
-            if (!std::filesystem::is_regular_file(manifest_path)) {
+            const auto manifest_path = resolve_safe_path(entry.path(), "mod.json");
+            if (entry.is_symlink() || !manifest_path || !std::filesystem::is_regular_file(*manifest_path)) {
                 return fail("mod is missing mod.json: " + entry.path().string());
             }
-            std::ifstream stream{manifest_path};
+            std::ifstream stream{*manifest_path};
             const Json json = Json::parse(stream);
             if (!json.contains("schema_version") || json.at("schema_version") != 1 ||
                 !required_string(json, "id") || !required_string(json, "version")) {
-                return fail("invalid mod manifest: " + manifest_path.string());
+                return fail("invalid mod manifest: " + manifest_path->string());
             }
 
             UiModManifest mod{};
@@ -92,7 +94,9 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                 mod.native_plugin = json.at("native_plugin").get<std::string>();
                 mod.trusted_native = json.at("trusted_native").get<bool>();
             }
-            mod.root = entry.path();
+            std::error_code root_error;
+            mod.root = std::filesystem::weakly_canonical(entry.path(), root_error);
+            if (root_error || mod.root.empty()) return fail("invalid mod root: " + entry.path().string());
             if (!mod_ids.insert(mod.id).second) {
                 return fail("duplicate mod id: " + mod.id);
             }
@@ -104,14 +108,18 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                     if (!scene_ref.is_string()) {
                         return fail("scene reference must be a string: " + mod.id);
                     }
-                    const auto scene_root = mod.root / scene_ref.get<std::string>();
-                    const auto scene_manifest_path = scene_root / "scene.json";
-                    std::ifstream scene_stream{scene_manifest_path};
+                    const auto scene_root = resolve_safe_path(mod.root, scene_ref.get<std::string>());
+                    if (!scene_root || std::filesystem::is_symlink(*scene_root)) {
+                        return fail("scene path escapes mod root: " + mod.id);
+                    }
+                    const auto scene_manifest_path = resolve_safe_path(*scene_root, "scene.json");
+                    if (!scene_manifest_path) return fail("scene manifest path escapes mod root: " + mod.id);
+                    std::ifstream scene_stream{*scene_manifest_path};
                     const Json scene_json = Json::parse(scene_stream);
                     if (!scene_json.contains("schema_version") || scene_json.at("schema_version") != 1 ||
                         !required_string(scene_json, "id") || !required_string(scene_json, "controller") ||
                         !required_string(scene_json, "document")) {
-                        return fail("invalid scene manifest: " + scene_manifest_path.string());
+                        return fail("invalid scene manifest: " + scene_manifest_path->string());
                     }
                     UiSceneManifest scene{};
                     scene.id = scene_json.at("id").get<std::string>();
@@ -121,11 +129,11 @@ UiContentRegistry::Result UiContentRegistry::discover(const std::filesystem::pat
                     scene.overlays = strings(scene_json, "overlays");
                     scene.action_namespace = scene_json.value("action_namespace", scene.id);
                     scene.mod_id = mod.id;
-                    scene.root = scene_root;
+                    scene.root = *scene_root;
                     if (!scene_ids.insert(scene.id).second) {
                         return fail("duplicate scene id: " + scene.id);
                     }
-                    if (!traversal_free(scene_root.lexically_relative(mod.root)) ||
+                    if (!traversal_free(scene_root->lexically_relative(mod.root)) ||
                         !traversal_free(scene.document)) {
                         return fail("scene path escapes mod root: " + scene.id);
                     }
@@ -214,6 +222,27 @@ const UiSceneManifest* UiContentRegistry::find_scene(const std::string& id) cons
     return nullptr;
 }
 
+[[nodiscard]] std::optional<std::filesystem::path> resolve_safe_path(
+    const std::filesystem::path& root, const std::filesystem::path& relative) noexcept {
+    if (!traversal_free(relative)) return std::nullopt;
+    std::error_code error;
+    const auto canonical_root = std::filesystem::weakly_canonical(root, error);
+    if (error || canonical_root.empty()) return std::nullopt;
+    if (std::filesystem::is_symlink(std::filesystem::symlink_status(canonical_root, error)) || error) {
+        return std::nullopt;
+    }
+    auto candidate = canonical_root;
+    for (const auto& component : relative) {
+        candidate /= component;
+        if (std::filesystem::is_symlink(std::filesystem::symlink_status(candidate, error)) || error) {
+            return std::nullopt;
+        }
+    }
+    candidate = std::filesystem::weakly_canonical(candidate, error);
+    if (error || !traversal_free(candidate.lexically_relative(canonical_root))) return std::nullopt;
+    return candidate;
+}
+
 const UiSceneManifest* UiContentRegistry::find_scene(foundation::SceneId id) const noexcept {
     for (const auto& mod : mods_) {
         for (const auto& scene : mod.scenes) {
@@ -223,14 +252,16 @@ const UiSceneManifest* UiContentRegistry::find_scene(foundation::SceneId id) con
     return nullptr;
 }
 
+std::optional<std::filesystem::path> UiContentRegistry::resolve_path(
+    const std::filesystem::path& root, const std::filesystem::path& relative) noexcept {
+    return resolve_safe_path(root, relative);
+}
+
 bool UiContentRegistry::is_allowed_path(const UiSceneManifest& scene,
                                         const std::filesystem::path& relative) const noexcept {
-    if (!traversal_free(relative)) return false;
-    const auto absolute = (scene.root / relative).lexically_normal();
-    const auto root = scene.root.lexically_normal();
-    const auto relative_to_root = absolute.lexically_relative(root);
-    if (!traversal_free(relative_to_root)) return false;
-    const auto extension = absolute.extension().string();
+    const auto absolute = resolve_safe_path(scene.root, relative);
+    if (!absolute) return false;
+    const auto extension = absolute->extension().string();
     return extension == ".rml" || extension == ".rcss" || extension == ".json" ||
            extension == ".png" || extension == ".jpg" || extension == ".jpeg" ||
            extension == ".ttf" || extension == ".otf";
