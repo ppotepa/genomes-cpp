@@ -23,6 +23,9 @@ int main() {
     assert(profile.memory_ticks == 90U);
     assert(profile.target_switch_ratio == 0.75F);
     assert(profile.fire_alignment_cos == 0.95F);
+    scenario.value()->fixedUpdate();
+    assert(scenario.value()->snapshot().tick == 1U);
+    assert(scenario.value()->snapshot().physics_steps == 1U);
     auto runtime = gameplay::BattlefieldRuntime::start(configured);
     assert(runtime);
     runtime.value()->fixedUpdate();

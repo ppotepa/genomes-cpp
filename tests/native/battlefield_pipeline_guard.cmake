@@ -2,7 +2,7 @@ if(NOT DEFINED GENOMES_SOURCE_DIR)
     message(FATAL_ERROR "GENOMES_SOURCE_DIR is required")
 endif()
 
-set(source "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldScenario.cpp")
+set(source "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldRuntime.cpp")
 if(NOT EXISTS "${source}")
     message(FATAL_ERROR "Missing authoritative battlefield source: ${source}")
 endif()
@@ -57,10 +57,27 @@ string(REGEX MATCHALL "physics_\\.step\\(" physics_step_calls "${battlefield}")
 list(LENGTH physics_step_calls physics_step_count)
 if(NOT physics_step_count EQUAL 1)
     message(FATAL_ERROR
-            "BattlefieldScenario must contain exactly one authoritative physics_.step call")
+            "BattlefieldRuntime must contain exactly one authoritative physics_.step call")
 endif()
 if(battlefield MATCHES "infantry_->stepPhysics\\(")
     message(FATAL_ERROR "Infantry must not own the authoritative physics step")
 endif()
+
+# The compatibility scenario is intentionally only a forwarding facade.  Any
+# graph/resource implementation here would reintroduce a second owner.
+file(READ "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldScenario.cpp"
+     scenario_facade)
+foreach(forbidden_facade_text IN ITEMS
+        "SystemGraph"
+        "physics_.step("
+        "queueFire()"
+        "applyImpactDamage()"
+        "EntityStore")
+    string(FIND "${scenario_facade}" "${forbidden_facade_text}" facade_forbidden_position)
+    if(NOT facade_forbidden_position EQUAL -1)
+        message(FATAL_ERROR
+                "BattlefieldScenario facade regained authoritative state: ${forbidden_facade_text}")
+    endif()
+endforeach()
 
 message(STATUS "Battlefield weapon-to-damage source contract inspected")
