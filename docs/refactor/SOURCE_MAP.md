@@ -98,7 +98,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R030 and R032 source contract reviewed; R031 ownership extraction remains open |
-| PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
+| PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | neutral `SceneCommand`/typed application-command boundary and physical product-source relocation reviewed at `10b1ba5`; `WorldGenerationConfig` and full composition ownership remain UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | material (`1ba42a6`), ammo (`4d08dc5`), equipment (`c29b346`) and weapon (`82efa74`) parity loaders/source guards reviewed; AI/world/building/appearance migration remains UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
