@@ -1,8 +1,8 @@
 #include <genomes/render/NullRenderer.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
-#include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/game_scenes/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
-#include <genomes/runtime/WorldLabScene.hpp>
+#include <genomes/game_scenes/WorldLabScene.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>

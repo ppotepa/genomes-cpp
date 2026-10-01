@@ -1,4 +1,4 @@
-#include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/game_scenes/MainMenuScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/Types.hpp>

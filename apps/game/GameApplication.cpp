@@ -21,7 +21,7 @@
 #include <variant>
 #include <type_traits>
 #if GENOMES_HAS_INFANTRY
-#include <genomes/runtime/UnitLabCommandParsing.hpp>
+#include <genomes/game_scenes/UnitLabCommandParsing.hpp>
 #endif
 
 namespace genomes::game {

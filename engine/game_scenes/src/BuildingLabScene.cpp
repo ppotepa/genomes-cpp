@@ -1,4 +1,4 @@
-#include <genomes/runtime/BuildingLabScene.hpp>
+#include <genomes/game_scenes/BuildingLabScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>

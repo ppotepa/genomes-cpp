@@ -3,7 +3,7 @@
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/game_scenes/BattlefieldScene.hpp>
-#include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/game_scenes/MainMenuScene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/game_scenes/WorldConfigScene.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
@@ -75,11 +75,11 @@ int main() {
         genomes::render::PresentationSnapshot catalog_presentation;
         genomes::runtime::SceneDirector catalog_director(
             catalog_renderer, catalog_ui, catalog_presentation);
-        genomes::runtime::BuiltinSceneConfig catalog_config{};
+        genomes::application::BuiltinSceneConfig catalog_config{};
         catalog_config.real_battlefield = false;
         catalog_config.world_generation_profile = world_profile;
         catalog_config.building_profile = building_profile;
-        genomes::runtime::BuiltinSceneCatalog catalog{catalog_config};
+        genomes::application::BuiltinSceneCatalog catalog{catalog_config};
         assert(!catalog.entries().empty());
         catalog.install(catalog_director);
         assert(catalog_director.start(genomes::foundation::scene_id("scene.main-menu")));
@@ -91,7 +91,7 @@ int main() {
     genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
     auto active_world_config =
         std::make_shared<genomes::application::WorldGenerationConfig>(world_config);
-    genomes::runtime::configureBuiltinSceneRouting(director, active_world_config);
+    genomes::application::configureBuiltinSceneRouting(director, active_world_config);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");

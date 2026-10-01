@@ -1,4 +1,4 @@
-#include <genomes/runtime/WorldLabScene.hpp>
+#include <genomes/game_scenes/WorldLabScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>

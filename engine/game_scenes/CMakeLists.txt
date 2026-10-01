@@ -1,6 +1,6 @@
 # Product scenes and application composition live outside the neutral runtime.
-# Their public compatibility headers remain under runtime/include while
-# callers migrate to the application-scene surface.
+# Their public headers live under the application-scene surface; only the
+# neutral lifecycle headers remain under runtime/include.
 add_library(genomes_game_scenes STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
@@ -9,8 +9,7 @@ add_library(genomes_game_scenes STATIC
     src/WorldLabScene.cpp)
 
 target_include_directories(genomes_game_scenes PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../runtime/include")
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_game_scenes PUBLIC
     genomes::runtime_core
     genomes::foundation
@@ -48,8 +47,7 @@ add_library(genomes_application_scenes STATIC
     src/BuiltinScenes.cpp)
 
 target_include_directories(genomes_application_scenes PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../runtime/include")
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_application_scenes PUBLIC
     genomes::game_scenes
     genomes::simulation)

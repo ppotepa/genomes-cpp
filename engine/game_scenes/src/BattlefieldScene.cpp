@@ -2,7 +2,7 @@
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
-#include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/game_scenes/InfantryPresentation.hpp>
 #include <genomes/world/GridLayout.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 #if GENOMES_HAS_INFANTRY

@@ -53,7 +53,7 @@ endforeach()
 # T11/T28: the Unit Lab's RmlUi controls must have one typed-command adapter.
 # The document remains a string boundary, but scene code must not dispatch a
 # control by independently parsing its value or rebuilding geometry here.
-file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp" _unit_commands)
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/UnitLabCommandParsing.hpp" _unit_commands)
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/UnitLabScene.cpp" _unit_scene)
 foreach(_control IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
                           "unit.expression" "unit.equipment-item" "unit.genome"
@@ -123,7 +123,7 @@ endif()
 if(_menu_rml MATCHES "World configuration" OR _menu_rml MATCHES "Native D3D12")
     message(FATAL_ERROR "main menu contains a removed competing entry/status")
 endif()
-file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/MainMenuScene.hpp" _menu_header)
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/MainMenuScene.hpp" _menu_header)
 if(_menu_header MATCHES "MainMenuEntry::WorldConfig|WorldConfig,")
     message(FATAL_ERROR "MainMenuEntry still exposes a separate WorldConfig item")
 endif()

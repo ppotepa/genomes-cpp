@@ -34,7 +34,13 @@ if(_director MATCHES "ApplicationCommand" OR
 endif()
 foreach(_removed_bridge IN ITEMS
         "${_runtime_dir}/include/genomes/runtime/ApplicationCommand.hpp"
-        "${_runtime_dir}/include/genomes/runtime/WorldConfig.hpp")
+        "${_runtime_dir}/include/genomes/runtime/WorldConfig.hpp"
+        "${_runtime_dir}/include/genomes/runtime/MainMenuScene.hpp"
+        "${_runtime_dir}/include/genomes/runtime/BuildingLabScene.hpp"
+        "${_runtime_dir}/include/genomes/runtime/WorldLabScene.hpp"
+        "${_runtime_dir}/include/genomes/runtime/UnitLabScene.hpp"
+        "${_runtime_dir}/include/genomes/runtime/InfantryPresentation.hpp"
+        "${_runtime_dir}/include/genomes/runtime/UnitLabCommandParsing.hpp")
     if(EXISTS "${_removed_bridge}")
         message(FATAL_ERROR "unused runtime compatibility bridge remains: ${_removed_bridge}")
     endif()
@@ -51,6 +57,25 @@ endif()
 if(_runtime_cmake MATCHES "world/include|proc/include|hydrology/include|roads/include")
     message(FATAL_ERROR "runtime_core must not export world-generation include directories")
 endif()
+
+file(READ "${_game_scenes_dir}/include/genomes/game_scenes/BuiltinScenes.hpp"
+     _builtin_scenes)
+if(_builtin_scenes MATCHES "using application::(configureBuiltinSceneRouting|registerBuiltinScenes)")
+    message(FATAL_ERROR
+            "product scene catalog must not reintroduce the retired runtime namespace aliases")
+endif()
+
+foreach(_canonical_product_header IN ITEMS
+        "${_game_scenes_dir}/include/genomes/game_scenes/MainMenuScene.hpp"
+        "${_game_scenes_dir}/include/genomes/game_scenes/BuildingLabScene.hpp"
+        "${_game_scenes_dir}/include/genomes/game_scenes/WorldLabScene.hpp"
+        "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabScene.hpp"
+        "${_game_scenes_dir}/include/genomes/game_scenes/InfantryPresentation.hpp"
+        "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabCommandParsing.hpp")
+    if(NOT EXISTS "${_canonical_product_header}")
+        message(FATAL_ERROR "canonical product header is missing: ${_canonical_product_header}")
+    endif()
+endforeach()
 
 foreach(_source
         BattlefieldScene.cpp

@@ -1,4 +1,4 @@
-#include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/game_scenes/InfantryPresentation.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
 
 #include <genomes/infantry/GearSurfaceGenerator.hpp>

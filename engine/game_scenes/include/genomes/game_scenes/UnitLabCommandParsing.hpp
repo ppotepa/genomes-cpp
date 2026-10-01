@@ -3,7 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/infantry/EquipmentCatalog.hpp>
-#include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/UnitLabScene.hpp>
 
 #include <algorithm>
 #include <array>

@@ -1,7 +1,7 @@
-#include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/UnitLabScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
-#include <genomes/runtime/UnitLabCommandParsing.hpp>
-#include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/game_scenes/UnitLabCommandParsing.hpp>
+#include <genomes/game_scenes/InfantryPresentation.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>

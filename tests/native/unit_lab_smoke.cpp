@@ -1,7 +1,7 @@
 #include <genomes/render/NullRenderer.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
-#include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/UnitLabScene.hpp>
 
 #include <cassert>
 #include <chrono>

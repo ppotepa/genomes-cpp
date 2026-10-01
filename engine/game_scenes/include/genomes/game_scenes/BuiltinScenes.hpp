@@ -61,22 +61,11 @@ private:
 };
 
 // The application composition root owns the built-in scene catalog.  The
-// runtime namespace remains a compatibility name while callers migrate to
-// this application-scene header.
+// neutral runtime namespace is used only for lifecycle types referenced by
+// this boundary; catalog ownership remains in genomes::application.
 void configureBuiltinSceneRouting(
     runtime::SceneDirector&,
     std::shared_ptr<WorldGenerationConfig> active_config);
 void registerBuiltinScenes(runtime::SceneDirector&, BuiltinSceneConfig config);
 
 } // namespace genomes::application
-
-// Compatibility aliases for clients that have not yet moved their include
-// and namespace.  Product ownership remains in genomes::application.
-namespace genomes::runtime {
-using BuiltinSceneConfig = application::BuiltinSceneConfig;
-using BuiltinSceneFactory = application::BuiltinSceneFactory;
-using BuiltinSceneEntry = application::BuiltinSceneEntry;
-using BuiltinSceneCatalog = application::BuiltinSceneCatalog;
-using application::configureBuiltinSceneRouting;
-using application::registerBuiltinScenes;
-} // namespace genomes::runtime

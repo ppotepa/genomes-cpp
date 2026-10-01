@@ -293,7 +293,13 @@ foreach(removed_runtime_bridge IN ITEMS
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldConfig.hpp"
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BuiltinScenes.hpp"
         "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldConfigScene.hpp"
-        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BattlefieldScene.hpp")
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BattlefieldScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/MainMenuScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/BuildingLabScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/WorldLabScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabScene.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/InfantryPresentation.hpp"
+        "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/UnitLabCommandParsing.hpp")
     if(EXISTS "${removed_runtime_bridge}")
         message(FATAL_ERROR
                 "Retired runtime forwarding header was reintroduced: ${removed_runtime_bridge}")

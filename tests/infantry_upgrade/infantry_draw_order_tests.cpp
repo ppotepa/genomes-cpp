@@ -2,7 +2,7 @@
 
 #include <genomes/geometry/IndexOrderOptimizer.hpp>
 #include <genomes/infantry/InfantryModelCompiler.hpp>
-#include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/game_scenes/InfantryPresentation.hpp>
 
 #include <future>
 #include <iostream>

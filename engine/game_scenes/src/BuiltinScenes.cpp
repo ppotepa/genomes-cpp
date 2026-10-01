@@ -3,15 +3,15 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/game_scenes/BattlefieldScene.hpp>
-#include <genomes/runtime/BuildingLabScene.hpp>
-#include <genomes/runtime/MainMenuScene.hpp>
+#include <genomes/game_scenes/BuildingLabScene.hpp>
+#include <genomes/game_scenes/MainMenuScene.hpp>
 #include <genomes/runtime/Scene.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #if GENOMES_HAS_INFANTRY
-#include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/UnitLabScene.hpp>
 #endif
 #include <genomes/game_scenes/WorldConfigScene.hpp>
-#include <genomes/runtime/WorldLabScene.hpp>
+#include <genomes/game_scenes/WorldLabScene.hpp>
 
 #include <memory>
 #include <array>

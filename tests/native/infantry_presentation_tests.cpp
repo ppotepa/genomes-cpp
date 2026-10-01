@@ -1,8 +1,8 @@
 #include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
 #include <genomes/infantry/RigSchema.hpp>
-#include <genomes/runtime/InfantryPresentation.hpp>
-#include <genomes/runtime/UnitLabScene.hpp>
+#include <genomes/game_scenes/InfantryPresentation.hpp>
+#include <genomes/game_scenes/UnitLabScene.hpp>
 
 #include <array>
 #include <cassert>
