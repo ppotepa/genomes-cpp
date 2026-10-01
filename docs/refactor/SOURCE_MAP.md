@@ -92,7 +92,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | UNREVIEWED |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
-| PR15 | appearance catalog and Unit Lab adapter | UNREVIEWED |
+| PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | WAIT_BASELINE |
 | PR17 | compatibility headers, old config paths and fallbacks | WAIT_PRIOR_PACKAGES |
 
