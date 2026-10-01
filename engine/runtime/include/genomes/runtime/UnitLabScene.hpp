@@ -99,7 +99,7 @@ private:
     bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
-    void publishModelResult(foundation::Result<infantry::InfantryModelArtifact,
+    void publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
                                                foundation::Error>&& result);
 
     double elapsed_seconds_{0.0};
@@ -139,7 +139,7 @@ private:
     std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
-    std::optional<infantry::InfantryModelArtifact> model_artifact_;
+    std::shared_ptr<const infantry::InfantryModelArtifact> model_artifact_;
     std::optional<infantry::LocomotionController> locomotion_;
     std::optional<infantry::LocomotionState> locomotion_state_;
     std::optional<infantry::FaceAnimator> face_animator_;
@@ -148,13 +148,14 @@ private:
     std::optional<foundation::Error> last_generation_error_;
     struct PendingModelResult final {
         mutable std::mutex mutex;
-        std::optional<infantry::InfantryModelCompiler::CompileRevision> revision;
+        std::optional<std::uint64_t> revision;
         std::optional<foundation::StableId> request_key;
-        std::optional<foundation::Result<infantry::InfantryModelArtifact, foundation::Error>> result;
+        std::optional<foundation::Result<infantry::InfantryModelCompileResult,
+                                         foundation::Error>> result;
     };
     std::shared_ptr<PendingModelResult> pending_model_result_;
     jobs::JobHandle model_job_;
-    infantry::InfantryModelCompiler::CompileRevision model_revision_{0};
+    std::uint64_t model_revision_{0};
     foundation::StableId model_request_key_{0};
     std::optional<infantry::InfantryModelRequest> queued_model_request_;
 };

@@ -55,16 +55,16 @@ int main() {
 
     const auto model = compiler.compile(request);
     assert(model);
-    const auto first = runtime::infantry_presentation::makePrototype(model.value());
-    const auto second = runtime::infantry_presentation::makePrototype(model.value());
+    const auto first = runtime::infantry_presentation::makePrototype(*model.value().artifact);
+    const auto second = runtime::infantry_presentation::makePrototype(*model.value().artifact);
     assert(first);
     assert(first == second);
-    assert(first->revision == model.value().cache_key);
+    assert(first->revision == model.value().artifact->cache_key);
     assert(first->skeleton);
     assert(first->skeleton->valid());
-    assert(first->skeleton->skeleton_id == model.value().skeleton.cacheKey());
+    assert(first->skeleton->skeleton_id == model.value().artifact->skeleton.cacheKey());
     assert(first->skeleton->bones.size() == infantry::kRigBoneCount);
-    assert(first->conservative_bounds_radius > model.value().phenotype.body.height);
+    assert(first->conservative_bounds_radius > model.value().artifact->phenotype.body.height);
     const auto inside_bound = [&](foundation::Vec3 point) {
         const auto center = first->conservative_bounds_center;
         const float x=point.x-center.x,y=point.y-center.y,z=point.z-center.z;
@@ -106,9 +106,9 @@ int main() {
     }
 
     const auto bind_local = runtime::infantry_presentation::makeLocalPoses(
-        model.value().skeleton, {});
+        model.value().artifact->skeleton, {});
     const auto bind_palette = runtime::infantry_presentation::makeBindPalette(
-        model.value().skeleton);
+        model.value().artifact->skeleton);
     assert(bind_local.size() == infantry::kRigBoneCount);
     assert(bind_palette.size() == infantry::kRigBoneCount);
 
@@ -117,7 +117,7 @@ int main() {
     const auto changed_model = compiler.compile(changed);
     assert(changed_model);
     const auto changed_prototype =
-        runtime::infantry_presentation::makePrototype(changed_model.value());
+        runtime::infantry_presentation::makePrototype(*changed_model.value().artifact);
     assert(changed_prototype);
     assert(changed_prototype != first);
     assert(changed_prototype->mesh_id != first->mesh_id);

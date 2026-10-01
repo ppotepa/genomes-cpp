@@ -79,16 +79,16 @@ int main() {
     request.uniform_color = genomes::infantry::kDefaultUniformColor;
     const auto model = compiler.compile(request);
     assert(model);
-    const auto body = auditWinding(model.value().appearance.body);
-    const auto hair = auditWinding(model.value().appearance.hair);
+    const auto body = auditWinding(model.value().artifact->appearance.body);
+    const auto hair = auditWinding(model.value().artifact->appearance.hair);
     assert(body.nonfinite == 0U && hair.nonfinite == 0U);
     assert(body.degenerate == 0U && hair.degenerate == 0U);
     assert(body.opposite_to_vertex_normal == 0U);
     assert(hair.opposite_to_vertex_normal == 0U);
-    assert(model.value().appearance.has_eye_openings);
-    assert(model.value().appearance.has_mouth_opening);
+    assert(model.value().artifact->appearance.has_eye_openings);
+    assert(model.value().artifact->appearance.has_mouth_opening);
     const auto anatomy = genomes::infantry::FaceAnatomyEvaluator::resolve(
-        model.value().phenotype);
+        model.value().artifact->phenotype);
     assert(anatomy);
     for (std::size_t index = 1U; index < anatomy.value().head_sections.size(); ++index) {
         assert(anatomy.value().head_sections[index].y >

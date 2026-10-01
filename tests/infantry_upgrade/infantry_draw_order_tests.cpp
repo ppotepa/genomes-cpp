@@ -18,7 +18,7 @@ int main() {
         request.detail_level = infantry::InfantryDetail::High;
         const auto generated = compiler.compile(request);
         check(generated, "infantry generation failed");
-        const auto& model = generated.value();
+        const auto& model = *generated.value().artifact;
         const auto source_indices = model.appearance.body.indices;
         const auto source_tags = model.appearance.body.tags;
         const auto reference = makePrototype(model, PrototypePreparation::ReferenceOrder);
@@ -51,8 +51,8 @@ int main() {
         next_request.seed = 8842U;
         const auto next = compiler.compile(next_request);
         check(next, "second infantry generation failed");
-        auto a = std::async(std::launch::async, [&] { return makePrototype(next.value()); });
-        auto b = std::async(std::launch::async, [&] { return makePrototype(next.value()); });
+        auto a = std::async(std::launch::async, [&] { return makePrototype(*next.value().artifact); });
+        auto b = std::async(std::launch::async, [&] { return makePrototype(*next.value().artifact); });
         const auto first = a.get();
         const auto second = b.get();
         check(first == second, "concurrent equivalent candidates were published twice");

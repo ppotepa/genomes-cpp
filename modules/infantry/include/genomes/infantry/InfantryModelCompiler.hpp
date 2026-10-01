@@ -8,12 +8,12 @@
 #include <genomes/infantry/EquipmentFit.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
+#include <genomes/proc/ArtifactCache.hpp>
 
-#include <cstdint>
 #include <atomic>
-#include <mutex>
-#include <optional>
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 namespace genomes::infantry {
@@ -48,7 +48,8 @@ struct InfantryModelRequest final {
     InfantryPalette palette{};
     double wear{0.0};
     // Compatibility alias used by existing callers until their palette UI is
-    // migrated. It remains part of the key and drives the current materials.
+    // migrated. It is normalized into `palette.uniform` before compilation
+    // and hashing.
     foundation::Color uniform_color{kDefaultUniformColor};
 };
 
@@ -64,33 +65,20 @@ struct InfantryModelArtifact final {
     foundation::StableId cache_key{0};
 };
 
+struct InfantryModelCompileResult final {
+    std::shared_ptr<const InfantryModelArtifact> artifact;
+    proc::ArtifactKey artifact_key{};
+};
+
 class InfantryModelCompiler final {
 public:
-    using CompileRevision = std::uint64_t;
-
-    // A revision identifies the most recent Unit Lab request.  Starting a new
-    // revision makes older work stale; callers may cancel it explicitly or by
-    // simply starting another revision before publishing the result.
-    [[nodiscard]] CompileRevision beginRevision() noexcept {
-        return revision_.fetch_add(1U, std::memory_order_acq_rel) + 1U;
-    }
-    void cancelRevision(CompileRevision revision) noexcept {
-        auto expected = revision;
-        (void)revision_.compare_exchange_strong(expected, revision + 1U,
-                                                 std::memory_order_acq_rel,
-                                                 std::memory_order_acquire);
-    }
-
     [[nodiscard]] static foundation::StableId canonicalRequestKey(
         const InfantryModelRequest&) noexcept;
+    [[nodiscard]] static proc::ArtifactKey artifactKey(
+        const InfantryModelRequest&) noexcept;
 
-    [[nodiscard]] foundation::Result<InfantryModelArtifact, foundation::Error>
+    [[nodiscard]] foundation::Result<InfantryModelCompileResult, foundation::Error>
     compile(const InfantryModelRequest& request);
-
-    [[nodiscard]] foundation::Result<InfantryModelArtifact, foundation::Error>
-    compile(const InfantryModelRequest& request, CompileRevision revision);
-
-    [[nodiscard]] std::optional<foundation::Error> lastError() const;
     [[nodiscard]] std::uint64_t cacheHits() const noexcept {
         return cache_hits_.load(std::memory_order_relaxed);
     }
@@ -100,12 +88,11 @@ public:
 
 private:
     mutable std::mutex mutex_;
-    std::optional<foundation::Error> last_error_;
-    std::unordered_map<foundation::StableId,
-                       std::shared_ptr<const InfantryModelArtifact>> cache_;
+    std::unordered_map<proc::ArtifactKey,
+                       std::shared_ptr<const InfantryModelArtifact>,
+                       proc::ArtifactKeyHash> cache_;
     std::atomic_uint64_t cache_hits_{0};
     std::atomic_uint64_t cache_misses_{0};
-    std::atomic<CompileRevision> revision_{0};
 };
 
 } // namespace genomes::infantry

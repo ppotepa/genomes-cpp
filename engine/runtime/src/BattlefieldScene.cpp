@@ -107,7 +107,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     model_request.seed = config_.seed;
     model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
     if (auto model = infantry_model_compiler_.compile(model_request); model) {
-        infantry_model_artifact_ = std::move(model.value());
+        infantry_model_artifact_ = std::move(model.value().artifact);
     }
 #endif
     camera_request_ = {};

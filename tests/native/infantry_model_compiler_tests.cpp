@@ -20,11 +20,15 @@ int main() {
     assert(InfantryModelCompiler::canonicalRequestKey(changed_request) != base_request_key);
     const auto first = compiler.compile(valid);
     assert(first);
-    const auto previous_key = first.value().cache_key;
+    const auto previous_key = first.value().artifact->cache_key;
+    assert(first.value().artifact_key == InfantryModelCompiler::artifactKey(valid));
+    const auto cached = compiler.compile(valid);
+    assert(cached);
+    assert(cached.value().artifact == first.value().artifact);
 
     const auto find_tag = [&](std::string_view name)
         -> const AppearanceVertexTag* {
-        for (const auto& tag : first.value().appearance.body.tags) {
+        for (const auto& tag : first.value().artifact->appearance.body.tags) {
             if (tag.name == name) return &tag;
         }
         return nullptr;
@@ -34,12 +38,12 @@ int main() {
     const auto* upper_right = find_tag("lidUpper.R");
     const auto* lower_right = find_tag("lidLower.R");
     assert(upper_left && lower_left && upper_right && lower_right);
-    assert(first.value().appearance.morphs[0].name == "eyelidsClose");
+    assert(first.value().artifact->appearance.morphs[0].name == "eyelidsClose");
     const auto closes_in_direction = [&](const AppearanceVertexTag& tag, bool downward) {
         bool found = false;
         for (const auto index : tag.vertices) {
-            assert(index < first.value().appearance.morphs[0].position_deltas.size());
-            const float dy = first.value().appearance.morphs[0].position_deltas[index].y;
+            assert(index < first.value().artifact->appearance.morphs[0].position_deltas.size());
+            const float dy = first.value().artifact->appearance.morphs[0].position_deltas[index].y;
             found = found || (downward ? dy < -1.0e-8F : dy > 1.0e-8F);
         }
         return found;
@@ -53,7 +57,7 @@ int main() {
     invalid.variation = 4.0;
     const auto failed = compiler.compile(invalid);
     assert(!failed);
-    assert(compiler.lastError().has_value());
+    assert(failed.error().code == genomes::foundation::ErrorCode::InvalidArgument);
 
     InfantryModelRequest invalid_detail = valid;
     invalid_detail.detail_level = static_cast<InfantryDetail>(0U);
@@ -75,7 +79,7 @@ int main() {
     precise_variation.variation = 1.0000000001;
     const auto precise = compiler.compile(precise_variation);
     assert(precise);
-    assert(precise.value().cache_key != previous_key);
+    assert(precise.value().artifact->cache_key != previous_key);
 
     EquipmentOverrideSet overrides{};
     overrides.slots[equipmentSlotIndex(EquipmentSlot::Head)] =
@@ -84,22 +88,21 @@ int main() {
     changed.equipment_overrides = overrides;
     const auto second = compiler.compile(changed);
     assert(second);
-    assert(second.value().cache_key != previous_key);
-    assert(compiler.lastError() == std::nullopt);
+    assert(second.value().artifact->cache_key != previous_key);
 
     InfantryModelRequest phenotype_changed = valid;
     phenotype_changed.genome_overrides.height = 1.90F;
     const auto third = compiler.compile(phenotype_changed);
     assert(third);
-    assert(third.value().cache_key != previous_key);
-    assert(third.value().phenotype.body.height == 1.90F);
+    assert(third.value().artifact->cache_key != previous_key);
+    assert(third.value().artifact->phenotype.body.height == 1.90F);
 
     InfantryModelRequest palette_changed = valid;
     palette_changed.palette.uniform = {0.18F, 0.31F, 0.52F, 1.0F};
     const auto palette_model = compiler.compile(palette_changed);
     assert(palette_model);
-    assert(palette_model.value().cache_key != previous_key);
-    assert(palette_model.value().appearance.body.materials.front().base_color.r == 0.18F);
+    assert(palette_model.value().artifact->cache_key != previous_key);
+    assert(palette_model.value().artifact->appearance.body.materials.front().base_color.r == 0.18F);
 
     std::array<genomes::foundation::StableId, 4U> parallel_keys{};
     std::array<std::thread, 4U> workers;
@@ -107,7 +110,7 @@ int main() {
         workers[index] = std::thread([&compiler, &valid, &parallel_keys, index] {
             const auto result = compiler.compile(valid);
             assert(result);
-            parallel_keys[index] = result.value().cache_key;
+            parallel_keys[index] = result.value().artifact->cache_key;
         });
     }
     for (auto& worker : workers) {
@@ -119,14 +122,16 @@ int main() {
     assert(compiler.cacheHits() >= workers.size());
     assert(compiler.cacheMisses() >= 4U);
 
-    const auto revision = compiler.beginRevision();
-    compiler.cancelRevision(revision);
-    const auto cancelled = compiler.compile(valid, revision);
-    assert(!cancelled);
-    assert(cancelled.error().code == genomes::foundation::ErrorCode::InvalidState);
-
-    const auto current_revision = compiler.beginRevision();
-    const auto revision_result = compiler.compile(valid, current_revision);
-    assert(revision_result);
+    InfantryModelRequest legacy_uniform = valid;
+    legacy_uniform.uniform_color = {0.18F, 0.31F, 0.52F, 1.0F};
+    InfantryModelRequest palette_equivalent = valid;
+    palette_equivalent.palette.uniform = legacy_uniform.uniform_color;
+    assert(InfantryModelCompiler::canonicalRequestKey(palette_equivalent) ==
+           InfantryModelCompiler::canonicalRequestKey(legacy_uniform));
+    const auto legacy = compiler.compile(legacy_uniform);
+    const auto normalized = compiler.compile(palette_equivalent);
+    assert(legacy);
+    assert(normalized);
+    assert(normalized.value().artifact == legacy.value().artifact);
     return 0;
 }

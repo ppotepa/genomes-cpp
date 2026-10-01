@@ -333,13 +333,13 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
 }
 
 void UnitLabScene::publishModelResult(
-    foundation::Result<infantry::InfantryModelArtifact, foundation::Error>&& compiled) {
+    foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>&& compiled) {
     if (!compiled) {
         last_generation_error_ = compiled.error();
         markDirty(UnitLabDirtyFlag::Ui);
         return;
     }
-    model_artifact_ = std::move(compiled.value());
+    model_artifact_ = std::move(compiled.value().artifact);
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
     locomotion_.reset();
@@ -392,7 +392,6 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         // Keep at most one active compile and one overwriteable request.  The
         // current prototype remains visible while the newest request waits.
         queued_model_request_ = std::move(request);
-        if (model_revision_ != 0U) model_compiler_.cancelRevision(model_revision_);
         markDirty(UnitLabDirtyFlag::Ui);
         return;
     }
@@ -400,24 +399,22 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         startModelRequest(*context, std::move(request));
         return;
     }
-    const auto revision = model_compiler_.beginRevision();
-    model_revision_ = revision;
-    publishModelResult(model_compiler_.compile(request, revision));
+    ++model_revision_;
+    publishModelResult(model_compiler_.compile(request));
 }
 
 void UnitLabScene::startModelRequest(SceneContext& context,
                                      infantry::InfantryModelRequest request) {
     // Every rebuild owns a revision.  A queued/older job can therefore not
     // publish a result after the preview has changed underneath it.
-    const auto revision = model_compiler_.beginRevision();
-    model_revision_ = revision;
+    const auto revision = ++model_revision_;
     const auto request_key = infantry::InfantryModelCompiler::canonicalRequestKey(request);
     model_request_key_ = request_key;
     const auto pending = std::make_shared<PendingModelResult>();
     pending_model_result_ = pending;
     model_job_ = context.jobs->submit(
             [this, request, revision, request_key, pending](jobs::JobContext&) mutable {
-                auto result = model_compiler_.compile(request, revision);
+                auto result = model_compiler_.compile(request);
                 {
                     std::lock_guard lock(pending->mutex);
                     pending->revision = revision;
@@ -453,9 +450,6 @@ void UnitLabScene::on_enter(SceneContext& context) {
 }
 
 void UnitLabScene::on_exit(SceneContext&) {
-    if (model_revision_ != 0U) {
-        model_compiler_.cancelRevision(model_revision_);
-    }
     if (model_job_.valid()) {
         model_job_.wait();
         model_job_ = {};
@@ -766,9 +760,9 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
 void UnitLabScene::frame_update(SceneContext& context, double) {
     if (model_job_.valid() && model_job_.isComplete()) {
         if (pending_model_result_) {
-            std::optional<foundation::Result<infantry::InfantryModelArtifact,
+            std::optional<foundation::Result<infantry::InfantryModelCompileResult,
                                               foundation::Error>> result;
-            infantry::InfantryModelCompiler::CompileRevision revision = 0U;
+            std::uint64_t revision = 0U;
             foundation::StableId request_key = 0U;
             {
                 std::lock_guard lock(pending_model_result_->mutex);

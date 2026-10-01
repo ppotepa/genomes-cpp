@@ -26,7 +26,8 @@ int main() {
     const auto model = compiler.compile(request);
     assert(model);
     std::array<std::uint32_t, genomes::infantry::kRigBoneCount> usage{};
-    for (const auto* mesh : {&model.value().appearance.body, &model.value().appearance.hair}) {
+    for (const auto* mesh : {&model.value().artifact->appearance.body,
+                             &model.value().artifact->appearance.hair}) {
         for (const auto& vertex : mesh->vertices) {
             for (std::size_t index = 0U; index < vertex.influence_count; ++index) {
                 if (vertex.influences[index].weight > 0.0F &&

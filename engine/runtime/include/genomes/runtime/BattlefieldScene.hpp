@@ -83,7 +83,7 @@ private:
     std::unique_ptr<gameplay::BattlefieldScenario> viability_scenario_;
     std::unique_ptr<infantry::InfantrySimulation> infantry_;
     infantry::InfantryModelCompiler infantry_model_compiler_;
-    std::optional<infantry::InfantryModelArtifact> infantry_model_artifact_;
+    std::shared_ptr<const infantry::InfantryModelArtifact> infantry_model_artifact_;
     struct InfantryAnimationAgent final {
         simulation::EntityId entity{};
         std::optional<infantry::LocomotionController> locomotion;
