@@ -204,6 +204,16 @@ bool UnitLabScene::applyCommand(SceneContext& context, SetGeneOverride command) 
     return true;
 }
 
+bool UnitLabScene::applyCommand(SceneContext&, SetAppearancePreset command) {
+    if (command.value != 0U && command.value != kInspectionOliveAppearancePreset) {
+        return false;
+    }
+    appearance_preset_ = command.value;
+    markDirty(UnitLabDirtyFlag::Material);
+    markDirty(UnitLabDirtyFlag::Ui);
+    return true;
+}
+
 bool UnitLabScene::applyCommand(SceneContext& context, const UnitLabCommand& command) {
     return std::visit([this, &context](const auto& typed) {
         return applyCommand(context, typed);
@@ -627,6 +637,13 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         rebuildModel(&context);
         return ui::UiActionResult::Handled;
     }
+    if (action == foundation::stable_id("unit.appearance-preset")) {
+        const auto command = parseUnitLabCommand(
+            "set-appearance-preset", std::array<std::string_view, 1>{text});
+        if (!command) return ui::UiActionResult::Rejected;
+        return applyCommand(context, command.value())
+            ? ui::UiActionResult::Handled : ui::UiActionResult::Rejected;
+    }
     if (action == foundation::stable_id("unit.side")) {
         static constexpr std::array<std::string_view, 3> names{"Side A", "Side B", "Neutral"};
         const auto it = std::find(names.begin(), names.end(), text);
@@ -980,7 +997,13 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         if (dirty_.contains(UnitLabDirtyFlag::Geometry) ||
             dirty_.contains(UnitLabDirtyFlag::Material) || !skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
-            skinned_prototype_ = infantry_presentation::makePrototype(*model_artifact_);
+            const auto base_prototype = infantry_presentation::makePrototype(*model_artifact_);
+            if (!base_prototype) return;
+            skinned_prototype_ = appearance_preset_ == 0U
+                ? base_prototype
+                : infantry_presentation::makeMaterialVariant(*base_prototype,
+                                                               appearance_preset_);
+            if (!skinned_prototype_) return;
             skinned_prototype_model_key_ = model_artifact_->cache_key;
             dirty_.clear(UnitLabDirtyFlag::Geometry);
             dirty_.clear(UnitLabDirtyFlag::Material);

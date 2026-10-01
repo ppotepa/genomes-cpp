@@ -1,6 +1,7 @@
 #include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/RigSchema.hpp>
 #include <genomes/runtime/InfantryPresentation.hpp>
+#include <genomes/runtime/UnitLabScene.hpp>
 
 #include <array>
 #include <cassert>
@@ -59,6 +60,13 @@ int main() {
     const auto second = runtime::infantry_presentation::makePrototype(*model.value().artifact);
     assert(first);
     assert(first == second);
+    const auto olive = runtime::infantry_presentation::makeMaterialVariant(
+        *first, runtime::kInspectionOliveAppearancePreset);
+    assert(olive && olive != first);
+    assert(olive->revision != first->revision);
+    assert(olive->vertices.size() == first->vertices.size());
+    assert(olive->indices == first->indices);
+    assert(olive->bones.size() == first->bones.size());
     assert(first->revision == model.value().artifact->cache_key);
     assert(first->skeleton);
     assert(first->skeleton->valid());

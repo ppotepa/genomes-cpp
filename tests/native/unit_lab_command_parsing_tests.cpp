@@ -59,6 +59,10 @@ int main() {
     const auto invalid_gene = parseSetGeneOverride("not-a-gene", "0.5");
     assert(!invalid_gene);
     assert(invalid_gene.error().field == "gene");
+    const auto appearance = parseSetAppearancePreset("inspection-olive");
+    assert(appearance && appearance.value().value == kInspectionOliveAppearancePreset);
+    assert(!parseSetAppearancePreset("random"));
+    assert(parseSetAppearancePreset("random").error().field == "preset");
 
     const std::array<std::string_view, 1> variation_args{"1.25"};
     const auto typed_variation = parseUnitLabCommand("set-variation", variation_args);
@@ -70,6 +74,11 @@ int main() {
     const auto typed_equipment = parseUnitLabCommand("set-equipment-slot", equipment_args);
     assert(typed_equipment);
     assert(std::holds_alternative<SetEquipmentSlot>(typed_equipment.value()));
+    const std::array<std::string_view, 1> appearance_args{"inspection-olive"};
+    const auto typed_appearance = parseUnitLabCommand(
+        "set-appearance-preset", appearance_args);
+    assert(typed_appearance);
+    assert(std::holds_alternative<SetAppearancePreset>(typed_appearance.value()));
     const std::array<std::string_view, 2> trailing_args{"height", "0.5 trailing"};
     const auto rejected = parseUnitLabCommand("set-gene-override", trailing_args);
     assert(!rejected);

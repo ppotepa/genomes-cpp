@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/render/RenderTypes.hpp>
+#include <genomes/foundation/Types.hpp>
 
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/FaceAnimation.hpp>
@@ -27,6 +28,12 @@ enum class PrototypePreparation {
 [[nodiscard]] std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model,
     PrototypePreparation preparation = PrototypePreparation::OptimizeDrawOrder);
+
+// Presentation-only material variants retain geometry, indices, skeleton and
+// morph buffers from the immutable prototype and receive a distinct revision.
+[[nodiscard]] std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
+    const render::SkinnedMeshPrototype& prototype,
+    foundation::StableId appearance_preset);
 
 [[nodiscard]] std::vector<std::array<float, 16U>> makeBindPalette(
     const infantry::SkeletonData& skeleton);

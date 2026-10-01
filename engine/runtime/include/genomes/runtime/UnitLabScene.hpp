@@ -104,9 +104,18 @@ struct SetGeneOverride final {
     double value{0.5};
 };
 
+inline constexpr foundation::StableId kInspectionOliveAppearancePreset =
+    foundation::stable_id("appearance.inspection-olive");
+inline constexpr std::uint32_t kAppearancePresetSchemaVersion = 1U;
+
+struct SetAppearancePreset final {
+    foundation::StableId value{0};
+};
+
 using UnitLabCommand = std::variant<SetVariation, SetCameraMode,
                                     SetLocomotionPreset, SetExpression,
-                                    SetEquipmentSlot, SetGeneOverride>;
+                                    SetEquipmentSlot, SetGeneOverride,
+                                    SetAppearancePreset>;
 
 class UnitLabScene final : public Scene {
 public:
@@ -140,6 +149,7 @@ private:
     bool applyCommand(SceneContext&, SetExpression);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool applyCommand(SceneContext&, SetGeneOverride);
+    bool applyCommand(SceneContext&, SetAppearancePreset);
     bool applyCommand(SceneContext&, const UnitLabCommand&);
     bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
@@ -156,6 +166,7 @@ private:
     std::uint32_t detail_level_{2U};
     std::size_t loadout_index_{0U};
     std::size_t palette_index_{0U};
+    foundation::StableId appearance_preset_{0};
     float equipment_wear_{0.0F};
     infantry::InfantrySide side_{infantry::InfantrySide::SideA};
     std::uint8_t active_tab_{0U};

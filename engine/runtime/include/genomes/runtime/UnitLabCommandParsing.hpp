@@ -199,6 +199,17 @@ parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
         {*gene, value.value()});
 }
 
+[[nodiscard]] inline UnitLabCommandResult<SetAppearancePreset>
+parseSetAppearancePreset(std::string_view text) {
+    if (text == "inspection-olive") {
+        return UnitLabCommandResult<SetAppearancePreset>::success(
+            {kInspectionOliveAppearancePreset});
+    }
+    return UnitLabCommandResult<SetAppearancePreset>::failure(unitLabDiagnostic(
+        "set-appearance-preset", "preset", text,
+        "unknown unit lab appearance preset"));
+}
+
 [[nodiscard]] inline UnitLabCommandResult<UnitLabCommand> parseUnitLabCommand(
     std::string_view command, std::span<const std::string_view> arguments) {
     const auto invalidArity = [&]() {
@@ -238,6 +249,12 @@ parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
     if (command == "set-gene-override") {
         if (arguments.size() != 2U) return invalidArity();
         const auto parsed = parseSetGeneOverride(arguments[0], arguments[1]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
+    if (command == "set-appearance-preset") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetAppearancePreset(arguments[0]);
         if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
         return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
     }
