@@ -625,16 +625,17 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
                 }
             }
         }
-        for (const world::BuildingSiteRequest& site : plan_->building_sites) {
-            const float radius_x = site.preferred_footprint.x * 0.55F;
-            const float radius_z = site.preferred_footprint.z * 0.55F;
+        for (const buildings::BuildingGenerationResult& building : resolved_buildings_) {
+            const world::BuildingSiteResolution& site = building.resolution;
+            const float radius_x = site.resolved_footprint.x * 0.55F;
+            const float radius_z = site.resolved_footprint.z * 0.55F;
             for (std::uint32_t z = 0; z < nav_cells; ++z) {
                 for (std::uint32_t x = 0; x < nav_cells; ++x) {
                     const foundation::Vec3 cell = {
                         -half_map_f + (static_cast<float>(x) + 0.5F) * 8.0F, 0.0F,
                         -half_map_f + (static_cast<float>(z) + 0.5F) * 8.0F};
-                    if (std::abs(cell.x - site.preferred_position.x) <= radius_x &&
-                        std::abs(cell.z - site.preferred_position.z) <= radius_z) {
+                    if (std::abs(cell.x - site.world_position.x) <= radius_x &&
+                        std::abs(cell.z - site.world_position.z) <= radius_z) {
                         (void)navigation_->setBlocked(x, z, true);
                     }
                 }
