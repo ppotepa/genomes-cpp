@@ -87,7 +87,6 @@ public:
     [[nodiscard]] foundation::Result<InfantryModelArtifact, foundation::Error>
     compile(const InfantryModelRequest& request, CompileRevision revision);
 
-    [[nodiscard]] std::optional<InfantryModelArtifact> lastSuccessful() const;
     [[nodiscard]] std::optional<foundation::Error> lastError() const;
     [[nodiscard]] std::uint64_t cacheHits() const noexcept {
         return cache_hits_.load(std::memory_order_relaxed);
@@ -98,7 +97,6 @@ public:
 
 private:
     mutable std::mutex mutex_;
-    std::optional<InfantryModelArtifact> last_successful_;
     std::optional<foundation::Error> last_error_;
     std::unordered_map<foundation::StableId,
                        std::shared_ptr<const InfantryModelArtifact>> cache_;

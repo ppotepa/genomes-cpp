@@ -46,8 +46,6 @@ int main() {
     invalid.variation = 4.0;
     const auto failed = compiler.compile(invalid);
     assert(!failed);
-    assert(compiler.lastSuccessful().has_value());
-    assert(compiler.lastSuccessful()->cache_key == previous_key);
     assert(compiler.lastError().has_value());
 
     InfantryModelRequest invalid_detail = valid;

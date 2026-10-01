@@ -69,7 +69,6 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request,
         if (const auto found = cache_.find(request_key); found != cache_.end()) {
             ++cache_hits_;
             last_error_.reset();
-            last_successful_ = *found->second;
             return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
                 *found->second);
         }
@@ -204,21 +203,13 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request,
             // canonical artifact instead of replacing it with an equivalent
             // duplicate.
             ++cache_hits_;
-            last_successful_ = *found->second;
             return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
                 *found->second);
         }
-        last_successful_ = result;
         cache_[request_key] = std::make_shared<const InfantryModelArtifact>(result);
     }
     return foundation::Result<InfantryModelArtifact, foundation::Error>::success(
         std::move(result));
-}
-
-std::optional<InfantryModelArtifact>
-InfantryModelCompiler::lastSuccessful() const {
-    std::scoped_lock lock(mutex_);
-    return last_successful_;
 }
 
 std::optional<foundation::Error> InfantryModelCompiler::lastError() const {
