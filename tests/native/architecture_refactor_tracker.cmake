@@ -149,6 +149,35 @@ foreach(product_consumer IN ITEMS
     endif()
 endforeach()
 
+# The production scene may still carry its legacy graph while the ownership
+# migration is in progress, but one session tick must dispatch exactly one
+# authoritative pipeline. Keep the runtime handoff ahead of the compatibility
+# fallback and require an explicit return before the legacy graph can run.
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/BattlefieldScene.cpp"
+     battlefield_scene_source)
+string(FIND "${battlefield_scene_source}" "battlefield_runtime_ != nullptr"
+       battlefield_runtime_guard_position)
+string(FIND "${battlefield_scene_source}" "battlefield_runtime_->fixedUpdate"
+       battlefield_runtime_tick_position)
+string(FIND "${battlefield_scene_source}" "simulation_graph_.run"
+       battlefield_legacy_tick_position)
+if(battlefield_runtime_guard_position EQUAL -1 OR
+   battlefield_runtime_tick_position EQUAL -1 OR
+   battlefield_legacy_tick_position EQUAL -1 OR
+   battlefield_runtime_tick_position GREATER battlefield_legacy_tick_position)
+    message(FATAL_ERROR
+            "BattlefieldScene lost the runtime-before-legacy tick handoff")
+endif()
+math(EXPR battlefield_tick_region_length
+     "${battlefield_legacy_tick_position} - ${battlefield_runtime_tick_position}")
+string(SUBSTRING "${battlefield_scene_source}"
+       ${battlefield_runtime_tick_position} ${battlefield_tick_region_length}
+       battlefield_tick_region)
+if(NOT battlefield_tick_region MATCHES "return;")
+    message(FATAL_ERROR
+            "BattlefieldScene may not run its legacy graph after runtime tick")
+endif()
+
 file(READ "${tracker}" tracker_text)
 
 if(NOT tracker_text MATCHES "4735977aa8b839c8ef53cd7631d8f15dbc0068f1")

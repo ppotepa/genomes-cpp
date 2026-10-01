@@ -316,10 +316,23 @@ void BattlefieldScene::fixed_update(SceneContext&, double dt) {
     (void)dt;
     return;
 #else
-    if (battlefield_runtime_ != nullptr && !battlefield_runtime_->complete()) {
-        battlefield_runtime_->fixedUpdate(
-            simulation::TickContext{simulation_tick_, dt,
-                                    simulation::SessionSimulationTickRateHz});
+    const simulation::TickContext tick_context{
+        simulation_tick_, dt, simulation::SessionSimulationTickRateHz};
+    if (battlefield_runtime_ != nullptr) {
+        if (!battlefield_runtime_->complete()) {
+            // The runtime is the sole authoritative owner for this tick. The
+            // scene graph remains a compatibility fallback until its state is
+            // transferred into BattlefieldRuntime; running both would advance
+            // two ECS/physics/combat pipelines for one session tick.
+            battlefield_runtime_->fixedUpdate(tick_context);
+        }
+        if (!battlefield_runtime_->snapshot().error.empty()) {
+            generation_error_ = "Battlefield runtime failed: " +
+                                battlefield_runtime_->snapshot().error;
+            simulation_failed_ = true;
+        }
+        evaluate_infantry_animation(static_cast<float>(dt));
+        return;
     }
     if (!infantry_) {
         return;
