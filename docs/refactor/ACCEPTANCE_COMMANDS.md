@@ -1,7 +1,7 @@
 # Architecture refactor acceptance commands
 
 These commands are the user-owned verification handoff for source baseline
-`a27a06f` (the namespace compile-fix and disposition guard are included). They do not turn source
+`6d402eb` (the infantry-off parser and remaining Unit Lab namespace clients are included). They do not turn source
 guards into `VERIFIED`; each result must be recorded with the exact tested SHA
 in `ARCHITECTURE_REFACTOR_TRACKER.md`.
 

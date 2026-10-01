@@ -111,7 +111,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR14 | all project CMake and source/config guards | preset matrix, target visibility, public-header consumers and structural guards reviewed at `ceda2e6`; target configure/build closure remains user verification |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema and fixture-consuming infantry benchmarks reviewed at `8908d43`; reports retain raw samples and explicitly show `BASELINE_REQUIRED`; WAIT_BASELINE for user evidence |
-| PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime namespace/header boundary, authoritative Battlefield fallback removal, final CLI migration, disposition register and all in-tree `genomes::world` CMake links reviewed at `a27a06f`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
+| PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime namespace/header boundary, authoritative Battlefield fallback removal, final CLI migration, infantry-off parser and Unit Lab namespace clients, disposition register and all in-tree `genomes::world` CMake links reviewed at `6d402eb`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
 
 ## Literal classification K1-K6
 

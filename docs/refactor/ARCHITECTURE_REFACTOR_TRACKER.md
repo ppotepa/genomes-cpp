@@ -75,7 +75,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | CODE_READY | ceda2e6 | NOT_RUN | - | Shared CMake manifest validation checks schema, provenance, unique family IDs, safe roots and formats; public-header consumer sources cover core targets. Full target-closure review remains open. |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | CODE_READY | e280e5d | NOT_RUN | - | Stable ID/schema are declared, strict typed parsing accepts only `inspection-olive`, the feature card records provenance/determinism/cache/error policy, and a presentation test proves geometry/indices remain unchanged. |
 | R054 | PR16 | performance | REF | Only measured optimizations ship; execution tuning preserves D1/D2 results and meets the stated target/p95 acceptance gate. | CODE_READY | 8908d43 | NOT_RUN | - | `PR16_MEASUREMENT_GATE.md`, the versioned input/schema fixture and both infantry benchmark consumers agree on the required profile, seeds, warmups, raw samples, metrics and D1/D2 gate. Reports explicitly remain `BASELINE_REQUIRED`; allocations/bytes are `NOT_INSTRUMENTED`, no optimization is implemented, and user baseline/evidence are still required. |
-| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | ACCEPTED_DEFERRED | a27a06f | NOT_RUN | - | CodeGraph/source review removed the proven-unused runtime forwarding/product-scene headers and local Battlefield fallback, split every project CMake world client to `world_core` or `world_generation`, added explicit target/header/namespace guards, fixed the final migrated CLI call site, and structurally validates all 55 final dispositions. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; user-owned build/CTest/GPU evidence remains outside this source-only slice. |
+| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | ACCEPTED_DEFERRED | 6d402eb | NOT_RUN | - | CodeGraph/source review removed the proven-unused runtime forwarding/product-scene headers and local Battlefield fallback, split every project CMake world client to `world_core` or `world_generation`, added explicit target/header/namespace guards, fixed the final migrated CLI call site and remaining infantry-off/Unit Lab namespace clients, and structurally validates all 55 final dispositions. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; user-owned build/CTest/GPU evidence remains outside this source-only slice. |
 
 Kinds: `REF` preserves behavior/contracts while moving ownership, `FIX` requires
 a counterexample regression, `DATA` requires old/new parity, and `EXT` creates a
@@ -148,7 +148,7 @@ used by this program.
 | R052 | implemented | ceda2e6 | CMake/guard/header source slice is present; T27-T28 and closure review remain NOT_RUN. |
 | R053 | implemented | e280e5d | Data-only inspection-olive source slice is present; T13/T28 are NOT_RUN. |
 | R054 | implemented | 8908d43 | Measurement harness/source contract is present; baseline and optimization gate are deferred pending user evidence. |
-| R055 | accepted-deferred | a27a06f | In-tree target/header/fallback/CLI closure and all 55 per-row dispositions are reviewed and guard-checked. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
+| R055 | accepted-deferred | 6d402eb | In-tree target/header/fallback/CLI closure, infantry-off/Unit Lab namespace clients and all 55 per-row dispositions are reviewed and guard-checked. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
 
 ## Package register
 
@@ -171,7 +171,7 @@ used by this program.
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | CODE_READY | 8908d43 | NOT_RUN | - |
-| PR17 | Migration closure | R055 | ACCEPTED_DEFERRED | a27a06f | NOT_RUN | - |
+| PR17 | Migration closure | R055 | ACCEPTED_DEFERRED | 6d402eb | NOT_RUN | - |
 
 ## Acceptance scenario register
 
