@@ -8,6 +8,7 @@
 #include <genomes/terrain/HeightField.hpp>
 #include <genomes/terrain/TerrainMesh.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
+#include <genomes/world/WorldArtifactRevision.hpp>
 #include <genomes/world/WorldSave.hpp>
 #include <genomes/world/WorldStreamer.hpp>
 
@@ -42,6 +43,7 @@ struct WorldSemanticSnapshot final {
 // request/seed and is kept here so consumers cannot accidentally render one
 // world while querying another.
 struct WorldScenarioArtifact final {
+    world::WorldArtifactRevision revision{0U};
     world::WorldPlan plan{};
     std::optional<terrain::HeightField> terrain;
     std::optional<terrain::TerrainMesh> terrain_mesh;
@@ -51,7 +53,8 @@ struct WorldScenarioArtifact final {
     std::vector<std::byte> save_package;
 
     [[nodiscard]] bool valid() const noexcept {
-        return plan.content_hash != 0U && !plan.features.empty() && terrain.has_value() &&
+        return revision == world::artifactRevision(plan) && plan.content_hash != 0U &&
+               !plan.features.empty() && terrain.has_value() &&
                terrain_mesh.has_value() && terrain->width() >= 2U &&
                terrain->height() >= 2U && !terrain_mesh->vertices.empty() &&
                !terrain_mesh->indices.empty() &&

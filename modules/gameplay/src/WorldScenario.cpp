@@ -213,6 +213,7 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
 
     WorldScenarioArtifact artifact{};
     artifact.plan = std::move(plan);
+    artifact.revision = world::artifactRevision(artifact.plan);
     artifact.resolved_buildings.reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
         auto building = buildings::BuildingGenerator::generateSite(site);

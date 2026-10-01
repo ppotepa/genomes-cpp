@@ -23,7 +23,10 @@ int main() {
     plan.building_sites.emplace_back();
     // A presentation compiler receives resolved plans; it must not silently
     // regenerate this site or accept a mixed-resolution artifact.
-    assert(!world_render::WorldMeshCompiler::compile(plan, terrain.value(), {}));
+    const world::WorldArtifactRevision revision = world::artifactRevision(plan);
+    assert(!world_render::WorldMeshCompiler::compile(plan, terrain.value(), {}, revision));
+    assert(!world_render::WorldMeshCompiler::compile(
+        plan, terrain.value(), {}, revision + 1U));
 
     buildings::BuildingGenerationResult resolved{};
     constexpr foundation::StableId part_id = 0xB17U;
@@ -33,8 +36,9 @@ int main() {
     const std::array<buildings::BuildingGenerationResult, 1U> resolved_buildings{
         std::move(resolved)};
     const auto compiled = world_render::WorldMeshCompiler::compile(
-        plan, terrain.value(), resolved_buildings);
+        plan, terrain.value(), resolved_buildings, revision);
     assert(compiled && compiled.value().mesh);
+    assert(compiled.value().source_revision == revision);
     const auto range = compiled.value().part_draw_ranges.find(part_id);
     assert(range != compiled.value().part_draw_ranges.end());
     assert(range->second.index_count == 36U);

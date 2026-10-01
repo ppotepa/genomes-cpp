@@ -534,11 +534,16 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     const gameplay::WorldScenarioArtifact* shared_artifact =
         scenario_ != nullptr ? scenario_->activeArtifact() : nullptr;
     if (shared_artifact != nullptr && shared_artifact->plan.content_hash == plan_->content_hash &&
+        shared_artifact->revision == world::artifactRevision(*plan_) &&
         shared_artifact->terrain.has_value() && shared_artifact->terrain_mesh.has_value() &&
         shared_artifact->resolved_buildings.size() == plan_->building_sites.size()) {
         terrain_ = shared_artifact->terrain;
         terrain_mesh_ = shared_artifact->terrain_mesh;
         resolved_buildings_ = shared_artifact->resolved_buildings;
+    } else if (scenario_ != nullptr) {
+        generation_error_ = "world scenario did not publish a matching resolved artifact";
+        plan_.reset();
+        return;
     } else {
         resolved_buildings_.reserve(plan_->building_sites.size());
         for (const world::BuildingSiteRequest& site : plan_->building_sites) {
@@ -595,7 +600,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
     render_terrain_mesh_ = std::move(render_mesh);
     const auto world_mesh_result = world_render::WorldMeshCompiler::compile(
-        *plan_, *terrain_, resolved_buildings_);
+        *plan_, *terrain_, resolved_buildings_, world::artifactRevision(*plan_));
     if (!world_mesh_result) {
         generation_error_ = std::string(world_mesh_result.error().message);
         plan_.reset();

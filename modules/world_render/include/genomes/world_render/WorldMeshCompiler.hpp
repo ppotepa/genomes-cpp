@@ -6,6 +6,7 @@
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/terrain/HeightField.hpp>
 #include <genomes/world/WorldPlan.hpp>
+#include <genomes/world/WorldArtifactRevision.hpp>
 
 #include <memory>
 #include <cstdint>
@@ -20,6 +21,7 @@ struct WorldMeshDrawRange final {
 };
 
 struct WorldMeshArtifact final {
+    world::WorldArtifactRevision source_revision{0U};
     std::shared_ptr<const render::RenderMesh> mesh;
     std::unordered_map<foundation::StableId, WorldMeshDrawRange> part_draw_ranges;
 };
@@ -32,7 +34,8 @@ class WorldMeshCompiler final {
 public:
     [[nodiscard]] static foundation::Result<WorldMeshArtifact, foundation::Error>
     compile(const world::WorldPlan&, const terrain::HeightField&,
-            std::span<const buildings::BuildingGenerationResult> resolved_buildings);
+            std::span<const buildings::BuildingGenerationResult> resolved_buildings,
+            world::WorldArtifactRevision source_revision);
 };
 
 } // namespace genomes::world_render

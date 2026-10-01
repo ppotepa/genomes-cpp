@@ -16,6 +16,7 @@ int main() {
     assert(scenario.activeRequest()->seed == request.seed);
     const auto* artifact = scenario.activeArtifact();
     assert(artifact != nullptr && artifact->valid());
+    assert(artifact->revision == world::artifactRevision(artifact->plan));
     assert(artifact->resolved_buildings.size() == artifact->plan.building_sites.size());
 
     world::WorldGenerationRequest invalid = request;

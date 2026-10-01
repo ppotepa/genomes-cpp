@@ -171,11 +171,16 @@ void append_river(render::RenderMesh& mesh,
 
 foundation::Result<WorldMeshArtifact, foundation::Error>
 WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightField& terrain,
-                           std::span<const buildings::BuildingGenerationResult> resolved_buildings) {
+                           std::span<const buildings::BuildingGenerationResult> resolved_buildings,
+                           world::WorldArtifactRevision source_revision) {
     if (plan.map_size_m == 0 || plan.features.empty() || terrain.width() < 2 ||
         terrain.height() < 2 || !std::isfinite(terrain.cellSize()) || terrain.cellSize() <= 0.0F) {
         return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid world presentation inputs"});
+    }
+    if (source_revision == 0U || source_revision != world::artifactRevision(plan)) {
+        return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "mixed world artifact revision"});
     }
 
     auto mesh = std::make_shared<render::RenderMesh>();
@@ -275,7 +280,7 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
             {foundation::ErrorCode::InvalidState, "world plan compiled to an empty mesh"});
     }
     return foundation::Result<WorldMeshArtifact, foundation::Error>::success(
-        {std::move(mesh), std::move(part_draw_ranges)});
+        {source_revision, std::move(mesh), std::move(part_draw_ranges)});
 }
 
 } // namespace genomes::world_render
