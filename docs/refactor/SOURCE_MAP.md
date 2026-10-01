@@ -18,7 +18,7 @@ must never be staged, reset or overwritten by this program.
 | Physics/navigation | `engine/{physics,navigation}/CMakeLists.txt` | `genomes::physics`, `navigation` | PR07, PR09 |
 | Presentation | `engine/render/CMakeLists.txt`, `engine/render/{core,graph,gpu_scene,compute,diligent}` | `genomes::render*`, Diligent-only production backend | PR09, PR13, PR16 |
 | Runtime | `engine/runtime/CMakeLists.txt`, `engine/game_scenes/CMakeLists.txt` | `genomes::runtime_core`, `genomes::game_scenes`, `genomes::application_scenes` | PR08, PR12 |
-| World domains | `engine/world`, `modules/{terrain,hydrology,roads,buildings,world_render}` | `genomes::world_core`, `genomes::world_generation`, aggregate `genomes::world`, and corresponding `genomes::*` libraries | PR03, PR09, PR10 |
+| World domains | `engine/world`, `modules/{terrain,hydrology,roads,buildings,world_render}` | `genomes::world_core`, `genomes::world_generation`, and corresponding `genomes::*` libraries | PR03, PR09, PR10 |
 | Combat domains | `modules/{combat,weapons,ballistics,infantry,gameplay}` | corresponding `genomes::*` static libraries | PR02, PR06-PR07, PR10-PR11 |
 | Destruction | `modules/destruction/CMakeLists.txt` | `genomes::destruction` | PR07, PR09 |
 | Applications | `apps/{game,headless,menu,proc_viewer,asset_probe,render_smoke}` | product and diagnostic executables | PR06, PR08, PR12, PR15 |
@@ -34,11 +34,12 @@ count is not proof of a clean dependency closure.
 Source review at `824f35f` found no in-tree CMake consumer of the
 `genomes::runtime` compatibility aggregate. That bridge was removed, while the
 runtime core and application-scene aliases remain explicit. The
-`genomes::world` aggregate was retained because modules, applications,
-benchmarks and native tests still link it. The source guard in
-`tests/native/architecture_refactor_tracker.cmake` prevents the removed
-runtime aggregate from returning. This closes the source-review slice only;
-configure/build/CTest and external-consumer compatibility are still pending.
+The `genomes::world` aggregate was removed at `d789c5a` after all project CMake
+clients were split between `genomes::world_core` and
+`genomes::world_generation`. The source guard in
+`tests/native/architecture_refactor_tracker.cmake` prevents the aggregate from
+returning. This closes the target-link source-review slice only; configure,
+build, CTest and external-consumer compatibility are still pending.
 
 ## Public-header inventory
 
