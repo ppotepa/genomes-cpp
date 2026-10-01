@@ -214,6 +214,18 @@ foreach(_required IN ITEMS
     _require_text(_tests "${_required}"
                   "Public-header consumer closure is incomplete")
 endforeach()
+foreach(_consumer IN ITEMS
+        "genomes_test_public_header_runtime_consumer"
+        "genomes_test_public_header_simulation_consumer"
+        "genomes_test_public_header_render_consumer"
+        "genomes_test_public_header_game_scenes_consumer")
+    _require_text(_tests "${_consumer}"
+                  "Minimal public-header consumer is missing")
+endforeach()
+if(_tests MATCHES "GENOMES_ENABLE_INFANTRY")
+    _require_text(_tests "genomes_test_public_header_infantry_consumer"
+                  "Infantry public-header consumer is missing")
+endif()
 foreach(_header_consumer IN ITEMS
         public_header_building_profile.cpp public_header_content.cpp
         public_header_gameplay.cpp public_header_navigation.cpp
@@ -222,6 +234,12 @@ foreach(_header_consumer IN ITEMS
         public_header_world_generation_profile.cpp public_header_world_render.cpp)
     if(NOT EXISTS "${_root}/tests/native/${_header_consumer}")
         message(FATAL_ERROR "Public-header consumer source is missing: ${_header_consumer}")
+    endif()
+endforeach()
+foreach(_header_consumer IN ITEMS public_header_runtime.cpp public_header_simulation.cpp
+        public_header_render.cpp public_header_game_scenes.cpp public_header_infantry.cpp)
+    if(NOT EXISTS "${_root}/tests/native/${_header_consumer}")
+        message(FATAL_ERROR "Minimal public-header source is missing: ${_header_consumer}")
     endif()
 endforeach()
 

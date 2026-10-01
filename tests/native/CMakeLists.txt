@@ -144,6 +144,53 @@ add_test(NAME architecture.public_header_consumer
 set_tests_properties(architecture.public_header_consumer PROPERTIES
     LABELS "source;cpu;architecture")
 
+add_executable(genomes_test_public_header_runtime_consumer public_header_runtime.cpp)
+target_link_libraries(genomes_test_public_header_runtime_consumer PRIVATE genomes::runtime_core)
+genomes_set_project_warnings(genomes_test_public_header_runtime_consumer)
+genomes_enable_test_assertions(genomes_test_public_header_runtime_consumer)
+add_test(NAME architecture.public_header_runtime_consumer
+    COMMAND genomes_test_public_header_runtime_consumer)
+set_tests_properties(architecture.public_header_runtime_consumer PROPERTIES
+    LABELS "source;cpu;architecture")
+
+add_executable(genomes_test_public_header_simulation_consumer public_header_simulation.cpp)
+target_link_libraries(genomes_test_public_header_simulation_consumer PRIVATE genomes::simulation)
+genomes_set_project_warnings(genomes_test_public_header_simulation_consumer)
+genomes_enable_test_assertions(genomes_test_public_header_simulation_consumer)
+add_test(NAME architecture.public_header_simulation_consumer
+    COMMAND genomes_test_public_header_simulation_consumer)
+set_tests_properties(architecture.public_header_simulation_consumer PROPERTIES
+    LABELS "source;cpu;architecture")
+
+add_executable(genomes_test_public_header_render_consumer public_header_render.cpp)
+target_link_libraries(genomes_test_public_header_render_consumer PRIVATE genomes::render_core)
+genomes_set_project_warnings(genomes_test_public_header_render_consumer)
+genomes_enable_test_assertions(genomes_test_public_header_render_consumer)
+add_test(NAME architecture.public_header_render_consumer
+    COMMAND genomes_test_public_header_render_consumer)
+set_tests_properties(architecture.public_header_render_consumer PROPERTIES
+    LABELS "source;cpu;architecture")
+
+add_executable(genomes_test_public_header_game_scenes_consumer public_header_game_scenes.cpp)
+target_link_libraries(genomes_test_public_header_game_scenes_consumer PRIVATE genomes::application_scenes)
+genomes_set_project_warnings(genomes_test_public_header_game_scenes_consumer)
+genomes_enable_test_assertions(genomes_test_public_header_game_scenes_consumer)
+add_test(NAME architecture.public_header_game_scenes_consumer
+    COMMAND genomes_test_public_header_game_scenes_consumer)
+set_tests_properties(architecture.public_header_game_scenes_consumer PROPERTIES
+    LABELS "source;cpu;architecture")
+
+if(GENOMES_ENABLE_INFANTRY)
+    add_executable(genomes_test_public_header_infantry_consumer public_header_infantry.cpp)
+    target_link_libraries(genomes_test_public_header_infantry_consumer PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_public_header_infantry_consumer)
+    genomes_enable_test_assertions(genomes_test_public_header_infantry_consumer)
+    add_test(NAME architecture.public_header_infantry_consumer
+        COMMAND genomes_test_public_header_infantry_consumer)
+    set_tests_properties(architecture.public_header_infantry_consumer PROPERTIES
+        LABELS "source;cpu;architecture;infantry")
+endif()
+
 add_executable(genomes_test_world_core_namespace_boundary
     world_core_namespace_boundary_tests.cpp)
 target_link_libraries(genomes_test_world_core_namespace_boundary PRIVATE
