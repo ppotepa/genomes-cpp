@@ -6,7 +6,7 @@ Baseline commit: `4735977aa8b839c8ef53cd7631d8f15dbc0068f1`
 
 Denominators: **55 decisions / 18 packages / 28 acceptance scenarios**.
 
-Current source progress: **50/55 decisions CODE_READY; 14/18 packages complete**.
+Current source progress: **51/55 decisions CODE_READY; 15/18 packages complete**.
 Verification progress: **0/28 acceptance scenarios verified**.
 
 This tracker records source readiness separately from verification. `CODE_READY`
@@ -55,7 +55,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | CODE_READY | e4432bc | NOT_RUN | - | Dedicated source contract now checks WeaponController→FireIntent/FireRequest→BallisticsWorld→ImpactEvent/DamageCommand, packed EntityId source/target mapping, phase order, and exactly one physics step; runtime/CTest verification remains pending. |
 | R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
 | R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | CODE_READY | 67fe486 | NOT_RUN | - | `WorldGenerationConfig` and `WorldSeedInput` are application-owned; `SceneContext`/`SceneDirector` no longer carry world configuration; runtime target no longer exports world-generation include paths; product scene implementations use application-owned config handoff. `application_command_boundary`, `composition_root_guard`, `architecture_refactor_tracker` and syntax-only checks pass; CTest remains `NOT_RUN`. |
-| R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | PLANNED | 10b1ba5 | NOT_RUN | - | Application command payloads now live in `genomes::application`, with a composition-root dynamic dispatch and `architecture.application_command_boundary` source guard; complete catalog/backend ownership remains open. |
+| R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | CODE_READY | 59b0a1d | NOT_RUN | - | `BuiltinSceneCatalog` and its factory type are owned by `genomes::application`; `GameApplication` keeps the catalog for the session and the menu composition root owns its catalog instance. The application catalog installs the typed action router and scene-command handoff, while `SceneDirector` retains only lifecycle/registration. `architecture.composition_root`, `architecture.application_command_boundary`, `architecture.refactor_tracker` and syntax-only checks pass; configure/build/CTest remain `NOT_RUN`. |
 | R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | CODE_READY | 361b36c | NOT_RUN | - | `menu_smoke` covers duplicate/frozen registration and an unavailable scene that leaves no current scene and reports `UnavailableFeature`; infantry-off builtin registration uses that path. |
 | R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | CODE_READY | f4c5cbb | NOT_RUN | - | `genomes::world_core` owns the canonical coordinate/ID, query, save and site contracts; `genomes::world_generation` compiles City/World generators and streaming orchestration without hydrology/roads in core; legacy `genomes::world` headers forward as compatibility aliases. `architecture.refactor_tracker` and `world_core.namespace_boundary` cover the boundary; user CTest remains pending. |
 | R038 | PR09 | world | FIX | `GridLayout` is the sole cells/samples/spacing/extent source; current map size must be divisible by 8 m. | CODE_READY | 0803931 | NOT_RUN | - | `WorldScenario` and Battlefield terrain/navigation now derive samples, cells, spacing and origin from the same layout; `world.grid_layout` covers valid bounds and 129/601 rejection, with artifact dimensions asserted in `native_world_assembly`. |
@@ -93,7 +93,7 @@ new explicitly versioned capability or contract.
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | be465f4 | NOT_RUN | - |
-| PR08 | Product scenes outside runtime | R034-R036 | PLANNED | 10b1ba5 | NOT_RUN | - |
+| PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 59b0a1d | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | f4c5cbb | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | PLANNED | f675811 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
