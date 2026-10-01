@@ -600,6 +600,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     camera_request_.up = {0.0F, 1.0F, 0.0F};
     camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
     physics_.setGroundHeightQuery({&*terrain_, &sample_ground});
+    physics_.bindWorldRevision(world::artifactRevision(*plan_));
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
     render_mesh->vertices.reserve(terrain_mesh_->vertices.size());
@@ -629,6 +630,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     navigation_ = std::make_unique<navigation::GridNavigationWorld>(
         navigation::NavGridSpec{nav_cells, nav_cells, 8.0F,
                                 {-half_map_f, 0.0F, -half_map_f}});
+    if (navigation_) {
+        navigation_->bindWorldRevision(world::artifactRevision(*plan_));
+    }
     if (navigation_ && navigation_->valid()) {
         for (std::uint32_t z = 0; z < nav_cells; ++z) {
             for (std::uint32_t x = 0; x < nav_cells; ++x) {

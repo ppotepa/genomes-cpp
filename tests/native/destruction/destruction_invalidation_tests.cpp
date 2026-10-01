@@ -17,6 +17,15 @@ int main() {
     DestructionInvalidationQueue queue{config};
     const WorldId world_id{7U};
 
+    queue.bindWorldRevision(2U);
+    assert(!queue.emit(world_id, 99U, 1U,
+                       {{0.0F, 0.0F, 0.0F}, {1.0F, 1.0F, 1.0F}},
+                       static_cast<DirtyReasonMask>(DirtyReason::Cover)));
+    assert(queue.emit(world_id, 99U, 2U,
+                      {{0.0F, 0.0F, 0.0F}, {1.0F, 1.0F, 1.0F}},
+                      static_cast<DirtyReasonMask>(DirtyReason::Cover)));
+    queue.clearWorldRevision();
+
     assert(queue.emit(world_id,
                       100U,
                       1U,

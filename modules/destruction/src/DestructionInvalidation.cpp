@@ -44,6 +44,7 @@ bool DestructionInvalidationQueue::emit(world::WorldId world_id,
                                         world::DirtyReasonMask reasons,
                                         std::int32_t layer) {
     if (!config_.valid() || !world_id.isValid() || source_id == 0 || semantic_revision == 0 ||
+        (world_revision_ != 0U && semantic_revision != world_revision_) ||
         reasons == 0U || !bounds.valid()) {
         return false;
     }
@@ -94,7 +95,8 @@ bool DestructionInvalidationQueue::emit(world::WorldId world_id,
 }
 
 bool DestructionInvalidationQueue::emit(const world::DirtyBounds& event) {
-    if (!config_.valid() || !event.valid()) {
+    if (!config_.valid() || !event.valid() ||
+        (world_revision_ != 0U && event.semantic_revision != world_revision_)) {
         return false;
     }
     enqueue(event);
@@ -107,7 +109,8 @@ bool DestructionInvalidationQueue::emitRubbleTile(world::WorldId world_id,
                                                   const RubbleField& field,
                                                   TileCoord tile) {
     const auto iterator = field.tiles().find(tile);
-    if (iterator == field.tiles().end() || !config_.valid()) {
+    if (iterator == field.tiles().end() || !config_.valid() ||
+        (world_revision_ != 0U && semantic_revision != world_revision_)) {
         return false;
     }
     const RubbleFieldSpec& spec = field.spec();

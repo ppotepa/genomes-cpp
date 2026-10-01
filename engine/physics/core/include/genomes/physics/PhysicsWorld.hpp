@@ -149,6 +149,8 @@ public:
     // terrain module; adapters can provide a height query or leave the
     // deterministic flat fallback at y=0.
     void setGroundHeightQuery(GroundHeightQuery query) noexcept { ground_query_ = query; }
+    void bindWorldRevision(std::uint64_t revision) noexcept { world_revision_ = revision; }
+    [[nodiscard]] std::uint64_t worldRevision() const noexcept { return world_revision_; }
 
     [[nodiscard]] std::size_t bodyCount() const noexcept { return live_body_count_; }
 
@@ -164,6 +166,7 @@ private:
 
     foundation::Vec3 gravity_{};
     GroundHeightQuery ground_query_{};
+    std::uint64_t world_revision_{0U};
     std::vector<Slot> slots_;
     std::size_t live_body_count_{0};
 };

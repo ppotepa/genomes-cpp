@@ -216,6 +216,12 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     ResolvedWorldArtifacts artifact{};
     artifact.plan = std::move(plan);
     artifact.revision = world::artifactRevision(artifact.plan);
+    destruction::DestructionInvalidationConfig invalidation_config{};
+    invalidation_config.coordinates.region_size_m =
+        static_cast<double>(artifact.plan.map_size_m);
+    artifact.destruction_invalidations =
+        std::make_shared<destruction::DestructionInvalidationQueue>(invalidation_config);
+    artifact.destruction_invalidations->bindWorldRevision(artifact.revision);
     auto resolved_buildings = std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
     resolved_buildings->reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {

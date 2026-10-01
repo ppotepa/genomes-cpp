@@ -19,6 +19,13 @@ int main() {
     assert(artifact != nullptr && artifact->valid());
     assert(artifact_handle.get() == artifact);
     assert(artifact->revision == world::artifactRevision(artifact->plan));
+    assert(artifact->destruction_invalidations != nullptr);
+    assert(artifact->destruction_invalidations->worldRevision() == artifact->revision);
+    const auto stale_revision = artifact->revision == 1U ? 2U : artifact->revision - 1U;
+    assert(!artifact->destruction_invalidations->emit(
+        world::WorldId{1U}, foundation::stable_id("stale"), stale_revision,
+        {{0.0F, 0.0F, 0.0F}, {1.0F, 1.0F, 1.0F}},
+        static_cast<world::DirtyReasonMask>(world::DirtyReason::Cover)));
     assert(scenario.activePlan() == &artifact->plan);
     assert(artifact->resolved_buildings->size() == artifact->plan.building_sites.size());
 

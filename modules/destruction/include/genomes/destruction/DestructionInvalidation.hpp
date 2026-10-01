@@ -37,6 +37,13 @@ public:
 
     [[nodiscard]] const DestructionInvalidationConfig& config() const noexcept { return config_; }
 
+    // A queue may be attached to one resolved world revision. Zero means that
+    // the queue is unbound (the legacy standalone behavior). Once bound, every
+    // emitted event must carry the same semantic revision.
+    void bindWorldRevision(std::uint64_t revision) noexcept { world_revision_ = revision; }
+    void clearWorldRevision() noexcept { world_revision_ = 0U; }
+    [[nodiscard]] std::uint64_t worldRevision() const noexcept { return world_revision_; }
+
     // Emits one semantic change and partitions it into all overlapping world regions.
     [[nodiscard]] bool emit(world::WorldId world_id,
                              foundation::StableId source_id,
@@ -78,6 +85,7 @@ private:
                                         const world::DirtyBounds& right) noexcept;
 
     DestructionInvalidationConfig config_{};
+    std::uint64_t world_revision_{0U};
     std::array<std::vector<world::DirtyBounds>, consumer_count> queues_{};
 };
 

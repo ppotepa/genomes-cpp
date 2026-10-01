@@ -3,6 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/buildings/BuildingModel.hpp>
+#include <genomes/destruction/DestructionInvalidation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/terrain/HeightField.hpp>
@@ -48,6 +49,9 @@ struct ResolvedWorldArtifacts final {
     std::shared_ptr<const terrain::HeightField> terrain;
     std::shared_ptr<const terrain::TerrainMesh> terrain_mesh;
     std::shared_ptr<const std::vector<buildings::BuildingGenerationResult>> resolved_buildings;
+    // Destruction invalidations are bound to this exact revision before any
+    // consumer can publish derived collision/navigation/render state.
+    std::shared_ptr<destruction::DestructionInvalidationQueue> destruction_invalidations;
     // Canonical empty-entity save package. Keeping this beside the generated
     // plan makes persistence and streaming consume the same content hash.
     std::shared_ptr<const std::vector<std::byte>> save_package;
@@ -56,6 +60,8 @@ struct ResolvedWorldArtifacts final {
         return revision == world::artifactRevision(plan) && plan.content_hash != 0U &&
                !plan.features.empty() && terrain != nullptr &&
                terrain_mesh != nullptr && resolved_buildings != nullptr &&
+               destruction_invalidations != nullptr &&
+               destruction_invalidations->worldRevision() == revision &&
                save_package != nullptr && terrain->width() >= 2U &&
                terrain->height() >= 2U && !terrain_mesh->vertices.empty() &&
                !terrain_mesh->indices.empty() &&

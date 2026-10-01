@@ -59,6 +59,8 @@ public:
 
     [[nodiscard]] const NavGridSpec& spec() const noexcept { return spec_; }
     [[nodiscard]] bool valid() const noexcept { return valid_; }
+    void bindWorldRevision(std::uint64_t revision) noexcept { world_revision_ = revision; }
+    [[nodiscard]] std::uint64_t worldRevision() const noexcept { return world_revision_; }
 
     [[nodiscard]] bool setBlocked(std::uint32_t x, std::uint32_t z, bool blocked) noexcept;
     [[nodiscard]] bool isBlocked(std::uint32_t x, std::uint32_t z) const noexcept;
@@ -77,6 +79,7 @@ private:
 
     NavGridSpec spec_{};
     bool valid_{false};
+    std::uint64_t world_revision_{0U};
     std::vector<std::uint8_t> blocked_;
     std::size_t blocked_count_{0};
 };
