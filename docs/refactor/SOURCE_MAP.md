@@ -100,7 +100,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R030 and R032 source contract reviewed; R031 ownership extraction remains open |
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
-| PR10 | equipment/weapons/material/AI/world/appearance value sources | ammo/equipment parity loaders reviewed at `c29b346`; remaining domain migration UNREVIEWED |
+| PR10 | equipment/weapons/material/AI/world/appearance value sources | material (`1ba42a6`), ammo (`4d08dc5`), equipment (`c29b346`) and weapon (`82efa74`) parity loaders/source guards reviewed; AI/world/building/appearance migration remains UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
 | PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `d3bb543`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
