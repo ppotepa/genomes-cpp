@@ -70,7 +70,10 @@ if(NOT tracker_text MATCHES "55 decisions / 18 packages / 28 acceptance scenario
     message(FATAL_ERROR "Architecture tracker denominator declaration changed")
 endif()
 
-string(REGEX MATCHALL "\\| R[0-9][0-9][0-9] \\|" decision_rows "${tracker_text}")
+# Decision rows have the package ID immediately after Rxxx. Package-register
+# rows also mention Rxxx (for example R052), so matching only the decision
+# table shape keeps the denominator structural rather than text-fragile.
+string(REGEX MATCHALL "\\| R[0-9][0-9][0-9] \\| PR[0-9][0-9] \\|" decision_rows "${tracker_text}")
 list(LENGTH decision_rows decision_count)
 if(NOT decision_count EQUAL 55)
     message(FATAL_ERROR "Expected 55 decision rows, found ${decision_count}")
