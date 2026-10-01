@@ -102,7 +102,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
 | PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R033 source ownership and pipeline reviewed through `5e204ea`; BattlefieldScenario is now a thin facade and BattlefieldScene has one runtime owner, with CTest/runtime verification pending |
-| PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | neutral `SceneCommand`/typed application-command boundary, product namespace/header relocation and authoritative Battlefield handoff reviewed at `5e204ea`; application-owned config and catalog routing remain source-reviewed; CTest/runtime verification remains pending |
+| PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | neutral `SceneCommand`/typed application-command boundary, product namespace/header relocation, CLI call-site migration and authoritative Battlefield handoff reviewed at `871dd88`; application-owned config and catalog routing remain source-reviewed; CTest/runtime verification remains pending |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; all in-tree CMake consumers now name the narrow targets, and the former aggregate was removed/guarded at `d789c5a` |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | material (`1ba42a6`), ammo (`4d08dc5`), equipment (`c29b346`), weapon (`82efa74`), Tactical AI (`f675811`), appearance (`52ab4a6`) and world/building profiles (`8908d43`) have parity/source contracts, strict loaders, provenance/fingerprints and frozen runtime ownership; CTest/runtime verification remains pending |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
@@ -111,7 +111,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
 | PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema and fixture-consuming infantry benchmarks reviewed at `8908d43`; reports retain raw samples and explicitly show `BASELINE_REQUIRED`; WAIT_BASELINE for user evidence |
-| PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime namespace/header boundary, authoritative Battlefield fallback removal and all in-tree `genomes::world` CMake links reviewed at `5e204ea`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
+| PR17 | compatibility headers, old config paths and fallbacks | product-scene/runtime namespace/header boundary, authoritative Battlefield fallback removal, final CLI migration and all in-tree `genomes::world` CMake links reviewed at `871dd88`/`d789c5a`; external-consumer compatibility and legacy config-path closure remain explicitly deferred |
 
 ## Literal classification K1-K6
 

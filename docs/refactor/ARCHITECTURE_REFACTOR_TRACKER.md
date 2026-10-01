@@ -54,7 +54,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R031 | PR07 | gameplay | REF | `BattlefieldRuntime` owns authoritative ECS/infantry/physics/navigation/combat graph; scenario is a fixture of it. | CODE_READY | 5e204ea | NOT_RUN | - | `BattlefieldRuntime` now directly owns ECS, infantry, physics, navigation, graph, combat/ballistics and destruction state; `BattlefieldScenario` is a thin compatibility facade. Product `BattlefieldScene` consumes the runtime render-state view and has no second ECS/physics fallback; source guards pass and CTest remains `NOT_RUN`. |
 | R032 | PR07 | simulation | REF | Production phases declare complete reads/writes and have exactly one PhysicsWorld step and one weapon-to-damage pipeline. | CODE_READY | e4432bc | NOT_RUN | - | Dedicated source contract now checks WeaponController→FireIntent/FireRequest→BallisticsWorld→ImpactEvent/DamageCommand, packed EntityId source/target mapping, phase order, and exactly one physics step; runtime/CTest verification remains pending. |
 | R033 | PR07 | gameplay | FIX | Tick failure freezes runtime in Failed, blocks commit/future ticks and retains the last valid presentation snapshot plus diagnostic. | CODE_READY | e1db796 | NOT_RUN | - | Battlefield blocks future fixed ticks and clears pending commands after graph failure. |
-| R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | CODE_READY | 5e204ea | NOT_RUN | - | Product scene headers and implementations now use `genomes::game_scenes`; `WorldGenerationConfig` and `WorldSeedInput` remain application-owned; runtime retains only lifecycle types. `application_command_boundary`, `composition_root_guard`, `architecture_refactor_tracker` and source guards pass; CTest remains `NOT_RUN`. |
+| R034 | PR08 | scenes | REF | Product scenes move to `genomes::game_scenes`; engine runtime retains neutral lifecycle, transitions and snapshot protocol only. | CODE_READY | 871dd88 | NOT_RUN | - | Product scene headers and implementations now use `genomes::game_scenes`; `WorldGenerationConfig` and `WorldSeedInput` remain application-owned; runtime retains only lifecycle types. `application_command_boundary`, `composition_root_guard`, `architecture_refactor_tracker` and source guards pass; CTest remains `NOT_RUN`. |
 | R035 | PR08 | application | REF | Composition root owns catalogs/runtimes/backends/factories; application router owns product actions. | CODE_READY | 59b0a1d | NOT_RUN | - | `BuiltinSceneCatalog` and its factory type are owned by `genomes::application`; `GameApplication` keeps the catalog for the session and the menu composition root owns its catalog instance. The application catalog installs the typed action router and scene-command handoff, while `SceneDirector` retains only lifecycle/registration. `architecture.composition_root`, `architecture.application_command_boundary`, `architecture.refactor_tracker` and syntax-only checks pass; configure/build/CTest remain `NOT_RUN`. |
 | R036 | PR08 | runtime | FIX | Scene registration rejects duplicates and freezes before session; missing optional features return `UnavailableFeature`. | CODE_READY | 361b36c | NOT_RUN | - | `menu_smoke` covers duplicate/frozen registration and an unavailable scene that leaves no current scene and reports `UnavailableFeature`; infantry-off builtin registration uses that path. |
 | R037 | PR09 | world | REF | Neutral `world_core` owns IDs/coordinates/region/query/save/site request; generation moves to `world_generation`. | CODE_READY | f4c5cbb | NOT_RUN | - | `genomes::world_core` owns the canonical coordinate/ID, query, save and site contracts; `genomes::world_generation` compiles City/World generators and streaming orchestration without hydrology/roads in core; legacy `genomes::world` headers forward as compatibility aliases. `architecture.refactor_tracker` and `world_core.namespace_boundary` cover the boundary; user CTest remains pending. |
@@ -75,7 +75,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | CODE_READY | ceda2e6 | NOT_RUN | - | Shared CMake manifest validation checks schema, provenance, unique family IDs, safe roots and formats; public-header consumer sources cover core targets. Full target-closure review remains open. |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | CODE_READY | e280e5d | NOT_RUN | - | Stable ID/schema are declared, strict typed parsing accepts only `inspection-olive`, the feature card records provenance/determinism/cache/error policy, and a presentation test proves geometry/indices remain unchanged. |
 | R054 | PR16 | performance | REF | Only measured optimizations ship; execution tuning preserves D1/D2 results and meets the stated target/p95 acceptance gate. | CODE_READY | 8908d43 | NOT_RUN | - | `PR16_MEASUREMENT_GATE.md`, the versioned input/schema fixture and both infantry benchmark consumers agree on the required profile, seeds, warmups, raw samples, metrics and D1/D2 gate. Reports explicitly remain `BASELINE_REQUIRED`; allocations/bytes are `NOT_INSTRUMENTED`, no optimization is implemented, and user baseline/evidence are still required. |
-| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | ACCEPTED_DEFERRED | 5e204ea | NOT_RUN | - | CodeGraph/source review removed the proven-unused runtime forwarding/product-scene headers and local Battlefield fallback, split every project CMake world client to `world_core` or `world_generation`, and added explicit target/header guards. Final dispositions are recorded below. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; user-owned build/CTest/GPU evidence remains outside this source-only slice. |
+| R055 | PR17 | architecture | REF | Remove only proven-unused bridges/fallbacks, close dependency review, and assign every R row a final disposition. | ACCEPTED_DEFERRED | 871dd88 | NOT_RUN | - | CodeGraph/source review removed the proven-unused runtime forwarding/product-scene headers and local Battlefield fallback, split every project CMake world client to `world_core` or `world_generation`, added explicit target/header/namespace guards, and fixed the final migrated CLI call site. Final dispositions are recorded below. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; user-owned build/CTest/GPU evidence remains outside this source-only slice. |
 
 Kinds: `REF` preserves behavior/contracts while moving ownership, `FIX` requires
 a counterexample regression, `DATA` requires old/new parity, and `EXT` creates a
@@ -127,7 +127,7 @@ used by this program.
 | R031 | implemented | 5e204ea | BattlefieldRuntime ownership and single-scene pipeline source is present; T09-T10 are NOT_RUN. |
 | R032 | implemented | e4432bc | Single physics/combat pipeline source contract is present; T10 is NOT_RUN. |
 | R033 | implemented | e1db796 | Failed-tick freeze and snapshot-retention source is present; T09-T10 are NOT_RUN. |
-| R034 | implemented | 5e204ea | Product-scene namespace/ownership and neutral runtime source is present; T25/T27 are NOT_RUN. |
+| R034 | implemented | 871dd88 | Product-scene namespace/ownership and neutral runtime source is present; T25/T27 are NOT_RUN. |
 | R035 | implemented | 59b0a1d | Composition root and action-router source is present; T25/T27 are NOT_RUN. |
 | R036 | implemented | 361b36c | Duplicate registration and unavailable-feature source is present; T25/T27 are NOT_RUN. |
 | R037 | implemented | f4c5cbb | World-core/generation boundary source is present; T18-T19 are NOT_RUN. |
@@ -148,7 +148,7 @@ used by this program.
 | R052 | implemented | ceda2e6 | CMake/guard/header source slice is present; T27-T28 and closure review remain NOT_RUN. |
 | R053 | implemented | e280e5d | Data-only inspection-olive source slice is present; T13/T28 are NOT_RUN. |
 | R054 | implemented | 8908d43 | Measurement harness/source contract is present; baseline and optimization gate are deferred pending user evidence. |
-| R055 | accepted-deferred | 5e204ea | In-tree target/header/fallback closure and per-row dispositions are reviewed. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
+| R055 | accepted-deferred | 871dd88 | In-tree target/header/fallback/CLI closure and per-row dispositions are reviewed. External-consumer compatibility and legacy configuration-path review are not represented by in-tree evidence; T01-T28 remain NOT_RUN. |
 
 ## Package register
 
@@ -162,7 +162,7 @@ used by this program.
 | PR05 | Packages and native plugins | R019-R023 | CODE_READY | 76cd265 | NOT_RUN | - |
 | PR06 | Typed profile infrastructure | R024-R028 | CODE_READY | e195e39 | NOT_RUN | - |
 | PR07 | Session clock and combat pipeline | R029-R033 | CODE_READY | 5e204ea | NOT_RUN | - |
-| PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 5e204ea | NOT_RUN | - |
+| PR08 | Product scenes outside runtime | R034-R036 | CODE_READY | 871dd88 | NOT_RUN | - |
 | PR09 | World core and resolved artifacts | R037-R041 | CODE_READY | f4c5cbb | NOT_RUN | - |
 | PR10 | Domain catalog migration | R042-R043 | CODE_READY | 8908d43 | NOT_RUN | - |
 | PR11 | Model compiler, cache, latest-wins | R044-R046 | CODE_READY | 55e4c59 | NOT_RUN | - |
@@ -171,7 +171,7 @@ used by this program.
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | CODE_READY | 8908d43 | NOT_RUN | - |
-| PR17 | Migration closure | R055 | ACCEPTED_DEFERRED | 5e204ea | NOT_RUN | - |
+| PR17 | Migration closure | R055 | ACCEPTED_DEFERRED | 871dd88 | NOT_RUN | - |
 
 ## Acceptance scenario register
 
