@@ -102,7 +102,7 @@ new explicitly versioned capability or contract.
 | PR14 | CMake, presets, guards and hygiene | R052 | CODE_READY | ceda2e6 | NOT_RUN | - |
 | PR15 | Data-only feature pilot | R053 | CODE_READY | 0e7ba51 | NOT_RUN | - |
 | PR16 | Measurement-led optimization | R054 | PLANNED | ff1d3d2 | NOT_RUN | - |
-| PR17 | Migration closure | R055 | PLANNED | 7d56de8 | NOT_RUN | - |
+| PR17 | Migration closure | R055 | PLANNED | fc660bd | NOT_RUN | - |
 
 ## Acceptance scenario register
 
