@@ -1,7 +1,7 @@
 # Architecture refactor acceptance commands
 
 These commands are the user-owned verification handoff for source baseline
-`bc29c7b` (the session clock, authoritative tick phases, resolved-world revision binding, authoritative Battlefield execution-policy parity test, 75/100/150% UI density coverage, content-registry ordering/rollback and native-plugin trust-boundary coverage, target closure guard, narrow public-header consumers, infantry-off parser and remaining Unit Lab namespace clients are included). They do not turn source
+`250f952` (the session clock, authoritative tick phases, resolved-world revision binding, authoritative Battlefield execution-policy parity test, 75/100/150% UI density coverage, content-registry ordering/rollback and native-plugin trust-boundary coverage, target closure guard, narrow public-header consumers, infantry-off parser and remaining Unit Lab namespace clients are included). They do not turn source
 guards into `VERIFIED`; each result must be recorded with the exact tested SHA
 in `ARCHITECTURE_REFACTOR_TRACKER.md`.
 
