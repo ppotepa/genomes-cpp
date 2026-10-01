@@ -64,6 +64,16 @@ void siteRequiresCenteredRotationAlignedRectangle() {
     asymmetric.buildable_polygon[0].x = 7.0F;
     assert(!genomes::buildings::BuildingGenerator::generateSite(asymmetric));
 
+    auto concave = validSite();
+    concave.buildable_polygon = {{6.0F, -8.0F}, {14.0F, -8.0F},
+                                 {10.0F, -5.0F}, {6.0F, -2.0F}};
+    assert(!genomes::buildings::BuildingGenerator::generateSite(concave));
+
+    auto collinear = validSite();
+    collinear.buildable_polygon = {{6.0F, -8.0F}, {10.0F, -8.0F},
+                                   {14.0F, -8.0F}, {6.0F, -2.0F}};
+    assert(!genomes::buildings::BuildingGenerator::generateSite(collinear));
+
     auto five_points = validSite();
     five_points.buildable_polygon.push_back({10.0F, -5.0F});
     assert(!genomes::buildings::BuildingGenerator::generateSite(five_points));
