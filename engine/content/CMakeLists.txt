@@ -1,5 +1,6 @@
 add_library(genomes_content STATIC
-    src/ContentSnapshot.cpp)
+    src/ContentSnapshot.cpp
+    src/ConfigurationSnapshot.cpp)
 
 target_include_directories(genomes_content PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
