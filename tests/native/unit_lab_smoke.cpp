@@ -204,6 +204,8 @@ int main() {
                     expected_viewport.projection_offset_x) < 1.0e-6F);
     gpu_ui.set_viewport_metrics(
         genomes::ui::UiViewportMetrics{68.0F, 104.0F, 872.0F, 582.0F});
+    gpu_ui.clear();
+    assert(gpu_ui.viewport_metrics());
     gpu_presentation.clear_scene_payload();
     gpu_scene.build_presentation(gpu_context);
     assert(std::abs(gpu_presentation.camera.viewport_left - 68.0F / 1280.0F) < 1.0e-6F);

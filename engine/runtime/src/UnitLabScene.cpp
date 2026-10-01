@@ -758,6 +758,7 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
                 animation_pose_ = animation_system_->currentSnapshot().poses.front();
             }
             markDirty(UnitLabDirtyFlag::Pose);
+            markDirty(UnitLabDirtyFlag::Ui);
         }
     }
 }
@@ -791,6 +792,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
             startModelRequest(context, std::move(request));
         }
     }
+    if (!ui_dirty_) return;
     ui_dirty_ = false;
     context.ui.clear();
     std::string metrics = model_artifact_
