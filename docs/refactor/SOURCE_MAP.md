@@ -97,12 +97,12 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR03 | `modules/buildings/src`, world site request users | UNREVIEWED |
 | PR04 | world save and `engine/io/src/AtomicFile.cpp`, seed call sites | UNREVIEWED |
 | PR05-PR06 | content/mod/plugin/config loaders and registries | UNREVIEWED |
-| PR07 | gameplay scenario, simulation graph, physics/combat orchestration | UNREVIEWED |
+| PR07 | gameplay scenario, simulation graph, physics/combat orchestration | R029-R030 and R032 source contract reviewed; R031 ownership extraction remains open |
 | PR08 | `engine/runtime/src/SceneDirector.cpp`; `engine/game_scenes/src` product scenes and app composition | runtime split and physical product-source relocation reviewed; full composition ownership remains UNREVIEWED |
 | PR09 | engine/world plus terrain/hydrology/roads/buildings/world_render sources | `world_core`/`world_generation` target split, canonical core headers, generation link closure and legacy forwarding aliases reviewed at `f4c5cbb`; compatibility consumers remain intentionally on the aggregate until the final migration closure |
 | PR10 | equipment/weapons/material/AI/world/appearance value sources | ammo/equipment parity loaders reviewed at `c29b346`; remaining domain migration UNREVIEWED |
 | PR11 | infantry compiler, artifact cache, Unit Lab controller | R044-R046 source slice reviewed at `55e4c59`; CTest registrations and source guards present; user verification pending |
-| PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `adbeb56`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
+| PR12 | application commands, CLI/RmlUi adapters, viewport/picking/capture | R047-R049 reviewed at `d3bb543`; seven-control RmlUi/CLI parser guard and syntax review complete; CTest/UI verification remains pending |
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | UNREVIEWED |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
