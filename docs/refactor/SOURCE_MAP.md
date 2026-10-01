@@ -106,7 +106,7 @@ fingerprint → freeze`. A JSON DOM is never a runtime domain contract.
 | PR13 | skinned CPU/HLSL layouts and Diligent resource lifetime | R050-R051 source guards and CPU restoration tests reviewed at `7b075a0`; D3D12/GPU acceptance remains user-owned and unverified |
 | PR14 | all project CMake and source/config guards | UNREVIEWED |
 | PR15 | appearance catalog and Unit Lab adapter | inspection-olive pilot catalog reviewed; broader catalog migration UNREVIEWED |
-| PR16 | graph/AI scratch, extraction/UI update paths | WAIT_BASELINE |
+| PR16 | graph/AI scratch, extraction/UI update paths | measurement contract/schema aligned at `ff1d3d2`; WAIT_BASELINE for user benchmark evidence |
 | PR17 | compatibility headers, old config paths and fallbacks | WAIT_PRIOR_PACKAGES |
 
 ## Literal classification K1-K6
