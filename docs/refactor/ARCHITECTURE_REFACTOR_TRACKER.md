@@ -18,10 +18,10 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 
 | ID | Package | Owner | Kind | Decision / acceptance condition | Implementation | Code SHA | Verification | Verified SHA | Evidence |
 |---|---|---|---|---|---|---|---|---|---|
-| R001 | PR01 | jobs | FIX | `JobFence(expected_count)` is one-shot; over-signal fails without mutation; counter and wait predicate share one mutex. | CODE_READY | WORKTREE | NOT_RUN | - | `jobs.fence` covers over-signal, pending preservation and multiple waiters without sleeps. |
-| R002 | PR01 | jobs | FIX | Job lifecycle is one mutex-protected `Running/ClosingDrain/ClosingCancel/Stopped` state; submit and close are atomic relative to the queue. | CODE_READY | WORKTREE | NOT_RUN | - | `jobs.lifecycle` covers Drain, CancelPending, rejected post-close submission and final state. |
-| R003 | PR01 | jobs | FIX | Shutdown is idempotent and owner-thread-only; worker destruction fails fast; launcher failure rolls back and joins started workers. | CODE_READY | WORKTREE | NOT_RUN | - | `jobs.lifecycle` covers auto workers and deterministic injected-launcher rollback; source review covers owner/worker fail-fast. |
-| R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | CODE_READY | WORKTREE | NOT_RUN | - | `simulation.system_graph_batch` covers main-thread failure with active worker and reverse completion worker failure. |
+| R001 | PR01 | jobs | FIX | `JobFence(expected_count)` is one-shot; over-signal fails without mutation; counter and wait predicate share one mutex. | CODE_READY | 31217c0 | NOT_RUN | - | `jobs.fence` covers over-signal, pending preservation and multiple waiters without sleeps. |
+| R002 | PR01 | jobs | FIX | Job lifecycle is one mutex-protected `Running/ClosingDrain/ClosingCancel/Stopped` state; submit and close are atomic relative to the queue. | CODE_READY | bf46621 | NOT_RUN | - | `jobs.lifecycle` covers Drain, CancelPending, rejected post-close submission and final state. |
+| R003 | PR01 | jobs | FIX | Shutdown is idempotent and owner-thread-only; worker destruction fails fast; launcher failure rolls back and joins started workers. | CODE_READY | bf46621 | NOT_RUN | - | `jobs.lifecycle` covers auto workers and deterministic injected-launcher rollback; source review covers owner/worker fail-fast. |
+| R004 | PR01 | simulation | FIX | A SystemGraph batch drains every accepted job after the first failure and publishes neither successors nor command buffers. | CODE_READY | 70ba38c | NOT_RUN | - | `simulation.system_graph_batch` covers main-thread failure with active worker and reverse completion worker failure. |
 | R005 | PR02 | infantry AI | FIX | Steering measures waypoint and enemy independently; engagement/fire depends only on current target range and visibility contract. | PLANNED | - | NOT_RUN | - | - |
 | R006 | PR02 | infantry AI | FIX | Squad contact identity is `SquadKey{side, squad_id}`; no squad is `optional`, never implicit zero. | PLANNED | - | NOT_RUN | - | - |
 | R007 | PR02 | infantry/ECS adapter | FIX | Agent stores the full generational `EntityId`; removal centrally clears all sidecars and references. | PLANNED | - | NOT_RUN | - | - |
@@ -83,7 +83,7 @@ new explicitly versioned capability or contract.
 | Package | Scope | Decisions | Implementation | Code SHA | Verification | Verified SHA |
 |---|---|---:|---|---|---|---|
 | PR00 | Baseline, tracker and source map | R001-R055 | CODE_READY | WORKTREE | NOT_RUN | - |
-| PR01 | Jobs and SystemGraph lifetime | R001-R004 | PLANNED | - | NOT_RUN | - |
+| PR01 | Jobs and SystemGraph lifetime | R001-R004 | CODE_READY | bf46621 | NOT_RUN | - |
 | PR02 | Infantry state and Unit Lab input | R005-R008 | PLANNED | - | NOT_RUN | - |
 | PR03 | Building generator contract | R009-R013 | PLANNED | - | NOT_RUN | - |
 | PR04 | Bounded canonical save | R014-R018 | PLANNED | - | NOT_RUN | - |
