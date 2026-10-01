@@ -1,4 +1,5 @@
 #pragma once
+#include "shaders/SkinnedLayoutProfileV1.hlsli"
 #include <genomes/render/RenderTypes.hpp>
 #include <array>
 #include <cmath>
@@ -7,7 +8,14 @@
 #include <type_traits>
 
 namespace genomes::render::diligent_contract {
-inline constexpr std::size_t kBoneCount=69U;
+inline constexpr std::uint32_t kSkinnedLayoutProfileVersion=
+    GENOMES_SKINNED_LAYOUT_PROFILE_VERSION;
+inline constexpr std::size_t kBoneCount=GENOMES_SKINNED_LAYOUT_PROFILE_BONE_COUNT;
+inline constexpr std::size_t kInfluenceCount=GENOMES_SKINNED_LAYOUT_PROFILE_INFLUENCE_COUNT;
+inline constexpr std::size_t kMorphCount=GENOMES_SKINNED_LAYOUT_PROFILE_MORPH_COUNT;
+static_assert(kSkinnedLayoutProfileVersion==1U);
+static_assert(kBoneCount==69U && kInfluenceCount==4U && kMorphCount==4U,
+              "SkinnedLayoutProfileV1 is an immutable GPU ABI");
 struct alignas(16) SkinnedPassConstants final {
     float view_projection[16]{};
     float object_position_scale[4]{};
@@ -19,13 +27,13 @@ struct alignas(16) SkinnedPassConstants final {
     float character_fill_color[4]{};
     float character_hemisphere_sky[4]{};
     float character_hemisphere_ground[4]{};
-    float morph_weights[4]{};
+    float morph_weights[kMorphCount]{};
     float bone_palette[kBoneCount][16]{};
 };
 struct SkinnedGpuVertex final {
     float position[3]{},normal[3]{},uv[2]{},color[4]{};
-    float bone_indices[4]{},bone_weights[4]{};
-    float morph_position[4][3]{},morph_normal[4][3]{};
+    float bone_indices[kInfluenceCount]{},bone_weights[kInfluenceCount]{};
+    float morph_position[kMorphCount][3]{},morph_normal[kMorphCount][3]{};
     std::uint32_t material_region{0};
 };
 struct alignas(16) SceneConstants final {

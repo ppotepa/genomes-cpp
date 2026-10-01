@@ -87,6 +87,9 @@ void materials() {
 
 void palette() {
     using namespace render::diligent_contract;
+    check(kSkinnedLayoutProfileVersion==1U && kBoneCount==69U &&
+              kInfluenceCount==4U && kMorphCount==4U,
+          "SkinnedLayoutProfileV1 constants changed");
     render::SkinnedMeshPrototype m;
     render::SkinnedBonePalette p;
     const std::array<float,16U> identity{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1};

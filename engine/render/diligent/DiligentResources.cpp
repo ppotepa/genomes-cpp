@@ -71,8 +71,8 @@ RenderResult DiligentBackend::Impl::createPipeline(bool skin,bool shadow_pass,bo
         const auto stride=static_cast<Diligent::Uint32>(sizeof(SkinnedGpuVertex));
         layout={{0,0,3,f,no,0,stride},{1,0,3,f,no,12,stride},{2,0,2,f,no,24,stride},
                 {3,0,4,f,no,32,stride},{4,0,4,f,no,48,stride},{5,0,4,f,no,64,stride}};
-        for (std::uint32_t k=0;k<4U;++k) layout.push_back({6U+k,0,3,f,no,80U+12U*k,stride});
-        for (std::uint32_t k=0;k<4U;++k) layout.push_back({10U+k,0,3,f,no,128U+12U*k,stride});
+        for (std::uint32_t k=0;k<kMorphCount;++k) layout.push_back({6U+k,0,3,f,no,80U+12U*k,stride});
+        for (std::uint32_t k=0;k<kMorphCount;++k) layout.push_back({10U+k,0,3,f,no,128U+12U*k,stride});
         layout.push_back({14,0,1,Diligent::VT_UINT32,no,176,stride});
     } else {
         const auto stride=static_cast<Diligent::Uint32>(sizeof(RenderMeshVertex));

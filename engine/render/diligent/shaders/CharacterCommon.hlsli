@@ -11,7 +11,7 @@ cbuffer SkinnedPassConstants {
     float4 CharacterHemisphereSky;
     float4 CharacterHemisphereGround;
     float4 MorphWeights;
-    column_major float4x4 BonePalette[69];
+    column_major float4x4 BonePalette[GENOMES_SKINNED_LAYOUT_PROFILE_BONE_COUNT];
 };
 float3 transformSkinNormal(float3x3 m,float3 n) {
     float3 c0=cross(m[1],m[2]),c1=cross(m[2],m[0]),c2=cross(m[0],m[1]);

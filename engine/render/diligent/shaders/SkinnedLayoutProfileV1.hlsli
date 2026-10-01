@@ -1,0 +1,11 @@
+#ifndef GENOMES_SKINNED_LAYOUT_PROFILE_V1_INCLUDED
+#define GENOMES_SKINNED_LAYOUT_PROFILE_V1_INCLUDED
+
+// This file is deliberately valid for both the C++ and HLSL preprocessors.
+// These values are a versioned GPU ABI, not user-configurable rendering knobs.
+#define GENOMES_SKINNED_LAYOUT_PROFILE_VERSION 1U
+#define GENOMES_SKINNED_LAYOUT_PROFILE_BONE_COUNT 69U
+#define GENOMES_SKINNED_LAYOUT_PROFILE_INFLUENCE_COUNT 4U
+#define GENOMES_SKINNED_LAYOUT_PROFILE_MORPH_COUNT 4U
+
+#endif

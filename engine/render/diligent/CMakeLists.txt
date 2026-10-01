@@ -1,11 +1,12 @@
 set(GENOMES_DILIGENT_SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
-set(_shader_files SceneCommon.hlsli CharacterCommon.hlsli SkinnedCharacter.vsh
+set(_shader_files SceneCommon.hlsli CharacterCommon.hlsli SkinnedLayoutProfileV1.hlsli SkinnedCharacter.vsh
     RegularSurface.vsh SkinnedCharacter.psh ShadowSurface.psh)
 foreach(_file IN LISTS _shader_files)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/${_file}")
 endforeach()
 file(READ "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/SceneCommon.hlsli" GENOMES_SCENE_COMMON)
+file(READ "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/SkinnedLayoutProfileV1.hlsli" GENOMES_SKINNED_LAYOUT_PROFILE)
 file(READ "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/CharacterCommon.hlsli" GENOMES_CHARACTER_COMMON)
 file(READ "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/SkinnedCharacter.vsh" GENOMES_SKINNED_VERTEX)
 file(READ "${GENOMES_DILIGENT_SHADER_SOURCE_DIR}/RegularSurface.vsh" GENOMES_REGULAR_VERTEX)

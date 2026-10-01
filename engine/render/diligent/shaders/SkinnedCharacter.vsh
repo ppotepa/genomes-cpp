@@ -11,9 +11,9 @@ SurfacePixel main(VSInput input) {
     float3 n=input.Normal+input.MorphNormal0*MorphWeights.x+input.MorphNormal1*MorphWeights.y+
         input.MorphNormal2*MorphWeights.z+input.MorphNormal3*MorphWeights.w;
     float3 sp=0,sn=0;float sum=0,heat=0;
-    [unroll] for(uint k=0;k<4;++k) {
+    [unroll] for(uint k=0;k<GENOMES_SKINNED_LAYOUT_PROFILE_INFLUENCE_COUNT;++k) {
         uint bone=(uint)input.BoneIndices[k];float w=input.BoneWeights[k];
-        if(w>0 && bone<69) {
+        if(w>0 && bone<GENOMES_SKINNED_LAYOUT_PROFILE_BONE_COUNT) {
             sp+=mul(BonePalette[bone],float4(p,1)).xyz*w;
             sn+=transformSkinNormal((float3x3)BonePalette[bone],n)*w;
             sum+=w;if((int)bone==(int)ObjectPositionScale.w)heat+=w;

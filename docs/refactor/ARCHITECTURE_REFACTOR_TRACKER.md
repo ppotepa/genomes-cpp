@@ -67,7 +67,7 @@ evidence. The implementation states are `PLANNED`, `BASELINE_CONFIRMED`,
 | R047 | PR12 | UI/application | REF | RmlUi, CLI and tests parse at their boundaries into the same typed command variants; numeric parsing is strict and diagnosed. | PLANNED | - | NOT_RUN | - | - |
 | R048 | PR12 | Unit Lab | REF | View model tracks Geometry/Material/Pose/Presentation/UI dirtiness and only rebuilds affected outputs. | PLANNED | - | NOT_RUN | - | - |
 | R049 | PR12 | UI/presentation | FIX | Camera, picking and capture use current RmlUi viewport metrics or the last valid rectangle. | PLANNED | - | NOT_RUN | - | - |
-| R050 | PR13 | render ABI | REF | Existing 69-bone/four-influence/four-morph ABI is named and versioned `SkinnedLayoutProfileV1` in shared C++/HLSL definitions. | PLANNED | - | NOT_RUN | - | - |
+| R050 | PR13 | render ABI | REF | Existing 69-bone/four-influence/four-morph ABI is named and versioned `SkinnedLayoutProfileV1` in shared C++/HLSL definitions. | CODE_READY | pending | NOT_RUN | T26 source coverage; user D3D12/GPU acceptance pending | - |
 | R051 | PR13 | presentation | FIX | GPU upload retains immutable artifact ownership through submission, retires by fence and publishes revisions atomically after all resources succeed. | PLANNED | - | NOT_RUN | - | - |
 | R052 | PR14 | build | REF | Preset matrix, target visibility, self-contained headers, minimal consumers, structural config/RML guards and fixture manifest enforce boundaries. | PLANNED | - | NOT_RUN | - | - |
 | R053 | PR15 | appearance | EXT | Manual `inspection-olive` is a validated data-only presentation preset and Material-only Unit Lab command. | PLANNED | - | NOT_RUN | - | - |

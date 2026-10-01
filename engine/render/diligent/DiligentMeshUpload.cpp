@@ -20,7 +20,7 @@ SkinnedGpuVertex packVertex(const SkinnedMeshPrototype& mesh,std::size_t index) 
     p.position[0]=v.position.x;p.position[1]=v.position.y;p.position[2]=v.position.z;
     p.normal[0]=v.normal.x;p.normal[1]=v.normal.y;p.normal[2]=v.normal.z;
     p.uv[0]=v.uv.x;p.uv[1]=v.uv.y;color(p.color,v.color,v.color.a);p.material_region=v.material_region;
-    for (std::size_t k=0;k<4U;++k) {
+    for (std::size_t k=0;k<kInfluenceCount;++k) {
         p.bone_indices[k]=static_cast<float>(v.bone_indices[k]);p.bone_weights[k]=v.bone_weights[k];
         if (k<mesh.morph_target_count) {
             const auto d=mesh.morphs[k].position_deltas[index],n=mesh.morphs[k].normal_deltas[index];
@@ -72,10 +72,10 @@ RenderResult DiligentBackend::Impl::ensureSkin(const std::shared_ptr<const Skinn
     const bool changed=!gpu.vertices||!gpu.indices||gpu.revision!=source->revision||gpu.vertex_bytes!=vb||gpu.index_bytes!=ib||
         (source->revision==0U&&gpu.owner.get()!=source.get());
     if (changed || gpu.owner.get()!=source.get()) {
-        if (!validVertices(*source)||source->morph_target_count>4U) return error("invalid skinned mesh data");
+        if (!validVertices(*source)||source->morph_target_count>kMorphCount) return error("invalid skinned mesh data");
         for (const auto& v:source->vertices) {
             float sum=0;
-            for (std::size_t k=0;k<4U;++k) {
+            for (std::size_t k=0;k<kInfluenceCount;++k) {
                 if (!std::isfinite(v.bone_weights[k])||v.bone_weights[k]<0||
                     (v.bone_weights[k]>0&&v.bone_indices[k]>=kBoneCount)) return error("invalid skin weights");
                 sum+=v.bone_weights[k];

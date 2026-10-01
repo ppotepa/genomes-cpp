@@ -186,7 +186,7 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
             if (item.pose) {
                 meta<<",\"pose_revision\":\""<<item.pose->pose_revision<<"\",\"skeleton\":\""<<item.pose->skeleton_id
                     <<"\",\"morph_weights\":[";
-                for (std::size_t k=0;k<4U;++k) {if (k) {meta<<',';}meta<<item.pose->morph_weights[k];}
+                for (std::size_t k=0;k<kMorphCount;++k) {if (k) {meta<<',';}meta<<item.pose->morph_weights[k];}
                 meta<<']';
             }
             meta<<'}';

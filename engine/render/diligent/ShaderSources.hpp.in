@@ -3,6 +3,7 @@ namespace genomes::render::diligent_shaders {
 inline constexpr char regular_vs[]=R"GN(@GENOMES_SCENE_COMMON@
 @GENOMES_REGULAR_VERTEX@)GN";
 inline constexpr char skin_vs[]=R"GN(@GENOMES_SCENE_COMMON@
+@GENOMES_SKINNED_LAYOUT_PROFILE@
 @GENOMES_CHARACTER_COMMON@
 @GENOMES_SKINNED_VERTEX@)GN";
 inline constexpr char surface_ps[]=R"GN(@GENOMES_SCENE_COMMON@
