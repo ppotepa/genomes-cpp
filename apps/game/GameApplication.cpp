@@ -78,9 +78,12 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
 #if GENOMES_HAS_INFANTRY
         } else if (arg=="--unitlab-appearance") {
             const auto value=next();if (!value) return {};
-            const auto parsed = runtime::parseSetAppearancePreset(*value);
-            if (!parsed) return {};
-            result.unitlab_appearance = parsed.value();
+            const std::array<std::string_view, 2> tokens{
+                "set-appearance-preset", *value};
+            const auto parsed = runtime::parseUnitLabCommandLine(tokens);
+            if (!parsed || !std::holds_alternative<runtime::SetAppearancePreset>(parsed.value()))
+                return {};
+            result.unitlab_appearance = std::get<runtime::SetAppearancePreset>(parsed.value());
 #endif
         } else {
             std::cerr<<"Unknown argument: "<<arg<<'\n';return {};
@@ -259,9 +262,15 @@ int GameApplication::run(int argc,char** argv) {
         }
 #if GENOMES_HAS_INFANTRY
         if (options.unitlab_appearance) {
+            const auto preset = runtime::unitLabAppearancePresetName(
+                options.unitlab_appearance->value);
+            if (preset.empty()) {
+                std::cerr<<"Could not serialize UnitLab appearance preset\n";
+                return 1;
+            }
             if (director_.dispatch_ui_action(
                     foundation::stable_id("unit.appearance-preset"),
-                    {{"value", "inspection-olive"}}) != ui::UiActionResult::Handled) {
+                    {{"value", preset}}) != ui::UiActionResult::Handled) {
                 std::cerr<<"Could not select UnitLab appearance preset\n";return 1;
             }
         }

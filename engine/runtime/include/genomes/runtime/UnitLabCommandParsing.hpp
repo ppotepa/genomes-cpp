@@ -210,6 +210,15 @@ parseSetAppearancePreset(std::string_view text) {
         "unknown unit lab appearance preset"));
 }
 
+// Boundary adapters serialize a typed appearance command only at the final
+// UI dispatch edge. Keeping this mapping next to the parser prevents a CLI
+// adapter from accepting one value and silently dispatching another.
+[[nodiscard]] inline std::string_view unitLabAppearancePresetName(
+    foundation::StableId preset) noexcept {
+    if (preset == kInspectionOliveAppearancePreset) return "inspection-olive";
+    return {};
+}
+
 [[nodiscard]] inline UnitLabCommandResult<UnitLabCommand> parseUnitLabCommand(
     std::string_view command, std::span<const std::string_view> arguments) {
     const auto invalidArity = [&]() {

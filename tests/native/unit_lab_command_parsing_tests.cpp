@@ -61,6 +61,8 @@ int main() {
     assert(invalid_gene.error().field == "gene");
     const auto appearance = parseSetAppearancePreset("inspection-olive");
     assert(appearance && appearance.value().value == kInspectionOliveAppearancePreset);
+    assert(unitLabAppearancePresetName(appearance.value().value) == "inspection-olive");
+    assert(unitLabAppearancePresetName(0).empty());
     assert(!parseSetAppearancePreset("random"));
     assert(parseSetAppearancePreset("random").error().field == "preset");
 
@@ -94,6 +96,16 @@ int main() {
     const std::array<std::string_view, 2> cli_tokens{"set-camera-mode", "front"};
     const auto cli_command = parseUnitLabCommandLine(cli_tokens);
     assert(cli_command && std::holds_alternative<SetCameraMode>(cli_command.value()));
+    const std::array<std::string_view, 2> cli_appearance_tokens{
+        "set-appearance-preset", "inspection-olive"};
+    const auto cli_appearance = parseUnitLabCommandLine(cli_appearance_tokens);
+    assert(cli_appearance &&
+           std::holds_alternative<SetAppearancePreset>(cli_appearance.value()));
+    assert(std::get<SetAppearancePreset>(cli_appearance.value()).value ==
+           appearance.value().value);
+    const std::array<std::string_view, 2> cli_appearance_trailing{
+        "set-appearance-preset", "inspection-olive trailing"};
+    assert(!parseUnitLabCommandLine(cli_appearance_trailing));
     const std::array<std::string_view, 0> empty_tokens{};
     assert(!parseUnitLabCommandLine(empty_tokens));
     return 0;

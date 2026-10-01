@@ -13,7 +13,7 @@ selectable and is not part of the default or random appearance selection.
 | Cache | Base immutable `SkinnedMeshPrototype` is reused; the material variant receives a derived presentation revision |
 | Dirtiness | Material and UI only; geometry, pose and model compiler requests are unchanged |
 | Errors | Unknown preset is rejected with an owning parser diagnostic; no partial publication occurs |
-| Evidence | `unit_lab_command_parsing`, `infantry_presentation`, `AppearanceCatalog::validate` (source-ready; CTest pending) |
+| Evidence | `unit_lab_command_parsing`, `infantry_presentation`, `AppearanceCatalog::validate`; CLI now parses the same typed variant and serializes it only at the UI dispatch boundary (source-ready; CTest pending) |
 | Compatibility | No ECS, generator, anatomy, semantic vertex numbering or GPU ABI changes |
 
 The pilot changes the catalog/command boundary and the presentation adapter only;
