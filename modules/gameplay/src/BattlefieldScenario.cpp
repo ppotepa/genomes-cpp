@@ -60,7 +60,15 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::initialize() {
         jobs_ = owned_jobs_.get();
     }
 
-    infantry_ = std::make_unique<infantry::InfantrySimulation>(entities_, nullptr, nullptr, jobs_);
+    navigation_ = std::make_unique<navigation::GridNavigationWorld>(
+        navigation::NavGridSpec{4U, 4U, 6.25F, {-12.5F, 0.0F, -12.5F}});
+    if (!navigation_ || !navigation_->valid()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::Internal,
+                          "battlefield navigation setup failed"));
+    }
+    infantry_ = std::make_unique<infantry::InfantrySimulation>(
+        entities_, navigation_.get(), &physics_, jobs_, true);
     const infantry::InfantryGenome genome{1.75F, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
     const auto blue = infantry_->spawn({infantry::Team::Blue, {0.0F, 0.0F, -kSpawnOffset},
                                         genome, 1U});
@@ -274,6 +282,24 @@ foundation::Result<void, foundation::Error> BattlefieldScenario::configureGraph(
             scenarioError(foundation::ErrorCode::InvalidState, "battlefield move graph setup failed"));
     }
 
+    simulation::SystemDescriptor physics_step{};
+    physics_step.id = foundation::stable_id("battlefield.physics-step");
+    physics_step.phase = simulation::SystemPhase::PhysicsStep;
+    physics_step.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
+    physics_step.access.resource_writes = {foundation::stable_id("battlefield.physics")};
+    physics_step.cadence = every_tick;
+    physics_step.main_thread_only = true;
+    physics_step.callback = [this](simulation::SystemContext& context) {
+        if (infantry_) {
+            infantry_->stepPhysics(context.fixed_dt);
+        }
+    };
+    if (!add_system(std::move(physics_step))) {
+        return foundation::Result<void, foundation::Error>::failure(
+            scenarioError(foundation::ErrorCode::InvalidState,
+                          "battlefield physics graph setup failed"));
+    }
+
     simulation::SystemDescriptor combat{};
     combat.id = foundation::stable_id("battlefield.combat-ballistics");
     combat.phase = simulation::SystemPhase::CombatBallistics;
@@ -325,6 +351,7 @@ void BattlefieldScenario::fixedUpdate(double dt) noexcept {
     }
     snapshot_.ecs_entities = entities_.ecs().entityCount();
     snapshot_.active_projectiles = ballistics_ == nullptr ? 0U : ballistics_->activeCount();
+    snapshot_.physics_steps = physics_.stepCount();
     snapshot_.alive_units = 0U;
     entities_.forEachLive([this](simulation::EntityId entity) {
         const std::uint32_t* flags = entities_.flags(entity);

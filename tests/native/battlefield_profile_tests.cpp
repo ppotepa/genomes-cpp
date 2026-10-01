@@ -26,5 +26,6 @@ int main() {
     assert(runtime);
     runtime.value()->fixedUpdate();
     assert(runtime.value()->snapshot().tick == 1U);
+    assert(runtime.value()->snapshot().physics_steps == 1U);
     return 0;
 }

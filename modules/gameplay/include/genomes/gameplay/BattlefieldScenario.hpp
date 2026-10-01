@@ -13,9 +13,11 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/navigation/NavigationWorld.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantrySimulation.hpp>
 #endif
+#include <genomes/physics/PhysicsWorld.hpp>
 #include <genomes/simulation/EntityStore.hpp>
 #include <genomes/simulation/SystemGraph.hpp>
 #include <genomes/spatial/SpatialGrid.hpp>
@@ -57,6 +59,7 @@ struct BattlefieldScenarioSnapshot final {
     std::size_t intents{0U};
     std::size_t fired{0U};
     std::size_t active_projectiles{0U};
+    std::uint64_t physics_steps{0U};
     std::size_t impacts{0U};
     std::size_t accepted_damage{0U};
     std::size_t deaths{0U};
@@ -119,6 +122,8 @@ private:
     std::unique_ptr<jobs::JobSystem> owned_jobs_;
     jobs::JobSystem* jobs_{nullptr};
     simulation::EntityStore entities_;
+    physics::SimplePhysicsWorld physics_{};
+    std::unique_ptr<navigation::GridNavigationWorld> navigation_;
     std::unique_ptr<infantry::InfantrySimulation> infantry_;
     combat::CombatSystem combat_;
     combat::CombatCommandFlow combat_flow_;

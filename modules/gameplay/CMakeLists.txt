@@ -19,6 +19,8 @@ target_link_libraries(genomes_gameplay PUBLIC
 if(GENOMES_ENABLE_INFANTRY)
     target_link_libraries(genomes_gameplay PUBLIC
         genomes::spatial
+        genomes::navigation
+        genomes::physics
         genomes::combat
         genomes::infantry
         genomes::weapons
