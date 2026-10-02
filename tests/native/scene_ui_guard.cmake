@@ -389,11 +389,19 @@ foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.rigid"
         message(FATAL_ERROR "Infantry Mass Battle bounded instancing misses ${_mass_instancing_contract}")
     endif()
 endforeach()
-foreach(_mass_camera_contract IN ITEMS "map_size * 0.38F" "map_size * 0.62F"
-                                       "camera_map_size * 0.38F" "camera_map_size * 0.62F")
+foreach(_mass_camera_contract IN ITEMS "{0.0F, 140.0F, 300.0F}"
+                                       "{0.0F, 10.0F, 0.0F}")
     string(FIND "${_battlefield_scene}" "${_mass_camera_contract}" _mass_camera_found)
     if(_mass_camera_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle camera framing misses ${_mass_camera_contract}")
+    endif()
+endforeach()
+foreach(_mass_terrain_contract IN ITEMS "presentation_position"
+                                        "terrain_->sampleBilinear"
+                                        "presentation_position.y")
+    string(FIND "${_battlefield_scene}" "${_mass_terrain_contract}" _mass_terrain_found)
+    if(_mass_terrain_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle terrain placement misses ${_mass_terrain_contract}")
     endif()
 endforeach()
 string(FIND "${_battlefield_scene}" "mesh_id(feature.kind)" _legacy_world_feature_instance)

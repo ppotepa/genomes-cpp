@@ -46,11 +46,14 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
 
     const std::uint32_t columns = static_cast<std::uint32_t>(std::ceil(
         std::sqrt(static_cast<float>(config_.units_per_team))));
-    const float spacing = std::max(10.0F,
-                                   static_cast<float>(config_.map_size_m) * 0.018F);
+    // The battle occupies a readable arena inside the larger streamed world.
+    // Scaling formation spacing with the full map made individual soldiers
+    // sub-pixel at the camera distance required to see both teams.
+    constexpr float spacing = 3.2F;
     const float formation_depth = static_cast<float>(columns - 1U) * spacing;
     const float start_z = -formation_depth * 0.5F;
-    const float start_x = static_cast<float>(config_.map_size_m) * 0.32F;
+    const float start_x = std::min(180.0F,
+                                   static_cast<float>(config_.map_size_m) * 0.16F);
     for (std::uint32_t team_index = 0U; team_index < 2U; ++team_index) {
         const auto team = team_index == 0U ? infantry::Team::Blue : infantry::Team::Red;
         const float side = team == infantry::Team::Blue ? -1.0F : 1.0F;

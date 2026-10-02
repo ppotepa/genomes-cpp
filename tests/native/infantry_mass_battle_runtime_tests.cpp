@@ -1,5 +1,6 @@
 #include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -51,13 +52,19 @@ int main() {
     assertSameStates(first.renderStates(), second.renderStates());
 
     std::unordered_set<std::uint8_t> variants;
+    float maximum_abs_x = 0.0F;
+    float maximum_abs_z = 0.0F;
     for (const State& state : first.renderStates()) {
         variants.insert(state.animation_variant);
         const float half_map = static_cast<float>(config.map_size_m) * 0.5F;
         assert(state.position.x >= -half_map && state.position.x <= half_map);
         assert(state.position.z >= -half_map && state.position.z <= half_map);
+        maximum_abs_x = std::max(maximum_abs_x, std::abs(state.position.x));
+        maximum_abs_z = std::max(maximum_abs_z, std::abs(state.position.z));
     }
     assert(variants.size() >= 4U);
+    assert(maximum_abs_x < 200.0F);
+    assert(maximum_abs_z < 60.0F);
 
     const auto initial_states = first.renderStates();
     for (std::uint64_t tick = 1U; tick <= 120U; ++tick) {

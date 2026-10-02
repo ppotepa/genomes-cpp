@@ -167,8 +167,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         const float map_size = static_cast<float>(config_.map_size_m);
         camera_request_.preset = camera::CameraPreset::Battlefield;
         camera_request_.mode = camera::CameraMode::Orbit;
-        camera_request_.position = {0.0F, map_size * 0.38F, map_size * 0.62F};
-        camera_request_.target = {0.0F, 12.0F, 0.0F};
+        camera_request_.position = {0.0F, 140.0F, 300.0F};
+        camera_request_.target = {0.0F, 10.0F, 0.0F};
         camera_request_.up = {0.0F, 1.0F, 0.0F};
         camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, map_size * 4.0F)};
     }
@@ -725,11 +725,11 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     camera_request_.preset = camera::CameraPreset::Battlefield;
     camera_request_.mode = camera::CameraMode::Orbit;
     camera_request_.position = mode_ == BattlefieldSceneMode::InfantryMassBattle
-        ? foundation::Vec3{0.0F, camera_map_size * 0.38F, camera_map_size * 0.62F}
+        ? foundation::Vec3{0.0F, 140.0F, 300.0F}
         : foundation::Vec3{camera_map_size * 0.78F, camera_map_size * 0.92F,
                            camera_map_size * 0.82F};
     camera_request_.target = mode_ == BattlefieldSceneMode::InfantryMassBattle
-        ? foundation::Vec3{0.0F, 12.0F, 0.0F}
+        ? foundation::Vec3{0.0F, 10.0F, 0.0F}
         : foundation::Vec3{0.0F, 0.0F, 0.0F};
     camera_request_.up = {0.0F, 1.0F, 0.0F};
     camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
@@ -887,12 +887,17 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                         (state.team == infantry::Team::Red
                              ? render::RenderInstanceFlagTeamRed
                              : 0U);
+                    foundation::Vec3 presentation_position = state.position;
+                    if (mass_battle_instancing && terrain_ != nullptr) {
+                        presentation_position.y = terrain_->sampleBilinear(
+                            presentation_position.x, presentation_position.z) + 0.02F;
+                    }
                     context.presentation.instances.push_back(
                         {object_id,
                          mass_battle_instancing ? render_infantry_mesh_->mesh_id
                                                 : infantry_skinned_prototype_->mesh_id,
                          state.team == infantry::Team::Blue ? blue_material : red_material,
-                         state.position,
+                         presentation_position,
                          {state.height / model_height, state.height / model_height,
                           state.height / model_height},
                          state.heading,
