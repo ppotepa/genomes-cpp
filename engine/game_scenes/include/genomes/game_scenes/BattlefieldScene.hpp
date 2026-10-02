@@ -73,7 +73,6 @@ private:
         Starting,
         CreateSimulation,
         CompileModel,
-        InitializeAnimation,
         Ready,
         Failed,
     };

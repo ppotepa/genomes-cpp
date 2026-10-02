@@ -375,11 +375,18 @@ endif()
 foreach(_mass_loading_stage IN ITEMS "MassBattleLoadStage::Starting"
                                      "MassBattleLoadStage::CreateSimulation"
                                      "MassBattleLoadStage::CompileModel"
-                                     "MassBattleLoadStage::InitializeAnimation"
                                      "MassBattleLoadStage::Ready")
     string(FIND "${_battlefield_scene}" "${_mass_loading_stage}" _mass_loading_stage_found)
     if(_mass_loading_stage_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle staged loading misses ${_mass_loading_stage}")
+    endif()
+endforeach()
+foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.rigid"
+                                          "mass_battle_instancing"
+                                          "if (!mass_battle_instancing)")
+    string(FIND "${_battlefield_scene}" "${_mass_instancing_contract}" _mass_instancing_found)
+    if(_mass_instancing_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle bounded instancing misses ${_mass_instancing_contract}")
     endif()
 endforeach()
 foreach(_mass_camera_contract IN ITEMS "map_size * 0.38F" "map_size * 0.62F"

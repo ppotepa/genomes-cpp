@@ -81,10 +81,6 @@ runtime::SceneLoadingStatus BattlefieldScene::loading_status() const {
             return {runtime::SceneLoadingPhase::InProgress, 0.25,
                     "Compiling infantry presentation prototype"};
         }
-        if (mass_battle_load_stage_ == MassBattleLoadStage::InitializeAnimation) {
-            return {runtime::SceneLoadingPhase::InProgress, 0.55,
-                    "Preparing infantry animation state"};
-        }
         if (mass_battle_load_stage_ == MassBattleLoadStage::Failed ||
             mass_battle_runtime_ == nullptr || infantry_model_artifact_ == nullptr) {
             return {runtime::SceneLoadingPhase::Failed, 0.15,
@@ -254,13 +250,9 @@ void BattlefieldScene::advance_mass_battle_loading() {
             return;
         }
         infantry_model_artifact_ = std::move(model.value().artifact);
-        mass_battle_load_stage_ = MassBattleLoadStage::InitializeAnimation;
-        return;
-    }
-    case MassBattleLoadStage::InitializeAnimation:
-        initialize_infantry_animation();
         mass_battle_load_stage_ = MassBattleLoadStage::Ready;
         return;
+    }
     case MassBattleLoadStage::Inactive:
     case MassBattleLoadStage::Ready:
     case MassBattleLoadStage::Failed:
@@ -801,19 +793,31 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     *infantry_model_artifact_);
             }
             if (infantry_skinned_prototype_) {
-                context.presentation.skinned_prototypes.push_back(infantry_skinned_prototype_);
                 const auto bind_palette = infantry_presentation::makeBindPalette(
                     infantry_model_artifact_->skeleton);
                 const auto bind_local_poses = infantry_presentation::makeLocalPoses(
                     infantry_model_artifact_->skeleton, {});
-                if (!context.render_capabilities.gpu_skinning && !render_infantry_mesh_) {
+                const bool mass_battle_instancing = mass_battle_runtime_ != nullptr;
+                if (mass_battle_instancing && !render_infantry_mesh_) {
+                    render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
+                        render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
+                    render_infantry_mesh_->mesh_id =
+                        foundation::stable_id("mesh.infantry.mass-battle.rigid");
+                    render_infantry_mesh_->revision = foundation::stableHashCombine(
+                        infantry_skinned_prototype_->revision,
+                        render_infantry_mesh_->mesh_id);
+                } else if (!context.render_capabilities.gpu_skinning &&
+                           !render_infantry_mesh_) {
                     render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
                         render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
                     render_infantry_mesh_->mesh_id = infantry_skinned_prototype_->mesh_id;
                     render_infantry_mesh_->revision = infantry_skinned_prototype_->revision;
                 }
-                if (!context.render_capabilities.gpu_skinning && render_infantry_mesh_) {
+                if (mass_battle_instancing || !context.render_capabilities.gpu_skinning) {
                     context.presentation.instance_prototypes.push_back(render_infantry_mesh_);
+                } else {
+                    context.presentation.skinned_prototypes.push_back(
+                        infantry_skinned_prototype_);
                 }
 
                 const float model_height =
@@ -854,26 +858,28 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     const auto pose_found = poses.find(pose_id);
                     const infantry::AnimationPose* pose =
                         pose_found != poses.end() ? pose_found->second : nullptr;
-                    render::SkinnedBonePalette palette{};
-                    palette.instance_id = object_id;
-                    palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
-                    palette.pose_revision = pose != nullptr ? pose->revision : 0U;
-                    if (pose != nullptr) {
-                        const auto pose_span =
-                            std::span<const infantry::RigTransform>(pose->bones);
-                        palette.matrices = infantry_presentation::makePalette(
-                            infantry_model_artifact_->skeleton, pose_span);
-                        palette.local_poses = infantry_presentation::makeLocalPoses(
-                            infantry_model_artifact_->skeleton, pose_span);
-                        palette.morph_weights[0] = pose->face.eyelids_close;
-                        palette.morph_weights[1] = pose->face.eyelids_arc;
-                        palette.morph_weights[2] = pose->face.neck_flex;
-                        palette.morph_weights[3] = pose->face.hands_relax;
-                    } else {
-                        palette.matrices = bind_palette;
-                        palette.local_poses = bind_local_poses;
+                    if (!mass_battle_instancing) {
+                        render::SkinnedBonePalette palette{};
+                        palette.instance_id = object_id;
+                        palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
+                        palette.pose_revision = pose != nullptr ? pose->revision : 0U;
+                        if (pose != nullptr) {
+                            const auto pose_span =
+                                std::span<const infantry::RigTransform>(pose->bones);
+                            palette.matrices = infantry_presentation::makePalette(
+                                infantry_model_artifact_->skeleton, pose_span);
+                            palette.local_poses = infantry_presentation::makeLocalPoses(
+                                infantry_model_artifact_->skeleton, pose_span);
+                            palette.morph_weights[0] = pose->face.eyelids_close;
+                            palette.morph_weights[1] = pose->face.eyelids_arc;
+                            palette.morph_weights[2] = pose->face.neck_flex;
+                            palette.morph_weights[3] = pose->face.hands_relax;
+                        } else {
+                            palette.matrices = bind_palette;
+                            palette.local_poses = bind_local_poses;
+                        }
+                        context.presentation.skinned_palettes.push_back(std::move(palette));
                     }
-                    context.presentation.skinned_palettes.push_back(std::move(palette));
                     const std::uint32_t instance_flags =
                         render::RenderInstanceFlagDynamic |
                         render::RenderInstanceFlagCastShadow |
@@ -883,7 +889,8 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                              : 0U);
                     context.presentation.instances.push_back(
                         {object_id,
-                         infantry_skinned_prototype_->mesh_id,
+                         mass_battle_instancing ? render_infantry_mesh_->mesh_id
+                                                : infantry_skinned_prototype_->mesh_id,
                          state.team == infantry::Team::Blue ? blue_material : red_material,
                          state.position,
                          {state.height / model_height, state.height / model_height,
