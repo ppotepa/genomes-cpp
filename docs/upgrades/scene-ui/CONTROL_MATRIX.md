@@ -16,5 +16,5 @@ Visual acceptance is still a user responsibility at the final SHA.
 | File picker | `ui.services` fake; SDL implementation source | World Lab prototype import/export |
 | Legacy boundary/static guard | `ui.scene_guard` | all migrated scenes |
 
-The shared catalogue is in `mods/core/ui/controls.rml` and the technical state
+The interactive catalogue is in `mods/core/ui-test.rml` and the technical state
 theme is in `mods/core/ui/theme.rcss`; scene RCSS files only provide layout.

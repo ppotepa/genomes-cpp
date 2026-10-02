@@ -92,6 +92,10 @@ struct SetLocomotionPreset final {
     infantry::BipedPreset value{infantry::BipedPreset::Idle};
 };
 
+struct SetAnimationState final {
+    infantry::AnimationState value{infantry::AnimationState::IDLE};
+};
+
 struct SetExpression final {
     infantry::FaceExpression value{infantry::FaceExpression::Neutral};
 };
@@ -116,7 +120,7 @@ struct SetAppearancePreset final {
 };
 
 using UnitLabCommand = std::variant<SetVariation, SetCameraMode,
-                                    SetLocomotionPreset, SetExpression,
+                                    SetLocomotionPreset, SetAnimationState, SetExpression,
                                     SetEquipmentSlot, SetGeneOverride,
                                     SetAppearancePreset>;
 
@@ -152,6 +156,7 @@ private:
     bool applyCommand(SceneContext&, SetVariation);
     bool applyCommand(SceneContext&, SetCameraMode);
     bool applyCommand(SceneContext&, SetLocomotionPreset);
+    bool applyCommand(SceneContext&, SetAnimationState);
     bool applyCommand(SceneContext&, SetExpression);
     bool applyCommand(SceneContext&, SetEquipmentSlot);
     bool applyCommand(SceneContext&, SetGeneOverride);
@@ -161,6 +166,7 @@ private:
     void rebuildModel(SceneContext* context = nullptr);
     void startModelRequest(SceneContext&, infantry::InfantryModelRequest,
                            UnitLabModelRequestToken);
+    void seekAnimation(float phase) noexcept;
     void publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
                                                foundation::Error>&& result);
 
@@ -193,6 +199,9 @@ private:
     std::optional<infantry::BoneId> debug_weight_bone_;
     bool animation_paused_{false};
     float animation_speed_{1.0F};
+    float locomotion_crouch_{0.0F};
+    float locomotion_speed_mps_{0.0F};
+    float animation_transition_seconds_{0.20F};
     UnitLabDirtyState dirty_{};
     std::shared_ptr<const render::RenderMesh> unit_prototype_;
     std::shared_ptr<const render::SkinnedMeshPrototype> skinned_prototype_;
@@ -203,6 +212,7 @@ private:
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog_;
     std::optional<infantry::LocomotionController> locomotion_;
     std::optional<infantry::LocomotionState> locomotion_state_;
+    infantry::AnimationTransitionRuntime transition_runtime_{};
     std::optional<infantry::FaceAnimator> face_animator_;
     std::optional<infantry::AnimationSystem> animation_system_;
     std::optional<infantry::AnimationPose> animation_pose_;

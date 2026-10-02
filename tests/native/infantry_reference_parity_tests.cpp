@@ -1240,11 +1240,13 @@ int main() {
                 native.actual_speed_mps=moving?.35F:0.0F;
                 auto animation_result=AnimationSystem::create();if(!animation_result)return false;
                 auto animation=std::move(animation_result.value());
+                AnimationTransitionRuntime transition_runtime{};
                 AnimationEntity entity{};entity.semantic_id=3U;entity.skeleton=&rig.value();
                 // The JS animation fixture uses the flat contact surface, not
                 // the skinned body mesh, for prone hand/foot placement.
                 entity.surface=nullptr;
                 entity.locomotion=&controller.value();entity.locomotion_state=&native;
+                entity.transition_runtime=&transition_runtime;
                 entity.lod.setTier(AnimationLOD::Near);std::array<AnimationEntity,1U> entities{entity};
                 constexpr std::array<std::size_t,14U> sampled_bones{
                     0U,1U,2U,3U,4U,5U,6U,7U,8U,9U,14U,15U,16U,17U};
@@ -1315,11 +1317,13 @@ int main() {
                 auto animation_result=AnimationSystem::create();
                 if(!animation_result)return 2;
                 auto animation=std::move(animation_result.value());
+                AnimationTransitionRuntime transition_runtime{};
                 AnimationEntity entity{};entity.semantic_id=1U;entity.skeleton=&rig.value();
                 // Terrain contact is flat in this fixture, while support
                 // points still come from the authored skinned body surface.
                 entity.surface=&animation_surface.value().mesh;
                 entity.locomotion=&controller.value();entity.locomotion_state=&native;
+                entity.transition_runtime=&transition_runtime;
                 entity.lod.setTier(AnimationLOD::Near);
                 std::array<AnimationEntity,1U> entities{entity};
                 for(std::size_t frame=0;frame<600U;++frame){
@@ -1437,9 +1441,11 @@ int main() {
                 if(!controller.value().setFamily(native,LocomotionFamily::Seated))return 2;
                 auto animation_result=AnimationSystem::create();if(!animation_result)return 2;
                 auto animation=std::move(animation_result.value());
+                AnimationTransitionRuntime transition_runtime{};
                 AnimationEntity entity{};entity.semantic_id=2U;entity.skeleton=&rig.value();
                 entity.surface=nullptr;
                 entity.locomotion=&controller.value();entity.locomotion_state=&native;
+                entity.transition_runtime=&transition_runtime;
                 entity.lod.setTier(AnimationLOD::Near);std::array<AnimationEntity,1U> entities{entity};
                 constexpr std::array<std::size_t,14U> sampled_bones{
                     0U,1U,2U,3U,4U,5U,6U,7U,8U,9U,14U,15U,16U,17U};

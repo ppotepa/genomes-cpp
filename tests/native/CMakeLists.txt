@@ -1029,6 +1029,20 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_infantry_animation_parallel)
     add_test(NAME infantry.animation_parallel COMMAND genomes_test_infantry_animation_parallel)
 
+    add_executable(genomes_test_infantry_animation_transition
+        infantry_animation_transition_tests.cpp)
+    target_link_libraries(genomes_test_infantry_animation_transition PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_animation_transition)
+    genomes_enable_test_assertions(genomes_test_infantry_animation_transition)
+    add_test(NAME infantry.animation_transition COMMAND genomes_test_infantry_animation_transition)
+
+    add_executable(genomes_test_infantry_animation_weapon_overlay
+        infantry_animation_weapon_overlay_tests.cpp)
+    target_link_libraries(genomes_test_infantry_animation_weapon_overlay PRIVATE genomes::infantry)
+    genomes_set_project_warnings(genomes_test_infantry_animation_weapon_overlay)
+    genomes_enable_test_assertions(genomes_test_infantry_animation_weapon_overlay)
+    add_test(NAME infantry.animation_weapon_overlay COMMAND genomes_test_infantry_animation_weapon_overlay)
+
     add_executable(genomes_test_infantry_damage_ragdoll
         infantry_damage_ragdoll_tests.cpp)
     target_link_libraries(genomes_test_infantry_damage_ragdoll PRIVATE genomes::infantry)

@@ -26,8 +26,25 @@ foreach(_document IN LISTS _documents)
         message(FATAL_ERROR "shared theme must precede scene RCSS in ${_document}")
     endif()
     if(_rml MATCHES "type=\"(number|range)\"[^>]*data-control=\"[^\"]+\"" AND
-       NOT _rml MATCHES "type=\"(number|range)\"[^>]*data-field=\"[^\"]+\"[^>]*data-control=")
+       NOT _rml MATCHES "type=\"(number|range)\"[^>]*data-(field|attr-data-field)=\"[^\"]+\"[^>]*data-control=")
         message(FATAL_ERROR "bound number/range requires explicit data-field in ${_document}")
+    endif()
+    if(_rml MATCHES "data-bind=\"text:")
+        message(FATAL_ERROR "text bindings must use safe {{ value }} interpolation in ${_document}")
+    endif()
+    if(NOT _rml MATCHES "[\{][\{][ \\t]*fps[ \\t]*[\}][\}]")
+        message(FATAL_ERROR "Route header must expose the shared FPS readout: ${_document}")
+    endif()
+endforeach()
+
+file(GLOB_RECURSE _production_rcss
+    "${GENOMES_SOURCE_DIR}/mods/core/ui/*.rcss"
+    "${GENOMES_SOURCE_DIR}/mods/core/scenes/*.rcss")
+list(APPEND _production_rcss "${GENOMES_SOURCE_DIR}/mods/core/ui-test.rcss")
+foreach(_stylesheet IN LISTS _production_rcss)
+    file(READ "${_stylesheet}" _stylesheet_text)
+    if(_stylesheet_text MATCHES "border-radius")
+        message(FATAL_ERROR "production UI must keep square corners: ${_stylesheet}")
     endif()
 endforeach()
 
@@ -40,13 +57,138 @@ foreach(_required IN ITEMS "selectvalue" "selectarrow" "selectbox" "sliderprogre
         message(FATAL_ERROR "shared theme misses ${_required}")
     endif()
 endforeach()
+foreach(_dead_theme_rule IN ITEMS "button.toggle" ".scroll-panel")
+    if(_theme_css MATCHES "${_dead_theme_rule}")
+        message(FATAL_ERROR "shared theme retains removed control rule: ${_dead_theme_rule}")
+    endif()
+endforeach()
 
 file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/unit-lab/screen.rml" _unit_rml)
+file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/unit-lab/screen.rcss" _unit_css)
+file(READ "${GENOMES_SOURCE_DIR}/mods/core/ui-test.rcss" _ui_test_css)
+foreach(_dead_unit_rule IN ITEMS ".unit-field" ".toggle")
+    if(_unit_css MATCHES "${_dead_unit_rule}")
+        message(FATAL_ERROR "Unit Lab retains removed control rule: ${_dead_unit_rule}")
+    endif()
+endforeach()
+if(_ui_test_css MATCHES "[.]scroll-panel")
+    message(FATAL_ERROR "UI gallery retains removed scroll-panel rule")
+endif()
+file(GLOB_RECURSE _scene_rml "${GENOMES_SOURCE_DIR}/mods/core/scenes/*.rml")
+foreach(_document IN LISTS _scene_rml)
+    file(READ "${_document}" _document_text)
+    if(_document_text MATCHES "data-attr-(selected|disabled)=")
+        message(FATAL_ERROR "Boolean RmlUi attributes must use data-attrif-* in ${_document}")
+    endif()
+    string(REGEX MATCHALL "<main([ >])" _main_elements "${_document_text}")
+    list(LENGTH _main_elements _main_count)
+    if(_main_count LESS 1)
+        message(FATAL_ERROR "Route is missing its main landmark: ${_document}")
+    elseif(_main_count GREATER 1)
+        message(FATAL_ERROR "Route has more than one main landmark: ${_document}")
+    endif()
+    string(REGEX MATCHALL "<summary([ >])" _summary_elements "${_document_text}")
+    string(REGEX MATCHALL "<summary([ >])[^<]*<button[^>]*data-disclosure[= ][^>]*>[^<]*</button>[^<]*</summary>"
+           _disclosure_buttons "${_document_text}")
+    list(LENGTH _summary_elements _summary_count)
+    list(LENGTH _disclosure_buttons _disclosure_count)
+    if(_summary_count GREATER _disclosure_count)
+        message(FATAL_ERROR "Disclosure summary must own a data-disclosure button: ${_document}")
+    endif()
+    string(REGEX MATCHALL "<option[^>]*>" _document_options "${_document_text}")
+    foreach(_option IN LISTS _document_options)
+        if(NOT _option MATCHES "(^|[ ])value=|data-attr-value=")
+            message(FATAL_ERROR "Route option must expose an explicit value: ${_document}: ${_option}")
+        endif()
+    endforeach()
+endforeach()
+if(EXISTS "${GENOMES_SOURCE_DIR}/mods/core/ui/controls.rml")
+    message(FATAL_ERROR "Unused controls.rml must not be restored; ui-test.rml is the gallery")
+endif()
 foreach(_required IN ITEMS "scene.open-building-lab" "scene.open-world-lab" "disabled=\"disabled\""
-                           "Crouch Walk" "max=\"1.75\"" "unit.genome-clear")
+                           "Crouch Walk" "max=\"1.75\"" "max=\"0.99\"" "unit.genome-clear")
     string(FIND "${_unit_rml}" "${_required}" _found)
     if(_found LESS 0)
         message(FATAL_ERROR "Unit Lab misses ${_required}")
+    endif()
+endforeach()
+string(REGEX MATCHALL "<option[^>]*>" _unit_options "${_unit_rml}")
+foreach(_option IN LISTS _unit_options)
+    if(NOT _option MATCHES "(^|[ ])value=|data-attr-value=")
+        message(FATAL_ERROR "Unit Lab option must expose an explicit value: ${_option}")
+    endif()
+endforeach()
+
+# Infantry Lab HUD contract: one scroll owner, semantic landmarks, foldable
+# domains, and the form classes used by the local stylesheet.
+foreach(_landmark IN ITEMS "id=\"unit-header\"" "id=\"unit-rail\""
+                           "id=\"unit-toolbar\"" "id=\"unit-viewport\""
+                           "id=\"unit-inspector\"" "class=\"unit-inspector-scroll\"")
+    string(FIND "${_unit_rml}" "${_landmark}" _landmark_found)
+    if(_landmark_found LESS 0)
+        message(FATAL_ERROR "Unit Lab landmark missing: ${_landmark}")
+    endif()
+endforeach()
+foreach(_semantic IN ITEMS "<header" "<nav" "<main" "<aside" "<section"
+                          "<details" "<summary" "class=\"field\""
+                          "class=\"check-row\"" "<output")
+    string(FIND "${_unit_rml}" "${_semantic}" _semantic_found)
+    if(_semantic_found LESS 0)
+        message(FATAL_ERROR "Unit Lab semantic/form contract missing: ${_semantic}")
+    endif()
+endforeach()
+foreach(_scroll_contract IN ITEMS "display: block" "flex: 1" "min-height: 0dp"
+                                  "overflow-y: auto" "pointer-events: auto"
+                                  "scrollbarvertical")
+    string(FIND "${_unit_css}" "${_scroll_contract}" _scroll_found)
+    if(_scroll_found LESS 0)
+        message(FATAL_ERROR "Unit Lab scroll contract missing: ${_scroll_contract}")
+    endif()
+endforeach()
+if(_unit_css MATCHES "[.]unit-inspector-scroll[^}]*overflow-y:[^}]*overflow-y:")
+    message(FATAL_ERROR "Unit Lab declares multiple overflow-y owners on the main scroll container")
+endif()
+if(NOT _unit_css MATCHES "[.]unit-viewport[^}]*background-color:[ ]*transparent")
+    message(FATAL_ERROR "Unit Lab viewport must stay transparent so RmlUi does not cover the GPU scene")
+endif()
+foreach(_foldable IN ITEMS "Rendering and debug" "Apparel, armor, attachments and weapons"
+                           "Root, body and face genes" "Rig hierarchy" "Diagnostics")
+    string(FIND "${_unit_rml}" "${_foldable}" _foldable_found)
+    if(_foldable_found LESS 0)
+        message(FATAL_ERROR "Unit Lab foldable section missing: ${_foldable}")
+    endif()
+endforeach()
+foreach(_control IN ITEMS "unit.seed" "unit.side" "unit.tab"
+                          "unit.detail" "unit.camera" "unit.equipment-item"
+                          "unit.variation" "unit.genome" "unit.weight"
+                          "unit.locomotion" "unit.animation-speed" "unit.animation-transition" "unit.phase"
+                          "unit.expression" "unit.expression-intensity")
+    string(FIND "${_unit_rml}" "data-control=\"${_control}\"" _contract_found)
+    if(_contract_found LESS 0)
+        message(FATAL_ERROR "Unit Lab data-control contract missing: ${_control}")
+    endif()
+endforeach()
+
+string(FIND "${_unit_rml}" "data-action=\"unit.regenerate\"" _regenerate_action)
+if(_regenerate_action LESS 0)
+    message(FATAL_ERROR "Unit Lab quick regenerate action missing")
+endif()
+
+# Building Lab keeps amount selection separate from the destructive operation:
+# Apply Damage must read the authoritative UI draft before mutating the runtime.
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BuildingLabScene.cpp" _building_scene)
+string(FIND "${_building_scene}" "find_field(\"damage_amount\")" _building_damage_draft)
+if(_building_damage_draft LESS 0)
+    message(FATAL_ERROR "Building Lab Apply Damage must commit the damage UI draft")
+endif()
+
+foreach(_action IN ITEMS "unit.back" "unit.regenerate" "unit.camera-reset"
+                         "unit.equipment-clear" "unit.genome-reset" "unit.pause"
+                         "unit.animation-reset" "unit.animation-step-back"
+                         "unit.animation-step-forward")
+    string(FIND "${_unit_rml}" "data-action=\"${_action}\"" _action_found)
+    if(_action_found LESS 0)
+        message(FATAL_ERROR "Unit Lab data-action contract missing: ${_action}")
     endif()
 endforeach()
 
@@ -71,6 +213,15 @@ endif()
 # control by independently parsing its value or rebuilding geometry here.
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/UnitLabCommandParsing.hpp" _unit_commands)
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/UnitLabScene.cpp" _unit_scene)
+string(REGEX MATCHALL "data-control=\"unit[.][^\"]+\"" _unit_control_attributes "${_unit_rml}")
+foreach(_unit_control_attribute IN LISTS _unit_control_attributes)
+    string(REGEX REPLACE "data-control=\"([^\"]+)\"" "\\1"
+           _unit_control "${_unit_control_attribute}")
+    string(FIND "${_unit_scene}" "stable_id(\"${_unit_control}\")" _unit_handler)
+    if(_unit_handler LESS 0)
+        message(FATAL_ERROR "Unit Lab data-control has no scene handler: ${_unit_control}")
+    endif()
+endforeach()
 foreach(_control IN ITEMS "unit.variation" "unit.camera" "unit.locomotion"
                           "unit.expression" "unit.equipment-item" "unit.genome"
                           "unit.appearance-preset")
@@ -97,6 +248,59 @@ string(FIND "${_unit_scene}" "parseUnitLabCommand(" _legacy_parser_use)
 if(NOT _legacy_parser_use LESS 0)
     message(FATAL_ERROR "Unit Lab scene still parses RmlUi values through the CLI adapter")
 endif()
+
+# Every semantic control declared by a route must have a scene-side handler.
+# This catches controls that render correctly but silently disappear at the
+# runtime boundary because only their RML markup was added.
+set(_route_handler_pairs
+    "unit-lab|UnitLabScene.cpp"
+    "world-lab|WorldLabScene.cpp"
+    "world-config|WorldConfigScene.cpp"
+    "building-lab|BuildingLabScene.cpp"
+    "settings|BuiltinScenes.cpp")
+foreach(_route_handler_pair IN LISTS _route_handler_pairs)
+    string(REPLACE "|" ";" _route_handler_parts "${_route_handler_pair}")
+    list(GET _route_handler_parts 0 _route_name)
+    list(GET _route_handler_parts 1 _handler_name)
+    file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/${_route_name}/screen.rml" _route_text)
+    file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/${_handler_name}" _handler_text)
+    string(REGEX MATCHALL "data-control=\"[^\"]+\"" _route_controls "${_route_text}")
+    foreach(_route_control_attribute IN LISTS _route_controls)
+        string(REGEX REPLACE "data-control=\"([^\"]+)\"" "\\1"
+               _route_control "${_route_control_attribute}")
+        string(FIND "${_handler_text}" "stable_id(\"${_route_control}\")" _route_handler)
+        if(_route_handler LESS 0)
+            message(FATAL_ERROR "Route data-control has no scene handler: ${_route_name}: ${_route_control}")
+        endif()
+    endforeach()
+endforeach()
+
+# The same contract applies to click actions.  Their dispatch may be handled
+# by a scene, the built-in scene router, or the application command boundary,
+# so search the complete production action surface.
+file(GLOB_RECURSE _action_handlers
+    "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/*.cpp"
+    "${GENOMES_SOURCE_DIR}/apps/game/*.cpp")
+set(_action_handler_text "")
+foreach(_action_handler IN LISTS _action_handlers)
+    file(READ "${_action_handler}" _action_handler_source)
+    string(APPEND _action_handler_text "\n${_action_handler_source}")
+endforeach()
+file(GLOB_RECURSE _action_documents "${GENOMES_SOURCE_DIR}/mods/core/scenes/*.rml")
+list(APPEND _action_documents "${GENOMES_SOURCE_DIR}/mods/core/ui-test.rml")
+foreach(_action_document IN LISTS _action_documents)
+    file(READ "${_action_document}" _action_document_text)
+    string(REGEX MATCHALL "data-action=\"[^\"]+\"" _action_attributes
+           "${_action_document_text}")
+    foreach(_action_attribute IN LISTS _action_attributes)
+        string(REGEX REPLACE "data-action=\"([^\"]+)\"" "\\1"
+               _action_name "${_action_attribute}")
+        string(FIND "${_action_handler_text}" "stable_id(\"${_action_name}\")" _action_handler)
+        if(_action_handler LESS 0)
+            message(FATAL_ERROR "RML data-action has no production handler: ${_action_name}")
+        endif()
+    endforeach()
+endforeach()
 
 # The application CLI must validate every Unit Lab command through the same
 # typed parser before dispatching a UI action. Keep this guard structural: it

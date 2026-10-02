@@ -17,6 +17,7 @@
 #include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <cstdint>
+#include <cmath>
 #include <map>
 #include <optional>
 #include <compare>
@@ -60,6 +61,23 @@ struct InfantryRenderState final {
     AgentState state{AgentState::Idle};
 };
 
+// Authoritative read-only state needed by production presentation bridges.
+// Weapon handling owns its own mutable runtime; this view only exposes the
+// simulation-owned target, locomotion and Engage state for the current tick.
+struct InfantryWeaponHandlingView final {
+    simulation::EntityId entity{};
+    simulation::EntityId target{};
+    foundation::Vec3 velocity{};
+    float height{0.0F};
+    AgentState state{AgentState::Idle};
+
+    [[nodiscard]] bool valid() const noexcept {
+        return entity.isValid() && std::isfinite(velocity.x) &&
+               std::isfinite(velocity.y) && std::isfinite(velocity.z) &&
+               std::isfinite(height) && height > 0.0F;
+    }
+};
+
 class InfantrySimulation final {
 public:
     explicit InfantrySimulation(simulation::EntityStore& entities,
@@ -88,7 +106,12 @@ public:
     [[nodiscard]] bool externalPhysicsStep() const noexcept {
         return external_physics_step_;
     }
+    // Compatibility fixture bridge only. Production BattlefieldRuntime owns
+    // WeaponHandlingSystem and never invokes this parallel fire path.
     void emitCombatEvents(foundation::SimulationTick tick, combat::DamageBuffer&) noexcept;
+
+    [[nodiscard]] bool readWeaponHandlingView(
+        simulation::EntityId, InfantryWeaponHandlingView&) const noexcept;
 
     [[nodiscard]] const std::vector<InfantryRenderState>& renderStates() const noexcept {
         return render_states_;

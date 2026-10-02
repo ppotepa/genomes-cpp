@@ -187,18 +187,17 @@ if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loadin
         rml_ui_->set_file_dialog_service(file_dialog_service_.get());
         rml_ui_->set_action_router(this);
         rml_ui_->set_event_router([this](const ui::UiEvent& event) {
-            if (event.route_revision != 0U && event.route_revision != ui_.routes().revision())
+            const auto* active_route = ui_.routes().top();
+            if (event.route_revision != 0U &&
+                (active_route == nullptr || event.route_revision != active_route->revision))
                 return ui::UiActionResult::Rejected;
-            const std::string& field_key = event.field;
-            if (const auto* field = ui_.model().find_field(field_key); field != nullptr) {
-                if (field->commit_policy == ui::UiCommitPolicy::OnChange &&
-                    event.phase == ui::UiEventPhase::Input)
-                    return ui::UiActionResult::Handled;
-                if (field->commit_policy == ui::UiCommitPolicy::Explicit &&
-                    event.phase == ui::UiEventPhase::Input)
-                    return ui::UiActionResult::Handled;
-            }
+            const auto applied = ui_.apply_event(event);
+            if (!event.field.empty() && !applied.consumed)
+                return ui::UiActionResult::Rejected;
+            if (applied.consumed && !applied.publish)
+                return ui::UiActionResult::Handled;
             ui::UiActionArguments arguments;
+            const auto& published_value = applied.consumed ? applied.value : event.value;
             arguments.emplace_back("value", std::visit([](const auto& value) -> std::string {
                 using Value = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<Value, std::string>) return value;
@@ -213,7 +212,7 @@ if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loadin
                     }();
                     return result.ec == std::errc{} ? std::string(buffer.data(), result.ptr) : std::string{};
                 }
-            }, event.value));
+            }, published_value));
             for (const auto& [key, value] : event.arguments) {
                 arguments.emplace_back(key, std::visit([](const auto& item) -> std::string {
                     using Value = std::decay_t<decltype(item)>;
@@ -397,6 +396,9 @@ int GameApplication::run(int argc,char** argv) {
 #endif
     }
     auto previous=std::chrono::steady_clock::now();std::uint64_t frames=0;bool captured=false;
+    double fps_window_seconds = 0.0;
+    std::uint32_t fps_window_frames = 0U;
+    double displayed_fps = 60.0;
     while (!director_.quit_requested()) {
         const auto platform_frame=platform_->poll_events();
         if (platform_frame.error.code!=foundation::ErrorCode::None) {std::cerr<<"Platform failed: "<<platform_frame.error.message<<'\n';return 1;}
@@ -429,6 +431,17 @@ int GameApplication::run(int argc,char** argv) {
             });
         director_.set_presentation_timing(advance.first_tick,advance.next_tick,advance.interpolation_alpha);
         const double dt=std::chrono::duration<double>(elapsed).count();director_.frame_update(dt);
+        if (dt > 0.0 && dt < 1.0) {
+            fps_window_seconds += dt;
+            ++fps_window_frames;
+            if (options.deterministic) {
+                displayed_fps = 1.0 / dt;
+            } else if (fps_window_seconds >= 0.25 && fps_window_frames > 0U) {
+                displayed_fps = static_cast<double>(fps_window_frames) / fps_window_seconds;
+                fps_window_seconds = 0.0;
+                fps_window_frames = 0U;
+            }
+        }
 #if defined(GENOMES_HAS_RMLUI)
         const auto route_revision=ui_.routes().revision();
         if (route_revision!=rml_route_revision_) {
@@ -449,6 +462,8 @@ int GameApplication::run(int argc,char** argv) {
             }
             rml_route_revision_=route_revision;
         }
+        const auto fps_value = displayed_fps > 0.0 ? displayed_fps : 0.0;
+        (void)ui_.model().set("fps", std::to_string(static_cast<int>(fps_value + 0.5)) + " FPS");
         rml_ui_->set_model(ui_.model());
         rml_ui_->set_route_models(ui_);
         if (const auto* scale=ui_.model().find("ui_scale"); scale!=nullptr &&

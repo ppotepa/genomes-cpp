@@ -1,15 +1,104 @@
-<rml><head><title>World laboratory</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head><body>
-<section class="panel" data-model="ui_builtin_world_lab">
-  <header class="screen-header"><p class="eyebrow">ENVIRONMENT WORKBENCH</p><h1 data-bind="text: title">World lab</h1><p class="subtitle" data-bind="text: description"></p></header>
-  <p class="prototype-banner" data-bind="text: prototype_status">Prototype UI — not applied to world simulation</p>
-  <div class="toolbar category-bar"><button disabled="disabled" title="Terrain prototype unavailable">Terrain</button><button class="active" data-action="worldlab.category" data-field="category" data-control="worldlab.category" value="Flora">Flora</button><button disabled="disabled" title="Fauna prototype unavailable">Fauna</button></div>
-  <div class="field-row">
-    <label class="field"><span class="field-label">SPECIES</span><select class="field-control" data-value="species" data-field="species" data-control="worldlab.species"><option value="Oak">Oak</option><option value="Pine">Pine</option><option value="Birch">Birch</option></select></label>
-    <label class="field"><span class="field-label">SEASON</span><select class="field-control" data-value="season" data-field="season" data-control="worldlab.season"><option value="Spring">Spring</option><option value="Summer">Summer</option><option value="Autumn">Autumn</option><option value="Winter">Winter</option></select></label>
-  </div>
-  <div class="field-row"><label class="field"><span class="field-label">DETAIL</span><select class="field-control" data-value="detail" data-field="detail" data-control="worldlab.detail"><option value="Far">Far</option><option value="World">World</option><option value="High">High</option></select></label><label class="field"><span class="field-label">SEED</span><input class="field-control" type="number" data-value="seed" data-field="seed" data-control="worldlab.seed" /></label></div>
-  <details open="open"><summary>Growth parameters</summary><label class="field"><span class="field-label">AGE</span><div class="range-row"><input type="range" min="0" max="100" step="1" data-value="age" data-field="age" data-control="worldlab.age" /><output data-bind="text: age"></output></div></label><label class="field"><span class="field-label">GENOME VARIATION</span><div class="range-row"><input type="range" min="0" max="1" step="0.05" data-value="genome" data-field="genome" data-control="worldlab.genome" /><output data-bind="text: genome"></output></div></label></details>
-  <details open="open"><summary>Viewport visibility</summary><label class="check-row"><input type="checkbox" data-checked="show_vegetation" data-field="show_vegetation" data-control="worldlab.show-vegetation" /> Show vegetation</label><label class="check-row"><input type="checkbox" data-checked="show_buildings" data-field="show_buildings" data-control="worldlab.show-buildings" /> Show buildings</label></details>
-  <details><summary>Prototype data</summary><p class="status" data-bind="text: imported_path"></p><div class="file-actions"><button data-file-dialog="open" data-file-dialog-title="Import prototype settings" data-file-dialog-filter="*.json" data-control="worldlab.import">Import settings</button><button data-file-dialog="save" data-file-dialog-title="Export prototype settings" data-file-dialog-filter="*.json" data-control="worldlab.export">Export settings</button></div></details>
-  <div class="command-bar"><button class="ghost" data-action="scene.return-main-menu">Back to main menu</button></div>
-</section></body></rml>
+<?xml version="1.0"?>
+<rml>
+  <head>
+    <title>World laboratory</title>
+    <link type="text/rcss" href="ui/theme.rcss"/>
+    <link type="text/rcss" href="screen.rcss"/>
+  </head>
+  <body>
+    <main>
+      <section class="panel" data-model="ui_builtin_world_lab">
+        <header class="screen-header">
+          <p class="eyebrow">ENVIRONMENT WORKBENCH</p>
+          <h1>{{ title }}</h1>
+          <p class="subtitle">{{ description }}</p>
+          <span class="app-fps">{{ fps }}</span>
+        </header>
+        <p class="prototype-banner">{{ prototype_status }}</p>
+        <div class="toolbar category-bar">
+          <button disabled="disabled" title="Terrain prototype unavailable">Terrain</button>
+          <button class="active" data-action="worldlab.category" data-field="category" data-control="worldlab.category" value="Flora">Flora</button>
+          <button disabled="disabled" title="Fauna prototype unavailable">Fauna</button>
+        </div>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Species</span>
+            <select class="field-control" data-value="species" data-field="species" data-control="worldlab.species">
+              <option value="Oak">Oak</option>
+              <option value="Pine">Pine</option>
+              <option value="Birch">Birch</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Season</span>
+            <select class="field-control" data-value="season" data-field="season" data-control="worldlab.season">
+              <option value="Spring">Spring</option>
+              <option value="Summer">Summer</option>
+              <option value="Autumn">Autumn</option>
+              <option value="Winter">Winter</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Detail</span>
+            <select class="field-control" data-value="detail" data-field="detail" data-control="worldlab.detail">
+              <option value="Far">Far</option>
+              <option value="World">World</option>
+              <option value="High">High</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">Seed</span>
+            <input class="field-control" type="number" data-value="seed" data-field="seed" data-control="worldlab.seed"/>
+          </label>
+        </div>
+        <details class="disclosure" open="open">
+          <summary>
+            <button type="button" data-disclosure="toggle" aria-expanded="true">Growth parameters</button>
+          </summary>
+          <div class="disclosure-body">
+            <label class="field">
+              <span class="field-label">Age</span>
+              <div class="range-row">
+                <input type="range" min="0" max="100" step="1" data-value="age" data-field="age" data-control="worldlab.age"/>
+                <output>{{ age }}</output>
+              </div>
+            </label>
+            <label class="field">
+              <span class="field-label">Genome variation</span>
+              <div class="range-row">
+                <input type="range" min="0" max="1" step="0.05" data-value="genome" data-field="genome" data-control="worldlab.genome"/>
+                <output>{{ genome }}</output>
+              </div>
+            </label>
+          </div>
+        </details>
+        <details class="disclosure" open="open">
+          <summary>
+            <button type="button" data-disclosure="toggle" aria-expanded="true">Viewport visibility</button>
+          </summary>
+          <div class="disclosure-body">
+            <label class="check-row"><input type="checkbox" data-checked="show_vegetation" data-field="show_vegetation" data-control="worldlab.show-vegetation"/> Show vegetation</label>
+            <label class="check-row"><input type="checkbox" data-checked="show_buildings" data-field="show_buildings" data-control="worldlab.show-buildings"/> Show buildings</label>
+          </div>
+        </details>
+        <details class="disclosure">
+          <summary>
+            <button type="button" data-disclosure="toggle" aria-expanded="false">Prototype data</button>
+          </summary>
+          <div class="disclosure-body" style="display: none;">
+            <p class="status">{{ imported_path }}</p>
+            <div class="file-actions">
+              <button data-file-dialog="open" data-file-dialog-title="Import prototype settings" data-file-dialog-filter="*.json" data-control="worldlab.import">Import settings</button>
+              <button data-file-dialog="save" data-file-dialog-title="Export prototype settings" data-file-dialog-filter="*.json" data-control="worldlab.export">Export settings</button>
+            </div>
+          </div>
+        </details>
+        <div class="command-bar">
+          <button class="ghost" data-action="scene.return-main-menu">Back to main menu</button>
+        </div>
+      </section>
+    </main>
+  </body>
+</rml>

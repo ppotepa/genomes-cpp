@@ -50,6 +50,7 @@ namespace {
     }
 
     std::vector<LocomotionState> states(plan.entity_count);
+    std::vector<AnimationTransitionRuntime> transition_runtimes(plan.entity_count);
     std::vector<FaceAnimator> faces;
     faces.reserve(plan.entity_count);
     for (std::size_t index = 0U; index < plan.entity_count; ++index) {
@@ -59,14 +60,15 @@ namespace {
     entities.reserve(plan.entity_count);
     for (std::size_t index = 0U; index < plan.entity_count; ++index) {
         (void)locomotion.value().setPreset(states[index], BipedPreset::Walk);
-        entities.push_back({static_cast<genomes::foundation::StableId>(index + 1U),
-                            &rig.value(),
-                            &locomotion.value(),
-                            &states[index],
-                            &faces[index],
-                            {static_cast<float>(index % 100U) * 0.1F, 0.0F, 0.0F},
-                            std::nullopt,
-                            {}});
+        AnimationEntity entity{};
+        entity.semantic_id = static_cast<genomes::foundation::StableId>(index + 1U);
+        entity.skeleton = &rig.value();
+        entity.locomotion = &locomotion.value();
+        entity.locomotion_state = &states[index];
+        entity.transition_runtime = &transition_runtimes[index];
+        entity.face = &faces[index];
+        entity.root_position = {static_cast<float>(index % 100U) * 0.1F, 0.0F, 0.0F};
+        entities.push_back(entity);
         if ((index % 4U) == 1U) {
             entities.back().lod.setTier(AnimationLOD::Mid);
         } else if ((index % 4U) == 2U) {

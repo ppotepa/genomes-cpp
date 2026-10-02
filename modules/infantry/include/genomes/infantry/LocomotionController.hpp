@@ -32,12 +32,24 @@ public:
 
     [[nodiscard]] foundation::Result<void, foundation::Error> setRequested(
         LocomotionState&, const LocomotionRequest&) const noexcept;
+    [[nodiscard]] foundation::Result<void, foundation::Error> setState(
+        LocomotionState&, AnimationState, bool immediate,
+        const AnimationTransitionProfile&) const noexcept;
+    // The short overload retains the profile already stored in the unit state.
+    [[nodiscard]] foundation::Result<void, foundation::Error> setState(
+        LocomotionState&, AnimationState, bool immediate = false) const noexcept;
+    [[nodiscard]] foundation::Result<void, foundation::Error> setMotion(
+        LocomotionState&, const LocomotionMotionContext&) const noexcept;
+    [[nodiscard]] foundation::Result<void, foundation::Error> setTransitionProfile(
+        LocomotionState&, const AnimationTransitionProfile&) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> setPreset(
         LocomotionState&, BipedPreset, bool immediate = false) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> setFamily(
         LocomotionState&, LocomotionFamily, bool moving = false) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> step(
         LocomotionState&, float fixed_dt_seconds) const noexcept;
+    [[nodiscard]] foundation::Result<void, foundation::Error> step(
+        LocomotionState&, const LocomotionMotionContext&, float fixed_dt_seconds) const noexcept;
     [[nodiscard]] foundation::Result<void, foundation::Error> sampleGait(
         LocomotionState&, float actual_speed_mps, float fixed_dt_seconds,
         bool immediate = false) const noexcept;

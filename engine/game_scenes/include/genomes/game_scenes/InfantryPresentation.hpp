@@ -4,9 +4,11 @@
 #include <genomes/foundation/Types.hpp>
 
 #if GENOMES_HAS_INFANTRY
+#include <genomes/infantry/AnimationWeaponOverlay.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
+#include <genomes/weapons/WeaponPoseTasks.hpp>
 #endif
 
 #include <array>
@@ -47,6 +49,11 @@ enum class PrototypePreparation {
 [[nodiscard]] std::vector<render::SkinnedBoneTransform> makeLocalPoses(
     const infantry::SkeletonData& skeleton,
     std::span<const infantry::RigTransform> pose_bones);
+
+// Scene boundary adapter: weapons owns WeaponPoseTasks, infantry owns the
+// neutral animation overlay. The animator never includes the weapons module.
+[[nodiscard]] infantry::AnimationWeaponOverlay copyWeaponPoseTasks(
+    const weapons::WeaponPoseTasks& tasks, foundation::Vec3 root_position) noexcept;
 #endif
 
 } // namespace genomes::game_scenes::infantry_presentation

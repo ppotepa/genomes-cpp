@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/ui/UiDataModel.hpp>
+#include <genomes/ui/UiEvent.hpp>
 #include <genomes/ui/UiTypes.hpp>
 #include <genomes/input/InputFrame.hpp>
 
@@ -64,6 +65,16 @@ struct UiRoute final {
     std::uint64_t revision{0};
 };
 
+// Result of applying a renderer event to the authoritative route model.
+// `consumed` keeps invalid/unavailable controls out of gameplay input, while
+// `publish` is true only when the domain action may run for this commit phase.
+struct UiEventApplyResult final {
+    bool consumed{false};
+    bool changed{false};
+    bool publish{false};
+    UiScalar value{};
+};
+
 // Framebuffer-pixel rectangle measured by the active UI layout. It is optional
 // because neutral/headless UI has no layout engine to provide one.
 struct UiViewportMetrics final {
@@ -121,6 +132,7 @@ public:
     }
     [[nodiscard]] UiActionResult dispatch(UiActionId action,
                                           const UiActionArguments& arguments = {}) const;
+    [[nodiscard]] UiEventApplyResult apply_event(const UiEvent& event);
 
     [[nodiscard]] UiRouteStack& routes() noexcept { return routes_; }
     [[nodiscard]] const UiRouteStack& routes() const noexcept { return routes_; }
@@ -147,6 +159,9 @@ public:
         std::unique_ptr<IUiScreenController> controller;
     };
     [[nodiscard]] const std::vector<RouteControllerState>& route_controllers() const noexcept {
+        return route_controllers_;
+    }
+    [[nodiscard]] std::vector<RouteControllerState>& route_controllers() noexcept {
         return route_controllers_;
     }
 

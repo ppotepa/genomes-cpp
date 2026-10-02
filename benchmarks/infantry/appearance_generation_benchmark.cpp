@@ -78,7 +78,8 @@ int main(int argc, char** argv) {
             result_hash = genomes::foundation::stableHashCombine(
                 result_hash, semanticHash(artifact.value()));
         }
-        return {Microseconds(Clock::now() - begin).count(), result_hash};
+        return {std::chrono::duration_cast<Microseconds>(Clock::now() - begin).count(),
+                result_hash};
     };
     for (std::size_t index = 0U; index < plan.warmup_runs; ++index) {
         if (measure().first < 0.0) {

@@ -1,4 +1,4 @@
-#include <genomes/world/WorldQuery.hpp>
+#include <genomes/world_core/WorldQuery.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -12,12 +12,12 @@ float terrain(void* context, float x, float z) noexcept {
     return base + x * 0.1F + z * 0.05F;
 }
 
-genomes::world::QueryRegion region(genomes::world::WorldId world_id,
-                                   genomes::world::RegionCoord coordinate,
+genomes::world_core::QueryRegion region(genomes::world_core::WorldId world_id,
+                                        genomes::world_core::RegionCoord coordinate,
                                    bool resident,
                                    float* terrain_base) {
-    const genomes::world::RegionId id = genomes::world::regionId(world_id, coordinate);
-    genomes::world::QueryRegion result{};
+    const genomes::world_core::RegionId id = genomes::world_core::regionId(world_id, coordinate);
+    genomes::world_core::QueryRegion result{};
     result.coordinate = coordinate;
     result.id = id;
     result.revision = 4U;
@@ -30,14 +30,14 @@ genomes::world::QueryRegion region(genomes::world::WorldId world_id,
         result.candidates.push_back({42U,
                                      {{origin_x + 0.25F, 0.0F, origin_z + 0.25F},
                                       {origin_x + 1.5F, 1.0F, origin_z + 1.5F}},
-                                     genomes::world::QuerySourceKind::Static,
+                                     genomes::world_core::QuerySourceKind::Static,
                                      id,
                                      4U});
         result.candidates.push_back({static_cast<genomes::foundation::StableId>(
                                          100U + coordinate.x * 10 + coordinate.z),
                                      {{origin_x + 2.0F, 0.0F, origin_z + 2.0F},
                                       {origin_x + 3.0F, 1.0F, origin_z + 3.0F}},
-                                     genomes::world::QuerySourceKind::Dynamic,
+                                     genomes::world_core::QuerySourceKind::Dynamic,
                                      id,
                                      4U});
     }
@@ -47,7 +47,7 @@ genomes::world::QueryRegion region(genomes::world::WorldId world_id,
 } // namespace
 
 int main() {
-    using namespace genomes::world;
+    using namespace genomes::world_core;
     const WorldId world_id{19U};
     float terrain_base = 2.0F;
     std::vector<QueryRegion> regions;

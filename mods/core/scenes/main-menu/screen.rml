@@ -1,14 +1,33 @@
+<?xml version="1.0"?>
 <rml>
-  <head><title>Genomes</title><link type="text/rcss" href="ui/theme.rcss" /><link type="text/rcss" href="screen.rcss" /></head>
-<body id="main-menu"><section class="menu-panel" data-model="ui_builtin_main_menu">
-    <header class="screen-header"><p class="eyebrow">GENOMES</p><h1>GENOMES</h1><p class="subtitle">PROCEDURAL WORLD</p></header>
-    <nav class="menu-primary">
-      <button class="menu-action" autofocus="autofocus" data-action="scene.open-world-config">Battlefield</button>
-      <button class="menu-action" data-action="scene.open-unit-lab">Unit Laboratory</button>
-      <button class="menu-action" data-action="scene.open-building-lab">Building Laboratory</button>
-      <button class="menu-action" data-action="scene.open-world-lab">World Laboratory <span class="prototype-note">PROTOTYPE</span></button>
-    </nav>
-    <nav class="menu-secondary"><button class="menu-action" data-action="scene.open-settings">Settings</button><button class="menu-action" data-action="application.quit">Quit</button></nav>
-    <footer><span data-bind="text: version"></span></footer>
-  </section></body>
+  <head>
+    <title>Genomes</title>
+    <link type="text/rcss" href="ui/theme.rcss"/>
+    <link type="text/rcss" href="screen.rcss"/>
+  </head>
+  <body id="main-menu">
+    <main>
+      <section class="menu-panel" data-model="ui_builtin_main_menu">
+        <header class="screen-header">
+          <p class="eyebrow">GENOMES</p>
+          <h1>GENOMES</h1>
+          <p class="subtitle">PROCEDURAL WORLD</p>
+          <span class="app-fps">{{ fps }}</span>
+        </header>
+        <nav class="menu-primary">
+          <button class="menu-action" autofocus="autofocus" data-action="scene.open-world-config">Battlefield</button>
+          <button class="menu-action" data-action="scene.open-unit-lab">Unit Laboratory</button>
+          <button class="menu-action" data-action="scene.open-building-lab">Building Laboratory</button>
+          <button class="menu-action" data-action="scene.open-world-lab">World Laboratory <span class="prototype-note">PROTOTYPE</span></button>
+        </nav>
+        <nav class="menu-secondary">
+          <button class="menu-action" data-action="scene.open-settings">Settings</button>
+          <button class="menu-action" data-action="application.quit">Quit</button>
+        </nav>
+        <footer>
+          <span>{{ version }}</span>
+        </footer>
+      </section>
+    </main>
+  </body>
 </rml>

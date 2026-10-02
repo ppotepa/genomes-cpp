@@ -142,6 +142,28 @@ parseUnitLabExpression(std::string_view text) {
         "set-expression", "expression", text, "unknown unit lab expression"));
 }
 
+[[nodiscard]] inline UnitLabCommandResult<SetAnimationState>
+parseSetAnimationState(std::string_view text) {
+    static constexpr std::string_view names[] = {
+        "REST", "Rest", "SITTING", "Sitting", "PRONE", "Prone",
+        "PRONE_MOVE", "Prone Move"};
+    static constexpr infantry::AnimationState states[] = {
+        infantry::AnimationState::REST, infantry::AnimationState::SITTING,
+        infantry::AnimationState::PRONE, infantry::AnimationState::PRONE_MOVE};
+    for (std::size_t index = 0U; index < std::size(names); index += 2U) {
+        if (text == names[index] || text == names[index + 1U]) {
+            return UnitLabCommandResult<SetAnimationState>::success(
+                {states[index / 2U]});
+        }
+    }
+    if (text == "prone-move") {
+        return UnitLabCommandResult<SetAnimationState>::success(
+            {infantry::AnimationState::PRONE_MOVE});
+    }
+    return UnitLabCommandResult<SetAnimationState>::failure(unitLabDiagnostic(
+        "set-animation-state", "state", text, "unknown infantry animation state"));
+}
+
 [[nodiscard]] inline UnitLabCommandResult<SetExpression>
 parseSetExpression(std::string_view text) {
     const auto expression = parseUnitLabExpression(text);
@@ -179,6 +201,10 @@ parseSetEquipmentSlot(std::string_view slot_text, std::string_view item_text) {
 
 [[nodiscard]] inline UnitLabCommandResult<SetGeneOverride>
 parseSetGeneOverride(std::string_view gene_text, std::string_view value_text) {
+    // Short names are a Unit Lab command convenience, not part of the global
+    // infantry genome serialization contract.
+    if (gene_text == "height") gene_text = "heightGene";
+    else if (gene_text == "speed") gene_text = "speedGene";
     const auto gene = infantry::genomeGeneFromName(gene_text);
     const auto value = detail::parseUnitLabNumber<double>(value_text, "gene-value");
     if (!gene) {
@@ -244,6 +270,12 @@ parseSetAppearancePreset(std::string_view text) {
         if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
         return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
     }
+    if (command == "set-animation-state") {
+        if (arguments.size() != 1U) return invalidArity();
+        const auto parsed = parseSetAnimationState(arguments[0]);
+        if (!parsed) return UnitLabCommandResult<UnitLabCommand>::failure(parsed.error());
+        return UnitLabCommandResult<UnitLabCommand>::success(UnitLabCommand{parsed.value()});
+    }
     if (command == "set-expression") {
         if (arguments.size() != 1U) return invalidArity();
         const auto parsed = parseSetExpression(arguments[0]);
@@ -284,7 +316,13 @@ parseSetAppearancePreset(std::string_view text) {
         return parseUnitLabCommand("set-camera-mode", std::array{value});
     }
     if (control == "unit.locomotion") {
-        return parseUnitLabCommand("set-locomotion-preset", std::array{value});
+        const auto preset = parseSetLocomotionPreset(value);
+        if (preset) return UnitLabCommandResult<UnitLabCommand>::success(
+            UnitLabCommand{preset.value()});
+        const auto state = parseSetAnimationState(value);
+        if (state) return UnitLabCommandResult<UnitLabCommand>::success(
+            UnitLabCommand{state.value()});
+        return UnitLabCommandResult<UnitLabCommand>::failure(state.error());
     }
     if (control == "unit.expression") {
         return parseUnitLabCommand("set-expression", std::array{value});

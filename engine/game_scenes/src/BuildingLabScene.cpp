@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <variant>
 
 namespace genomes::game_scenes {
 
@@ -125,7 +126,9 @@ void BuildingLabScene::frame_update(SceneContext& context, double) {
     (void)model.set("error", std::string{});
     ui::UiFieldState damage{};
     damage.value = static_cast<double>(damage_amount_);
-    damage.commit_policy = ui::UiCommitPolicy::Explicit;
+    // Selecting an amount updates the scene-side draft on change; the
+    // destructive operation itself remains explicit behind Apply Damage.
+    damage.commit_policy = ui::UiCommitPolicy::OnChange;
     damage.minimum = 0.0; damage.maximum = 1.0; damage.step = 0.05;
     (void)model.set_field("damage_amount", std::move(damage));
     if (!error_.empty()) {
@@ -174,6 +177,10 @@ ui::UiActionResult BuildingLabScene::handle_ui_action(
         return ui::UiActionResult::Rejected;
     }
     if (action == foundation::stable_id("building.apply-damage")) {
+        if (const auto* field = context.ui.model().find_field("damage_amount"); field != nullptr) {
+            if (const auto* value = std::get_if<double>(&field->value); value != nullptr)
+                damage_amount_ = std::clamp(static_cast<float>(*value), 0.0F, 1.0F);
+        }
         apply_selected_damage(damage_amount_);
         return ui::UiActionResult::Handled;
     }

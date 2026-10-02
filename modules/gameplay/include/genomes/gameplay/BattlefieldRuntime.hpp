@@ -26,7 +26,7 @@
 #include <genomes/world_core/WorldQuerySnapshot.hpp>
 #include <genomes/world/WorldArtifactRevision.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
-#include <genomes/weapons/WeaponController.hpp>
+#include <genomes/weapons/WeaponHandlingSystem.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -75,6 +75,8 @@ public:
     [[nodiscard]] const std::vector<infantry::InfantryRenderState>& renderStates() const noexcept {
         return infantry_->renderStates();
     }
+    [[nodiscard]] const weapons::WeaponPoseTasks* weaponPoseTasks(
+        simulation::EntityId entity) const noexcept;
 
 private:
     struct TargetRuntime final {
@@ -93,7 +95,7 @@ private:
     [[nodiscard]] foundation::Result<void, foundation::Error> configureGraph();
     void runPerception() noexcept;
     void runDecision() noexcept;
-    void queueFire() noexcept;
+    void queueFire(float fixed_dt_seconds) noexcept;
     void advanceBallistics() noexcept;
     void applyImpactDamage() noexcept;
     void commitSnapshot() noexcept;
@@ -127,8 +129,11 @@ private:
     std::vector<combat::AIIntent> intents_;
     std::unordered_map<std::uint64_t, std::uint32_t> teams_;
     std::unordered_map<std::uint64_t, combat::AIState> ai_state_by_entity_;
-    std::unordered_map<std::uint64_t, std::uint64_t> shot_sequences_;
-    std::unordered_map<std::uint64_t, weapons::WeaponState> weapon_states_;
+    std::unordered_map<std::uint64_t, weapons::WeaponRuntimeState> weapon_runtime_states_;
+    std::unordered_map<std::uint64_t, weapons::WeaponPoseTasks> weapon_pose_tasks_;
+    weapons::WeaponHandlingSystem weapon_handling_{};
+    const weapons::WeaponDefinition* weapon_definition_{nullptr};
+    std::shared_ptr<const weapons::WeaponArtifact> weapon_artifact_;
     weapons::WeaponSpec weapon_spec_{};
     weapons::WeaponId weapon_id_{0};
 

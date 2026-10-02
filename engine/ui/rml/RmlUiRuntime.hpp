@@ -80,6 +80,7 @@ public:
     void set_event_router(std::function<UiActionResult(const UiEvent&)> router) {event_router_=std::move(router);}
     void set_route_id(std::uint64_t id) noexcept {route_id_=id;}
     void set_route_revision(std::uint64_t revision) noexcept {route_revision_=revision;}
+    void set_model_update(bool active) noexcept {model_update_=active;}
     [[nodiscard]] UiActionResult dispatch(UiActionId,const UiActionArguments& arguments={}) const;
     void ProcessEvent(Rml::Event&) override;
 private:
@@ -88,6 +89,7 @@ private:
     std::function<UiActionResult(const UiEvent&)> event_router_{};
     std::uint64_t route_revision_{0};
     std::uint64_t route_id_{0};
+    bool model_update_{false};
 };
 class Runtime final {
 public:

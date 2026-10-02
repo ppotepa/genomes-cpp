@@ -3,3 +3,5 @@
 
 static_assert(sizeof(genomes::render::PresentationSnapshot) > 0U);
 static_assert(sizeof(genomes::render::RenderMesh) > 0U);
+
+int main() { return 0; }

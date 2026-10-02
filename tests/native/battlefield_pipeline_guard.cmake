@@ -39,6 +39,10 @@ foreach(required_phase IN ITEMS
     endif()
 endforeach()
 
+if(battlefield MATCHES "combat_flow_.submitFire\\(fire\\)")
+    message(FATAL_ERROR "BattlefieldRuntime must submit the WeaponStepOutput FireIntent")
+endif()
+
 string(FIND "${battlefield}" "phase = simulation::SystemPhase::Navigate" navigate_phase)
 string(FIND "${battlefield}" "phase = simulation::SystemPhase::MoveIntent" move_intent_phase)
 string(FIND "${battlefield}" "phase = simulation::SystemPhase::PhysicsCommands"
@@ -60,8 +64,10 @@ endif()
 # in the source so a compatibility hitscan shortcut cannot silently become the
 # authoritative implementation again.
 foreach(required_text IN ITEMS
-        "WeaponController::tryFire("
-        "combat_flow_.submitFire(fire)"
+        "weapon_handling_.step("
+        "infantry_->readWeaponHandlingView"
+        "weapon_pose_tasks_[packed_entity] = output.pose"
+        "combat_flow_.submitFire(*output.fire)"
         "ballistics_->queueFire(ballistic_request)"
         "ballistics_->advanceFixed(false)"
         "combat_flow_.submitImpact(impact)"
@@ -77,6 +83,13 @@ foreach(required_text IN ITEMS
         message(FATAL_ERROR "Battlefield pipeline lost required contract: ${required_text}")
     endif()
 endforeach()
+
+if(battlefield MATCHES "WeaponController::tryFire\\(")
+    message(FATAL_ERROR "BattlefieldRuntime must not bypass WeaponHandlingSystem")
+endif()
+if(battlefield MATCHES "emitCombatEvents")
+    message(FATAL_ERROR "BattlefieldRuntime must not invoke the fixture combat emitter")
+endif()
 
 # T10: the executable regression must observe the authoritative identity
 # hand-off, not only aggregate fired/impact counters.
@@ -99,7 +112,7 @@ string(FIND "${battlefield}" "combat.phase = simulation::SystemPhase::CombatBall
        combat_phase_position)
 string(FIND "${battlefield}" "damage.phase = simulation::SystemPhase::DamageDestruction"
        damage_phase_position)
-string(FIND "${battlefield}" "combat.callback = [this](simulation::SystemContext&)"
+string(FIND "${battlefield}" "combat.callback = [this](simulation::SystemContext& context)"
        combat_callback_position)
 string(FIND "${battlefield}" "damage.callback = [this](simulation::SystemContext&)"
        damage_callback_position)

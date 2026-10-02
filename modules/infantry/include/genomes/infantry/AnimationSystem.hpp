@@ -4,8 +4,11 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/infantry/AnimationLOD.hpp>
+#include <genomes/infantry/AnimationRuntime.hpp>
+#include <genomes/infantry/AnimationWeaponOverlay.hpp>
 #include <genomes/infantry/AppearanceArtifact.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
+#include <genomes/infantry/GroundContact.hpp>
 #include <genomes/infantry/LocomotionController.hpp>
 #include <genomes/infantry/RigSchema.hpp>
 #include <genomes/infantry/SkeletonData.hpp>
@@ -20,16 +23,26 @@
 
 namespace genomes::infantry {
 
+struct GearArtifact;
+
 struct AnimationEntity final {
     foundation::StableId semantic_id{0};
     const SkeletonData* skeleton{nullptr};
     const LocomotionController* locomotion{nullptr};
     LocomotionState* locomotion_state{nullptr};
+    AnimationTransitionRuntime* transition_runtime{nullptr};
     FaceAnimator* face{nullptr};
     foundation::Vec3 root_position{};
     std::optional<foundation::Vec3> look_target;
+    // World-space seat point used by the authored seated sampler. It is an
+    // input anchor, not a persistent physics constraint.
+    std::optional<foundation::Vec3> seat_anchor;
     AnimationLODState lod{};
     const AppearanceMesh* surface{nullptr};
+    const GearArtifact* gear{nullptr};
+    const AnimationWeaponOverlay* weapon_overlay{nullptr};
+    GroundSurfaceQuery ground_surface{};
+    GroundContactRuntime* ground_runtime{nullptr};
 
     [[nodiscard]] bool valid() const noexcept;
 };
@@ -56,6 +69,16 @@ struct AnimationPose final {
     std::array<float, 2U> ankle_pitch{};
     std::array<float, 2U> ankle_yaw{};
     float target_hand_curl{0.0F};
+    std::array<AnimationHandOwner, 2U> hand_owners{
+        AnimationHandOwner::Free, AnimationHandOwner::Free};
+    float weapon_readiness{0.0F};
+    float weapon_recoil{0.0F};
+    foundation::Vec3 weapon_aim_direction{0.0F, 0.0F, 1.0F};
+    AnimationState requested_state{AnimationState::IDLE};
+    AnimationState active_state{AnimationState::IDLE};
+    AnimationTransitionStage transition_stage{AnimationTransitionStage::None};
+    float transition_progress{1.0F};
+    float transition_stage_progress{1.0F};
     FaceOutput face{};
     // Undamped sampler output retained for fixture diagnostics; `bones` is the
     // published pose after IK/contact placement.

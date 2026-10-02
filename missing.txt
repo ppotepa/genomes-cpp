@@ -1,0 +1,147 @@
+GENOMES INFANTRY ANIMATION GAP TRACKER
+======================================
+
+AuditBaseCommit: 84bb47ff11f29c476b281e6dece87b8e46098302
+AuditWorkingTree: DIRTY before this slice; preserve all unrelated changes and
+                  never stage, overwrite or absorb local submodule changes.
+ImplementationCommit: UNCOMMITTED
+UserVerification: NOT_RUN (configure, build, CTest, benchmarks and GPU acceptance
+                  are performed by the user)
+
+Statuses: MISSING | IN_PROGRESS | CODE_READY | USER_VERIFIED | BLOCKED
+
+Scope constraints
+-----------------
+Keep the Infantry module and current ECS. Diligent/D3D12 remains the production
+GPU target. Do not change renderer/dependencies, extract Creature/Humanoid, or add
+Magnum/Jolt/Recast/Ozz. Preserve JS fixtures, generators, GNIF output and raw
+semantic vertex numbering. This slice adds one new behavioral fixture only.
+
+01 CODE_READY - real SUPPORT pose
+Symptom: prone transitions exposed support metadata but sampled CROUCH twice.
+Cause: no body-pose value or internal support sampler existed.
+Reference: hand-planted, foot-relative support with proneWeight=.63 and handIK=1.
+Native: AnimationRuntime.hpp, AnimationSystem.cpp.
+Fix: internal Support stage samples hips/spine/head and limb goals, then solves
+arm/leg IK; the public AnimationState enum remains exactly nine values.
+Acceptance: enter/exit prone observes Crouch/Support/Target and fixture tolerances.
+Depends: 02. ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+02 CODE_READY - non-recursive staged body blend
+Symptom: the complete pose was blended recursively from the previous published
+frame using global progress; face/weapon were dragged through body transitions.
+Cause: transition scheduling lived in LocomotionState and no per-unit pose runtime.
+Reference: frozen request profile, smooth5 local progress, shortest-path slerp,
+response 18 hips / per-bone rotations / 22 scalars, IK goals without temporal lag.
+Native: AnimationRuntime.hpp, LocomotionState.hpp, LocomotionController.cpp,
+AnimationSystem.cpp, BattlefieldScene, UnitLabScene and animation tests.
+Fix: revision-based requests plus owned runtime; interruption begins at current
+damped pose; snapshot interpolate remains renderer-only; runtime ticks through LOD.
+Acceptance: 9x9 requests, zero stages, immediate snap, interruption, quaternion
+normalization, worker/LOD parity and shared-runtime rejection.
+Depends: none. ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+03 CODE_READY - body_lift before second leg IK
+Symptom/Cause: ground contact needed an explicit regression for the bounded lift
+and its publication order. Reference: lift body before the second leg IK pass.
+Native: GroundContact.cpp, AnimationSystem.cpp and infantry_ik_ground_contact_tests.cpp.
+Fix: apply the bounded solver lift to hips before contact-adjusted foot targets and
+the second biped leg IK solve, without changing gait targets. Acceptance: raised
+and uneven-ground regression. Depends: 02. ImplementationCommit: UNCOMMITTED.
+UserVerification: NOT_RUN.
+
+04 CODE_READY - production weapon overlay is wired
+Symptom/Cause: overlay contract existed but production entities did not own/feed it.
+Reference: weapon owns requested hands after base body transition. Native:
+BattlefieldRuntime, BattlefieldScene/InfantryPresentation and AnimationSystem. Fix:
+BattlefieldRuntime owns one WeaponHandlingSystem step per unit/tick, the per-unit
+WeaponRuntimeState and immutable WeaponArtifact; the scene only adapts read-only
+WeaponPoseTasks into AnimationEntity. FireIntent, projectile source identity and
+recoil share the same authoritative step. Acceptance: production scene hand ownership
+and recoil mapping. Depends: 02. ImplementationCommit: UNCOMMITTED.
+UserVerification: NOT_RUN.
+
+05 CODE_READY - terrain correction preserved while turning/treadmill
+Symptom/Cause: coarse gating suppresses every correction. Reference: retain safe
+vertical/orientation correction while relaxing locks. Native: GroundContact.
+Fix: valid biped terrain still receives bounded body lift, normal orientation and
+foot target updates; turning, treadmill and high turn rate release only persistent
+contacts. Invalid surfaces and non-biped states reset contact runtime without changing
+pose. Acceptance: turning/treadmill terrain, stable contact lock and invalid surface
+cases. Depends: 03. ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+06 CODE_READY - reference foot lock/replant
+Symptom/Cause: contact memory needed authored release/replant behavior instead of
+locking solely from strength. Reference: phase/contact-driven hysteresis. Native:
+GroundContactRuntime and infantry_ik_ground_contact_tests.cpp. Fix: stance and
+plant thresholds release swing contacts, phase wrap and excessive planted drift
+reanchor at the current target, and lock weight ramps back in after replant.
+Acceptance: planted drift, swing release and replant trajectory. Depends: 03,05.
+ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+07 CODE_READY - move_angle and turn_rate drive pose
+Symptom/Cause: locomotion stored both values but the sampler ignored them. Reference:
+directional lower-body and turn anticipation. Native: AnimationSystem and
+infantry_locomotion_posture_tests.cpp. Fix: bounded planar target steering, foot yaw,
+pelvis/spine/chest anticipation and lateral roll consume the authoritative motion
+fields without changing gait phase or sampling order. Acceptance: strafe/turn pose
+regressions. Depends: 02. ImplementationCommit: UNCOMMITTED.
+UserVerification: NOT_RUN.
+
+08 CODE_READY - persistent prone hand/foot contacts
+Symptom/Cause: prone published authored targets without persistent contact state.
+Reference: independent hand/foot plant locks. Native: GroundContact/AnimationSystem.
+Fix: prone terrain sampling drives separate foot and hand runtimes, phase/contact
+hysteresis releases swing supports, and valid terrain runs bounded prone contact IK;
+invalid terrain resets all four channels. Acceptance: uneven crawl without sliding.
+Depends: 01,06. ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+09 CODE_READY - body/gear/boot clearance
+Symptom/Cause: surface volumes did not participate in terrain clearance. Reference:
+bounded clearance after body sampling. Native: AnimationSystem/AppearanceArtifact.
+Fix: body/boot surface vertices and fitted gear supports feed GroundContactInput;
+the solver retains the bounded body lift, while production animation entities expose
+the immutable GearArtifact. Acceptance: raised gear/boot support and bulky fixtures.
+Depends: 02,08. ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+10 CODE_READY - post-look head/helmet clearance
+Symptom/Cause: face look is applied after body clearance. Reference: clamp the final
+head/helmet volume after look. Native: FaceAnimation/AnimationSystem.
+Fix: final post-look head/neck vertices and head-gear box corners are sampled
+against valid terrain, then apply a bounded .030H hips lift and re-run relevant
+IK. Invalid terrain remains a no-op. Native regression covers extreme look.
+Acceptance: extreme look with helmet profiles. Depends: 09. ImplementationCommit:
+UNCOMMITTED. UserVerification: NOT_RUN.
+
+11 CODE_READY - phase settling after stop
+Symptom/Cause: gait phase freezes immediately at arbitrary stop phase. Reference:
+settle toward stable double support. Native: LocomotionController.
+Fix: late-half-step biped stops advance with a bounded deterministic settle and
+retain authored gait amplitude until stable double support. Acceptance: stop from
+representative phases. Depends: 02. ImplementationCommit: UNCOMMITTED.
+UserVerification: NOT_RUN.
+
+12 CODE_READY - seat anchor
+Symptom/Cause: SITTING is free-standing and has no external anchor. Reference:
+stable seat/root constraint. Native: AnimationEntity/AnimationSystem.
+Fix: AnimationEntity accepts a finite world-space seat anchor; seated hips, knees
+and feet are sampled from it with hanging-foot support state and deterministic
+re-entry. Acceptance: moving seat and re-entry. Depends: 02. ImplementationCommit:
+UNCOMMITTED. UserVerification: NOT_RUN.
+
+13 CODE_READY - aim_direction steers weapon/body
+Symptom/Cause: direction is diagnostic only. Reference: weapon aim plus bounded
+spine/shoulder contribution. Native: AnimationWeaponOverlay/AnimationSystem.
+Fix: active owned-hand overlays apply readiness-weighted yaw/pitch to SpineUpper
+and Chest while preserving hand ownership, readiness and recoil channels.
+Acceptance: cardinal/elevated aim and hand ownership. Depends: 04.
+ImplementationCommit: UNCOMMITTED. UserVerification: NOT_RUN.
+
+14 CODE_READY - Unit Lab transition-time slider complete
+Symptom/Cause: slider edits only locomotion_seconds and seek semantics are partial.
+Reference: preview all staged durations with explicit snap/seek reset. Native:
+UnitLabScene and RML model. Acceptance: staged UI progress and deterministic seek.
+Fix: the slider updates every staged transition duration, resets active preview
+runtime to an explicit snap, and seek/reset reapplies the profile before
+evaluation; the RML model documents the behavior. Depends: 02. ImplementationCommit:
+UNCOMMITTED. UserVerification: NOT_RUN.

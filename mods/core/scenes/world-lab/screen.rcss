@@ -1,6 +1,7 @@
-body { pointer-events: none; background-color: #070d16; }
-.panel { pointer-events: auto; width: 680dp; max-height: 92%; margin: 4% 0dp 0dp 48dp; padding: 30dp 34dp; overflow-y: auto; }
-.category-bar { margin-bottom: 20dp; }
+body { pointer-events: none; width: 100%; height: 100%; background-color: #12151b; }
+main { width: 100%; height: 100%; }
+.panel { pointer-events: auto; width: 680dp; max-width: 88%; max-height: 92%; margin: 4% 0dp 0dp 48dp; padding: 24dp; overflow-y: auto; }
+.category-bar { flex-wrap: wrap; gap: 4dp; margin-bottom: 16dp; }
 .category-bar button { flex: 1; }
-.file-actions { display: flex; }
+.file-actions { display: flex; flex-wrap: wrap; gap: 8dp; }
 .file-actions button { flex: 1; }

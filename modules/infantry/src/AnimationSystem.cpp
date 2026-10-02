@@ -1,4 +1,6 @@
 #include <genomes/infantry/AnimationSystem.hpp>
+#include <genomes/infantry/EquipmentFit.hpp>
+#include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/infantry/TwoBoneIK.hpp>
 
 #include <algorithm>
@@ -7,6 +9,8 @@
 #include <cmath>
 #include <limits>
 #include <mutex>
+#include <unordered_set>
+#include <utility>
 
 namespace genomes::infantry {
 
@@ -63,8 +67,12 @@ namespace {
     const double theta=std::acos(std::min(1.0,cosine));
     const double sine=std::sin(theta),t=static_cast<double>(alpha);
     const double left=std::sin((1.0-t)*theta)/sine,right=std::sin(t*theta)/sine;
-    return {static_cast<float>(a.x*left+b.x*right),static_cast<float>(a.y*left+b.y*right),
-            static_cast<float>(a.z*left+b.z*right),static_cast<float>(a.w*left+b.w*right)};
+    return mixQuaternion(
+        {static_cast<float>(a.x*left+b.x*right),
+         static_cast<float>(a.y*left+b.y*right),
+         static_cast<float>(a.z*left+b.z*right),
+         static_cast<float>(a.w*left+b.w*right)},
+        RigQuaternion::identity(), 0.0F);
 }
 
 [[nodiscard]] foundation::Vec3 add(foundation::Vec3 a,foundation::Vec3 b) noexcept {
@@ -169,7 +177,7 @@ void rotateBone(std::array<RigTransform, kRigBoneCount>& bones,
     bones[index].rotation = multiply(axisAngle(axis, angle), bones[index].rotation);
 }
 
-void applyLocomotionPose(std::array<RigTransform, kRigBoneCount>& bones,
+[[maybe_unused]] void applyLocomotionPose(std::array<RigTransform, kRigBoneCount>& bones,
                          const LocomotionState& state,
                          const PostureSample& posture) noexcept {
     constexpr float pi = 3.14159265358979323846F;
@@ -195,18 +203,30 @@ void sampleBipedTargets(AnimationPose& pose, const LocomotionController& control
                         const LocomotionState& state) noexcept {
     const auto& body=controller.body();
     const float height=body.height, leg=body.anatomy_leg_length;
-    const float sprint=state.sprint_weight*state.amplitude;
-    const bool moving=state.actual_speed_mps>.008F;
+    const float amplitude = state.settling ? std::max(state.amplitude, 0.35F)
+                                           : state.amplitude;
+    const float sprint=state.sprint_weight*amplitude;
+    const bool moving=state.actual_speed_mps>.008F || state.settling;
+    const float move_angle=std::atan2(std::sin(state.move_angle),
+                                      std::cos(state.move_angle));
+    const float direction_yaw=std::clamp(move_angle*.40F,-.55F,.55F);
+    const float turn_yaw=std::clamp(state.turn_rate*.10F,-.30F,.30F);
+    const float target_yaw=direction_yaw+turn_yaw*(moving?.45F:1.0F);
+    const float c=std::cos(target_yaw),s=std::sin(target_yaw);
+    const auto steer=[c,s](foundation::Vec3 value) noexcept {
+        return foundation::Vec3{value.x*c+value.z*s,value.y,
+                                -value.x*s+value.z*c};
+    };
     for(std::size_t index=0;index<2U;++index){
         const float sign=index==0U?1.0F:-1.0F;
         const auto foot=PostureProfile::sampleLowContact(
             state.phase+static_cast<double>(index)*.5,state.duty,state.cycle_m,
             state.lift_m,sprint);
-        pose.foot_targets[index]={sign*(pose.posture.stance_half/height-.003F*sprint),
-            .045F+(moving?foot.lift/height*state.amplitude:0.0F),
-            pose.posture.foot_z/height+(moving?foot.z/height:0.0F)};
-        pose.knee_targets[index]={sign*pose.posture.knee_half/height,
-            .045F+leg/height*.42F,leg/height*.82F+(moving?foot.z/height*.22F:0.0F)};
+        pose.foot_targets[index]=steer({sign*(pose.posture.stance_half/height-.003F*sprint),
+            .045F+(moving?foot.lift/height*amplitude:0.0F),
+            pose.posture.foot_z/height+(moving?foot.z/height*amplitude:0.0F)});
+        pose.knee_targets[index]=steer({sign*pose.posture.knee_half/height,
+            .045F+leg/height*.42F,leg/height*.82F+(moving?foot.z/height*.22F:0.0F)});
         pose.foot_plant[index]=moving?foot.plant:1.0F;
         pose.foot_support[index]=moving?foot.support:1.0F;
         const double wrapped=std::fmod(state.phase+static_cast<double>(index)*.5,1.0);
@@ -217,7 +237,7 @@ void sampleBipedTargets(AnimationPose& pose, const LocomotionController& control
         const float swing_pitch=moving&&!foot.stance?push_pitch*(1.0F-smooth5(foot.swing/.65F)):0.0F;
         pose.foot_pitch[index]=toe_off*push_pitch+swing_pitch;
         pose.toe_pitch[index]=-pose.foot_pitch[index]*.95F;
-        pose.foot_yaw[index]=sign*(pose.posture.foot_yaw-.025F*sprint);
+        pose.foot_yaw[index]=sign*(pose.posture.foot_yaw-.025F*sprint)+target_yaw;
     }
 }
 
@@ -226,9 +246,17 @@ void applyReferenceBipedPose(AnimationPose& pose,const LocomotionController& con
     constexpr float tau=6.28318530717958647692F;
     const auto& body=controller.body();
     const float depth=state.actual_crouch,run=state.run_weight;
-    const bool moving=state.actual_speed_mps>.008F;
-    const float amplitude=moving?state.amplitude:0.0F;
+    const bool moving=state.actual_speed_mps>.008F || state.settling;
+    const float amplitude=moving ? std::max(state.amplitude,
+                                            state.settling ? 0.35F : 0.0F) : 0.0F;
     const float sprint=state.sprint_weight*amplitude;
+    const float move_angle=std::atan2(std::sin(state.move_angle),
+                                      std::cos(state.move_angle));
+    const float directional_yaw=std::clamp(move_angle*.40F,-.55F,.55F);
+    const float turn_anticipation=std::clamp(state.turn_rate*.12F,-.35F,.35F) *
+        (.35F+.65F*amplitude);
+    const float directional_weight=.25F+.75F*amplitude;
+    const float directional_roll=std::sin(move_angle)*(.018F+.022F*run)*directional_weight;
     pose.face.hands_relax=(.35F*run+.50F*sprint)*amplitude*
         (1.0F-smooth5((depth-.15F)/(.60F-.15F)));
     const float phase=static_cast<float>(state.phase);
@@ -245,13 +273,21 @@ void applyReferenceBipedPose(AnimationPose& pose,const LocomotionController& con
     pose.bones[boneIndex(BoneId::Hips)].translation={support_bias*body.height*(.016F+(.006F-.016F)*depth),
         pose.posture.hip_y-compression+bob,pose.posture.hip_z};
     const float running_lean=(run*.065F+sprint*.045F)*(1.0F-depth);
-    setEuler(pose.bones,BoneId::Hips,pose.posture.pelvis_pitch+running_lean,yaw,roll);
+    setEuler(pose.bones,BoneId::Hips,pose.posture.pelvis_pitch+running_lean,
+             yaw+directional_yaw*directional_weight*.55F+turn_anticipation,
+             roll+directional_roll);
     setEuler(pose.bones,BoneId::SpineLower,pose.posture.lower_pitch+running_lean*.55F+breath*.002F,
-             -yaw*(.30F+.10F*sprint),-roll*.35F);
+             -yaw*(.30F+.10F*sprint)+directional_yaw*directional_weight*.24F+
+                 turn_anticipation*.65F,
+             -roll*.35F+directional_roll*.55F);
     setEuler(pose.bones,BoneId::SpineUpper,pose.posture.upper_pitch+running_lean*.35F+breath*.003F,
-             -yaw*(.38F+.22F*sprint),-roll*.40F);
+             -yaw*(.38F+.22F*sprint)+directional_yaw*directional_weight*.16F+
+                 turn_anticipation*.42F,
+             -roll*.40F+directional_roll*.35F);
     setEuler(pose.bones,BoneId::Chest,pose.posture.chest_pitch+breath*.002F,
-             -yaw*(.20F+.10F*sprint),-roll*.20F);
+             -yaw*(.20F+.10F*sprint)+directional_yaw*directional_weight*.08F+
+                 turn_anticipation*.24F,
+             -roll*.20F+directional_roll*.20F);
     const float lean=pose.posture.pelvis_pitch+pose.posture.lower_pitch+
         pose.posture.upper_pitch+pose.posture.chest_pitch;
     setEuler(pose.bones,BoneId::Neck,-lean*.46F-running_lean*1.25F,-yaw*.07F,roll*.12F);
@@ -344,7 +380,7 @@ void solveFullFrameChain(AnimationPose& pose,const SkeletonData& skeleton,BoneId
     pose.bones[lower_index].rotation=multiply(inverse(upper_model),lower_model);
 }
 
-[[maybe_unused]] void applyProneArmIK(AnimationPose& pose,const LocomotionController& controller,
+void applyProneArmIK(AnimationPose& pose,const LocomotionController& controller,
                      const SkeletonData& skeleton) noexcept {
     const float height=controller.body().height;
     const auto rest=skeleton.bones();
@@ -353,7 +389,6 @@ void solveFullFrameChain(AnimationPose& pose,const SkeletonData& skeleton,BoneId
         const BoneId lower=index==0U?BoneId::ForeArmL:BoneId::ForeArmR;
         const BoneId hand=index==0U?BoneId::HandL:BoneId::HandR;
         auto target=scale(pose.hand_targets[index],height);
-        target.y = 0.002F;
         const auto pole=scale(pose.elbow_targets[index],height);
         solveFullFrameChain(pose,skeleton,upper,lower,hand,target,pole,
                             foundation::Vec3{0,-1,0});
@@ -394,6 +429,97 @@ void solveFullFrameChain(AnimationPose& pose,const SkeletonData& skeleton,BoneId
     return foundation::Vec3{0.0F,-height*.045F,0.0F};
 }
 
+void appendClearanceSupport(std::array<foundation::Vec3, 4U>& supports,
+                            std::uint8_t& count, foundation::Vec3 point) noexcept {
+    if (!finite(point)) return;
+    if (count < supports.size()) {
+        supports[count++] = point;
+        return;
+    }
+    std::size_t highest = 0U;
+    for (std::size_t index = 1U; index < supports.size(); ++index)
+        if (supports[index].y > supports[highest].y) highest = index;
+    if (point.y < supports[highest].y) supports[highest] = point;
+}
+
+[[nodiscard]] foundation::Vec3 transformPoint(const RigTransform& transform,
+                                               foundation::Vec3 point) noexcept;
+[[nodiscard]] foundation::Vec3 poseBindPoint(foundation::Vec3 point, BoneId bone,
+                                              const SkeletonData& skeleton,
+                                              const ModelPose& pose) noexcept;
+[[nodiscard]] foundation::Vec3 skinnedPoint(const AppearanceVertex& vertex,
+                                            const SkeletonData& skeleton,
+                                            const ModelPose& pose) noexcept;
+
+void appendSurfaceClearanceSupports(GroundContactInput& input,
+                                    const AnimationEntity& entity,
+                                    const AnimationPose& pose,
+                                    const SkeletonData& skeleton) noexcept {
+    const ModelPose posed = modelPose(pose.bones);
+    if (entity.surface != nullptr) {
+        foundation::Vec3 lowest{};
+        float lowest_y = std::numeric_limits<float>::infinity();
+        foundation::Vec3 left_boot{};
+        foundation::Vec3 right_boot{};
+        float left_boot_y = std::numeric_limits<float>::infinity();
+        float right_boot_y = std::numeric_limits<float>::infinity();
+        const auto boot_region = static_cast<std::uint16_t>(
+            AppearanceMaterialRegion::BootLeather);
+        for (const auto& vertex : entity.surface->vertices) {
+            const foundation::Vec3 point = skinnedPoint(vertex, skeleton, posed);
+            if (point.y < lowest_y) {
+                lowest_y = point.y;
+                lowest = point;
+            }
+            if (vertex.material_region != boot_region) continue;
+            if (point.x >= 0.0F && point.y < left_boot_y) {
+                left_boot_y = point.y;
+                left_boot = point;
+            } else if (point.x < 0.0F && point.y < right_boot_y) {
+                right_boot_y = point.y;
+                right_boot = point;
+            }
+        }
+        if (std::isfinite(lowest_y))
+            appendClearanceSupport(input.gear_supports, input.gear_support_count,
+                                   add(entity.root_position, lowest));
+        if (std::isfinite(left_boot_y))
+            appendClearanceSupport(input.gear_supports, input.gear_support_count,
+                                   add(entity.root_position, left_boot));
+        if (std::isfinite(right_boot_y))
+            appendClearanceSupport(input.gear_supports, input.gear_support_count,
+                                   add(entity.root_position, right_boot));
+    }
+    if (entity.gear == nullptr) return;
+    const float fit_height = std::isfinite(entity.gear->fit.height) &&
+                             entity.gear->fit.height > 0.0F
+        ? entity.gear->fit.height : 1.0F;
+    const auto bones = skeleton.bones();
+    for (const auto& piece : entity.gear->pieces) {
+        const std::size_t bone = boneIndex(piece.bone);
+        if (bone >= bones.size() || !finite(piece.center) || !finite(piece.dimensions) ||
+            piece.dimensions.y <= 0.0F) continue;
+        const foundation::Vec3 center = scale(piece.center, fit_height);
+        const foundation::Vec3 half = scale(piece.dimensions, fit_height * 0.5F);
+        foundation::Vec3 lowest{};
+        float lowest_y = std::numeric_limits<float>::infinity();
+        for (const float x : {-half.x, half.x}) {
+            for (const float z : {-half.z, half.z}) {
+                const foundation::Vec3 point = poseBindPoint(
+                    {center.x + x, center.y - half.y, center.z + z}, piece.bone,
+                    skeleton, posed);
+                if (point.y < lowest_y) {
+                    lowest_y = point.y;
+                    lowest = point;
+                }
+            }
+        }
+        if (std::isfinite(lowest_y))
+            appendClearanceSupport(input.gear_supports, input.gear_support_count,
+                                   add(entity.root_position, lowest));
+    }
+}
+
 void applyBipedLegIK(AnimationPose& pose,const LocomotionController& controller,
                       const SkeletonData& skeleton,const AppearanceMesh* surface=nullptr) noexcept {
     const auto& body=controller.body();
@@ -432,12 +558,151 @@ void applyBipedLegIK(AnimationPose& pose,const LocomotionController& controller,
     }
 }
 
+[[nodiscard]] bool applyProneGroundContact(AnimationPose& pose,
+                                            const AnimationEntity& entity,
+                                            const LocomotionController& controller,
+                                            const LocomotionState& state) noexcept;
+
+[[nodiscard]] bool applyGroundContact(AnimationPose& pose, const AnimationEntity& entity,
+                                       const LocomotionController& controller,
+                                       const LocomotionState& state) noexcept {
+    if (!entity.ground_surface.valid()) {
+        if (entity.ground_runtime != nullptr) entity.ground_runtime->reset();
+        return false;
+    }
+    if (state.family == LocomotionFamily::Prone) {
+        return applyProneGroundContact(pose, entity, controller, state);
+    }
+    if (state.family != LocomotionFamily::Biped) {
+        if (entity.ground_runtime != nullptr) entity.ground_runtime->reset();
+        return false;
+    }
+    const auto& body = controller.body();
+    const float height = body.height;
+    GroundContactInput input{};
+    input.hips = add(entity.root_position,
+                     pose.bones[boneIndex(BoneId::Hips)].translation);
+    input.left_foot = add(entity.root_position, scale(pose.foot_targets[0], height));
+    input.right_foot = add(entity.root_position, scale(pose.foot_targets[1], height));
+    input.left_pole = add(entity.root_position, scale(pose.knee_targets[0], height));
+    input.right_pole = add(entity.root_position, scale(pose.knee_targets[1], height));
+    input.upper_leg_length = body.anatomy_leg_length * 0.50F;
+    input.lower_leg_length = body.anatomy_leg_length * 0.50F;
+    input.sole_offset = height * 0.0015F;
+    input.morphology_key = controller.body().version;
+    appendSurfaceClearanceSupports(input, entity, pose, *entity.skeleton);
+    const auto solved = GroundContactSolver::solve(input, entity.ground_surface);
+    if (!solved) {
+        if (entity.ground_runtime != nullptr) entity.ground_runtime->reset();
+        return false;
+    }
+    const auto& output = solved.value();
+    pose.bones[boneIndex(BoneId::Hips)].translation.y += output.body_lift;
+    const bool contacts_enabled = !state.treadmill && !state.turning &&
+                                  std::abs(state.turn_rate) < 0.32F;
+    const float max_drift = std::max(0.02F, input.max_replant_distance);
+    for (std::size_t index = 0U; index < 2U; ++index) {
+        const float weight = pose.foot_plant[index];
+        foundation::Vec3 target = output.feet[index].target_position;
+        if (entity.ground_runtime != nullptr) {
+            entity.ground_runtime->feet[index].normal = output.feet[index].normal;
+            const float foot_phase = static_cast<float>(state.phase) +
+                                     static_cast<float>(index) * 0.5F;
+            const bool stance = pose.foot_support[index] > 0.35F && weight > 0.35F;
+            target = entity.ground_runtime->resolve(index, target, weight,
+                                                    contacts_enabled, max_drift,
+                                                    foot_phase, stance);
+        }
+        pose.foot_targets[index] = scale(sub(target, entity.root_position), 1.0F / height);
+        // Align the sole with the sampled terrain normal while preserving the
+        // authored toe/foot progression from PostureProfile.
+        const auto& normal = output.feet[index].normal;
+        pose.foot_pitch[index] += std::atan2(normal.z, std::max(1.0e-4F, normal.y));
+        pose.foot_yaw[index] += std::atan2(normal.x, std::max(1.0e-4F, normal.y)) *
+                                (index == 0U ? 1.0F : -1.0F);
+    }
+    return true;
+}
+
+void applyWeaponOverlay(AnimationPose& pose, const AnimationEntity& entity,
+                        const LocomotionController& controller,
+                        const SkeletonData& skeleton) noexcept {
+    if (entity.weapon_overlay == nullptr || !entity.weapon_overlay->valid()) return;
+    const auto& overlay = *entity.weapon_overlay;
+    const float height = controller.body().height;
+    pose.weapon_aim_direction = overlay.aim_direction;
+    const bool occupies_hands =
+        (overlay.primary.owner != AnimationHandOwner::Free && overlay.primary.weight > 1.0e-3F) ||
+        (overlay.support.owner != AnimationHandOwner::Free && overlay.support.weight > 1.0e-3F);
+    if (occupies_hands && overlay.readiness > 1.0e-3F) {
+        const foundation::Vec3 aim = normalized(overlay.aim_direction,
+                                                {0.0F, 0.0F, 1.0F});
+        const float yaw = std::atan2(aim.x, aim.z);
+        const float pitch = std::atan2(aim.y, std::max(1.0e-4F,
+                                                       std::sqrt(aim.x * aim.x +
+                                                                 aim.z * aim.z)));
+        const float readiness = std::clamp(overlay.readiness, 0.0F, 1.0F);
+        const float prone = pose.active_state == AnimationState::PRONE ||
+            pose.active_state == AnimationState::PRONE_MOVE ? 1.0F : 0.0F;
+        constexpr std::array<std::pair<BoneId, float>, 2U> kAimBones{{
+            {BoneId::SpineUpper, 0.14F}, {BoneId::Chest, 0.20F}}};
+        for (const auto [bone, weight] : kAimBones) {
+            const float contribution = weight * readiness * (1.0F - prone * 0.75F);
+            rotateBone(pose.bones, bone, {1.0F, 0.0F, 0.0F}, -pitch * contribution);
+            rotateBone(pose.bones, bone, {0.0F, 1.0F, 0.0F}, yaw * contribution);
+        }
+    }
+    // Rig side zero is L; a weapon's primary hand is conventionally R and
+    // its support hand is L. The neutral task names stay weapon-oriented.
+    const AnimationHandOverlayTask* tasks[2]{&overlay.support, &overlay.primary};
+    for (std::size_t index = 0U; index < 2U; ++index) {
+        const auto& task = *tasks[index];
+        if (task.owner == AnimationHandOwner::Free || task.weight <= 1.0e-3F) continue;
+        foundation::Vec3 target = task.target;
+        if (overlay.targets_are_world) target = sub(target, overlay.root_position);
+        target = scale(target, 1.0F / height);
+        pose.hand_targets[index] = {
+            mix(pose.hand_targets[index].x, target.x, task.weight),
+            mix(pose.hand_targets[index].y, target.y, task.weight),
+            mix(pose.hand_targets[index].z, target.z, task.weight)};
+        pose.hand_plant[index] = std::max(pose.hand_plant[index], task.weight);
+        pose.hand_owners[index] = task.owner;
+        const BoneId upper = index == 0U ? BoneId::UpperArmL : BoneId::UpperArmR;
+        const BoneId lower = index == 0U ? BoneId::ForeArmL : BoneId::ForeArmR;
+        const BoneId hand = index == 0U ? BoneId::HandL : BoneId::HandR;
+        const auto pole = pose.elbow_targets[index];
+        solveFullFrameChain(pose, skeleton, upper, lower, hand,
+                            scale(pose.hand_targets[index], height),
+                            scale(pole, height));
+        pose.target_hand_curl = std::max(pose.target_hand_curl,
+                                         task.curl * task.weight);
+    }
+    pose.weapon_readiness = overlay.readiness;
+    pose.weapon_recoil = overlay.recoil;
+    const float recoil = std::clamp(overlay.recoil, 0.0F, 1.0F) *
+                         std::clamp(overlay.readiness, 0.0F, 1.0F);
+    if (recoil > 0.0F) {
+        rotateBone(pose.bones, BoneId::UpperArmL, {1.0F, 0.0F, 0.0F}, -recoil * 0.06F);
+        rotateBone(pose.bones, BoneId::UpperArmR, {1.0F, 0.0F, 0.0F}, -recoil * 0.06F);
+        rotateBone(pose.bones, BoneId::ForeArmL, {1.0F, 0.0F, 0.0F}, recoil * 0.04F);
+        rotateBone(pose.bones, BoneId::ForeArmR, {1.0F, 0.0F, 0.0F}, recoil * 0.04F);
+    }
+}
+
 void applySeatedPose(AnimationPose& pose,const LocomotionController& controller,
-                     const SkeletonData& skeleton,const AppearanceMesh* surface=nullptr) noexcept {
+                     const SkeletonData& skeleton,const AppearanceMesh* surface=nullptr,
+                     const std::optional<foundation::Vec3>& seat_anchor=std::nullopt,
+                     foundation::Vec3 root_position={}) noexcept {
     const auto& body=controller.body();const float height=body.height;
     const float leg=body.anatomy_leg_length/height,hip_half=.052F*body.hip_width_scale;
     pose.bones[boneIndex(BoneId::Hips)].translation={0.0F,
         (.045F+leg*.635F)*height,-leg*.202F*height};
+    if (seat_anchor.has_value() && finite(seat_anchor.value())) {
+        pose.bones[boneIndex(BoneId::Hips)].translation = scale(
+            sub(seat_anchor.value(), root_position), 1.0F / height);
+        pose.bones[boneIndex(BoneId::Hips)].translation.y +=
+            .040F * body.waist_depth_scale;
+    }
     setEuler(pose.bones,BoneId::SpineLower,.12F);
     setEuler(pose.bones,BoneId::SpineUpper,.15F);
     setEuler(pose.bones,BoneId::Chest,.06F);
@@ -447,6 +712,19 @@ void applySeatedPose(AnimationPose& pose,const LocomotionController& controller,
         const float sign=index==0U?1.0F:-1.0F;
         pose.foot_targets[index]={sign*(hip_half+.020F),.045F,leg*.073F};
         pose.knee_targets[index]={sign*(hip_half+.048F),.045F+leg*.32F,leg*.96F};
+        if (seat_anchor.has_value() && finite(seat_anchor.value())) {
+            const float foot_lift = std::max(0.0F,
+                pose.bones[boneIndex(BoneId::Hips)].translation.y - leg * .70F - .045F);
+            pose.foot_targets[index].x += pose.bones[boneIndex(BoneId::Hips)].translation.x;
+            pose.foot_targets[index].y = .045F + foot_lift;
+            pose.foot_targets[index].z +=
+                pose.bones[boneIndex(BoneId::Hips)].translation.z + leg * .202F;
+            pose.knee_targets[index].x += pose.bones[boneIndex(BoneId::Hips)].translation.x;
+            pose.knee_targets[index].z +=
+                pose.bones[boneIndex(BoneId::Hips)].translation.z + leg * .202F;
+            pose.foot_plant[index] = foot_lift > .001F ? 0.0F : 1.0F;
+            pose.foot_support[index] = pose.foot_plant[index];
+        }
         const BoneId upper=index==0U?BoneId::UpperArmL:BoneId::UpperArmR;
         const BoneId fore=index==0U?BoneId::ForeArmL:BoneId::ForeArmR;
         setEuler(pose.bones,upper,-.34F,0.0F,sign*(-arm_angle+.09F));
@@ -502,12 +780,127 @@ void applyPronePose(AnimationPose& pose,const LocomotionController& controller,
         setEuler(pose.bones,fore,-.065F);
     }
     pose.target_bones=pose.bones;
-    // Prone fixture legs retain the authored crawl pose; contact targets are
-    // published separately and are not a second rotation pass.
-    // The pinned animation fixture uses the authored prone arm rotations. Its
-    // flat contact surface leaves the hand targets as diagnostics; applying a
-    // second native IK solve here would rotate the arms away from that pose.
+    // The authored crawl pose remains the no-surface baseline. A valid terrain
+    // stage may apply the persistent hand/foot contact IK after this sampler.
 }
+
+struct ProneTerrainSample final {
+    foundation::Vec3 target{};
+    foundation::Vec3 normal{0.0F, 1.0F, 0.0F};
+};
+
+[[nodiscard]] bool sampleProneTerrainTarget(const GroundSurfaceQuery& surface,
+                                            foundation::Vec3 candidate,
+                                            float offset,
+                                            ProneTerrainSample& output) noexcept {
+    GroundSample sample{};
+    if (!surface.sample(surface.context, candidate, sample) ||
+        !std::isfinite(sample.height) || !finite(sample.normal) || sample.normal.y <= 0.0F) {
+        return false;
+    }
+    output.target = {candidate.x, sample.height + offset, candidate.z};
+    output.normal = normalized(sample.normal, {0.0F, 1.0F, 0.0F});
+    return finite(output.target) && finite(output.normal);
+}
+
+[[nodiscard]] bool applyProneGroundContact(AnimationPose& pose,
+                                            const AnimationEntity& entity,
+                                            const LocomotionController& controller,
+                                            const LocomotionState& state) noexcept {
+    if (!entity.ground_surface.valid()) {
+        if (entity.ground_runtime != nullptr) entity.ground_runtime->reset();
+        return false;
+    }
+    const float height = controller.body().height;
+    std::array<ProneTerrainSample, 4U> samples{};
+    for (std::size_t index = 0U; index < 2U; ++index) {
+        const foundation::Vec3 foot = add(
+            entity.root_position, scale(pose.foot_targets[index], height));
+        const foundation::Vec3 hand = add(
+            entity.root_position, scale(pose.hand_targets[index], height));
+        if (!sampleProneTerrainTarget(entity.ground_surface, foot, height * 0.0015F,
+                                      samples[index]) ||
+            !sampleProneTerrainTarget(entity.ground_surface, hand, height * 0.0010F,
+                                      samples[index + 2U])) {
+            if (entity.ground_runtime != nullptr) entity.ground_runtime->reset();
+            return false;
+        }
+    }
+
+    const bool contacts_enabled = !state.treadmill && !state.turning &&
+                                  std::abs(state.turn_rate) < 0.32F;
+    constexpr float max_drift = 0.60F;
+    float highest_contact = entity.root_position.y;
+    for (const auto& sample : samples)
+        highest_contact = std::max(highest_contact, sample.target.y);
+    const float body_floor = entity.root_position.y +
+                             pose.bones[boneIndex(BoneId::Hips)].translation.y -
+                             height * 0.055F;
+    pose.bones[boneIndex(BoneId::Hips)].translation.y +=
+        std::clamp(highest_contact - body_floor, 0.0F, 0.20F);
+
+    for (std::size_t index = 0U; index < 2U; ++index) {
+        foundation::Vec3 foot_target = samples[index].target;
+        if (entity.ground_runtime != nullptr) {
+            entity.ground_runtime->feet[index].normal = samples[index].normal;
+            const float phase = static_cast<float>(state.phase) +
+                                static_cast<float>(index) * 0.5F;
+            const bool stance = pose.foot_support[index] > 0.35F &&
+                                pose.foot_plant[index] > 0.35F;
+            foot_target = entity.ground_runtime->resolve(index, foot_target,
+                                                          pose.foot_plant[index],
+                                                          contacts_enabled, max_drift,
+                                                          phase, stance);
+        }
+        pose.foot_targets[index] = scale(sub(foot_target, entity.root_position),
+                                          1.0F / height);
+        pose.foot_goals[index] = pose.foot_targets[index];
+        pose.foot_pitch[index] += std::atan2(samples[index].normal.z,
+                                             std::max(1.0e-4F, samples[index].normal.y));
+        pose.foot_yaw[index] += std::atan2(samples[index].normal.x,
+                                           std::max(1.0e-4F, samples[index].normal.y)) *
+                                (index == 0U ? 1.0F : -1.0F);
+
+        foundation::Vec3 hand_target = samples[index + 2U].target;
+        if (entity.ground_runtime != nullptr) {
+            entity.ground_runtime->hands[index].normal = samples[index + 2U].normal;
+            const float phase = static_cast<float>(state.phase) +
+                                static_cast<float>(index) * 0.5F + 0.5F;
+            const bool stance = pose.hand_plant[index] > 0.35F;
+            hand_target = entity.ground_runtime->resolveHand(index, hand_target,
+                                                              pose.hand_plant[index],
+                                                              contacts_enabled, max_drift,
+                                                              phase, stance);
+        }
+        pose.hand_targets[index] = scale(sub(hand_target, entity.root_position),
+                                         1.0F / height);
+    }
+    return true;
+}
+
+void applyProneContactIK(AnimationPose& pose, const LocomotionController& controller,
+                         const SkeletonData& skeleton) noexcept {
+    const float height = controller.body().height;
+    for (std::size_t index = 0U; index < 2U; ++index) {
+        const BoneId thigh = index == 0U ? BoneId::ThighL : BoneId::ThighR;
+        const BoneId shin = index == 0U ? BoneId::ShinL : BoneId::ShinR;
+        const BoneId foot = index == 0U ? BoneId::FootL : BoneId::FootR;
+        solveFullFrameChain(pose, skeleton, thigh, shin, foot,
+                            scale(pose.foot_targets[index], height),
+                            scale(pose.knee_targets[index], height));
+    }
+    applyProneArmIK(pose, controller, skeleton);
+}
+
+[[nodiscard]] bool proneState(AnimationState state) noexcept;
+[[nodiscard]] AnimationBodyPose sampleBody(const AnimationEntity& entity,
+                                            AnimationTransitionStage stage,
+                                            AnimationState state, float time) noexcept;
+[[nodiscard]] foundation::Vec3 blendVec(foundation::Vec3 a, foundation::Vec3 b,
+                                        float t) noexcept;
+[[nodiscard]] AnimationBodyPose blendBody(const AnimationBodyPose& a,
+                                           const AnimationBodyPose& b,
+                                           float t) noexcept;
 
 [[nodiscard]] float boneResponse(std::size_t index) noexcept {
     if(index==boneIndex(BoneId::Head)||index==boneIndex(BoneId::Neck))return 10.0F;
@@ -520,107 +913,168 @@ void applyPronePose(AnimationPose& pose,const LocomotionController& controller,
     return 26.0F;
 }
 
-[[nodiscard]] bool armBone(std::size_t index) noexcept {
-    return (index>=boneIndex(BoneId::ClavicleL)&&index<=boneIndex(BoneId::HandL))||
-           (index>=boneIndex(BoneId::ClavicleR)&&index<=boneIndex(BoneId::HandR));
+void dampBody(AnimationBodyPose& current, const AnimationBodyPose& target, float dt) noexcept {
+    const float hips_alpha = 1.0F - std::exp(-18.0F * dt);
+    const float scalar_alpha = 1.0F - std::exp(-22.0F * dt);
+    for (std::size_t bone = 0U; bone < kRigBoneCount; ++bone) {
+        const float alpha = 1.0F - std::exp(-boneResponse(bone) * dt);
+        current.bones[bone].rotation = slerp(current.bones[bone].rotation,
+                                             target.bones[bone].rotation, alpha);
+        current.bones[bone].scale = blendVec(current.bones[bone].scale,
+                                             target.bones[bone].scale, alpha);
+        current.bones[bone].translation = bone == boneIndex(BoneId::Hips)
+            ? blendVec(current.bones[bone].translation, target.bones[bone].translation, hips_alpha)
+            : target.bones[bone].translation;
+    }
+    current.foot_targets = target.foot_targets; current.knee_targets = target.knee_targets;
+    current.hand_targets = target.hand_targets; current.elbow_targets = target.elbow_targets;
+    for (std::size_t side = 0U; side < 2U; ++side) {
+#define DAMP_CHANNEL(name) current.name[side] = mix(current.name[side], target.name[side], scalar_alpha)
+        DAMP_CHANNEL(foot_plant); DAMP_CHANNEL(foot_support); DAMP_CHANNEL(foot_pitch);
+        DAMP_CHANNEL(toe_pitch); DAMP_CHANNEL(foot_yaw); DAMP_CHANNEL(hand_plant);
+        DAMP_CHANNEL(hand_lift); DAMP_CHANNEL(foot_relative); DAMP_CHANNEL(ankle_pitch);
+        DAMP_CHANNEL(ankle_yaw);
+#undef DAMP_CHANNEL
+    }
+    current.hand_curl = mix(current.hand_curl, target.hand_curl, scalar_alpha);
+    current.prone_weight = mix(current.prone_weight, target.prone_weight, scalar_alpha);
+    current.hand_ik_weight = mix(current.hand_ik_weight, target.hand_ik_weight, scalar_alpha);
+    current.gait_weight = mix(current.gait_weight, target.gait_weight, scalar_alpha);
+    current.posture = target.posture;
 }
 
-void dampBipedPose(AnimationPose& pose,const AnimationPose* previous,
-                   const LocomotionController& controller,const LocomotionState& state,
-                   const SkeletonData& skeleton,float time,float dt) noexcept {
-    (void)controller;(void)state;(void)skeleton;(void)time;
-    std::array<RigTransform,kRigBoneCount> current{};
-    std::array<RigTransform,kRigBoneCount> previous_target{};
-    float current_hand_curl=0.0F;
-    if(previous!=nullptr&&previous->evaluated){
-        current=previous->damped_bones;
-        previous_target=previous->target_bones;
-        current_hand_curl=previous->face.hands_relax;
-        // JS transports arm damping through the cyclic previousArmPose, not
-        // through the previous frame's target pose. Reconstruct that moving
-        // phase for every subsequent frame as well as the initial frame.
-        if(state.actual_speed_mps>0.008F){
-            const auto bind=skeleton.bones();
-            auto previous_state=state;
-            const float phase_delta=state.actual_speed_mps/
-                std::max(0.01F,static_cast<float>(state.cycle_m))*dt;
-            previous_state.phase-=phase_delta;
-            previous_state.phase-=std::floor(previous_state.phase);
-            AnimationPose moving_frame{};
-            for(std::size_t bone=0U;bone<kRigBoneCount;++bone)
-                moving_frame.bones[bone]=bind[bone].local_bind;
-            moving_frame.posture=controller.posture(previous_state);
-            sampleBipedTargets(moving_frame,controller,previous_state);
-            applyReferenceBipedPose(moving_frame,controller,previous_state,time-dt);
-            previous_target=moving_frame.bones;
+void buildSchedule(AnimationTransitionRuntime& runtime, AnimationState from,
+                   AnimationState target) noexcept {
+    runtime.stage_count = 0U; runtime.stage_index = 0U; runtime.stage_elapsed = 0.0F;
+    runtime.total_elapsed = 0.0F; runtime.total_duration = 0.0F;
+    const auto add = [&](AnimationTransitionStage stage, AnimationState state, float duration) {
+        if (!(duration > 0.0F)) return;
+        if (runtime.stage_count >= runtime.schedule.size()) return;
+        runtime.schedule[runtime.stage_count++] = {stage, state, duration};
+        runtime.total_duration += duration;
+    };
+    const bool from_prone = proneState(from), to_prone = proneState(target);
+    const auto& p = runtime.profile;
+    if (from_prone != to_prone) {
+        if (to_prone) {
+            add(AnimationTransitionStage::Crouch, AnimationState::CROUCH, p.prone_crouch_seconds);
+            add(AnimationTransitionStage::Support, AnimationState::CROUCH, p.prone_support_seconds);
+            add(AnimationTransitionStage::Target, target, p.prone_seconds);
+        } else {
+            add(AnimationTransitionStage::Support, AnimationState::CROUCH, p.prone_exit_support_seconds);
+            add(AnimationTransitionStage::Crouch, AnimationState::CROUCH, p.prone_exit_crouch_seconds);
+            add(AnimationTransitionStage::Target, target, p.prone_exit_seconds);
         }
-    }else if(state.actual_speed_mps==0.0F){
-        AnimationPose initial{};const auto bind=skeleton.bones();
-        for(std::size_t bone=0;bone<kRigBoneCount;++bone)initial.bones[bone]=bind[bone].local_bind;
-        auto initial_state=state;initial_state.phase=0.0;initial_state.actual_speed_mps=0.0F;
-        initial.posture=controller.posture(initial_state);sampleBipedTargets(initial,controller,initial_state);
-        applyReferenceBipedPose(initial,controller,initial_state,0.0F);current=initial.bones;
-        current_hand_curl=initial.face.hands_relax;
-        auto previous_phase=state;previous_phase.phase=0.0;AnimationPose arm_target{};
-        for(std::size_t bone=0;bone<kRigBoneCount;++bone)arm_target.bones[bone]=bind[bone].local_bind;
-        arm_target.posture=controller.posture(previous_phase);sampleBipedTargets(arm_target,controller,previous_phase);
-        applyReferenceBipedPose(arm_target,controller,previous_phase,time-dt);previous_target=arm_target.bones;
-    }else{
-        // JS setState(..., immediate=true) leaves the pose at the previous
-        // gait phase. update() advances the phase, samples the new target,
-        // and only then applies one damping step. Reconstruct that previous
-        // sample here so the first moving frame has the same temporal lag.
-        AnimationPose previous_frame{};
-        const auto bind=skeleton.bones();
-        for(std::size_t bone=0U;bone<kRigBoneCount;++bone)
-            previous_frame.bones[bone]=bind[bone].local_bind;
-        auto previous_state=state;
-        const float phase_delta=state.actual_speed_mps/
-            std::max(0.01F,static_cast<float>(state.cycle_m))*dt;
-        previous_state.phase-=phase_delta;
-        previous_state.phase-=std::floor(previous_state.phase);
-        // setState(..., immediate=true) samples the pose before the JS
-        // animator receives its per-frame motion speed. Preserve the snapped
-        // gait profile (run weight), but make that first pose stationary.
-        previous_state.actual_speed_mps=0.0F;
-        previous_state.amplitude=0.0F;
-        previous_frame.posture=controller.posture(previous_state);
-        sampleBipedTargets(previous_frame,controller,previous_state);
-        applyReferenceBipedPose(previous_frame,controller,previous_state,time-dt);
-        current=previous_frame.bones;
-        // The JS animator also refreshes its cyclic arm transport pose from
-        // the moving gait, even though the damped body starts at the
-        // stationary immediate pose. Keep these two snapshots distinct.
-        auto moving_previous=state;
-        moving_previous.phase=previous_state.phase;
-        AnimationPose moving_frame{};
-        for(std::size_t bone=0U;bone<kRigBoneCount;++bone)
-            moving_frame.bones[bone]=bind[bone].local_bind;
-        moving_frame.posture=controller.posture(moving_previous);
-        sampleBipedTargets(moving_frame,controller,moving_previous);
-        applyReferenceBipedPose(moving_frame,controller,moving_previous,time-dt);
-        previous_target=moving_frame.bones;
-        current_hand_curl=previous_frame.face.hands_relax;
+    } else if (from == AnimationState::SITTING || target == AnimationState::SITTING) {
+        add(AnimationTransitionStage::Target, target, p.sitting_seconds);
+    } else if ((from == AnimationState::PRONE && target == AnimationState::PRONE_MOVE) ||
+               (from == AnimationState::PRONE_MOVE && target == AnimationState::PRONE)) {
+        add(AnimationTransitionStage::Target, target, p.locomotion_seconds);
+    } else if (from == AnimationState::CROUCH_WALK || target == AnimationState::CROUCH_WALK) {
+        add(AnimationTransitionStage::Target, target, p.crouch_walk_seconds);
+    } else if (from == AnimationState::CROUCH || target == AnimationState::CROUCH) {
+        add(AnimationTransitionStage::Target, target, p.crouch_seconds);
+    } else {
+        add(AnimationTransitionStage::Target, target, p.locomotion_seconds);
     }
-    const float hips_alpha=1.0F-std::exp(-18.0F*dt);
-    current[boneIndex(BoneId::Hips)].translation={
-        mix(current[boneIndex(BoneId::Hips)].translation.x,pose.target_bones[boneIndex(BoneId::Hips)].translation.x,hips_alpha),
-        mix(current[boneIndex(BoneId::Hips)].translation.y,pose.target_bones[boneIndex(BoneId::Hips)].translation.y,hips_alpha),
-        mix(current[boneIndex(BoneId::Hips)].translation.z,pose.target_bones[boneIndex(BoneId::Hips)].translation.z,hips_alpha)};
-    for(std::size_t bone=0;bone<kRigBoneCount;++bone){
-        auto value=current[bone].rotation;
-        if(armBone(bone)){
-            const auto transport=multiply(pose.target_bones[bone].rotation,
-                                          inverse(previous_target[bone].rotation));
-            value=multiply(transport,value);
+}
+
+[[nodiscard]] AnimationBodyPose sampleSettledBody(const AnimationEntity& entity,
+                                                  AnimationState state,
+                                                  float time) noexcept {
+    return sampleBody(entity, AnimationTransitionStage::Target, state, time);
+}
+
+void updateRuntime(AnimationEntity& entity, float time, float dt) noexcept {
+    auto& runtime = *entity.transition_runtime;
+    auto& state = *entity.locomotion_state;
+    const auto sample = [&](AnimationTransitionStage stage, AnimationState value) {
+        return sampleBody(entity, stage, value, time);
+    };
+    if (!runtime.initialized || state.animation_snap_requested) {
+        runtime.reset(); runtime.initialized = true; runtime.profile = state.transition_request_profile;
+        runtime.requested_state = state.requested_state; runtime.settled_state = state.requested_state;
+        runtime.handled_request_revision = state.animation_request_revision;
+        runtime.current = sample(AnimationTransitionStage::Target, state.requested_state);
+        runtime.stage_from = runtime.stage_target = runtime.current;
+        state.active_state = state.requested_state; state.transition_active = false;
+        state.transition_stage = AnimationTransitionStage::None;
+        state.transition_progress = state.transition_stage_progress = 1.0F;
+        state.animation_snap_requested = false;
+        return;
+    }
+    if (runtime.handled_request_revision != state.animation_request_revision) {
+        const AnimationState previous_request = runtime.requested_state;
+        runtime.handled_request_revision = state.animation_request_revision;
+        runtime.profile = state.transition_request_profile;
+        runtime.requested_state = state.requested_state;
+        runtime.stage_from = runtime.current;
+        buildSchedule(runtime, previous_request, runtime.requested_state);
+        runtime.active = runtime.stage_count != 0U;
+        if (runtime.active) {
+            runtime.stage_target = sample(runtime.schedule[0].stage, runtime.schedule[0].state);
+        } else {
+            // A zero-duration schedule is an atomic snap. It must not leave a
+            // one-frame intermediate stage or apply damping repeatedly.
+            runtime.stage_target = sampleSettledBody(entity, runtime.requested_state, time);
+            runtime.current = runtime.stage_from = runtime.stage_target;
+            runtime.settled_state = runtime.requested_state;
         }
-        current[bone].rotation=slerp(value,pose.target_bones[bone].rotation,
-                                     1.0F-std::exp(-boneResponse(bone)*dt));
     }
-    pose.damped_bones=current;
-    pose.bones=current;
-    pose.face.hands_relax=mix(current_hand_curl,pose.face.hands_relax,
-                              1.0F-std::exp(-22.0F*dt));
+
+    float remaining = dt;
+    while (runtime.active) {
+        const auto& step = runtime.schedule[runtime.stage_index];
+        if (step.duration <= 0.0F) {
+            runtime.stage_from = runtime.stage_target;
+            runtime.stage_elapsed = 0.0F;
+            if (++runtime.stage_index >= runtime.stage_count) {
+                runtime.active = false;
+                runtime.settled_state = runtime.requested_state;
+                break;
+            }
+            runtime.stage_target = sample(runtime.schedule[runtime.stage_index].stage,
+                                          runtime.schedule[runtime.stage_index].state);
+            continue;
+        }
+
+        if (remaining <= 0.0F) break;
+        const float advance = std::min(remaining, step.duration - runtime.stage_elapsed);
+        runtime.stage_elapsed += advance;
+        runtime.total_elapsed += advance;
+        remaining -= advance;
+        if (runtime.stage_elapsed < step.duration) break;
+
+        runtime.stage_from = runtime.stage_target;
+        runtime.stage_elapsed = 0.0F;
+        if (++runtime.stage_index >= runtime.stage_count) {
+            runtime.active = false;
+            runtime.settled_state = runtime.requested_state;
+            break;
+        }
+        const auto& next = runtime.schedule[runtime.stage_index];
+        runtime.stage_target = sample(next.stage, next.state);
+    }
+
+    if (!runtime.active) {
+        state.active_state = runtime.settled_state;
+        dampBody(runtime.current, sampleSettledBody(entity, runtime.settled_state, time), dt);
+    } else {
+        const auto& step = runtime.schedule[runtime.stage_index];
+        const float local = step.duration > 0.0F
+            ? std::clamp(runtime.stage_elapsed / step.duration, 0.0F, 1.0F) : 1.0F;
+        dampBody(runtime.current, blendBody(runtime.stage_from, runtime.stage_target,
+                                            smooth5(local)), dt);
+    }
+    state.transition_active = runtime.active;
+    state.transition_stage = runtime.active ? runtime.schedule[runtime.stage_index].stage
+                                            : AnimationTransitionStage::None;
+    state.transition_progress = runtime.active && runtime.total_duration > 0.0F
+        ? std::clamp(runtime.total_elapsed / runtime.total_duration, 0.0F, 1.0F) : 1.0F;
+    state.transition_stage_progress = runtime.active
+        ? (runtime.schedule[runtime.stage_index].duration > 0.0F
+            ? std::clamp(runtime.stage_elapsed / runtime.schedule[runtime.stage_index].duration,
+                         0.0F, 1.0F) : 1.0F) : 1.0F;
 }
 
 void applyFacePose(std::array<RigTransform, kRigBoneCount>& bones,
@@ -642,9 +1096,287 @@ void applyFacePose(std::array<RigTransform, kRigBoneCount>& bones,
 
 bool AnimationEntity::valid() const noexcept {
     return skeleton != nullptr && skeleton->valid() && locomotion != nullptr &&
-           locomotion_state != nullptr && locomotion_state->valid() && finite(root_position) &&
-           (!look_target.has_value() || finite(look_target.value())) && lod.spec().valid();
+           locomotion_state != nullptr && locomotion_state->valid() &&
+           transition_runtime != nullptr && finite(root_position) &&
+           (!look_target.has_value() || finite(look_target.value())) &&
+           (!seat_anchor.has_value() || finite(seat_anchor.value())) &&
+           (weapon_overlay == nullptr || weapon_overlay->valid()) && lod.spec().valid();
 }
+
+namespace {
+
+[[nodiscard]] bool proneState(AnimationState state) noexcept {
+    return state == AnimationState::PRONE || state == AnimationState::PRONE_MOVE;
+}
+
+[[nodiscard]] LocomotionState samplingState(const LocomotionState& source,
+                                             AnimationState state) noexcept {
+    LocomotionState result = source;
+    result.requested_state = state;
+    result.active_state = state;
+    result.transition_active = false;
+    switch (state) {
+    case AnimationState::IDLE:
+        result.family = LocomotionFamily::Biped; result.actual_crouch = 0.0F;
+        result.actual_speed_mps = 0.0F; result.amplitude = 0.0F; break;
+    case AnimationState::WALK:
+    case AnimationState::RUN:
+        result.family = LocomotionFamily::Biped; result.actual_crouch = 0.0F; break;
+    case AnimationState::CROUCH:
+        result.family = LocomotionFamily::Biped; result.actual_crouch = 0.60F;
+        result.actual_speed_mps = 0.0F; result.amplitude = 0.0F; break;
+    case AnimationState::CROUCH_WALK:
+        result.family = LocomotionFamily::Biped; result.actual_crouch = 0.60F; break;
+    case AnimationState::SITTING:
+        result.family = LocomotionFamily::Seated; result.actual_speed_mps = 0.0F; break;
+    case AnimationState::PRONE:
+        result.family = LocomotionFamily::Prone; result.family_moving = false;
+        result.actual_speed_mps = 0.0F; break;
+    case AnimationState::PRONE_MOVE:
+        result.family = LocomotionFamily::Prone; result.family_moving = true; break;
+    case AnimationState::REST:
+        result.family = LocomotionFamily::Rest; result.actual_speed_mps = 0.0F; break;
+    }
+    return result;
+}
+
+[[nodiscard]] foundation::Vec3 transformPoint(const RigTransform& transform,
+                                               foundation::Vec3 point) noexcept {
+    point = {point.x * transform.scale.x, point.y * transform.scale.y,
+             point.z * transform.scale.z};
+    return add(transform.translation, rotate(point, transform.rotation));
+}
+
+[[nodiscard]] foundation::Vec3 poseBindPoint(foundation::Vec3 point, BoneId bone,
+                                              const SkeletonData& skeleton,
+                                              const ModelPose& pose) noexcept {
+    const std::size_t index = boneIndex(bone);
+    const auto bones = skeleton.bones();
+    if (index >= bones.size()) return point;
+    const foundation::Vec3 local = transformPoint(bones[index].inverse_bind, point);
+    return add(pose.positions[index], rotate(local, pose.rotations[index]));
+}
+
+[[nodiscard]] foundation::Vec3 skinnedPoint(const AppearanceVertex& vertex,
+                                            const SkeletonData& skeleton,
+                                            const ModelPose& pose) noexcept {
+    const auto bones = skeleton.bones();
+    foundation::Vec3 result{};
+    float total_weight = 0.0F;
+    for (std::size_t influence = 0U;
+         influence < vertex.influence_count && influence < vertex.influences.size();
+         ++influence) {
+        const auto& skin = vertex.influences[influence];
+        if (skin.bone_index >= bones.size() || !(skin.weight > 0.0F)) continue;
+        const std::size_t index = skin.bone_index;
+        const foundation::Vec3 local = transformPoint(bones[index].inverse_bind,
+                                                       vertex.position);
+        result = add(result, scale(add(pose.positions[index],
+                                       rotate(local, pose.rotations[index])), skin.weight));
+        total_weight += skin.weight;
+    }
+    return total_weight > 1.0e-6F ? scale(result, 1.0F / total_weight) : vertex.position;
+}
+
+void applyPostLookHeadClearance(AnimationPose& pose, const AnimationEntity& entity,
+                                const LocomotionController& controller,
+                                const SkeletonData& skeleton) noexcept {
+    if (!entity.ground_surface.valid()) return;
+    const float height = controller.body().height;
+    if (!(height > 0.0F) || !std::isfinite(height)) return;
+
+    const ModelPose posed = modelPose(pose.bones);
+    float required_lift = 0.0F;
+    const auto consider = [&](foundation::Vec3 local_point) noexcept {
+        const foundation::Vec3 world_point = add(entity.root_position, local_point);
+        GroundSample sample{};
+        if (!entity.ground_surface.sample(entity.ground_surface.context, world_point,
+                                          sample) || !std::isfinite(sample.height) ||
+            !finite(sample.normal) || sample.normal.y <= 0.0F) {
+            return;
+        }
+        required_lift = std::max(required_lift,
+                                 sample.height + height * 0.0005F - world_point.y);
+    };
+
+    if (entity.surface != nullptr) {
+        const std::uint16_t head_index = static_cast<std::uint16_t>(boneIndex(BoneId::Head));
+        const std::uint16_t neck_index = static_cast<std::uint16_t>(boneIndex(BoneId::Neck));
+        for (const auto& vertex : entity.surface->vertices) {
+            float head_weight = 0.0F;
+            for (std::size_t influence = 0U;
+                 influence < vertex.influence_count && influence < vertex.influences.size();
+                 ++influence) {
+                if (vertex.influences[influence].bone_index == head_index ||
+                    vertex.influences[influence].bone_index == neck_index) {
+                    head_weight += std::max(0.0F, vertex.influences[influence].weight);
+                }
+            }
+            if (head_weight >= 0.35F)
+                consider(skinnedPoint(vertex, skeleton, posed));
+        }
+    }
+
+    if (entity.gear != nullptr) {
+        const float fit_height = std::isfinite(entity.gear->fit.height) &&
+                                 entity.gear->fit.height > 0.0F
+            ? entity.gear->fit.height : 1.0F;
+        for (const auto& piece : entity.gear->pieces) {
+            if (piece.slot != EquipmentSlot::Head || !finite(piece.center) ||
+                !finite(piece.dimensions) || piece.dimensions.x <= 0.0F ||
+                piece.dimensions.y <= 0.0F || piece.dimensions.z <= 0.0F) {
+                continue;
+            }
+            const foundation::Vec3 center = scale(piece.center, fit_height);
+            const foundation::Vec3 half = scale(piece.dimensions, fit_height * 0.5F);
+            for (const float x : {-half.x, half.x}) {
+                for (const float y : {-half.y, half.y}) {
+                    for (const float z : {-half.z, half.z}) {
+                        consider(poseBindPoint({center.x + x, center.y + y, center.z + z},
+                                               piece.bone, skeleton, posed));
+                    }
+                }
+            }
+        }
+    }
+
+    const float lift = std::clamp(required_lift, 0.0F, height * 0.030F);
+    if (!(lift > 0.0F)) return;
+    pose.bones[boneIndex(BoneId::Hips)].translation.y += lift;
+    if (proneState(pose.active_state))
+        applyProneContactIK(pose, controller, skeleton);
+    else if (pose.active_state == AnimationState::IDLE ||
+             pose.active_state == AnimationState::WALK ||
+             pose.active_state == AnimationState::RUN ||
+             pose.active_state == AnimationState::CROUCH ||
+             pose.active_state == AnimationState::CROUCH_WALK ||
+             pose.active_state == AnimationState::SITTING)
+        applyBipedLegIK(pose, controller, skeleton, entity.surface);
+}
+
+void applySupportPose(AnimationPose& pose, const LocomotionController& controller,
+                      const SkeletonData& skeleton) noexcept {
+    const auto& body = controller.body();
+    const float height = body.height;
+    const float leg = body.anatomy_leg_length / height;
+    const float shoulder = 0.128F * body.shoulder_width_scale;
+    const float hip = 0.052F * body.hip_width_scale;
+    pose.bones[boneIndex(BoneId::Hips)].translation =
+        {0.0F, (0.12F + leg * 0.34F) * height, -leg * 0.18F * height};
+    setEuler(pose.bones, BoneId::Hips, 0.93F);
+    setEuler(pose.bones, BoneId::SpineLower, -0.18F);
+    setEuler(pose.bones, BoneId::SpineUpper, -0.22F);
+    setEuler(pose.bones, BoneId::Chest, -0.08F);
+    setEuler(pose.bones, BoneId::Neck, -0.28F);
+    setEuler(pose.bones, BoneId::Head, -0.10F);
+    for (std::size_t side = 0U; side < 2U; ++side) {
+        const float sign = side == 0U ? 1.0F : -1.0F;
+        pose.foot_targets[side] = {sign * (hip + 0.08F), 0.045F, -leg * 0.42F};
+        pose.knee_targets[side] = {sign * (hip + 0.22F), 0.10F, -leg * 0.08F};
+        pose.hand_targets[side] = {sign * (shoulder + 0.08F), 0.018F, leg * 0.34F};
+        pose.elbow_targets[side] = {sign * (shoulder + 0.18F), 0.075F, leg * 0.13F};
+        pose.foot_plant[side] = 1.0F;
+        pose.foot_support[side] = 1.0F;
+        pose.hand_plant[side] = 1.0F;
+        pose.foot_relative[side] = 1.0F;
+    }
+    applyBipedLegIK(pose, controller, skeleton);
+    applyProneArmIK(pose, controller, skeleton);
+}
+
+[[nodiscard]] AnimationBodyPose bodyFromPose(const AnimationPose& pose) noexcept {
+    AnimationBodyPose body{};
+    body.posture = pose.posture; body.bones = pose.bones;
+    body.foot_targets = pose.foot_targets; body.knee_targets = pose.knee_targets;
+    body.hand_targets = pose.hand_targets; body.elbow_targets = pose.elbow_targets;
+    body.foot_plant = pose.foot_plant; body.foot_support = pose.foot_support;
+    body.foot_pitch = pose.foot_pitch; body.toe_pitch = pose.toe_pitch;
+    body.foot_yaw = pose.foot_yaw; body.hand_plant = pose.hand_plant;
+    body.hand_lift = pose.hand_lift; body.foot_relative = pose.foot_relative;
+    body.ankle_pitch = pose.ankle_pitch; body.ankle_yaw = pose.ankle_yaw;
+    body.hand_curl = pose.target_hand_curl;
+    return body;
+}
+
+void copyBody(AnimationPose& pose, const AnimationBodyPose& body) noexcept {
+    pose.posture = body.posture; pose.bones = body.bones;
+    pose.foot_targets = body.foot_targets; pose.knee_targets = body.knee_targets;
+    pose.hand_targets = body.hand_targets; pose.elbow_targets = body.elbow_targets;
+    pose.foot_plant = body.foot_plant; pose.foot_support = body.foot_support;
+    pose.foot_pitch = body.foot_pitch; pose.toe_pitch = body.toe_pitch;
+    pose.foot_yaw = body.foot_yaw; pose.hand_plant = body.hand_plant;
+    pose.hand_lift = body.hand_lift; pose.foot_relative = body.foot_relative;
+    pose.ankle_pitch = body.ankle_pitch; pose.ankle_yaw = body.ankle_yaw;
+    pose.target_hand_curl = body.hand_curl; pose.face.hands_relax = body.hand_curl;
+    pose.foot_goals = body.foot_targets;
+}
+
+[[nodiscard]] AnimationBodyPose sampleBody(const AnimationEntity& entity,
+                                            AnimationTransitionStage stage,
+                                            AnimationState state, float time) noexcept {
+    AnimationPose pose{};
+    const auto sampled = samplingState(*entity.locomotion_state, state);
+    const auto bind = entity.skeleton->bones();
+    for (std::size_t bone = 0U; bone < kRigBoneCount; ++bone)
+        pose.bones[bone] = bind[bone].local_bind;
+    pose.posture = entity.locomotion->posture(sampled);
+    if (stage == AnimationTransitionStage::Support) {
+        applySupportPose(pose, *entity.locomotion, *entity.skeleton);
+    } else if (sampled.family == LocomotionFamily::Biped) {
+        sampleBipedTargets(pose, *entity.locomotion, sampled);
+        applyReferenceBipedPose(pose, *entity.locomotion, sampled, time);
+        pose.target_hand_curl = pose.face.hands_relax;
+    } else if (sampled.family == LocomotionFamily::Seated) {
+        applySeatedPose(pose, *entity.locomotion, *entity.skeleton, entity.surface,
+                        entity.seat_anchor, entity.root_position);
+    } else if (sampled.family == LocomotionFamily::Prone) {
+        applyPronePose(pose, *entity.locomotion, *entity.skeleton, sampled, entity.surface);
+    }
+    AnimationBodyPose result = bodyFromPose(pose);
+    result.prone_weight = stage == AnimationTransitionStage::Support ? 0.63F :
+        (sampled.family == LocomotionFamily::Prone ? 1.0F : 0.0F);
+    result.hand_ik_weight = stage == AnimationTransitionStage::Support ? 1.0F :
+        (sampled.family == LocomotionFamily::Prone ? 1.0F : 0.0F);
+    result.gait_weight = sampled.actual_speed_mps > 0.008F || sampled.settling
+        ? 1.0F : 0.0F;
+    return result;
+}
+
+[[nodiscard]] foundation::Vec3 blendVec(foundation::Vec3 a, foundation::Vec3 b,
+                                        float t) noexcept {
+    return {mix(a.x, b.x, t), mix(a.y, b.y, t), mix(a.z, b.z, t)};
+}
+
+[[nodiscard]] AnimationBodyPose blendBody(const AnimationBodyPose& a,
+                                           const AnimationBodyPose& b,
+                                           float t) noexcept {
+    AnimationBodyPose result = b;
+    for (std::size_t bone = 0U; bone < kRigBoneCount; ++bone) {
+        result.bones[bone].translation = blendVec(a.bones[bone].translation,
+                                                  b.bones[bone].translation, t);
+        result.bones[bone].rotation = slerp(a.bones[bone].rotation, b.bones[bone].rotation, t);
+        result.bones[bone].scale = blendVec(a.bones[bone].scale, b.bones[bone].scale, t);
+    }
+    for (std::size_t side = 0U; side < 2U; ++side) {
+        result.foot_targets[side] = blendVec(a.foot_targets[side], b.foot_targets[side], t);
+        result.knee_targets[side] = blendVec(a.knee_targets[side], b.knee_targets[side], t);
+        result.hand_targets[side] = blendVec(a.hand_targets[side], b.hand_targets[side], t);
+        result.elbow_targets[side] = blendVec(a.elbow_targets[side], b.elbow_targets[side], t);
+#define BLEND_CHANNEL(name) result.name[side] = mix(a.name[side], b.name[side], t)
+        BLEND_CHANNEL(foot_plant); BLEND_CHANNEL(foot_support); BLEND_CHANNEL(foot_pitch);
+        BLEND_CHANNEL(toe_pitch); BLEND_CHANNEL(foot_yaw); BLEND_CHANNEL(hand_plant);
+        BLEND_CHANNEL(hand_lift); BLEND_CHANNEL(foot_relative); BLEND_CHANNEL(ankle_pitch);
+        BLEND_CHANNEL(ankle_yaw);
+#undef BLEND_CHANNEL
+    }
+    result.hand_curl = mix(a.hand_curl, b.hand_curl, t);
+    result.prone_weight = mix(a.prone_weight, b.prone_weight, t);
+    result.hand_ik_weight = mix(a.hand_ik_weight, b.hand_ik_weight, t);
+    result.gait_weight = mix(a.gait_weight, b.gait_weight, t);
+    return result;
+}
+
+} // namespace
 
 bool AnimationPose::valid() const noexcept {
     if (!finite(root_position) || !finite(locomotion_phase) || locomotion_phase < 0.0F ||
@@ -660,7 +1392,14 @@ bool AnimationPose::valid() const noexcept {
            !finite(hand_plant[index])||!finite(hand_lift[index])||!finite(foot_relative[index])||
            !finite(ankle_pitch[index])||!finite(ankle_yaw[index]))return false;
     }
-    if(!finite(target_hand_curl))return false;
+    const float aim_length = std::sqrt(dot(weapon_aim_direction, weapon_aim_direction));
+    if(!finite(target_hand_curl) || !finite(weapon_readiness) || weapon_readiness < 0.0F ||
+       weapon_readiness > 1.0F || !finite(weapon_recoil) || weapon_recoil < 0.0F ||
+       !finite(weapon_aim_direction) || !finite(aim_length) || aim_length <= 1.0e-6F ||
+       !finite(transition_progress) || transition_progress < 0.0F || transition_progress > 1.0F)
+        return false;
+    if (!finite(transition_stage_progress) || transition_stage_progress < 0.0F ||
+        transition_stage_progress > 1.0F) return false;
     const auto valid_bones=[](const auto& transforms) noexcept {
         for(const RigTransform& bone:transforms)
             if(!finite(bone.translation)||!finite(bone.scale)||!finite(bone.rotation.x)||
@@ -694,6 +1433,14 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
         if (!entity.valid()) {
             return foundation::Result<void, foundation::Error>::failure(invalidEntityError());
         }
+    }
+    std::unordered_set<const AnimationTransitionRuntime*> runtimes;
+    runtimes.reserve(entities.size());
+    for (const auto& entity : entities) {
+        if (!runtimes.insert(entity.transition_runtime).second)
+            return foundation::Result<void, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument,
+                 "animation entities must not share transition runtime"});
     }
 
     previous_ = std::move(current_);
@@ -730,21 +1477,31 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
 
     const auto processRange = [&](std::size_t begin, std::size_t end) noexcept {
         for (std::size_t index = begin; index < end; ++index) {
-            if (!work[index].due || failed.load(std::memory_order_acquire)) {
+            if (failed.load(std::memory_order_acquire)) {
                 continue;
             }
             AnimationEntity& entity = entities[index];
+            const float animation_time =
+                static_cast<float>(simulation_tick + 1U) * fixed_dt_seconds;
+            updateRuntime(entity, animation_time, fixed_dt_seconds);
+            if (!work[index].due) continue;
             AnimationPose& pose = current_.poses[index];
             const PostureSample posture = entity.locomotion->posture(*entity.locomotion_state);
             pose.semantic_id = entity.semantic_id;
             pose.root_position = entity.root_position;
             pose.posture = posture;
             pose.locomotion_phase = entity.locomotion_state->phase;
+            pose.requested_state = entity.locomotion_state->requested_state;
+            pose.active_state = entity.locomotion_state->active_state;
+            pose.transition_stage = entity.locomotion_state->transition_stage;
+            pose.transition_progress = entity.locomotion_state->transition_progress;
+            pose.transition_stage_progress = entity.locomotion_state->transition_stage_progress;
+            pose.hand_owners = {AnimationHandOwner::Free, AnimationHandOwner::Free};
+            pose.weapon_readiness = 0.0F;
+            pose.weapon_recoil = 0.0F;
+            pose.weapon_aim_direction = {0.0F, 0.0F, 1.0F};
             pose.revision = current_.pose_revision;
             pose.evaluated = true;
-            if(entity.locomotion_state->family==LocomotionFamily::Biped)
-                sampleBipedTargets(pose,*entity.locomotion,*entity.locomotion_state);
-
             const auto bones = entity.skeleton->bones();
             if (bones.size() != kRigBoneCount) {
                 std::lock_guard lock(error_mutex);
@@ -754,55 +1511,29 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
                 }
                 continue;
             }
-            for (std::size_t bone = 0U; bone < kRigBoneCount; ++bone) {
-                pose.bones[bone] = bones[bone].local_bind;
+            copyBody(pose, entity.transition_runtime->current);
+            pose.damped_bones = pose.bones;
+            AnimationBodyPose desired = sampleSettledBody(
+                entity, entity.transition_runtime->settled_state, animation_time);
+            if (entity.transition_runtime->active) {
+                const auto& step = entity.transition_runtime->schedule[
+                    entity.transition_runtime->stage_index];
+                const float local = step.duration > 0.0F
+                    ? entity.transition_runtime->stage_elapsed / step.duration : 1.0F;
+                desired = blendBody(entity.transition_runtime->stage_from,
+                                    entity.transition_runtime->stage_target, smooth5(local));
             }
-            pose.target_bones=pose.bones;
-            pose.damped_bones=pose.bones;
-
-            if(entity.locomotion_state->family==LocomotionFamily::Biped){
-                applyReferenceBipedPose(pose,*entity.locomotion,*entity.locomotion_state,
-                    static_cast<float>(simulation_tick+1U)*fixed_dt_seconds);
-                pose.target_hand_curl=pose.face.hands_relax;
-                pose.target_bones=pose.bones;
-                const AnimationPose* previous_pose=index<previous_.poses.size()&&
-                    previous_.poses[index].semantic_id==entity.semantic_id?&previous_.poses[index]:nullptr;
-                dampBipedPose(pose,previous_pose,*entity.locomotion,*entity.locomotion_state,
-                    *entity.skeleton,static_cast<float>(simulation_tick+1U)*fixed_dt_seconds,
-                    fixed_dt_seconds);
-                // JS damps the pose first, then constrains the hips against
-                // the reachable foot targets before running contact IK.
-                // Reapply the same reach constraint after native damping.
-                {
-                    const auto& body=entity.locomotion->body();
-                    const float height=body.height;
-                    auto& hips=pose.bones[boneIndex(BoneId::Hips)];
-                    float normalized_y=hips.translation.y/height;
-                    const float normalized_x=hips.translation.x/height;
-                    const float normalized_z=hips.translation.z/height;
-                    for(std::size_t side=0U;side<2U;++side){
-                        const float sign=side==0U?1.0F:-1.0F;
-                        const auto hip_offset=rotate({sign*.052F*body.hip_width_scale,-.015F,0.0F},hips.rotation);
-                        const float dx=pose.foot_targets[side].x-normalized_x-hip_offset.x;
-                        const float dz=pose.foot_targets[side].z-normalized_z-hip_offset.z;
-                        const float reach=body.anatomy_leg_length/height*.992F;
-                        const float max_y=pose.foot_targets[side].y+
-                            std::sqrt(std::max(.0001F,reach*reach-dx*dx-dz*dz))-hip_offset.y;
-                        normalized_y=std::min(normalized_y,max_y);
-                    }
-                    hips.translation.y=normalized_y*height;
-                    // Keep the constrained value in the snapshot used as the
-                    // next frame's damped pose, matching JS current.hips.
-                    pose.damped_bones[boneIndex(BoneId::Hips)].translation=hips.translation;
+            pose.target_bones = desired.bones;
+            if (pose.transition_stage != AnimationTransitionStage::Support) {
+                const bool ground_applied = applyGroundContact(
+                    pose, entity, *entity.locomotion, *entity.locomotion_state);
+                if (!proneState(pose.active_state)) {
+                    applyBipedLegIK(pose, *entity.locomotion, *entity.skeleton, entity.surface);
+                } else if (ground_applied) {
+                    applyProneContactIK(pose, *entity.locomotion, *entity.skeleton);
                 }
-                applyBipedLegIK(pose,*entity.locomotion,*entity.skeleton,entity.surface);
-            } else if(entity.locomotion_state->family==LocomotionFamily::Seated) {
-                applySeatedPose(pose,*entity.locomotion,*entity.skeleton,entity.surface);
-            } else if(entity.locomotion_state->family==LocomotionFamily::Prone) {
-                applyPronePose(pose,*entity.locomotion,*entity.skeleton,*entity.locomotion_state,entity.surface);
-            } else if(entity.locomotion_state->family!=LocomotionFamily::Rest) {
-                applyLocomotionPose(pose.bones,*entity.locomotion_state,posture);
             }
+            applyWeaponOverlay(pose, entity, *entity.locomotion, *entity.skeleton);
             const float body_hands_relax=pose.face.hands_relax;
 
             const AnimationLODSpec spec = entity.lod.spec();
@@ -834,6 +1565,10 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
                 pose.face.hands_relax=body_hands_relax;
             }
             applyFacePose(pose.bones, pose.face);
+            // Look rotates the head after body/ground IK. Re-check the final
+            // head and head-gear volume before publishing the pose so steep
+            // terrain cannot clip the post-look result.
+            applyPostLookHeadClearance(pose, entity, *entity.locomotion, *entity.skeleton);
             entity.lod.markEvaluated(simulation_tick);
         }
     };
@@ -902,6 +1637,15 @@ AnimationPose AnimationSystem::interpolate(const AnimationPose& previous,
     result.posture.knee_half = mix(previous.posture.knee_half, current.posture.knee_half, t);
     result.locomotion_phase = mix(previous.locomotion_phase, current.locomotion_phase, t);
     result.target_hand_curl=mix(previous.target_hand_curl,current.target_hand_curl,t);
+    result.weapon_readiness = mix(previous.weapon_readiness, current.weapon_readiness, t);
+    result.weapon_recoil = mix(previous.weapon_recoil, current.weapon_recoil, t);
+    const foundation::Vec3 blended_aim_direction{
+        mix(previous.weapon_aim_direction.x, current.weapon_aim_direction.x, t),
+        mix(previous.weapon_aim_direction.y, current.weapon_aim_direction.y, t),
+        mix(previous.weapon_aim_direction.z, current.weapon_aim_direction.z, t)};
+    result.weapon_aim_direction =
+        dot(blended_aim_direction, blended_aim_direction) > 1.0e-8F
+            ? blended_aim_direction : current.weapon_aim_direction;
     for(std::size_t index=0;index<2U;++index){
         result.foot_targets[index]={mix(previous.foot_targets[index].x,current.foot_targets[index].x,t),
             mix(previous.foot_targets[index].y,current.foot_targets[index].y,t),

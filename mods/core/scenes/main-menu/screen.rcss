@@ -1,12 +1,13 @@
-body { display: block; background-color: transparent; }
-.menu-panel { display: block; box-sizing: border-box; width: 38%; max-width: 560dp; min-height: 100%; padding: 64dp 56dp 32dp 56dp; background-color: #07101ddd; border: 0dp #07101d; border-radius: 0dp; }
-.screen-header { display: block; margin-bottom: 44dp; }
-.eyebrow { display: block; margin-bottom: 8dp; color: #72c9f2; font-size: 12dp; letter-spacing: 3dp; }
-h1 { margin-bottom: 4dp; color: #f5f8fb; font-size: 42dp; letter-spacing: 2dp; }
+body { display: block; width: 100%; height: 100%; overflow: hidden; background-color: transparent; }
+main { width: 100%; height: 100%; overflow: hidden; }
+.menu-panel { display: block; box-sizing: border-box; width: 38%; height: 100%; max-width: 560dp; min-height: 0dp; max-height: 100%; padding: 40dp 32dp 24dp 32dp; overflow-y: auto; background-color: #07101ddd; border: 0dp #07101d; }
+.screen-header { display: block; margin-bottom: 24dp; }
+.eyebrow { display: block; margin-bottom: 8dp; color: #72c9f2; font-size: 12dp; letter-spacing: 0dp; }
+h1 { margin-bottom: 4dp; color: #f5f8fb; font-size: 32dp; letter-spacing: 2dp; }
 .subtitle { display: block; color: #91a8bd; font-size: 16dp; letter-spacing: 3dp; }
 .menu-primary { display: flex; flex-direction: column; align-items: stretch; }
-.menu-action { display: block; position: relative; width: 100%; min-height: 42dp; margin: 0dp; padding: 9dp 0dp 9dp 20dp; color: #aebdca; background-color: transparent; border: 0dp transparent; border-radius: 0dp; text-align: left; }
-.menu-action:hover, .menu-action:focus, .menu-action:active { color: #f4f8fb; background-color: #16253899; border: 0dp transparent; border-left: 3dp #72c9f2; }
+.menu-action { display: block; position: relative; width: 100%; min-height: 42dp; margin: 0dp; padding: 9dp 0dp 9dp 20dp; color: #aebdca; background-color: transparent; border: 0dp transparent; text-align: left; }
+.menu-action:hover, .menu-action:focus, .menu-action:active { color: #f4f8fb; background-color: #16253899; border: 0dp transparent; border-left: 3dp #a9c7ff; }
 .prototype-note { margin-left: 8dp; color: #d6b86d; font-size: 10dp; letter-spacing: 1dp; }
-.menu-secondary { display: flex; flex-direction: column; margin-top: 34dp; }
-footer { display: block; position: absolute; left: 56dp; bottom: 28dp; color: #63778d; font-size: 11dp; }
+.menu-secondary { display: flex; flex-direction: column; margin-top: 24dp; }
+footer { display: block; position: relative; margin-top: 24dp; color: #63778d; font-size: 11dp; }

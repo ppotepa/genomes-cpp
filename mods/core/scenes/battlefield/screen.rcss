@@ -1,10 +1,12 @@
-body { pointer-events: none; background-color: transparent; }
-#hud { pointer-events: auto; position: absolute; left: 24dp; top: 24dp; width: 350dp; padding: 20dp; }
+body { pointer-events: none; width: 100%; height: 100%; background-color: transparent; }
+main { width: 100%; height: 100%; }
+#hud { pointer-events: auto; position: absolute; left: 24dp; top: 24dp; width: 350dp; max-width: 42%; padding: 16dp; }
+.hud-card > header { position: relative; }
 .hud-title { display: flex; align-items: center; }
 .hud-title h2 { flex: 1; margin-bottom: 0dp; }
-.live-dot { width: 8dp; height: 8dp; background-color: #45d1a0; border-radius: 4dp; }
+.live-dot { width: 8dp; height: 8dp; background-color: #45d1a0; }
 .feature { color: #d6e2ee; }
 .hud-meta { display: flex; padding: 9dp 0dp; color: #8196ab; border-top: 1dp #28394b; border-bottom: 1dp #28394b; }
 .hud-meta span { flex: 1; }
-.diagnostics { padding: 8dp; color: #8cb3cc; background-color: #0a1420; border-radius: 5dp; font-size: 11dp; }
+.diagnostics { padding: 8dp; color: #8cb3cc; background-color: #0a1420; font-size: 11dp; }
 .pause { width: 100%; margin: 12dp 0dp 0dp 0dp; }

@@ -86,7 +86,13 @@ private:
         simulation::EntityId entity{};
         std::optional<infantry::LocomotionController> locomotion;
         std::optional<infantry::LocomotionState> locomotion_state;
+        infantry::AnimationTransitionRuntime transition_runtime{};
         std::optional<infantry::FaceAnimator> face;
+        infantry::GroundContactRuntime ground_runtime{};
+        std::optional<infantry::AnimationWeaponOverlay> weapon_overlay;
+        foundation::Vec3 previous_position{};
+        float previous_heading{0.0F};
+        bool has_previous_motion{false};
         infantry::AnimationLODState lod{};
     };
     std::optional<infantry::AnimationSystem> animation_system_;

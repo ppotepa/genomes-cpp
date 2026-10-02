@@ -336,6 +336,14 @@ if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->renderStates\(\)"
     message(FATAL_ERROR
             "BattlefieldScene presentation must consume BattlefieldRuntime render states")
 endif()
+if(battlefield_scene_source MATCHES "WeaponHandlingSystem|weapon_handling_\\.step")
+    message(FATAL_ERROR
+            "BattlefieldScene must not own the production weapon handling step")
+endif()
+if(NOT battlefield_scene_source MATCHES "weaponPoseTasks")
+    message(FATAL_ERROR
+            "BattlefieldScene must consume read-only BattlefieldRuntime weapon pose tasks")
+endif()
 if(NOT battlefield_scene_source MATCHES "simulation_failed_ = true")
     message(FATAL_ERROR
             "BattlefieldScene must fail closed when BattlefieldRuntime cannot start")
@@ -371,7 +379,7 @@ endif()
 file(READ "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldRuntime.cpp"
      battlefield_runtime_source)
 foreach(required_pipeline_text IN ITEMS
-        "queueFire();"
+        "queueFire(static_cast<float>(context.fixed_dt));"
         "advanceBallistics();"
         "submitImpact(impact)"
         "commitDamage()"

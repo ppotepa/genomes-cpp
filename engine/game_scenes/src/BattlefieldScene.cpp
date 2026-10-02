@@ -48,6 +48,18 @@ namespace {
     return foundation::stable_id(std::string("material.world.") + kind_name(kind));
 }
 
+#if GENOMES_HAS_INFANTRY
+bool sample_battlefield_ground(void* context, foundation::Vec3 position,
+                               infantry::GroundSample& output) noexcept {
+    const auto* field = static_cast<const terrain::HeightField*>(context);
+    if (field == nullptr) return false;
+    output.height = field->sampleBilinear(position.x, position.z);
+    output.normal = field->normal(position.x, position.z);
+    return std::isfinite(output.height) && std::isfinite(output.normal.x) &&
+           std::isfinite(output.normal.y) && std::isfinite(output.normal.z);
+}
+#endif
+
 [[nodiscard]] std::string feature_summary(const world::WorldPlan& plan) {
     return "Features: " + std::to_string(plan.features.size()) + "  Roads: " +
            std::to_string(plan.count(world::WorldFeatureKind::Road)) + "  Buildings: " +
@@ -228,38 +240,86 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
                                 infantry::AnimationLOD::Far;
         if (agent.lod.tier() != desired_lod) agent.lod.setTier(desired_lod);
 
-        infantry::BipedPreset preset = infantry::BipedPreset::Idle;
+        float distance = 0.0F;
+        float speed = 0.0F;
+        float move_angle = 0.0F;
+        float turn_rate = 0.0F;
+        if (agent.has_previous_motion) {
+            const float dx = state->position.x - agent.previous_position.x;
+            const float dz = state->position.z - agent.previous_position.z;
+            distance = std::sqrt(dx * dx + dz * dz);
+            speed = distance / std::max(1.0e-5F,
+                                        static_cast<float>(context.fixed_dt_seconds));
+            if (distance > 1.0e-5F) {
+                const float travel_heading = std::atan2(dx, dz);
+                move_angle = std::atan2(std::sin(travel_heading - state->heading),
+                                        std::cos(travel_heading - state->heading));
+            }
+            const float heading_delta = std::atan2(
+                std::sin(state->heading - agent.previous_heading),
+                std::cos(state->heading - agent.previous_heading));
+            turn_rate = heading_delta / std::max(1.0e-5F,
+                                                static_cast<float>(context.fixed_dt_seconds));
+        }
         switch (state->state) {
         case infantry::AgentState::Advance:
-            preset = infantry::BipedPreset::Run;
+            if (!agent.has_previous_motion) speed = agent.locomotion->body().run_speed;
+            (void)agent.locomotion->setRequested(
+                *agent.locomotion_state, {{0.0F}, {speed}, std::nullopt});
             break;
         case infantry::AgentState::Engage:
-            preset = infantry::BipedPreset::Crouch;
-            break;
         case infantry::AgentState::Dead:
-            preset = infantry::BipedPreset::Crouch;
+            (void)agent.locomotion->setState(*agent.locomotion_state,
+                                              infantry::AnimationState::CROUCH);
             break;
         case infantry::AgentState::Idle:
-            preset = infantry::BipedPreset::Idle;
+            (void)agent.locomotion->setRequested(
+                *agent.locomotion_state, {{0.0F}, {0.0F}, std::nullopt});
             break;
         }
-        (void)agent.locomotion->setPreset(*agent.locomotion_state, preset);
-        (void)agent.locomotion->step(*agent.locomotion_state, fixed_dt_seconds);
-        entities.push_back({
-            foundation::stable_id("battlefield.infantry") ^ agent.entity.packed(),
-            &infantry_model_artifact_->skeleton,
-            &*agent.locomotion,
-            &*agent.locomotion_state,
-            &*agent.face,
-            state->position,
-            foundation::Vec3{state->position.x +
-                                 std::sin(state->heading) * 6.0F,
-                             state->position.y +
-                                 infantry_model_artifact_->phenotype.body.height * 0.62F,
-                             state->position.z +
-                                 std::cos(state->heading) * 6.0F},
-            agent.lod,
-            &infantry_model_artifact_->appearance.body});
+        infantry::LocomotionMotionContext motion{};
+        motion.speed_mps = speed;
+        motion.move_angle = move_angle;
+        motion.turn_rate = turn_rate;
+        motion.turning = std::abs(turn_rate) > 0.32F;
+        motion.distance_m = distance;
+        (void)agent.locomotion->step(*agent.locomotion_state, motion,
+                                      context.fixed_dt_seconds);
+        agent.previous_position = state->position;
+        agent.previous_heading = state->heading;
+        agent.has_previous_motion = true;
+
+        if (const auto* weapon_tasks = battlefield_runtime_->weaponPoseTasks(agent.entity);
+            weapon_tasks != nullptr && weapon_tasks->valid()) {
+            agent.weapon_overlay = infantry_presentation::copyWeaponPoseTasks(
+                *weapon_tasks, state->position);
+        } else {
+            agent.weapon_overlay.reset();
+        }
+
+        infantry::AnimationEntity entity{};
+        entity.semantic_id = foundation::stable_id("battlefield.infantry") ^ agent.entity.packed();
+        entity.skeleton = &infantry_model_artifact_->skeleton;
+        entity.gear = &infantry_model_artifact_->gear;
+        entity.locomotion = &*agent.locomotion;
+        entity.locomotion_state = &*agent.locomotion_state;
+        entity.transition_runtime = &agent.transition_runtime;
+        entity.face = &*agent.face;
+        entity.root_position = state->position;
+        entity.look_target = foundation::Vec3{state->position.x + std::sin(state->heading) * 6.0F,
+                                              state->position.y +
+                                                  infantry_model_artifact_->phenotype.body.height * 0.62F,
+                                              state->position.z + std::cos(state->heading) * 6.0F};
+        entity.lod = agent.lod;
+        entity.surface = &infantry_model_artifact_->appearance.body;
+        entity.weapon_overlay = agent.weapon_overlay.has_value() ? &*agent.weapon_overlay : nullptr;
+        // GroundSurfaceQuery retains its legacy void* callback ABI; the
+        // adapter never mutates the const height field through that pointer.
+        entity.ground_surface = {context.tick.value,
+                                 const_cast<terrain::HeightField*>(terrain_.get()),
+                                 sample_battlefield_ground};
+        entity.ground_runtime = &agent.ground_runtime;
+        entities.push_back(std::move(entity));
     }
     if (entities.empty()) {
         return;

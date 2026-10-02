@@ -49,6 +49,8 @@ struct GroundContactInput final {
     std::array<foundation::Vec3, 4U> gear_supports{};
     std::uint8_t gear_support_count{0};
     foundation::StableId morphology_key{0};
+    float max_body_lift{0.20F};
+    float max_replant_distance{0.60F};
 };
 
 struct GroundContactOutput final {
@@ -56,6 +58,7 @@ struct GroundContactOutput final {
     GroundSupportPoint feet[2]{};
     float body_lift{0.0F};
     float max_ik_error{0.0F};
+    float clearance{0.0F};
     bool has_surface{false};
 
     [[nodiscard]] bool valid() const noexcept;
@@ -73,7 +76,14 @@ struct GroundContactOutput final {
     };
     addPoint(input.left_foot);
     addPoint(input.right_foot);
+    addPoint(input.hips);
+    key = foundation::stableHashCombine(key, input.gear_support_count);
+    for (std::size_t index = 0U; index < input.gear_support_count; ++index)
+        addPoint(input.gear_supports[index]);
     key = foundation::stableHashCombine(key, foundation::stableHashFloat(input.sole_offset));
+    key = foundation::stableHashCombine(key, foundation::stableHashFloat(input.max_body_lift));
+    key = foundation::stableHashCombine(key,
+                                        foundation::stableHashFloat(input.max_replant_distance));
     return key;
 }
 
@@ -81,6 +91,55 @@ class GroundContactSolver final {
 public:
     [[nodiscard]] static foundation::Result<GroundContactOutput, foundation::Error> solve(
         const GroundContactInput&, const GroundSurfaceQuery&);
+};
+
+struct PersistentGroundContact final {
+    foundation::Vec3 point{};
+    foundation::Vec3 normal{0.0F, 1.0F, 0.0F};
+    float weight{0.0F};
+    float phase{0.0F};
+    bool active{false};
+    bool locked{false};
+    bool phase_valid{false};
+    bool stance{false};
+    std::uint32_t reanchors{0U};
+
+    void releaseConstraint() noexcept {
+        active = false;
+        locked = false;
+        weight = 0.0F;
+        stance = false;
+    }
+
+    void release() noexcept {
+        releaseConstraint();
+        phase = 0.0F;
+        phase_valid = false;
+    }
+};
+
+// One instance belongs to one animated infantry unit. It deliberately owns
+// only constraint memory; terrain sampling and IK remain GroundContactSolver's
+// responsibility.
+struct GroundContactRuntime final {
+    std::array<PersistentGroundContact, 2U> feet{};
+    std::array<PersistentGroundContact, 2U> hands{};
+
+    void reset() noexcept {
+        for (auto& foot : feet) foot.release();
+        for (auto& hand : hands) hand.release();
+    }
+
+    [[nodiscard]] foundation::Vec3 resolve(std::size_t index,
+                                            foundation::Vec3 candidate,
+                                            float strength, bool enabled,
+                                            float max_drift, float phase = 0.0F,
+                                            bool stance = true) noexcept;
+    [[nodiscard]] foundation::Vec3 resolveHand(std::size_t index,
+                                                foundation::Vec3 candidate,
+                                                float strength, bool enabled,
+                                                float max_drift, float phase = 0.0F,
+                                                bool stance = true) noexcept;
 };
 
 class GroundContactCache final {

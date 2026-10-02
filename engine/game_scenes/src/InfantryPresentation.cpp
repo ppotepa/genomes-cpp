@@ -2,14 +2,17 @@
 #include <genomes/infantry/AppearanceCatalog.hpp>
 
 #include <genomes/infantry/GearSurfaceGenerator.hpp>
+#include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/render/SkinnedMeshOptimizer.hpp>
+#include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -157,6 +160,9 @@ void buildMaterialGroups(render::SkinnedMeshPrototype& mesh) {
 
 } // namespace
 
+void appendStowedWeapon(render::SkinnedMeshPrototype&,
+                        const infantry::InfantryModelArtifact&);
+
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model, PrototypePreparation preparation) {
     const std::uint64_t optimizer_fingerprint =
@@ -218,6 +224,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
         append(gear_surface.value());
     }
+    appendStowedWeapon(*mesh, model);
 
     mesh->morph_target_count = static_cast<std::uint32_t>(
         std::min<std::size_t>(model.appearance.morphs.size(), mesh->morphs.size()));
@@ -319,6 +326,74 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
     return variant;
 }
 
+[[nodiscard]] foundation::Vec3 rotateQuaternion(
+    foundation::Vec3 value, const infantry::RigQuaternion& quaternion) noexcept {
+    const foundation::Vec3 q{quaternion.x, quaternion.y, quaternion.z};
+    const foundation::Vec3 uv{
+        q.y * value.z - q.z * value.y,
+        q.z * value.x - q.x * value.z,
+        q.x * value.y - q.y * value.x};
+    const foundation::Vec3 uuv{
+        q.y * uv.z - q.z * uv.y,
+        q.z * uv.x - q.x * uv.z,
+        q.x * uv.y - q.y * uv.x};
+    return {value.x + 2.0F * (quaternion.w * uv.x + uuv.x),
+            value.y + 2.0F * (quaternion.w * uv.y + uuv.y),
+            value.z + 2.0F * (quaternion.w * uv.z + uuv.z)};
+}
+
+void appendStowedWeapon(render::SkinnedMeshPrototype& mesh,
+                        const infantry::InfantryModelArtifact& model) {
+    const auto* equipment = model.gear.equipment.item(infantry::EquipmentSlot::PrimaryWeapon);
+    if (equipment == nullptr) return;
+    const auto* item = infantry::EquipmentCatalog::findItem(equipment->definition_id);
+    if (item == nullptr) return;
+    const auto* definition = weapons::WeaponCatalog::find(item->identifier);
+    if (definition == nullptr) return;
+    const auto built = weapons::WeaponGeometryGenerator::build(*definition,
+        {model.gear.equipment.equipment_seed, equipment->variant.size,
+         model.gear.wear, static_cast<std::uint32_t>(model.gear.detail_level)});
+    if (!built || built.value().mesh.vertices.empty() || built.value().mesh.indices.empty()) return;
+    const auto& socket = model.gear.fit.socket(infantry::EquipmentSocketId::WeaponBack);
+    const auto* bone = model.skeleton.find(socket.bone);
+    if (bone == nullptr) return;
+    const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
+    const auto rotateToBack = [](foundation::Vec3 value) noexcept {
+        // Match the reference long-weapon stow frame: Euler XYZ(-pi/2, 0, -.24).
+        // The barrel points up along the back, not out perpendicular to it.
+        const float c = std::cos(.24F), s = std::sin(.24F);
+        return foundation::Vec3{c * value.x + s * value.y, value.z,
+                                s * value.x - c * value.y};
+    };
+    const auto material = [](std::uint32_t region) noexcept -> std::uint16_t {
+        using infantry::AppearanceMaterialRegion;
+        return static_cast<std::uint16_t>(region == 1U
+            ? AppearanceMaterialRegion::EquipmentCloth
+            : region == 2U ? AppearanceMaterialRegion::EquipmentPaint
+                           : AppearanceMaterialRegion::EquipmentMetal);
+    };
+    mesh.vertices.reserve(mesh.vertices.size() + built.value().mesh.vertices.size());
+    for (const auto& source : built.value().mesh.vertices) {
+        render::SkinnedMeshVertex vertex{};
+        const auto local = rotateQuaternion(rotateToBack(source.position), bone->world_bind.rotation);
+        // Fit sockets are normalized by body height; weapon geometry is in metres.
+        // All skinned vertices remain in model bind space. The palette already
+        // applies inverse_bind, so applying it here would subtract the bone twice.
+        vertex.position = {
+            socket.position.x * model.gear.fit.height + local.x,
+            socket.position.y * model.gear.fit.height + local.y,
+            socket.position.z * model.gear.fit.height + local.z};
+        vertex.normal = rotateQuaternion(rotateToBack(source.normal), bone->world_bind.rotation);
+        vertex.uv = source.uv;
+        vertex.color = source.color;
+        vertex.material_region = material(source.material_region);
+        vertex.bone_indices[0] = static_cast<std::uint16_t>(socket.bone);
+        vertex.bone_weights[0] = 1.0F;
+        mesh.vertices.push_back(vertex);
+    }
+    for (const auto index : built.value().mesh.indices) mesh.indices.push_back(base + index);
+}
+
 std::vector<render::SkinnedBoneTransform> makeLocalPoses(
     const infantry::SkeletonData& skeleton,
     std::span<const infantry::RigTransform> pose_bones) {
@@ -329,6 +404,33 @@ std::vector<render::SkinnedBoneTransform> makeLocalPoses(
         const auto& local = pose_bones.empty() ? bones[index].local_bind : pose_bones[index];
         result.push_back(presentationTransform(local));
     }
+    return result;
+}
+
+infantry::AnimationWeaponOverlay copyWeaponPoseTasks(
+    const weapons::WeaponPoseTasks& tasks, foundation::Vec3 root_position) noexcept {
+    infantry::AnimationWeaponOverlay result{};
+    const auto owner = [](weapons::HandOwnership value) noexcept {
+        switch (value) {
+        case weapons::HandOwnership::Primary:
+            return infantry::AnimationHandOwner::Primary;
+        case weapons::HandOwnership::Support:
+            return infantry::AnimationHandOwner::Support;
+        case weapons::HandOwnership::Free:
+        default:
+            return infantry::AnimationHandOwner::Free;
+        }
+    };
+    result.weapon_id = static_cast<std::uint64_t>(tasks.weapon_id);
+    result.primary = {owner(tasks.primary.owner), tasks.primary.target,
+                      tasks.primary.weight, tasks.primary.curl, tasks.primary.attached};
+    result.support = {owner(tasks.support.owner), tasks.support.target,
+                      tasks.support.weight, tasks.support.curl, tasks.support.attached};
+    result.root_position = root_position;
+    result.aim_direction = tasks.aim_direction;
+    result.readiness = tasks.readiness;
+    result.recoil = tasks.recoil;
+    result.targets_are_world = true;
     return result;
 }
 

@@ -1,5 +1,6 @@
 body { pointer-events: auto; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-.panel { width: 440dp; padding: 36dp 40dp; text-align: center; }
+.overlay-fps { position: absolute; top: 12dp; right: 12dp; }
+.panel { max-height: 90%; overflow-y: auto; width: 440dp; max-width: 90%; padding: 24dp; text-align: center; }
 .copy { margin-top: 10dp; }
 .actions { display: flex; flex-direction: column; margin-top: 24dp; }
 .actions button { width: 100%; margin: 0dp 0dp 9dp 0dp; }

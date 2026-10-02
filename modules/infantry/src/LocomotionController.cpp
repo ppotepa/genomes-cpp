@@ -7,6 +7,46 @@ namespace genomes::infantry {
 
 namespace {
 
+[[nodiscard]] AnimationState stateForPreset(BipedPreset preset) noexcept {
+    switch (preset) {
+    case BipedPreset::Idle: return AnimationState::IDLE;
+    case BipedPreset::Walk: return AnimationState::WALK;
+    case BipedPreset::Run: return AnimationState::RUN;
+    case BipedPreset::Crouch: return AnimationState::CROUCH;
+    case BipedPreset::CrouchWalk: return AnimationState::CROUCH_WALK;
+    }
+    return AnimationState::IDLE;
+}
+
+[[nodiscard]] BipedPreset presetForState(AnimationState state) noexcept {
+    switch (state) {
+    case AnimationState::WALK: return BipedPreset::Walk;
+    case AnimationState::RUN: return BipedPreset::Run;
+    case AnimationState::CROUCH: return BipedPreset::Crouch;
+    case AnimationState::CROUCH_WALK: return BipedPreset::CrouchWalk;
+    default: return BipedPreset::Idle;
+    }
+}
+
+[[nodiscard]] bool isProne(AnimationState state) noexcept {
+    return state == AnimationState::PRONE || state == AnimationState::PRONE_MOVE;
+}
+
+[[nodiscard]] bool isBiped(AnimationState state) noexcept {
+    return state == AnimationState::IDLE || state == AnimationState::WALK ||
+           state == AnimationState::RUN || state == AnimationState::CROUCH ||
+           state == AnimationState::CROUCH_WALK;
+}
+
+[[nodiscard]] AnimationState continuousState(float crouch, float speed,
+                                               const LocomotionLimits& limits) noexcept {
+    if (crouch >= 0.30F) {
+        return speed > 1.0e-4F ? AnimationState::CROUCH_WALK : AnimationState::CROUCH;
+    }
+    if (speed <= 1.0e-4F) return AnimationState::IDLE;
+    return speed <= limits.walk_speed_mps ? AnimationState::WALK : AnimationState::RUN;
+}
+
 [[nodiscard]] float clampFinite(float value, float minimum, float maximum) noexcept {
     return std::clamp(value, minimum, maximum);
 }
@@ -47,7 +87,13 @@ bool LocomotionState::valid() const noexcept {
            run_weight >= 0.0F && run_weight <= 1.0F && sprint_weight >= 0.0F &&
            sprint_weight <= 1.0F && cycle_m >= 0.0F && duty >= 0.0F && duty <= 1.0F &&
            lift_m >= 0.0F && amplitude >= 0.0F && amplitude <= 1.0F && cadence >= 0.0F &&
-           phase >= 0.0F && phase < 1.0F;
+           phase >= 0.0F && phase < 1.0F && transition_profile.valid() &&
+           transition_request_profile.valid() &&
+           finite(move_angle) && finite(turn_rate) && finite(frame_distance_m) &&
+           frame_distance_m >= 0.0F && std::isfinite(distance_m) && distance_m >= 0.0 &&
+           finite(transition_progress) && transition_progress >= 0.0F &&
+           transition_progress <= 1.0F && finite(transition_stage_progress) &&
+           transition_stage_progress >= 0.0F && transition_stage_progress <= 1.0F;
 }
 
 bool LocomotionLimits::valid() const noexcept {
@@ -110,6 +156,10 @@ foundation::Result<void, foundation::Error> LocomotionController::setRequested(
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "nonfinite requested speed"});
     }
+    if (request.motion.has_value() && !request.motion->valid()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid locomotion motion context"});
+    }
     if (request.crouch.has_value()) {
         state.requested_crouch = clampFinite(request.crouch.value(), 0.0F, 1.0F);
     }
@@ -117,39 +167,123 @@ foundation::Result<void, foundation::Error> LocomotionController::setRequested(
         state.requested_speed_mps = clampFinite(request.speed_mps.value(), 0.0F,
                                                 limits_.sprint_speed_mps);
     }
+    if (request.motion.has_value()) (void)setMotion(state, *request.motion);
+    if (state.family == LocomotionFamily::Biped) {
+        const AnimationState target = continuousState(
+            state.requested_crouch, state.requested_speed_mps, limits_);
+        state.preset = presetForState(target);
+        if (state.requested_state != target) {
+            state.requested_state = target;
+            state.animation_snap_requested = false;
+            ++state.animation_request_revision;
+        }
+    }
     return foundation::Result<void, foundation::Error>::success();
 }
 
-foundation::Result<void, foundation::Error> LocomotionController::setPreset(
-    LocomotionState& state, BipedPreset preset, bool immediate) const noexcept {
-    if (!state.valid()) {
+foundation::Result<void, foundation::Error> LocomotionController::setTransitionProfile(
+    LocomotionState& state, const AnimationTransitionProfile& profile) const noexcept {
+    if (!state.valid() || !profile.valid()) {
         return foundation::Result<void, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidState, "invalid locomotion state"});
+            {foundation::ErrorCode::InvalidArgument, "invalid animation transition profile"});
     }
-    state.family = LocomotionFamily::Biped;
-    state.family_moving = false;
-    state.preset = preset;
-    switch (preset) {
-    case BipedPreset::Idle:
+    state.transition_profile = profile;
+    if (!state.transition_active) {
+        state.transition_request_profile = profile;
+    }
+    return foundation::Result<void, foundation::Error>::success();
+}
+
+foundation::Result<void, foundation::Error> LocomotionController::setMotion(
+    LocomotionState& state, const LocomotionMotionContext& context) const noexcept {
+    if (!state.valid() || !context.valid()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid locomotion motion context"});
+    }
+    state.move_angle = context.move_angle;
+    state.turn_rate = context.turn_rate;
+    state.frame_distance_m = context.distance_m;
+    state.turning = context.turning;
+    state.treadmill = context.treadmill;
+    state.has_motion_context = true;
+    state.distance_m += static_cast<double>(context.distance_m);
+    state.actual_speed_mps = std::clamp(context.speed_mps, 0.0F, limits_.sprint_speed_mps);
+    return foundation::Result<void, foundation::Error>::success();
+}
+
+foundation::Result<void, foundation::Error> LocomotionController::setState(
+    LocomotionState& state, AnimationState animation_state, bool immediate,
+    const AnimationTransitionProfile& profile) const noexcept {
+    if (!state.valid() || !profile.valid()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidArgument, "invalid animation state request"});
+    }
+    const AnimationState previous_requested_state = state.requested_state;
+    state.transition_profile = profile;
+    state.requested_state = animation_state;
+    if (isBiped(animation_state)) {
+        state.family = LocomotionFamily::Biped;
+        state.family_moving = false;
+        state.preset = presetForState(animation_state);
+        switch (animation_state) {
+        case AnimationState::IDLE:
+            state.requested_crouch = 0.0F;
+            state.requested_speed_mps = 0.0F;
+            break;
+        case AnimationState::WALK:
+            state.requested_crouch = 0.0F;
+            state.requested_speed_mps = limits_.walk_speed_mps;
+            break;
+        case AnimationState::RUN:
+            state.requested_crouch = 0.0F;
+            state.requested_speed_mps = limits_.run_speed_mps;
+            break;
+        case AnimationState::CROUCH:
+            state.requested_crouch = 0.60F;
+            state.requested_speed_mps = 0.0F;
+            break;
+        case AnimationState::CROUCH_WALK:
+            state.requested_crouch = 0.60F;
+            state.requested_speed_mps = body_.crouch_speed;
+            break;
+        default: break;
+        }
+    } else if (animation_state == AnimationState::SITTING) {
+        state.family = LocomotionFamily::Seated;
+        state.family_moving = false;
+        state.preset = BipedPreset::Idle;
         state.requested_crouch = 0.0F;
         state.requested_speed_mps = 0.0F;
-        break;
-    case BipedPreset::Walk:
+    } else if (isProne(animation_state)) {
+        state.family = LocomotionFamily::Prone;
+        state.family_moving = animation_state == AnimationState::PRONE_MOVE;
+        state.preset = BipedPreset::Idle;
         state.requested_crouch = 0.0F;
-        state.requested_speed_mps = limits_.walk_speed_mps;
-        break;
-    case BipedPreset::Run:
+        state.requested_speed_mps = state.family_moving ? body_.prone_speed : 0.0F;
+    } else {
+        state.family = LocomotionFamily::Rest;
+        state.family_moving = false;
+        state.preset = BipedPreset::Idle;
         state.requested_crouch = 0.0F;
-        state.requested_speed_mps = limits_.run_speed_mps;
-        break;
-    case BipedPreset::Crouch:
-        state.requested_crouch = 0.60F;
         state.requested_speed_mps = 0.0F;
-        break;
-    case BipedPreset::CrouchWalk:
-        state.requested_crouch = 0.60F;
-        state.requested_speed_mps = 0.75F * (limits_.walk_speed_mps / 1.4F);
-        break;
+    }
+    if (!immediate && previous_requested_state == animation_state) {
+        return foundation::Result<void, foundation::Error>::success();
+    }
+    state.transition_request_profile = profile;
+    state.animation_snap_requested = immediate;
+    ++state.animation_request_revision;
+    if (immediate) {
+        state.active_state = animation_state;
+        state.transition_active = false;
+        state.transition_stage = AnimationTransitionStage::None;
+        state.transition_progress = 1.0F;
+        state.transition_stage_progress = 1.0F;
+    } else {
+        state.transition_active = true;
+        state.transition_stage = AnimationTransitionStage::Target;
+        state.transition_progress = 0.0F;
+        state.transition_stage_progress = 0.0F;
     }
     if (immediate) {
         state.target_crouch = std::min(state.requested_crouch, limits_.max_crouch);
@@ -162,6 +296,16 @@ foundation::Result<void, foundation::Error> LocomotionController::setPreset(
         return sampleGait(state, state.actual_speed_mps, 0.0F, true);
     }
     return foundation::Result<void, foundation::Error>::success();
+}
+
+foundation::Result<void, foundation::Error> LocomotionController::setState(
+    LocomotionState& state, AnimationState animation_state, bool immediate) const noexcept {
+    return setState(state, animation_state, immediate, state.transition_profile);
+}
+
+foundation::Result<void, foundation::Error> LocomotionController::setPreset(
+    LocomotionState& state, BipedPreset preset, bool immediate) const noexcept {
+    return setState(state, stateForPreset(preset), immediate);
 }
 
 foundation::Result<void, foundation::Error> LocomotionController::sampleGait(
@@ -209,14 +353,26 @@ foundation::Result<void, foundation::Error> LocomotionController::setFamily(
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "invalid locomotion state"});
     }
-    state.family = family;
-    state.family_moving = moving && family == LocomotionFamily::Prone;
-    if (family != LocomotionFamily::Biped) {
-        state.preset = BipedPreset::Idle;
-        state.requested_crouch = 0.0F;
-        state.requested_speed_mps = state.family_moving ? body_.prone_speed : 0.0F;
+    if (family == LocomotionFamily::Biped) {
+        const auto target = continuousState(state.requested_crouch,
+                                            state.requested_speed_mps, limits_);
+        return setState(state, target, false, state.transition_profile);
     }
-    return foundation::Result<void, foundation::Error>::success();
+    if (family == LocomotionFamily::Prone) {
+        return setState(state, moving ? AnimationState::PRONE_MOVE : AnimationState::PRONE,
+                        false, state.transition_profile);
+    }
+    return setState(state, family == LocomotionFamily::Seated ? AnimationState::SITTING
+                                                               : AnimationState::REST,
+                    false, state.transition_profile);
+}
+
+foundation::Result<void, foundation::Error> LocomotionController::step(
+    LocomotionState& state, const LocomotionMotionContext& context,
+    float fixed_dt_seconds) const noexcept {
+    const auto result = setMotion(state, context);
+    if (!result) return result;
+    return step(state, fixed_dt_seconds);
 }
 
 foundation::Result<void, foundation::Error> LocomotionController::step(
@@ -225,6 +381,10 @@ foundation::Result<void, foundation::Error> LocomotionController::step(
         fixed_dt_seconds > 0.25F) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid fixed locomotion interval"});
+    }
+    if (state.has_motion_context) {
+        state.actual_speed_mps = std::clamp(state.actual_speed_mps, 0.0F,
+                                            limits_.sprint_speed_mps);
     }
     state.limit_reason = LocomotionLimitReason::None;
     const float requested_crouch = std::min(state.requested_crouch, limits_.max_crouch);
@@ -238,8 +398,11 @@ foundation::Result<void, foundation::Error> LocomotionController::step(
     if (!moving_family) {
         state.limit_reason = LocomotionLimitReason::FamilyDoesNotMove;
     }
-    const float requested_speed = std::min(state.requested_speed_mps, limits_.sprint_speed_mps);
-    if (requested_speed != state.requested_speed_mps && state.limit_reason == LocomotionLimitReason::None) {
+    const float requested_speed = std::min(
+        state.has_motion_context ? state.actual_speed_mps : state.requested_speed_mps,
+        limits_.sprint_speed_mps);
+    if (!state.has_motion_context && requested_speed != state.requested_speed_mps &&
+        state.limit_reason == LocomotionLimitReason::None) {
         state.limit_reason = LocomotionLimitReason::RequestedSpeedClamped;
     }
     const float wanted=state.target_crouch;
@@ -258,10 +421,29 @@ foundation::Result<void, foundation::Error> LocomotionController::step(
         const auto sampled=sampleGait(state,state.actual_speed_mps,fixed_dt_seconds,false);
         if(!sampled)return sampled;
     }
+    state.settling = false;
     if (state.actual_speed_mps > 1.0e-4F && moving_family) {
         const double cycle=state.family==LocomotionFamily::Prone?proneCycleMeters():state.cycle_m;
-        state.phase += state.actual_speed_mps*fixed_dt_seconds/std::max(0.01,cycle);
+        const double distance = state.has_motion_context
+            ? static_cast<double>(state.frame_distance_m)
+            : static_cast<double>(state.actual_speed_mps) * fixed_dt_seconds;
+        state.phase += distance/std::max(0.01,cycle);
         state.phase -= std::floor(state.phase);
+    } else if (state.family == LocomotionFamily::Biped && fixed_dt_seconds > 0.0F &&
+               state.actual_speed_mps < 0.03F) {
+        // Finish a late half-step instead of freezing at an arbitrary foot
+        // split. Double precision keeps the stop phase deterministic.
+        const float duty = std::max(0.62F, state.duty);
+        double wrapped = std::fmod(state.phase * 2.0, 1.0);
+        if (wrapped < 0.0) wrapped += 1.0;
+        const float half = static_cast<float>(wrapped * 0.5);
+        if (half > std::max(0.025F, duty - 0.5F - 0.025F)) {
+            state.settling = true;
+            const double remaining = 0.5 - static_cast<double>(half) + 0.018;
+            state.phase += std::min(remaining,
+                                    static_cast<double>(fixed_dt_seconds) * 0.90);
+            state.phase -= std::floor(state.phase);
+        }
     }
     state.actual_crouch = std::clamp(state.actual_crouch, 0.0F, 1.0F);
     state.actual_speed_mps = std::max(0.0F, state.actual_speed_mps);

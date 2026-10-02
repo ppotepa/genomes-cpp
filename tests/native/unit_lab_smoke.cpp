@@ -1,4 +1,5 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/render/SkinnedDeformer.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/game_scenes/UnitLabScene.hpp>
@@ -12,6 +13,7 @@
 #include <thread>
 #include <tuple>
 #include <string>
+#include <string_view>
 #include <variant>
 
 int main() {
@@ -25,6 +27,12 @@ int main() {
         assert(std::isfinite(viewport.projection_offset_x));
         assert(std::isfinite(viewport.projection_offset_y));
     }
+    const auto narrow_chrome = genomes::game_scenes::unitLabViewport(1280, 720, 1.0);
+    assert(std::abs(narrow_chrome.projection_offset_x - (-0.221875F)) < 1.0e-5F);
+    assert(std::abs(narrow_chrome.projection_offset_y - (-0.11944444F)) < 1.0e-5F);
+    const auto wide_chrome = genomes::game_scenes::unitLabViewport(1920, 1080, 1.0);
+    assert(std::abs(wide_chrome.projection_offset_x - (-0.17083333F)) < 1.0e-5F);
+    assert(std::abs(wide_chrome.projection_offset_y - (-0.05740741F)) < 1.0e-5F);
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
@@ -41,6 +49,16 @@ int main() {
     assert(presentation.skinned_prototypes.front()->vertices.size() > 100U);
     assert(presentation.skinned_prototypes.front()->indices.size() > 300U);
     const auto& prototype = *presentation.skinned_prototypes.front();
+    std::size_t stowed_weapon_vertices = 0U;
+    for (const auto& vertex : prototype.vertices) {
+        if (vertex.bone_indices[0] == static_cast<std::uint16_t>(
+                genomes::infantry::BoneId::SpineUpper) && vertex.bone_weights[0] > 0.99F)
+            ++stowed_weapon_vertices;
+    }
+    // The loadout contains a real primary weapon mesh, not only the legacy
+    // four-vertex transport ribbon. It is skinned to the upper spine so it
+    // follows locomotion while remaining in the stowed/back presentation.
+    assert(stowed_weapon_vertices > 50U);
     assert(prototype.indices.size() % 3U == 0U);
     for (std::size_t offset = 0U; offset < prototype.indices.size(); offset += 3U) {
         const auto i0 = prototype.indices[offset];
@@ -57,7 +75,9 @@ int main() {
                                           a.z * b.x - a.x * b.z,
                                           a.x * b.y - a.y * b.x};
         assert(std::isfinite(n.x) && std::isfinite(n.y) && std::isfinite(n.z));
-        assert(n.x * n.x + n.y * n.y + n.z * n.z > 1.0e-12F);
+        // AppearanceMeshBuilder removes only numerically degenerate faces;
+        // equipment can legitimately contain sub-millimetre triangles.
+        assert(n.x * n.x + n.y * n.y + n.z * n.z >= 1.0e-18F);
     }
     assert(presentation.skinned_palettes.front().matrices.size() == 69U);
     assert(presentation.skinned_prototypes.front()->morph_target_count == 4U);
@@ -202,6 +222,8 @@ int main() {
     genomes::render::PresentationSnapshot gpu_presentation;
     genomes::runtime::SceneContext gpu_context{gpu_commands, gpu_ui, gpu_presentation};
     gpu_context.render_capabilities.gpu_skinning = true;
+    gpu_context.camera_request = &gpu_presentation.camera_request;
+    gpu_context.camera_request_published = &gpu_presentation.has_camera_request;
     genomes::game_scenes::UnitLabScene gpu_scene;
     gpu_scene.on_enter(gpu_context);
     gpu_presentation.simulation_tick = 17U;
@@ -250,8 +272,11 @@ int main() {
     for (const auto action : {"unit.wireframe", "unit.skeleton", "unit.bounds",
                               "unit.normals", "unit.weight", "unit.variation",
                               "unit.loadout", "unit.genome-preset"}) {
+        const auto arguments = std::string_view{action} == "unit.variation"
+            ? genomes::ui::UiActionArguments{{"value", "0.5"}}
+            : genomes::ui::UiActionArguments{};
         assert(gpu_scene.handle_ui_action(gpu_context,
-                    genomes::foundation::stable_id(action), {}) ==
+                    genomes::foundation::stable_id(action), arguments) ==
                genomes::ui::UiActionResult::Handled);
     }
     gpu_presentation.clear_scene_payload();
@@ -259,8 +284,8 @@ int main() {
     assert(!gpu_presentation.debug_lines.empty());
     assert(gpu_presentation.camera.mode == genomes::camera::CameraMode::Orbit);
     assert(gpu_presentation.camera.revision != 0U);
-    assert(gpu_presentation.camera.revision != initial_camera_revision ||
-           gpu_presentation.camera.viewport_left == expected_viewport.left);
+    assert(gpu_presentation.camera.revision == initial_camera_revision);
+    assert(std::abs(gpu_presentation.camera.viewport_left - 68.0F / 1280.0F) < 1.0e-6F);
 
     const auto before_genome = gpu_presentation.skinned_prototypes.front();
     assert(gpu_scene.handle_ui_action(
@@ -289,12 +314,116 @@ int main() {
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.phase"),
         {{"value", "0.5"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.phase"),
+        {{"value", "0.99"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.phase"),
+        {{"value", "1.0"}}) == genomes::ui::UiActionResult::Handled);
     gpu_scene.frame_update(gpu_context, 0.0);
     const auto* paused = gpu_ui.model().find("animation_paused");
     assert(paused != nullptr && std::get<bool>(*paused));
+    const auto* phase_field = gpu_ui.model().find_field("animation_phase");
+    const auto* speed_field = gpu_ui.model().find_field("animation_speed");
+    const auto* transition_field = gpu_ui.model().find_field("animation_transition_seconds");
+    const auto* intensity_field = gpu_ui.model().find_field("expression_intensity");
+    assert(phase_field != nullptr && phase_field->commit_policy == genomes::ui::UiCommitPolicy::Live);
+    assert(speed_field != nullptr && speed_field->commit_policy == genomes::ui::UiCommitPolicy::Live);
+    assert(transition_field != nullptr && transition_field->commit_policy == genomes::ui::UiCommitPolicy::Live);
+    assert(intensity_field != nullptr && intensity_field->commit_policy == genomes::ui::UiCommitPolicy::Live);
+    genomes::ui::UiEvent phase_input{};
+    phase_input.field = "animation_phase";
+    phase_input.phase = genomes::ui::UiEventPhase::Input;
+    phase_input.value = 0.25;
+    const auto applied_phase_input = gpu_ui.apply_event(phase_input);
+    assert(applied_phase_input.consumed && applied_phase_input.publish &&
+           applied_phase_input.changed);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.regenerate"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* preserved_phase = gpu_ui.model().find("animation_phase");
+    assert(preserved_phase != nullptr && std::holds_alternative<double>(*preserved_phase));
+    assert(std::abs(std::get<double>(*preserved_phase) - 0.99) < 1.0e-4);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.animation-step-back"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.animation-step-forward"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.animation-reset"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* reset_phase = gpu_ui.model().find("animation_phase");
+    const auto* reset_transition = gpu_ui.model().find("locomotion_transition_progress");
+    assert(reset_phase != nullptr && std::holds_alternative<double>(*reset_phase));
+    assert(std::abs(std::get<double>(*reset_phase)) < 1.0e-4);
+    assert(reset_transition != nullptr && std::holds_alternative<double>(*reset_transition));
+    assert(std::abs(std::get<double>(*reset_transition) - 1.0) < 1.0e-4);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.animation-transition"),
+        {{"value", "0.45"}}) == genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* transition_value = gpu_ui.model().find("animation_transition_seconds");
+    assert(transition_value != nullptr && std::holds_alternative<double>(*transition_value));
+    assert(std::abs(std::get<double>(*transition_value) - 0.45) < 1.0e-4);
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.locomotion"),
         {{"value", "Crouch Walk"}}) == genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* locomotion_name = gpu_ui.model().find("locomotion");
+    assert(locomotion_name != nullptr && std::get<std::string>(*locomotion_name) == "Crouch Walk");
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.expression"),
+        {{"value", "Alert"}}) == genomes::ui::UiActionResult::Handled);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.expression-intensity"),
+        {{"value", "0.5"}}) == genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* expression_name = gpu_ui.model().find("expression");
+    const auto* expression_intensity = gpu_ui.model().find("expression_intensity");
+    assert(expression_name != nullptr && std::get<std::string>(*expression_name) == "Alert");
+    assert(expression_intensity != nullptr && std::holds_alternative<double>(*expression_intensity));
+    assert(std::abs(std::get<double>(*expression_intensity) - 0.5) < 1.0e-4);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.pause"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    const auto* pause_label = gpu_ui.model().find("pause_label");
+    assert(pause_label != nullptr && std::get<std::string>(*pause_label) == "Pause");
+    const auto sample_pose = [&] {
+        gpu_presentation.clear_scene_payload();
+        gpu_scene.build_presentation(gpu_context);
+        return gpu_presentation.skinned_palettes.front();
+    };
+    const auto before_play = sample_pose();
+    for (int tick = 0; tick < 30; ++tick) gpu_scene.fixed_update(gpu_context, 1.0 / 60.0);
+    const auto after_play = sample_pose();
+    assert(after_play.pose_revision > before_play.pose_revision);
+    assert(after_play.matrices != before_play.matrices);
+    const auto& playing_mesh = *gpu_presentation.skinned_prototypes.front();
+    const auto before_vertices = genomes::render::deformSkinnedCPU(
+        playing_mesh, before_play.matrices, before_play.morph_weights);
+    const auto after_vertices = genomes::render::deformSkinnedCPU(
+        playing_mesh, after_play.matrices, after_play.morph_weights);
+    bool geometry_moved = false;
+    for (std::size_t i = 0; i < before_vertices.vertices.size(); ++i) {
+        const auto a = before_vertices.vertices[i].position;
+        const auto b = after_vertices.vertices[i].position;
+        geometry_moved |= std::abs(a.x-b.x) + std::abs(a.y-b.y) + std::abs(a.z-b.z) > 1.0e-3F;
+    }
+    assert(geometry_moved);
+    assert(gpu_scene.handle_ui_action(
+        gpu_context, genomes::foundation::stable_id("unit.pause"), {}) ==
+        genomes::ui::UiActionResult::Handled);
+    gpu_scene.frame_update(gpu_context, 0.0);
+    pause_label = gpu_ui.model().find("pause_label");
+    assert(pause_label != nullptr && std::get<std::string>(*pause_label) == "Resume");
+    for (int tick = 0; tick < 10; ++tick) gpu_scene.fixed_update(gpu_context, 1.0 / 60.0);
+    const auto after_pause = sample_pose();
+    assert(after_pause.pose_revision == after_play.pose_revision);
+    assert(after_pause.matrices == after_play.matrices);
     assert(gpu_scene.handle_ui_action(
         gpu_context, genomes::foundation::stable_id("unit.variation"),
         {{"value", "1.75"}}) == genomes::ui::UiActionResult::Handled);

@@ -8,7 +8,10 @@ its own document and model; overlays are mounted after their base route.
 keys. A write of an equal value is not a change. Fields declare `Live`,
 `OnChange` or `Explicit` commit policy. Numeric input is locale-independent,
 finite and clamped/quantised against its field limits. Invalid options preserve
-the last valid value.
+the last valid value. Existing command-backed scene values may remain plain
+typed scalars; the event boundary preserves their scalar type and publishes
+them on the change/click/submit phase so the scene action handler remains the
+single domain validation point.
 
 Shared controls live under `mods/core/ui`: text/output/status, buttons,
 text/number inputs, select/options, range, checkbox/radio, progress, form and

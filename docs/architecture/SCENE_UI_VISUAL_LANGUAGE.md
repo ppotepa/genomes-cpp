@@ -1,6 +1,31 @@
 # Scene UI visual language
 
-Status: starting point for iteration, not a locked art direction.
+Status: compact Material-inspired direction; GPU visual acceptance pending.
+
+## Compact component contract
+
+Controls share a 32dp height and 13dp text, with 14dp body text. Use sentence
+case for field labels and actions. Spacing follows 4/8/12/16/24dp steps.
+Neutral charcoal surfaces (#12151b, #181c24, #232933) and one pale-blue accent
+(#a9c7ff) establish hierarchy without nested outlined cards. Corners stay square.
+This is an RmlUi-native adaptation, not a dependency on React/Material UI.
+
+Every field uses a fixed label column (112dp, 104dp in Unit Lab) and a flexible
+control column. Range controls share that column with a fixed 50dp readout.
+Checkboxes and helper text follow the same axis. Disclosure bodies have no
+horizontal padding: opening a group must not shift its controls. Long headings
+wrap instead of clipping; dense gene rows may use a full-width label above the
+slider and reset action. Readout text such as seeds is not a fixed-width chip.
+
+Shared controls, disclosure, presets, list rows and readouts live in theme.rcss.
+Unit Lab only sets scene geometry and its label-column width. The viewport
+remains transparent. Do not use filters, shadows or effects requiring renderer
+features absent from the current RmlUi adapter.
+
+Review the gallery and all eight routes at 1280x720 and 1920x1080 with 75%,
+100% and 150% UI scale. Check keyboard focus, disabled state, long labels,
+dropdowns, open disclosures and slider dragging in the actual application.
+Source checks alone do not establish visual acceptance.
 
 ## Intent
 

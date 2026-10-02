@@ -66,6 +66,12 @@ void configureBuiltinSceneRouting(
     director.set_application_action_router([&director](ui::UiActionId action,
                                                        const ui::UiActionArguments& arguments) {
         auto& ui = director.ui_runtime();
+        const auto active_model = [&ui]() -> genomes::ui::UiDataModel& {
+            if (ui.routes().top() != nullptr && ui.routes().top()->overlay &&
+                !ui.route_controllers().empty())
+                return ui.route_controllers().back().model;
+            return ui.model();
+        };
         const auto push = [&director](application::ApplicationCommandKind kind) {
             director.enqueue_command(application::makeApplicationCommand(kind));
             return ui::UiActionResult::Handled;
@@ -122,7 +128,10 @@ void configureBuiltinSceneRouting(
             return ui::UiActionResult::Handled;
         }
         if (action == foundation::stable_id("settings.defaults")) {
-            (void)ui.model().set("ui_scale", 1.0);
+            (void)active_model().set("ui_scale", 1.0);
+            (void)active_model().set("ui_scale_percent", std::string{"100%"});
+            (void)active_model().set("show_diagnostics", true);
+            (void)ui.model().set("ui_scale", 1.0); // live preview only
             (void)ui.model().set("ui_scale_percent", std::string{"100%"});
             (void)ui.model().set("show_diagnostics", true);
             return ui::UiActionResult::Handled;
@@ -137,6 +146,8 @@ void configureBuiltinSceneRouting(
                     converted.ptr != argument.second.data() + argument.second.size() ||
                     !std::isfinite(value)) return ui::UiActionResult::Rejected;
                 const double clamped = std::clamp(value, 0.75, 1.50);
+                (void)active_model().set("ui_scale", clamped);
+                (void)active_model().set("ui_scale_percent", scalePercent(clamped));
                 (void)ui.model().set("ui_scale", clamped);
                 (void)ui.model().set("ui_scale_percent", scalePercent(clamped));
                 return ui::UiActionResult::Handled;
@@ -145,14 +156,17 @@ void configureBuiltinSceneRouting(
         }
         if (action == foundation::stable_id("settings.show-diagnostics")) {
             for (const auto& argument : arguments) if (argument.first == "value") {
-                (void)ui.model().set("show_diagnostics",
-                                     argument.second == "true" || argument.second == "1");
+                const bool value = argument.second == "true" || argument.second == "1";
+                (void)active_model().set("show_diagnostics", value);
+                (void)ui.model().set("show_diagnostics", value);
                 return ui::UiActionResult::Handled;
             }
             return ui::UiActionResult::Rejected;
         }
         if (action == foundation::stable_id("settings.cancel")) {
             if (ui.routes().top() != nullptr && ui.routes().top()->overlay) {
+                // Discarding the overlay drops its draft. Only the live scale
+                // preview needs to be returned to the committed session value.
                 (void)ui.model().set("ui_scale", director.session_ui_scale());
                 (void)ui.model().set("ui_scale_percent", scalePercent(director.session_ui_scale()));
                 (void)ui.model().set("show_diagnostics", director.session_show_diagnostics());
@@ -162,10 +176,11 @@ void configureBuiltinSceneRouting(
             return ui::UiActionResult::Rejected;
         }
         if (action == foundation::stable_id("settings.apply")) {
-            if (const auto* value = ui.model().find("ui_scale"); value != nullptr &&
+            auto& draft = active_model();
+            if (const auto* value = draft.find("ui_scale"); value != nullptr &&
                 std::holds_alternative<double>(*value))
                 director.set_session_ui_scale(std::get<double>(*value));
-            if (const auto* value = ui.model().find("show_diagnostics"); value != nullptr &&
+            if (const auto* value = draft.find("show_diagnostics"); value != nullptr &&
                 std::holds_alternative<bool>(*value))
                 director.set_session_show_diagnostics(std::get<bool>(*value));
             if (ui.routes().top() != nullptr && ui.routes().top()->overlay) ui.routes().pop();

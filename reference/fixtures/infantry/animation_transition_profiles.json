@@ -1,0 +1,51 @@
+{
+  "schema": "infantry-animation-transition-fixtures-1",
+  "evidenceClass": "BEHAVIORAL",
+  "sourceCommit": "84bb47ff11f29c476b281e6dece87b8e46098302",
+  "provenance": {
+    "kind": "native-contract-audit",
+    "sourcePaths": [
+      "modules/infantry/src/AnimationSystem.cpp",
+      "modules/infantry/src/LocomotionController.cpp"
+    ],
+    "captureRevision": 1,
+    "note": "Pinned transition contract; not a renderer or pixel golden."
+  },
+  "publicStateCount": 9,
+  "internalStages": ["CROUCH", "SUPPORT", "TARGET"],
+  "profiles": {
+    "enterProne": [
+      {"stage": "CROUCH", "seconds": 0.26},
+      {"stage": "SUPPORT", "seconds": 0.38},
+      {"stage": "TARGET", "seconds": 0.44}
+    ],
+    "exitProne": [
+      {"stage": "SUPPORT", "seconds": 0.40},
+      {"stage": "CROUCH", "seconds": 0.36},
+      {"stage": "TARGET", "seconds": 0.28}
+    ],
+    "crouchWalk": 0.40,
+    "crouch": 0.36,
+    "sitting": 0.60,
+    "locomotion": 0.20,
+    "proneToProneMove": 0.20
+  },
+  "supportPoseNormalized": {
+    "hips": [0.0, 0.46, -0.18],
+    "hipsPitchRadians": 0.93,
+    "spineLowerPitchRadians": -0.18,
+    "spineUpperPitchRadians": -0.22,
+    "chestPitchRadians": -0.08,
+    "neckPitchRadians": -0.28,
+    "headPitchRadians": -0.10,
+    "proneWeight": 0.63,
+    "handIkWeight": 1.0,
+    "handPlant": [1.0, 1.0],
+    "footRelative": [1.0, 1.0]
+  },
+  "tolerances": {
+    "scalar": 0.0001,
+    "quaternionLength": 0.0002,
+    "continuityHeightFraction": 0.20
+  }
+}

@@ -208,9 +208,11 @@ PlatformFrame SdlPlatform::poll_events() {
         case SDL_EVENT_MOUSE_WHEEL: {
             const float sign = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0F : 1.0F;
             const float x = event.wheel.x * sign, y = event.wheel.y * sign;
-            // Wheel data is a scroll amount, never a framebuffer position.
+            // SDL3 carries the pointer position on the wheel event itself.
+            // Convert that position to framebuffer pixels for RmlUi hit tests.
+            const auto p = mouse_position(event.wheel.mouse_x, event.wheel.mouse_y);
             frame.input.events.push_back({input::EventType::MouseWheel, 0, 0, 0,
-                x, y, x, y, {}});
+                p.x, p.y, x, y, {}});
             frame.input.mouse_wheel_y += y;
             break;
         }

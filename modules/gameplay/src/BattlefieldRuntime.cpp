@@ -74,11 +74,13 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     }
     infantry_ = std::make_unique<infantry::InfantrySimulation>(
         entities_, navigation_.get(), &physics_, jobs_, true);
-    const infantry::InfantryGenome genome{1.75F, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
+    const infantry::InfantryGenome genome{1.75F, 1.75, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
     const auto blue = infantry_->spawn({infantry::Team::Blue, {0.0F, 0.0F, -kSpawnOffset},
-                                        genome, infantry::SquadKey{infantry::Team::Blue, 1U}});
+                                        genome, infantry::SquadKey{infantry::Team::Blue, 1U},
+                                        weapons::weapon_id("carbine")});
     const auto red = infantry_->spawn({infantry::Team::Red, {0.0F, 0.0F, kSpawnOffset},
-                                       genome, infantry::SquadKey{infantry::Team::Red, 2U}});
+                                       genome, infantry::SquadKey{infantry::Team::Red, 2U},
+                                       weapons::weapon_id("carbine")});
     if (!blue || !red) {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::Internal, "battlefield infantry spawn failed"));
@@ -107,10 +109,28 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
         return foundation::Result<void, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::NotFound, "carbine missing from weapon catalog"));
     }
+    weapon_definition_ = weapon;
     weapon_spec_ = {weapon->rounds_per_second, weapon->muzzle_velocity_mps, weapon->damage,
                     weapon->range_m, 30U};
-    weapon_states_[blue_id.packed()] = {30U, {}};
-    weapon_states_[red_id.packed()] = {30U, {}};
+    const auto artifact = weapons::WeaponGeometryGenerator::build(
+        *weapon, {proc::Seed(foundation::stableHashCombine(config_.seed, 0xB17U)), 1.0F,
+                  0.0F, 0U});
+    if (!artifact) {
+        return foundation::Result<void, foundation::Error>::failure(artifact.error());
+    }
+    weapon_artifact_ = std::make_shared<const weapons::WeaponArtifact>(artifact.value());
+    const auto make_runtime_state = [this](simulation::EntityId entity) {
+        weapons::WeaponRuntimeState state{};
+        state.selected_weapon = weapon_id_;
+        state.active_weapon = weapon_id_;
+        state.handling = weapons::WeaponHandlingState::Held;
+        state.readiness = 1.0F;
+        state.requested_readiness = 1.0F;
+        weapon_runtime_states_[entity.packed()] = state;
+        weapon_pose_tasks_[entity.packed()] = {};
+    };
+    make_runtime_state(blue_id);
+    make_runtime_state(red_id);
 
     const auto query_result = configureWorldQuery();
     if (!query_result) {
@@ -217,7 +237,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureAmmunit
     strategy.contact_work_scale = 1.0F;
     strategy.ricochet_threshold = 0.35F;
     const ballistics::AmmunitionDefinition definition{
-        ballistics::ammunition_id("battlefield.ammo.556"), strategy.id, strategy.caliber_id,
+        ballistics::ammunition_id("ammo_556"), strategy.id, strategy.caliber_id,
         strategy.variant_id, 0.004F, 0.00556F, 0.00556F, weapon_spec_.muzzle_velocity, 0.25F,
         1U, "FAST_VIABILITY_AGENT_PLAN", 0.0F};
     if (!catalog.add(definition, strategy) || !catalog.freeze()) {
@@ -385,9 +405,9 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     combat.access.resource_writes = {foundation::stable_id("battlefield.projectiles")};
     combat.cadence = every_tick;
     combat.main_thread_only = true;
-    combat.callback = [this](simulation::SystemContext&) {
+    combat.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
-            queueFire();
+            queueFire(static_cast<float>(context.fixed_dt));
             advanceBallistics();
         }
     };
@@ -506,7 +526,7 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
     snapshot_.tick = context.tick.value;
     const auto result = graph_.run(simulation_tick_, context.fixed_dt_seconds, nullptr, nullptr);
     if (!result || !snapshot_.error.empty()) {
-        const std::string error = result ? snapshot_.error : result.error().message;
+        const std::string error = result ? snapshot_.error : std::string{result.error().message};
         snapshot_ = last_good_snapshot;
         snapshot_.error = error;
         snapshot_.complete = true;
@@ -645,29 +665,63 @@ void BattlefieldRuntime::runDecision() noexcept {
     }
 }
 
-void BattlefieldRuntime::queueFire() noexcept {
-    for (const combat::AIIntent& intent : intents_) {
-        if (!intent.trigger || !intent.target.has_value()) {
+void BattlefieldRuntime::queueFire(float fixed_dt_seconds) noexcept {
+    if (weapon_definition_ == nullptr || weapon_artifact_ == nullptr || infantry_ == nullptr) {
+        snapshot_.error = "battlefield weapon handling bridge is not initialized";
+        return;
+    }
+    for (auto& [packed_entity, state] : weapon_runtime_states_) {
+        const simulation::EntityId entity = fromPacked(packed_entity);
+        const foundation::Vec3* origin = entities_.position(entity);
+        if (origin == nullptr) {
             continue;
         }
-        const foundation::Vec3* origin = entities_.position(intent.self);
-        const foundation::Vec3* target_position = entities_.position(*intent.target);
-        auto state = weapon_states_.find(intent.self.packed());
-        if (origin == nullptr || target_position == nullptr || state == weapon_states_.end()) {
+        infantry::InfantryWeaponHandlingView view{};
+        if (!infantry_->readWeaponHandlingView(entity, view)) {
             continue;
         }
-        const auto shot = weapons::WeaponController::tryFire(
-            intent.self.packed(), *origin, subtract(*target_position, *origin), weapon_spec_,
-            state->second, simulation_tick_);
-        if (!shot) {
-            continue;
+        const combat::AIIntent* intent = nullptr;
+        for (const combat::AIIntent& candidate : intents_) {
+            if (candidate.self == entity) {
+                intent = &candidate;
+                break;
+            }
         }
-        const std::uint64_t sequence = ++shot_sequences_[intent.self.packed()];
-        weapons::FireIntent fire{intent.self.packed(), intent.weapon_id,
-                                 foundation::stable_id("battlefield.ammo.556"), sequence,
-                                 shot.value().origin, shot.value().direction, simulation_tick_};
-        if (!combat_flow_.submitFire(fire)) {
-            continue;
+        const bool engaging = view.state == infantry::AgentState::Engage;
+        const bool target_matches = view.target.isValid() && intent != nullptr &&
+                                    intent->target.has_value() && intent->target.value() == view.target;
+        const foundation::Vec3* target_position = view.target.isValid()
+                                                       ? entities_.position(view.target)
+                                                       : nullptr;
+        const bool request_fire = engaging && target_matches && intent->trigger &&
+                                  target_position != nullptr;
+        std::optional<foundation::Vec3> aim_target;
+        if (target_position != nullptr) {
+            aim_target = *target_position;
+        } else if (intent != nullptr && intent->aim_target.has_value()) {
+            aim_target = intent->aim_target;
+        }
+        (void)weapon_handling_.requestReadiness(state, engaging ? 1.0F : 0.0F);
+        weapons::WeaponStepOutput output{};
+        const weapons::WeaponHandlingInput input{
+            static_cast<foundation::StableId>(entity.packed()), weapon_definition_,
+            weapon_artifact_.get(), *origin, aim_target,
+            {std::sqrt(view.velocity.x * view.velocity.x + view.velocity.z * view.velocity.z) >
+                 4.0F,
+             false, false,
+             std::sqrt(view.velocity.x * view.velocity.x + view.velocity.y * view.velocity.y +
+                        view.velocity.z * view.velocity.z)},
+            request_fire};
+        const auto stepped = weapon_handling_.step(
+            state, input, simulation_tick_, fixed_dt_seconds, output);
+        if (!stepped) {
+            snapshot_.error = stepped.error().message;
+            return;
+        }
+        weapon_pose_tasks_[packed_entity] = output.pose;
+        if (output.fire.has_value() && !combat_flow_.submitFire(*output.fire)) {
+            snapshot_.error = "duplicate authoritative fire intent";
+            return;
         }
     }
     const auto committed = combat_flow_.commitFire(config_.seed);
@@ -690,6 +744,12 @@ void BattlefieldRuntime::queueFire() noexcept {
             ++snapshot_.fired;
         }
     }
+}
+
+const weapons::WeaponPoseTasks* BattlefieldRuntime::weaponPoseTasks(
+    simulation::EntityId entity) const noexcept {
+    const auto iterator = weapon_pose_tasks_.find(entity.packed());
+    return iterator == weapon_pose_tasks_.end() ? nullptr : &iterator->second;
 }
 
 void BattlefieldRuntime::advanceBallistics() noexcept {

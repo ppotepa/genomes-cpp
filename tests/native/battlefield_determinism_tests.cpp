@@ -1,7 +1,9 @@
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
 
 namespace {
 
@@ -9,6 +11,7 @@ struct BattlefieldRunResult final {
     genomes::gameplay::BattlefieldScenarioSnapshot snapshot{};
     genomes::gameplay::BattlefieldRuntimeState state{
         genomes::gameplay::BattlefieldRuntimeState::Running};
+    genomes::weapons::WeaponPoseTasks last_weapon_pose{};
 };
 
 BattlefieldRunResult runBattlefield(genomes::gameplay::BattlefieldScenarioConfig config,
@@ -21,11 +24,31 @@ BattlefieldRunResult runBattlefield(genomes::gameplay::BattlefieldScenarioConfig
 
     genomes::jobs::JobSystem jobs{worker_count};
     auto runtime = genomes::gameplay::BattlefieldRuntime::start(config, &jobs, mode);
+    if (!runtime) {
+        std::fprintf(stderr, "battlefield start failed: %.*s\n",
+                     static_cast<int>(runtime.error().message.size()),
+                     runtime.error().message.data());
+    }
     assert(runtime);
     while (!runtime.value()->complete()) {
         runtime.value()->fixedUpdate();
     }
-    return {runtime.value()->snapshot(), runtime.value()->state()};
+    const auto& snapshot = runtime.value()->snapshot();
+    if (snapshot.fired == 0U) {
+        std::fprintf(stderr, "battlefield produced no fire: tick=%llu perceived=%zu intents=%zu error=%.*s\n",
+                     static_cast<unsigned long long>(snapshot.tick), snapshot.perceived,
+                     snapshot.intents, static_cast<int>(snapshot.error.size()),
+                     snapshot.error.data());
+    }
+    assert(snapshot.fired > 0U);
+    const auto* pose = runtime.value()->weaponPoseTasks(snapshot.last_shot_source);
+    assert(pose != nullptr && pose->valid());
+    assert(pose->primary.owner == genomes::weapons::HandOwnership::Primary);
+    assert(pose->support.owner == genomes::weapons::HandOwnership::Support);
+    assert(pose->readiness >= 0.72F);
+    assert(pose->recoil > 0.0F);
+    assert(snapshot.fired <= snapshot.intents);
+    return {snapshot, runtime.value()->state(), *pose};
 }
 
 void assertSameSnapshot(const genomes::gameplay::BattlefieldScenarioSnapshot& expected,
@@ -52,6 +75,18 @@ void assertSameSnapshot(const genomes::gameplay::BattlefieldScenarioSnapshot& ex
     assert(expected.error == actual.error);
 }
 
+void assertSameWeaponPose(const genomes::weapons::WeaponPoseTasks& expected,
+                          const genomes::weapons::WeaponPoseTasks& actual) {
+    assert(expected.weapon_id == actual.weapon_id);
+    assert(expected.primary.owner == actual.primary.owner);
+    assert(expected.support.owner == actual.support.owner);
+    assert(std::abs(expected.recoil - actual.recoil) < 1.0e-6F);
+    assert(std::abs(expected.readiness - actual.readiness) < 1.0e-6F);
+    assert(expected.aim_direction.x == actual.aim_direction.x);
+    assert(expected.aim_direction.y == actual.aim_direction.y);
+    assert(expected.aim_direction.z == actual.aim_direction.z);
+}
+
 } // namespace
 
 int main() {
@@ -70,5 +105,7 @@ int main() {
     assert(many_worker_result.state == gameplay::BattlefieldRuntimeState::Completed);
     assertSameSnapshot(inline_result.snapshot, one_worker_result.snapshot);
     assertSameSnapshot(inline_result.snapshot, many_worker_result.snapshot);
+    assertSameWeaponPose(inline_result.last_weapon_pose, one_worker_result.last_weapon_pose);
+    assertSameWeaponPose(inline_result.last_weapon_pose, many_worker_result.last_weapon_pose);
     return 0;
 }

@@ -1,10 +1,60 @@
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <algorithm>
+#include <charconv>
+#include <limits>
+#include <type_traits>
 
 namespace genomes::ui {
 
 namespace {
+[[nodiscard]] std::optional<UiScalar> plain_scalar_value(
+    const UiScalar& current, const UiScalar& incoming) {
+    return std::visit([&incoming](const auto& value) -> std::optional<UiScalar> {
+        using Value = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<Value, bool>) {
+            if (const auto* boolean = std::get_if<bool>(&incoming)) return *boolean;
+            if (const auto* text = std::get_if<std::string>(&incoming)) {
+                if (*text == "true" || *text == "1") return true;
+                if (*text == "false" || *text == "0") return false;
+            }
+            return std::nullopt;
+        } else if constexpr (std::is_same_v<Value, std::int64_t>) {
+            if (const auto* integer = std::get_if<std::int64_t>(&incoming)) return *integer;
+            if (const auto* number = std::get_if<double>(&incoming)) {
+                if (!std::isfinite(*number) || *number <
+                    static_cast<double>(std::numeric_limits<std::int64_t>::min()) ||
+                    *number > static_cast<double>(std::numeric_limits<std::int64_t>::max()))
+                    return std::nullopt;
+                return static_cast<std::int64_t>(*number);
+            }
+            if (const auto* text = std::get_if<std::string>(&incoming); text != nullptr) {
+                std::int64_t parsed = 0;
+                const auto result = std::from_chars(text->data(), text->data() + text->size(), parsed);
+                if (result.ec == std::errc{} && result.ptr == text->data() + text->size())
+                    return parsed;
+            }
+            return std::nullopt;
+        } else if constexpr (std::is_same_v<Value, double>) {
+            if (const auto* number = std::get_if<double>(&incoming))
+                return std::isfinite(*number) ? std::optional<UiScalar>{*number} : std::nullopt;
+            if (const auto* integer = std::get_if<std::int64_t>(&incoming))
+                return static_cast<double>(*integer);
+            if (const auto* text = std::get_if<std::string>(&incoming); text != nullptr) {
+                double parsed = 0.0;
+                const auto result = std::from_chars(text->data(), text->data() + text->size(), parsed,
+                                                    std::chars_format::general);
+                if (result.ec == std::errc{} && result.ptr == text->data() + text->size() &&
+                    std::isfinite(parsed)) return parsed;
+            }
+            return std::nullopt;
+        } else {
+            if (const auto* text = std::get_if<std::string>(&incoming)) return *text;
+            return std::nullopt;
+        }
+    }, current);
+}
+
 class SettingsController final : public IUiScreenController {
 public:
     void bind(UiDataModel& model) override {
@@ -17,7 +67,12 @@ public:
         scale.maximum = 1.50;
         scale.step = 0.05;
         (void)model.set_field("ui_scale", std::move(scale));
-        if (model.find("show_diagnostics") == nullptr) (void)model.set("show_diagnostics", true);
+        UiFieldState diagnostics{};
+        if (const auto* existing = model.find("show_diagnostics"); existing != nullptr)
+            diagnostics.value = *existing;
+        else diagnostics.value = true;
+        diagnostics.commit_policy = UiCommitPolicy::Explicit;
+        (void)model.set_field("show_diagnostics", std::move(diagnostics));
     }
 };
 
@@ -196,6 +251,92 @@ UiActionResult UiRuntime::dispatch(UiActionId action,
         return UiActionResult::Unknown;
     }
     return action_router_->dispatch(action, arguments);
+}
+
+UiEventApplyResult UiRuntime::apply_event(const UiEvent& event) {
+    UiEventApplyResult result{};
+    UiDataModel* target = &model_;
+    if (event.route_id != 0U) {
+        const auto route = std::find_if(route_controllers_.begin(), route_controllers_.end(),
+            [&event](const RouteControllerState& state) {
+                return state.route.scene == event.route_id &&
+                       (event.route_revision == 0U || state.route.revision == event.route_revision);
+            });
+        if (route == route_controllers_.end()) return result;
+        // Scene routes publish their authoritative fields through the shared
+        // scene model. Overlay routes own an independent draft, which must
+        // remain isolated until Apply commits it.
+        target = route->route.overlay ? &route->model : &model_;
+    }
+    if (event.field.empty()) return result;
+    auto* field = target->find_field(event.field);
+    if (field == nullptr) {
+        // Scene view-models also expose command-backed controls as plain
+        // scalars. Keep those values in the typed event boundary instead of
+        // requiring every existing scene to duplicate a UiFieldState solely
+        // to forward an action. Plain scalars use the same OnChange policy;
+        // click/submit events are commits for button-like controls.
+        const auto* current = target->find(event.field);
+        if (current == nullptr) return result;
+        result.consumed = true;
+        const auto converted = plain_scalar_value(*current, event.value);
+        if (!converted.has_value()) return result;
+        result.changed = target->set(event.field, *converted);
+        result.value = *target->find(event.field);
+        result.publish = event.phase == UiEventPhase::Change ||
+                         event.phase == UiEventPhase::Click ||
+                         event.phase == UiEventPhase::Submit;
+        return result;
+    }
+    result.consumed = true;
+    if (!field->enabled || !field->visible || field->read_only) return result;
+
+    const UiScalar previous = field->value;
+    bool accepted = false;
+    if (std::holds_alternative<double>(previous) || std::holds_alternative<std::int64_t>(previous)) {
+        const std::string text = std::visit([](const auto& value) -> std::string {
+            using Value = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Value, double> || std::is_same_v<Value, std::int64_t>)
+                return std::to_string(value);
+            if constexpr (std::is_same_v<Value, std::string>) return value;
+            return {};
+        }, event.value);
+        (void)target->apply_number(event.field, text);
+        field = target->find_field(event.field);
+        accepted = field != nullptr && field->error.empty();
+    } else if (!field->options.empty()) {
+        const auto* value = std::get_if<std::string>(&event.value);
+        if (value != nullptr) {
+            (void)target->apply_option(event.field, *value);
+            field = target->find_field(event.field);
+            accepted = field != nullptr && field->error.empty();
+        }
+    } else if (std::holds_alternative<bool>(previous) && std::holds_alternative<bool>(event.value)) {
+        (void)target->set(event.field, event.value);
+        accepted = true;
+    } else if (std::holds_alternative<std::string>(previous) &&
+               std::holds_alternative<std::string>(event.value)) {
+        (void)target->set(event.field, event.value);
+        accepted = true;
+    }
+    if (!accepted) return result;
+    field = target->find_field(event.field);
+    result.value = field->value;
+    result.changed = previous != field->value;
+    switch (field->commit_policy) {
+    case UiCommitPolicy::Live:
+        result.publish = result.changed;
+        break;
+    case UiCommitPolicy::OnChange:
+        result.publish = event.phase == UiEventPhase::Change ||
+                         event.phase == UiEventPhase::Click ||
+                         event.phase == UiEventPhase::Submit;
+        break;
+    case UiCommitPolicy::Explicit:
+        result.publish = false;
+        break;
+    }
+    return result;
 }
 
 const UiRenderFrame& UiRuntime::frame() const noexcept {

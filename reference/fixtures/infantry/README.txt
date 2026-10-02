@@ -19,9 +19,11 @@ Families:
     ik_ground_contact_profiles.json
     face_expression_profiles.json
     animation_lod_profiles.json
+    animation_transition_profiles.json
     damage_ragdoll_profiles.json
 
 Native coverage:
     infantry.reference_parity
     infantry.animation_parallel
+    infantry.animation_transition
     infantry.damage_ragdoll

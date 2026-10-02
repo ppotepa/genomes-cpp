@@ -1,6 +1,7 @@
 #include "RmlUiRuntime.hpp"
 
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/Math.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core/Elements/ElementFormControlInput.h>
 #include <RmlUi/Core/Elements/ElementFormControlSelect.h>
@@ -157,14 +158,62 @@ bool SystemAdapter::LogMessage(Rml::Log::Type type, const Rml::String& message) 
 }
 
 void ActionListener::ProcessEvent(Rml::Event& event) {
+    // RmlUi range/select controls emit change while data views set their value.
+    // These are model-to-view updates, not user commands (phase would pause playback).
+    if (model_update_) {
+        auto* target = event.GetTargetElement();
+        // Slider repeats run during Context::Update too. RmlUi dispatches their
+        // new value BEFORE changing the attribute; a data-value update dispatches
+        // AFTER changing it. Keep repeats, discard binding feedback.
+        bool slider_repeat = false;
+        if (target != nullptr && event.GetType() == "change" &&
+            target->GetAttribute<Rml::String>("type", "") == "range") {
+            const float minimum = target->GetAttribute<float>("min", 0.0F);
+            const float maximum = target->GetAttribute<float>("max", 100.0F);
+            const float step = target->GetAttribute<float>("step", 1.0F);
+            const float value = target->GetAttribute<float>("value", 0.0F);
+            // Match WidgetSlider::SetValue, including sub-step playback phases.
+            const float rounded = step > 0.0F
+                ? minimum + Rml::Math::Round((value-minimum)/step)*step : value;
+            const float bound_value = std::clamp(rounded, std::min(minimum, maximum),
+                                                std::max(minimum, maximum));
+            slider_repeat = event.GetParameter<float>("value", bound_value) != bound_value;
+        }
+        if (!slider_repeat) return;
+    }
     if (event.GetType() != "click" && event.GetType() != "change" &&
         event.GetType() != "input" && event.GetType() != "submit") return;
     auto* element = event.GetTargetElement();
     if (element == nullptr) element = event.GetCurrentElement();
     if (element == nullptr) return;
+    // Events bubble from labels and decorative spans. Resolve the nearest
+    // semantic owner so nested content behaves exactly like the control.
+    for (auto* candidate = element; candidate != nullptr; candidate = candidate->GetParentNode()) {
+        if (candidate->HasAttribute("data-control") || candidate->HasAttribute("data-action") ||
+            candidate->HasAttribute("data-file-dialog") || candidate->HasAttribute("data-disclosure")) {
+            element = candidate;
+            break;
+        }
+        if (candidate == event.GetCurrentElement()) break;
+    }
     if (!element->IsVisible(true)) return;
     if (const auto* control = dynamic_cast<const Rml::ElementFormControl*>(element);
         control != nullptr && control->IsDisabled()) return;
+    if (event.GetType() == "click" && element->HasAttribute("data-disclosure")) {
+        const bool open = element->GetAttribute<bool>("aria-expanded", false);
+        element->SetAttribute("aria-expanded", open ? "false" : "true");
+        auto* container = element->GetParentNode();
+        while (container != nullptr && !container->IsClassSet("disclosure"))
+            container = container->GetParentNode();
+        if (container != nullptr) {
+            if (open) container->RemoveAttribute("open");
+            else container->SetAttribute("open", "open");
+            if (auto* body = container->QuerySelector(".disclosure-body"); body != nullptr)
+                body->SetProperty("display", open ? "none" : "block");
+        }
+        event.StopImmediatePropagation();
+        return;
+    }
     if (event.GetType() == "click" && file_dialog_service_ != nullptr) {
         if (const auto* mode_attribute = element->GetAttribute("data-file-dialog");
             mode_attribute != nullptr) {
@@ -183,8 +232,14 @@ void ActionListener::ProcessEvent(Rml::Event& event) {
                 typed.route_id = route_id_;
                 typed.control = element->GetAttribute("data-control") != nullptr
                     ? element->GetAttribute("data-control")->Get<Rml::String>() : "";
-                typed.field = element->GetAttribute("data-field") != nullptr
-                    ? element->GetAttribute("data-field")->Get<Rml::String>() : "";
+                // Genome rows use a generated gene id as data-field.  It is
+                // an action argument, not a UiDataModel field; forwarding it
+                // would make GameApplication reject the event before the
+                // scene can apply the override.
+                if (typed.control != "unit.genome") {
+                    typed.field = element->GetAttribute("data-field") != nullptr
+                        ? element->GetAttribute("data-field")->Get<Rml::String>() : "";
+                }
                 typed.phase = UiEventPhase::Click;
                 typed.route_revision = route_revision_;
                 typed.value = *selected;
@@ -201,8 +256,10 @@ void ActionListener::ProcessEvent(Rml::Event& event) {
         typed.route_revision = route_revision_;
         if (const auto* control = element->GetAttribute("data-control"); control != nullptr)
             typed.control = control->Get<Rml::String>();
-        if (const auto* field = element->GetAttribute("data-field"); field != nullptr)
-            typed.field = field->Get<Rml::String>();
+        if (typed.control != "unit.genome") {
+            if (const auto* field = element->GetAttribute("data-field"); field != nullptr)
+                typed.field = field->Get<Rml::String>();
+        }
         if (const auto* key = element->GetAttribute("data-key"); key != nullptr)
             typed.arguments.emplace_back("key", key->Get<Rml::String>());
         if (const auto* value = element->GetAttribute("value"); value != nullptr)
@@ -239,6 +296,12 @@ void ActionListener::ProcessEvent(Rml::Event& event) {
         else if (event.GetType() == "change") typed.phase = UiEventPhase::Change;
         else if (event.GetType() == "submit") typed.phase = UiEventPhase::Submit;
         if (!typed.control.empty() && event_router_(typed) == UiActionResult::Handled) {
+            if (typed.control == "unit.tab" && event.GetType() == "click") {
+                if (auto* document = element->GetOwnerDocument(); document != nullptr) {
+                    if (auto* scroll = document->QuerySelector(".unit-inspector-scroll"); scroll != nullptr)
+                        scroll->SetScrollTop(0.0F);
+                }
+            }
             event.StopImmediatePropagation();
             return;
         }
@@ -292,7 +355,10 @@ Runtime::~Runtime() {
 const UiRenderFrame& Runtime::update(double delta_seconds) {
     frame_.commands.clear();
     if (context_ != nullptr) {
+        // Model data views may emit synthetic control changes while updating.
+        action_listener_.set_model_update(true);
         context_->Update();
+        action_listener_.set_model_update(false);
         context_->Render();
     }
     frame_.revision += static_cast<std::uint64_t>(std::max(0.0, delta_seconds) > 0.0 ? 1 : 0);
@@ -357,6 +423,11 @@ bool Runtime::process_event(const input::Event& event) {
                                          static_cast<int>(event.y), 0);
         return !context_->ProcessMouseButtonUp(event.mouse_button - 1, 0);
     case input::EventType::MouseWheel:
+        // ProcessMouseWheel uses RmlUi's current hover element. SDL wheel
+        // events carry the last pointer position explicitly, so refresh the
+        // hover state before dispatching the scroll delta.
+        (void)context_->ProcessMouseMove(static_cast<int>(event.x),
+                                         static_cast<int>(event.y), 0);
         return !context_->ProcessMouseWheel({event.wheel_x, event.wheel_y}, 0);
     case input::EventType::WindowResize:
     case input::EventType::TextInputStart:
@@ -527,6 +598,24 @@ bool Runtime::push_document(const std::filesystem::path& relative_path) {
     document->AddEventListener("input", &action_listener_);
     document->AddEventListener("change", &action_listener_);
     document->AddEventListener("submit", &action_listener_);
+    // Register semantic owners directly as well as on the document. RmlUi
+    // does not guarantee that a click originating in a nested inline element
+    // will bubble through a custom element tree in the same way as native
+    // HTML, so direct registration keeps nested labels and spans reliable.
+    Rml::ElementList semantic_elements;
+    document->QuerySelectorAll(semantic_elements, "[data-action]");
+    document->QuerySelectorAll(semantic_elements, "[data-control]");
+    document->QuerySelectorAll(semantic_elements, "[data-disclosure]");
+    document->QuerySelectorAll(semantic_elements, "[data-file-dialog]");
+    std::sort(semantic_elements.begin(), semantic_elements.end());
+    semantic_elements.erase(std::unique(semantic_elements.begin(), semantic_elements.end()),
+                            semantic_elements.end());
+    for (auto* semantic : semantic_elements) {
+        semantic->AddEventListener("click", &action_listener_);
+        semantic->AddEventListener("input", &action_listener_);
+        semantic->AddEventListener("change", &action_listener_);
+        semantic->AddEventListener("submit", &action_listener_);
+    }
     return true;
 }
 
@@ -552,8 +641,16 @@ std::optional<UiViewportMetrics> Runtime::element_viewport_metrics(
 
 void Runtime::set_model(const UiDataModel& model) {
     model.for_each_field([this](std::string_view key, const UiFieldState& field) {
-        (void)set_text(key, scalar_text(field.value));
+        const auto text = scalar_text(field.value);
+        (void)set_text(key, text);
         (void)set_text(std::string{key} + "_error", field.error);
+        if (key == "status_compact" && modal_document_ != nullptr) {
+            if (auto* status = modal_document_->QuerySelector(".status-chip"); status != nullptr) {
+                status->SetClass("status-ready", text == "Ready");
+                status->SetClass("status-updating", text == "Updating");
+                status->SetClass("status-error", text == "Error");
+            }
+        }
         for (auto& route : route_models_) {
             set_route_scalar(*route, key, field.value);
             set_route_scalar(*route, std::string{key} + "_error", UiScalar{field.error});
@@ -638,15 +735,12 @@ void Runtime::set_route_scalar(RouteModel& route, std::string_view key, const Ui
 void Runtime::set_route_models(const UiRuntime& runtime) {
     const auto& states = runtime.route_controllers();
     for (std::size_t index = 0; index < states.size() && index < route_models_.size(); ++index) {
+        if (!states[index].route.overlay) continue;
         auto& target = *route_models_[index];
-        states[index].model.for_each_field([this, &target, &runtime](std::string_view key, const UiFieldState& field) {
-            // Scene ViewModels publish their fields into the shared model. The
-            // route model is an overlay: only fields that are not supplied by
-            // the current scene may replace that snapshot (for example a
-            // controller-owned diagnostic field). This keeps base-scene HUD
-            // values live while preserving independent overlay state.
-            if (runtime.model().find_field(key) != nullptr || runtime.model().find(key) != nullptr)
-                return;
+        states[index].model.for_each_field([this, &target](std::string_view key, const UiFieldState& field) {
+            // Overlay controllers own a draft snapshot. Base routes continue
+            // to receive the live scene model through set_model(), while an
+            // overlay may shadow the same key until Apply or Cancel.
             set_route_scalar(target, key, field.value);
         });
     }

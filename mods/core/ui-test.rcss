@@ -1,8 +1,16 @@
-body { pointer-events: none; background-color: #070d16; }
-.gallery { pointer-events: auto; position: absolute; left: 3%; top: 3%; width: 94%; height: 94%; padding: 30dp 34dp; overflow-y: auto; }
-.gallery-grid { display: flex; flex-wrap: wrap; }
-.gallery-section { box-sizing: border-box; width: 48%; margin: 1%; padding: 18dp; background-color: #0c1622; border: 1dp #233448; border-radius: 8dp; }
+body { pointer-events: none; width: 100%; height: 100%; background-color: #12151b; }
+.gallery { pointer-events: auto; position: absolute; left: 3%; top: 3%; width: 94%; height: 94%; padding: 18dp 22dp; overflow-y: auto; }
+.gallery-grid, .gallery-section, .button-demo, .button-demo span { pointer-events: auto; }
+.button-demo button { position: relative; min-width: 90dp; }
+.gallery-grid { display: flex; flex-wrap: wrap; margin: -4dp; }
+.gallery-section { box-sizing: border-box; width: 48%; margin: 4dp; padding: 12dp; background-color: #181c24; border: 1dp #233448; }
+.gallery-section .field { margin-bottom: 6dp; }
+.gallery-section .field-label { flex-basis: 112dp; width: 112dp; }
+.gallery-section .check-row { padding-left: 112dp; }
+.gallery-section .validation { padding-left: 112dp; }
 .gallery-section.wide { width: 98%; }
 .button-demo { display: flex; flex-wrap: wrap; }
 .button-demo button { margin-right: 7dp; }
-button, input, select, details, .tabs, .scroll-panel, .file-picker, table { pointer-events: auto; }
+button, input, select, details, .tabs, .file-picker, table { pointer-events: auto; }
+
+@media (max-width: 1000dp) { .gallery-section, .gallery-section.wide { width: 98%; } }

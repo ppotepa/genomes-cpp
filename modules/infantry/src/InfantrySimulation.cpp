@@ -195,6 +195,20 @@ void InfantrySimulation::emitCombatEvents(foundation::SimulationTick tick,
     });
 }
 
+bool InfantrySimulation::readWeaponHandlingView(
+    simulation::EntityId entity, InfantryWeaponHandlingView& output) const noexcept {
+    const Agent* record = agent(entity);
+    if (record == nullptr) {
+        return false;
+    }
+    const foundation::Vec3* velocity = entities_.velocity(entity);
+    if (velocity == nullptr) {
+        return false;
+    }
+    output = {entity, record->target, *velocity, record->genome.height, record->state};
+    return output.valid();
+}
+
 void InfantrySimulation::perceive(foundation::SimulationTick tick) noexcept {
     std::vector<simulation::EntityId> observers;
     observers.reserve(entities_.size());

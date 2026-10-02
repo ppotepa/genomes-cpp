@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cctype>
 #include <string>
 #include <string_view>
 #include <span>
@@ -29,10 +30,13 @@ UnitLabViewport unitLabViewport(int framebuffer_width, int framebuffer_height,
     const float width = static_cast<float>(std::max(1, framebuffer_width));
     const float height = static_cast<float>(std::max(1, framebuffer_height));
     const float scale = static_cast<float>(std::clamp(ui_scale, 0.75, 1.50));
-    const float rail = 68.0F * scale;
-    const float inspector = 340.0F * scale;
-    const float top = (56.0F + 48.0F) * scale;
-    const float caption = 34.0F * scale;
+    const float logical_width = width / scale;
+    const float rail = 52.0F * scale;
+    const float inspector = logical_width >= 1700.0F ? 380.0F * scale
+        : logical_width <= 1400.0F ? 336.0F * scale : 360.0F * scale;
+    const float toolbar = logical_width <= 1400.0F ? 68.0F : 44.0F;
+    const float top = (46.0F + toolbar) * scale;
+    const float caption = 28.0F * scale;
     const float free_center_x = (rail + width - inspector) * 0.5F;
     const float free_center_y = (top + height - caption) * 0.5F;
     return {0.0F, 0.0F, 1.0F, 1.0F,
@@ -56,6 +60,26 @@ template <typename T>
     }();
     return converted.ec == std::errc{} ? std::string{buffer.data(), converted.ptr}
                                         : std::string{};
+}
+
+[[nodiscard]] std::string presentationName(std::string_view identifier) {
+    std::string result;
+    result.reserve(identifier.size() + 8U);
+    bool capitalize = true;
+    for (const char character : identifier) {
+        if (character == '_' || character == '-' || character == '.') {
+            if (!result.empty() && result.back() != ' ') result.push_back(' ');
+            capitalize = true;
+            continue;
+        }
+        if (std::isupper(static_cast<unsigned char>(character)) && !result.empty() &&
+            result.back() != ' ')
+            result.push_back(' ');
+        result.push_back(capitalize ? static_cast<char>(std::toupper(
+            static_cast<unsigned char>(character))) : character);
+        capitalize = false;
+    }
+    return result;
 }
 
 [[nodiscard]] Vec3 add(Vec3 a, Vec3 b) noexcept {
@@ -122,6 +146,22 @@ struct DebugBoneTransform final {
             value.x * sine + value.z * cosine};
 }
 
+[[nodiscard]] infantry::AnimationTransitionProfile previewTransitionProfile(
+    const infantry::LocomotionState& state, float seconds) noexcept {
+    auto profile = state.transition_profile;
+    profile.locomotion_seconds = seconds;
+    profile.crouch_seconds = seconds;
+    profile.crouch_walk_seconds = seconds;
+    profile.sitting_seconds = seconds;
+    profile.prone_crouch_seconds = seconds;
+    profile.prone_support_seconds = seconds;
+    profile.prone_seconds = seconds;
+    profile.prone_exit_support_seconds = seconds;
+    profile.prone_exit_crouch_seconds = seconds;
+    profile.prone_exit_seconds = seconds;
+    return profile;
+}
+
 } // namespace
 
 UnitLabScene::~UnitLabScene() {
@@ -159,8 +199,26 @@ bool UnitLabScene::applyCommand(SceneContext&, SetLocomotionPreset command) {
     if (static_cast<std::uint8_t>(command.value) >
         static_cast<std::uint8_t>(infantry::BipedPreset::CrouchWalk) ||
         !locomotion_ || !locomotion_state_) return false;
-    if (!locomotion_->setPreset(*locomotion_state_, command.value)) return false;
+    const auto profile = previewTransitionProfile(*locomotion_state_,
+                                                   animation_transition_seconds_);
+    if (!locomotion_->setTransitionProfile(*locomotion_state_, profile) ||
+        !locomotion_->setPreset(*locomotion_state_, command.value)) return false;
+    locomotion_crouch_ = locomotion_state_->requested_crouch;
+    locomotion_speed_mps_ = locomotion_state_->requested_speed_mps;
     markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Ui);
+    return true;
+}
+
+bool UnitLabScene::applyCommand(SceneContext&, SetAnimationState command) {
+    if (!locomotion_ || !locomotion_state_) return false;
+    const auto profile = previewTransitionProfile(*locomotion_state_,
+                                                   animation_transition_seconds_);
+    if (!locomotion_->setState(*locomotion_state_, command.value, false, profile)) return false;
+    locomotion_crouch_ = locomotion_state_->requested_crouch;
+    locomotion_speed_mps_ = locomotion_state_->requested_speed_mps;
+    markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Ui);
     return true;
 }
 
@@ -216,6 +274,41 @@ bool UnitLabScene::applyCommand(SceneContext&, SetAppearancePreset command) {
     return true;
 }
 
+void UnitLabScene::seekAnimation(float phase) noexcept {
+    if (!locomotion_state_) return;
+    if (locomotion_) {
+        const auto profile = previewTransitionProfile(*locomotion_state_,
+                                                       animation_transition_seconds_);
+        (void)locomotion_->setTransitionProfile(*locomotion_state_, profile);
+    }
+    transition_runtime_.reset();
+    locomotion_state_->animation_snap_requested = true;
+    ++locomotion_state_->animation_request_revision;
+    locomotion_state_->transition_active = false;
+    locomotion_state_->transition_stage = infantry::AnimationTransitionStage::None;
+    locomotion_state_->transition_progress = 1.0F;
+    locomotion_state_->transition_stage_progress = 1.0F;
+    locomotion_state_->phase = std::clamp(phase, 0.0F, 0.99F);
+    animation_paused_ = true;
+    if (animation_system_ && locomotion_ && model_artifact_) {
+        infantry::AnimationEntity entity{};
+        entity.semantic_id = foundation::stable_id("unit-lab.infantry");
+        entity.skeleton = &model_artifact_->skeleton;
+        entity.surface = &model_artifact_->appearance.body;
+        entity.gear = &model_artifact_->gear;
+        entity.locomotion = &*locomotion_;
+        entity.locomotion_state = &*locomotion_state_;
+        entity.transition_runtime = &transition_runtime_;
+        entity.face = face_animator_ ? &*face_animator_ : nullptr;
+        const auto evaluated = animation_system_->evaluate(
+            std::span<infantry::AnimationEntity>(&entity, 1U), fixed_tick_, 1.0F / 60.0F, nullptr);
+        if (evaluated && !animation_system_->currentSnapshot().poses.empty())
+            animation_pose_ = animation_system_->currentSnapshot().poses.front();
+    }
+    markDirty(UnitLabDirtyFlag::Pose);
+    markDirty(UnitLabDirtyFlag::Ui);
+}
+
 bool UnitLabScene::applyCommand(SceneContext& context, const UnitLabCommand& command) {
     return std::visit([this, &context](const auto& typed) {
         return applyCommand(context, typed);
@@ -234,13 +327,13 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
     case Control::ToggleSkeleton: show_skeleton_ = !show_skeleton_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::ToggleBounds: show_bounds_ = !show_bounds_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::ToggleNormals: show_normals_ = !show_normals_; markDirty(UnitLabDirtyFlag::Presentation); markDirty(UnitLabDirtyFlag::Ui); break;
-    case Control::TogglePause: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); break;
+    case Control::TogglePause: animation_paused_ = !animation_paused_; markDirty(UnitLabDirtyFlag::Pose); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::CycleExpression:
         expression_ = static_cast<infantry::FaceExpression>(
             (static_cast<std::uint8_t>(expression_) + 1U) % infantry::kFaceExpressionCount);
         expression_intensity_ = expression_ == infantry::FaceExpression::Neutral ? 0.0F : 1.0F;
         if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
-        markDirty(UnitLabDirtyFlag::Pose); break;
+        markDirty(UnitLabDirtyFlag::Pose); markDirty(UnitLabDirtyFlag::Ui); break;
     case Control::CycleWeightBone:
         debug_weight_bone_ = debug_weight_bone_
             ? static_cast<infantry::BoneId>((static_cast<std::uint16_t>(*debug_weight_bone_) + 1U) % infantry::kRigBoneCount)
@@ -287,7 +380,7 @@ bool UnitLabScene::executeControl(SceneContext& context, Control control) {
             expression_intensity_ += 0.25F;
             if (expression_intensity_ > 1.001F) expression_intensity_ = 0.25F;
             if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
-            markDirty(UnitLabDirtyFlag::Pose);
+            markDirty(UnitLabDirtyFlag::Pose); markDirty(UnitLabDirtyFlag::Ui);
         }
         break;
     case Control::NextGenomeGene: {
@@ -367,6 +460,22 @@ void UnitLabScene::publishModelResult(
         markDirty(UnitLabDirtyFlag::Ui);
         return;
     }
+    // Regeneration must not reset the editor's transport position.  The model
+    // can be rebuilt while the user is scrubbing or switching gait, so carry
+    // the transport state across the short-lived animation graph rebuild.
+    const auto previous_preset = locomotion_state_
+        ? std::optional<infantry::BipedPreset>{locomotion_state_->preset}
+        : std::nullopt;
+    const auto previous_animation_state = locomotion_state_
+        ? std::optional<infantry::AnimationState>{locomotion_state_->requested_state}
+        : std::nullopt;
+    const float previous_crouch = locomotion_state_
+        ? locomotion_state_->requested_crouch : locomotion_crouch_;
+    const float previous_speed = locomotion_state_
+        ? locomotion_state_->requested_speed_mps : locomotion_speed_mps_;
+    const auto previous_phase = locomotion_state_ ? locomotion_state_->phase : 0.0;
+    const bool previous_paused = animation_paused_;
+
     model_artifact_ = std::move(compiled.value().artifact);
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
@@ -379,14 +488,31 @@ void UnitLabScene::publishModelResult(
             model_artifact_->phenotype.body); locomotion) {
         locomotion_ = std::move(locomotion.value());
         locomotion_state_ = locomotion_->initialState();
+        if (previous_animation_state &&
+            *previous_animation_state != infantry::AnimationState::IDLE &&
+            *previous_animation_state != infantry::AnimationState::WALK &&
+            *previous_animation_state != infantry::AnimationState::RUN &&
+            *previous_animation_state != infantry::AnimationState::CROUCH &&
+            *previous_animation_state != infantry::AnimationState::CROUCH_WALK) {
+            (void)locomotion_->setState(*locomotion_state_, *previous_animation_state, true);
+        } else if (previous_preset) {
+            (void)locomotion_->setPreset(*locomotion_state_, *previous_preset, true);
+        }
+        locomotion_crouch_ = previous_crouch;
+        locomotion_speed_mps_ = previous_speed;
+        locomotion_state_->phase = std::clamp(previous_phase, 0.0, 0.99);
     }
     if (auto face = infantry::FaceAnimator::create(
             preview_seed_, model_artifact_->phenotype.face); face) {
         face_animator_ = std::move(face.value());
+        (void)face_animator_->setExpression(expression_, expression_intensity_);
     }
     if (auto animation = infantry::AnimationSystem::create(1U); animation) {
         animation_system_ = std::move(animation.value());
     }
+    transition_runtime_.reset();
+    animation_paused_ = previous_paused;
+    if (animation_paused_) seekAnimation(static_cast<float>(previous_phase));
     last_generation_error_.reset();
     markDirty(UnitLabDirtyFlag::Geometry);
     markDirty(UnitLabDirtyFlag::Material);
@@ -619,9 +745,18 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
                                             std::chars_format::general);
         if (!locomotion_state_ || parsed.ec != std::errc{} || !std::isfinite(value))
             return ui::UiActionResult::Rejected;
-        locomotion_state_->phase = std::clamp(value, 0.0, 1.0);
-        animation_paused_ = true;
-        markDirty(UnitLabDirtyFlag::Pose);
+        seekAnimation(static_cast<float>(value));
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.animation-reset")) {
+        seekAnimation(0.0F);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.animation-step-back") ||
+        action == foundation::stable_id("unit.animation-step-forward")) {
+        const float delta = action == foundation::stable_id("unit.animation-step-forward")
+            ? 1.0F / 24.0F : -1.0F / 24.0F;
+        seekAnimation((locomotion_state_ ? locomotion_state_->phase : 0.0F) + delta);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.animation-speed")) {
@@ -631,6 +766,40 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
             !std::isfinite(value)) return ui::UiActionResult::Rejected;
         animation_speed_ = std::clamp(static_cast<float>(value), 0.0F, 2.0F);
+        markDirty(UnitLabDirtyFlag::Pose);
+        markDirty(UnitLabDirtyFlag::Ui);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("unit.locomotion-crouch") ||
+        action == foundation::stable_id("unit.locomotion-speed") ||
+        action == foundation::stable_id("unit.animation-transition")) {
+        double value = 0.0;
+        const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value,
+                                            std::chars_format::general);
+        if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() ||
+            !std::isfinite(value)) return ui::UiActionResult::Rejected;
+        if (action == foundation::stable_id("unit.locomotion-crouch")) {
+            locomotion_crouch_ = std::clamp(static_cast<float>(value), 0.0F, 1.0F);
+        } else if (action == foundation::stable_id("unit.locomotion-speed")) {
+            const float maximum = model_artifact_ ? model_artifact_->phenotype.body.run_speed : 4.2F;
+            locomotion_speed_mps_ = std::clamp(static_cast<float>(value), 0.0F, maximum);
+        } else {
+            animation_transition_seconds_ = std::clamp(static_cast<float>(value), 0.0F, 1.5F);
+            if (locomotion_ && locomotion_state_) {
+                const auto profile = previewTransitionProfile(
+                    *locomotion_state_, animation_transition_seconds_);
+                (void)locomotion_->setTransitionProfile(*locomotion_state_, profile);
+                transition_runtime_.reset();
+                locomotion_state_->animation_snap_requested = true;
+                ++locomotion_state_->animation_request_revision;
+                locomotion_state_->transition_active = false;
+                locomotion_state_->transition_stage = infantry::AnimationTransitionStage::None;
+                locomotion_state_->transition_progress = 1.0F;
+                locomotion_state_->transition_stage_progress = 1.0F;
+            }
+        }
+        markDirty(UnitLabDirtyFlag::Pose);
+        markDirty(UnitLabDirtyFlag::Ui);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.palette")) {
@@ -704,10 +873,14 @@ ui::UiActionResult UnitLabScene::handle_ui_action(
         expression_intensity_ = std::clamp(static_cast<float>(value), 0.0F, 1.0F);
         if (face_animator_) (void)face_animator_->setExpression(expression_, expression_intensity_);
         markDirty(UnitLabDirtyFlag::Pose);
+        markDirty(UnitLabDirtyFlag::Ui);
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("unit.genome-clear") && !key_of().empty()) {
-        const auto gene = infantry::genomeGeneFromName(key_of());
+        std::string_view gene_name = key_of();
+        if (gene_name == "height") gene_name = "heightGene";
+        else if (gene_name == "speed") gene_name = "speedGene";
+        const auto gene = infantry::genomeGeneFromName(gene_name);
         if (!gene) return ui::UiActionResult::Rejected;
         genome_overrides_.genes[static_cast<std::size_t>(*gene)].reset();
         rebuildModel(&context);
@@ -747,6 +920,11 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
         ++fixed_tick_;
         elapsed_seconds_ = static_cast<double>(fixed_tick_) * fixed_dt;
         if (!animation_paused_ && locomotion_ && locomotion_state_) {
+            const auto profile = previewTransitionProfile(
+                *locomotion_state_, animation_transition_seconds_);
+            (void)locomotion_->setTransitionProfile(*locomotion_state_, profile);
+            (void)locomotion_->setRequested(
+                *locomotion_state_, {{locomotion_crouch_}, {locomotion_speed_mps_}, std::nullopt});
             (void)locomotion_->step(*locomotion_state_, fixed_dt * animation_speed_);
         }
         if (!animation_paused_ && animation_system_ && locomotion_ && locomotion_state_ && model_artifact_) {
@@ -754,8 +932,10 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
             entity.semantic_id = foundation::stable_id("unit-lab.infantry");
             entity.skeleton = &model_artifact_->skeleton;
             entity.surface = &model_artifact_->appearance.body;
+            entity.gear = &model_artifact_->gear;
             entity.locomotion = &*locomotion_;
             entity.locomotion_state = &*locomotion_state_;
+            entity.transition_runtime = &transition_runtime_;
             entity.face = face_animator_ ? &*face_animator_ : nullptr;
             (void)animation_system_->evaluate(
                 std::span<infantry::AnimationEntity>(&entity, 1U), fixed_tick_,
@@ -787,6 +967,10 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
                 }
             }
             const auto completion = model_request_gate_.complete({revision, request_key});
+            // Release the completed job before starting the queued request;
+            // otherwise the cleanup below can erase the new job handle.
+            model_job_ = {};
+            pending_model_result_.reset();
             if (result && completion.action == UnitLabModelRequestAction::Publish) {
                 publishModelResult(std::move(*result));
             }
@@ -797,8 +981,8 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
                 startModelRequest(context, std::move(request), completion.next);
             }
         }
-        model_job_ = {};
-        pending_model_result_.reset();
+        // The completed handle was released above. A queued request, when
+        // present, now owns the live model_job_ and pending result.
     }
     if (!dirty_.contains(UnitLabDirtyFlag::Ui)) return;
     dirty_.clear(UnitLabDirtyFlag::Ui);
@@ -866,6 +1050,57 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
     (void)model.set("description", std::string{"Procedural infantry prototypes"});
     (void)model.set("metrics", std::move(metrics));
     (void)model.set("seed", numberText(preview_seed_));
+    static constexpr std::array<std::string_view, 3> side_names{"Side A", "Side B", "Neutral"};
+    static constexpr std::array<std::string_view, 6> camera_names{
+        "Three quarter", "Front", "Side", "Back", "Face", "Hands"};
+    static constexpr std::array<std::string_view, 4> palette_names{"Standard", "Forest", "Field", "Night"};
+    static constexpr std::array<std::string_view, 5> locomotion_names{
+        "Idle", "Walk", "Run", "Crouch", "Crouch Walk"};
+    static constexpr std::array<std::string_view, infantry::kFaceExpressionCount> expression_names{
+        "Neutral", "Alert", "Fear", "Anger", "Pain", "Fatigue", "Eyes closed"};
+    (void)model.set("side", std::string{side_names[static_cast<std::size_t>(side_)]});
+    (void)model.set("camera", std::string{camera_names[static_cast<std::size_t>(camera_mode_)]});
+    (void)model.set("palette", std::string{palette_names[palette_index_ % palette_names.size()]});
+    std::string locomotion_label{locomotion_names[static_cast<std::size_t>(
+        locomotion_state_ ? locomotion_state_->preset : infantry::BipedPreset::Idle)]};
+    if (locomotion_state_) {
+        switch (locomotion_state_->requested_state) {
+        case infantry::AnimationState::REST: locomotion_label = "Rest"; break;
+        case infantry::AnimationState::SITTING: locomotion_label = "Sitting"; break;
+        case infantry::AnimationState::PRONE: locomotion_label = "Prone"; break;
+        case infantry::AnimationState::PRONE_MOVE: locomotion_label = "Prone Move"; break;
+        default: break;
+        }
+    }
+    (void)model.set("locomotion", std::move(locomotion_label));
+    (void)model.set("locomotion_requested_crouch", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->requested_crouch : locomotion_crouch_));
+    (void)model.set("locomotion_requested_speed", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->requested_speed_mps : locomotion_speed_mps_));
+    (void)model.set("locomotion_actual_crouch", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->actual_crouch : 0.0F));
+    (void)model.set("locomotion_actual_speed", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->actual_speed_mps : 0.0F));
+    (void)model.set("locomotion_run_weight", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->run_weight : 0.0F));
+    (void)model.set("locomotion_sprint_weight", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->sprint_weight : 0.0F));
+    (void)model.set("locomotion_transition_progress", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->transition_progress : 1.0F));
+    (void)model.set("locomotion_transition_stage_progress", static_cast<double>(
+        locomotion_state_ ? locomotion_state_->transition_stage_progress : 1.0F));
+    std::string transition_stage = "None";
+    if (locomotion_state_) {
+        switch (locomotion_state_->transition_stage) {
+        case infantry::AnimationTransitionStage::Crouch: transition_stage = "Crouch"; break;
+        case infantry::AnimationTransitionStage::Support: transition_stage = "Support"; break;
+        case infantry::AnimationTransitionStage::Target: transition_stage = "Target"; break;
+        case infantry::AnimationTransitionStage::None: break;
+        }
+    }
+    (void)model.set("locomotion_transition_stage", std::move(transition_stage));
+    (void)model.set("expression", std::string{expression_names[static_cast<std::size_t>(expression_)]});
+    (void)model.set("appearance_preset", std::string{"inspection-olive"});
     ui::UiFieldState detail{}; detail.value = static_cast<std::int64_t>(detail_level_);
     detail.commit_policy = ui::UiCommitPolicy::OnChange; detail.minimum = 1.0; detail.maximum = 3.0;
     (void)model.set_field("detail", std::move(detail));
@@ -884,13 +1119,49 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
     for (std::size_t index = 0; index < tab_names.size(); ++index)
         (void)model.set("tab_" + std::string{tab_names[index]}, index == active_tab_);
     (void)model.set("wear", static_cast<double>(equipment_wear_));
-    (void)model.set("animation_speed", static_cast<double>(animation_speed_));
-    (void)model.set("animation_phase", locomotion_state_ ? locomotion_state_->phase : 0.0);
-    (void)model.set("expression_intensity", static_cast<double>(expression_intensity_));
+    ui::UiFieldState animation_speed{};
+    animation_speed.value = static_cast<double>(animation_speed_);
+    animation_speed.commit_policy = ui::UiCommitPolicy::Live;
+    animation_speed.minimum = 0.0; animation_speed.maximum = 2.0; animation_speed.step = 0.05;
+    (void)model.set_field("animation_speed", std::move(animation_speed));
+    ui::UiFieldState animation_phase{};
+    animation_phase.value = locomotion_state_ ? locomotion_state_->phase : 0.0;
+    animation_phase.commit_policy = ui::UiCommitPolicy::Live;
+    animation_phase.minimum = 0.0; animation_phase.maximum = 0.99; animation_phase.step = 0.01;
+    (void)model.set_field("animation_phase", std::move(animation_phase));
+    ui::UiFieldState locomotion_crouch{};
+    locomotion_crouch.value = static_cast<double>(locomotion_state_
+        ? locomotion_state_->requested_crouch : locomotion_crouch_);
+    locomotion_crouch.commit_policy = ui::UiCommitPolicy::Live;
+    locomotion_crouch.minimum = 0.0; locomotion_crouch.maximum = 1.0; locomotion_crouch.step = 0.01;
+    (void)model.set_field("locomotion_crouch", std::move(locomotion_crouch));
+    ui::UiFieldState locomotion_speed{};
+    locomotion_speed.value = static_cast<double>(locomotion_state_
+        ? locomotion_state_->requested_speed_mps : locomotion_speed_mps_);
+    locomotion_speed.commit_policy = ui::UiCommitPolicy::Live;
+    locomotion_speed.minimum = 0.0;
+    locomotion_speed.maximum = model_artifact_ ? model_artifact_->phenotype.body.run_speed : 4.2;
+    locomotion_speed.step = 0.01;
+    (void)model.set_field("locomotion_speed", std::move(locomotion_speed));
+    ui::UiFieldState transition_seconds{};
+    transition_seconds.value = animation_transition_seconds_;
+    transition_seconds.commit_policy = ui::UiCommitPolicy::Live;
+    transition_seconds.minimum = 0.0; transition_seconds.maximum = 1.5; transition_seconds.step = 0.01;
+    (void)model.set_field("animation_transition_seconds", std::move(transition_seconds));
+    ui::UiFieldState expression_intensity_field{};
+    expression_intensity_field.value = static_cast<double>(expression_intensity_);
+    expression_intensity_field.commit_policy = ui::UiCommitPolicy::Live;
+    expression_intensity_field.minimum = 0.0; expression_intensity_field.maximum = 1.0;
+    expression_intensity_field.step = 0.05;
+    (void)model.set_field("expression_intensity", std::move(expression_intensity_field));
     (void)model.set("expression_intensity_enabled", expression_ != infantry::FaceExpression::Neutral);
     (void)model.set("pause_label", std::string{animation_paused_ ? "Resume" : "Pause"});
     const bool updating = model_job_.valid() && !model_job_.isComplete();
-    (void)model.set("status_compact", std::string{last_generation_error_ ? "Error" : updating ? "Updating" : "Ready"});
+    const bool failed = last_generation_error_.has_value();
+    (void)model.set("status_compact", std::string{failed ? "Error" : updating ? "Updating" : "Ready"});
+    (void)model.set("status_updating", updating);
+    (void)model.set("status_error", failed);
+    (void)model.set("status_ready", !updating && !failed);
     (void)model.set("equipment_seed", model_artifact_
         ? numberText(model_artifact_->equipment.equipment_seed) : std::string{"--"});
 
@@ -904,7 +1175,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         genes.push_back({{"id", std::string{infantry::genomeGeneName(gene)}},
                          {"group", index < 2 ? std::string{"Root"} :
                                    index < 19 ? std::string{"Body"} : std::string{"Face"}},
-                         {"label", std::string{infantry::genomeGeneName(gene)}},
+                         {"label", presentationName(infantry::genomeGeneName(gene))},
                          {"value", value}, {"enabled", true},
                          {"selected", gene == selected_genome_gene_},
                          {"overridden", override.has_value()}});
@@ -931,7 +1202,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
               identifier.find("plate") != std::string_view::npos ? "Armor" :
               identifier.find("pouch") != std::string_view::npos ? "Attachments" : "Apparel";
         slots.push_back({{"id", std::string{definition.identifier}}, {"group", group},
-                         {"label", std::string{definition.identifier}}, {"value", std::move(value)},
+                         {"label", presentationName(definition.identifier)}, {"value", std::move(value)},
                          {"enabled", true}, {"selected", index == selected_equipment_slot_},
                          {"overridden", override.specified}});
     }
@@ -948,7 +1219,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
         for (const auto& item : infantry::EquipmentCatalog::items()) {
             if (!item.allows(slot.slot)) continue;
             equipment_items.push_back({{"id", std::string{item.identifier}},
-                {"group", std::string{slot.identifier}}, {"label", std::string{item.identifier}},
+                {"group", std::string{slot.identifier}}, {"label", presentationName(item.identifier)},
                 {"value", std::string{item.identifier}}, {"enabled", true},
                 {"selected", selected.specified && !selected.empty && selected.definition_id == item.id}});
         }
@@ -972,7 +1243,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
             const std::string parent = bone.parent == infantry::kInvalidBoneIndex
                 ? std::string{"root"} : std::string{schema[bone.parent].name};
             bones.push_back({{"id", numberText(index)}, {"group", std::string{"Hierarchy"}},
-                             {"label", std::string{schema[index].name}},
+                             {"label", presentationName(schema[index].name)},
                              {"value", std::string{"parent: "} + parent},
                              {"enabled", true}, {"selected", debug_weight_bone_ &&
                                 static_cast<std::size_t>(*debug_weight_bone_) == index},

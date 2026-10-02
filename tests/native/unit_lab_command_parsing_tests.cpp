@@ -40,6 +40,11 @@ int main() {
     assert(parseSetLocomotionPreset("Crouch Walk").value().value ==
            infantry::BipedPreset::CrouchWalk);
     assert(!parseSetLocomotionPreset("run "));
+    assert(parseSetAnimationState("REST").value().value == infantry::AnimationState::REST);
+    assert(parseSetAnimationState("Sitting").value().value == infantry::AnimationState::SITTING);
+    assert(parseSetAnimationState("prone-move").value().value ==
+           infantry::AnimationState::PRONE_MOVE);
+    assert(!parseSetAnimationState("walk"));
     assert(parseUnitLabExpression("eyes-closed"));
     assert(parseUnitLabExpression("Eyes closed"));
     assert(parseSetExpression("anger").value().value == infantry::FaceExpression::Anger);
@@ -89,6 +94,9 @@ int main() {
     assert(rml_camera && std::holds_alternative<SetCameraMode>(rml_camera.value()));
     const auto rml_locomotion = parseUnitLabRmlCommand("unit.locomotion", {}, "Run");
     assert(rml_locomotion && std::holds_alternative<SetLocomotionPreset>(rml_locomotion.value()));
+    const auto rml_prone = parseUnitLabRmlCommand("unit.locomotion", {}, "PRONE");
+    assert(rml_prone && std::holds_alternative<SetAnimationState>(rml_prone.value()));
+    assert(std::get<SetAnimationState>(rml_prone.value()).value == infantry::AnimationState::PRONE);
     const auto rml_expression = parseUnitLabRmlCommand("unit.expression", {}, "Anger");
     assert(rml_expression && std::holds_alternative<SetExpression>(rml_expression.value()));
     const auto rml_appearance = parseUnitLabRmlCommand(

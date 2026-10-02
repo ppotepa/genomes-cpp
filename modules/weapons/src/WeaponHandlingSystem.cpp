@@ -190,6 +190,7 @@ foundation::Result<void, foundation::Error> WeaponHandlingSystem::step(
         state.next_fire = foundation::SimulationTick{tick.value + cadence};
         ++state.shot_sequence;
         state.recoil_offset = std::min(1.0F, state.recoil_offset + 0.34F);
+        output.pose.recoil = state.recoil_offset;
         output.fire = FireIntent{input.entity, input.definition->id, input.definition->ammunition_id,
                                  state.shot_sequence, output.pose.muzzle, output.pose.aim_direction, tick};
     }
