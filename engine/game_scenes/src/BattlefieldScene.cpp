@@ -151,6 +151,17 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
+    if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
+        const float map_size = static_cast<float>(config_.map_size_m);
+        camera_request_.preset = camera::CameraPreset::Battlefield;
+        camera_request_.mode = camera::CameraMode::Orbit;
+        camera_request_.position = {map_size * 0.78F, map_size * 0.92F,
+                                    map_size * 0.82F};
+        camera_request_.target = {0.0F, 0.0F, 0.0F};
+        camera_request_.up = {0.0F, 1.0F, 0.0F};
+        camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, map_size * 4.0F)};
+        initialize_infantry_animation();
+    }
 #endif
     if (jobs_ != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
@@ -526,6 +537,12 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
         ? std::string{"1000 vs 1000 deterministic infantry stress scene"}
         : std::string{"Procedural world plan"});
     (void)model.set("error", std::string{});
+    (void)model.set("seed", static_cast<std::int64_t>(config_.seed));
+    (void)model.set("map_size", static_cast<std::int64_t>(config_.map_size_m));
+    (void)model.set("features", mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? std::string{"2000 infantry units in two deterministic formations"}
+        : std::string{"World features pending"});
+    (void)model.set("status", std::string{"Preparing world presentation..."});
     (void)model.set("diagnostics", "Renderer uploads " + std::to_string(context.render_telemetry.mesh_uploads) +
                                   " | palette updates " + std::to_string(context.render_telemetry.palette_updates) +
                                   " | draws " + std::to_string(context.render_telemetry.draw_calls));
@@ -700,15 +717,22 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
     context.presentation.terrain_mesh = render_terrain_mesh_;
     context.presentation.world_mesh = render_world_mesh_;
     if (!plan_) {
-        render_infantry_mesh_.reset();
-        return;
+#if GENOMES_HAS_INFANTRY
+        if (mass_battle_runtime_ == nullptr)
+#endif
+        {
+            render_infantry_mesh_.reset();
+            return;
+        }
     }
 
-    context.presentation.instances.reserve(plan_->features.size());
-    for (const world::WorldFeature& feature : plan_->features) {
-        context.presentation.instances.push_back({feature.id, mesh_id(feature.kind),
-                                                   material_id(feature.kind), feature.position,
-                                                   feature.scale, feature.rotation_y});
+    if (plan_) {
+        context.presentation.instances.reserve(plan_->features.size());
+        for (const world::WorldFeature& feature : plan_->features) {
+            context.presentation.instances.push_back({feature.id, mesh_id(feature.kind),
+                                                       material_id(feature.kind), feature.position,
+                                                       feature.scale, feature.rotation_y});
+        }
     }
 #if GENOMES_HAS_INFANTRY
     if (battlefield_runtime_ != nullptr || mass_battle_runtime_ != nullptr) {

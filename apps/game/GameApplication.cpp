@@ -444,6 +444,8 @@ int GameApplication::run(int argc,char** argv) {
             }
         }
 #if defined(GENOMES_HAS_RMLUI)
+        const auto fps_value = displayed_fps > 0.0 ? displayed_fps : 0.0;
+        (void)ui_.model().set("fps", std::to_string(static_cast<int>(fps_value + 0.5)) + " FPS");
         const auto route_revision=ui_.routes().revision();
         if (route_revision!=rml_route_revision_) {
             std::vector<ui::UiRoute> mounted_routes;
@@ -463,8 +465,6 @@ int GameApplication::run(int argc,char** argv) {
             }
             rml_route_revision_=route_revision;
         }
-        const auto fps_value = displayed_fps > 0.0 ? displayed_fps : 0.0;
-        (void)ui_.model().set("fps", std::to_string(static_cast<int>(fps_value + 0.5)) + " FPS");
         rml_ui_->set_model(ui_.model());
         rml_ui_->set_route_models(ui_);
         if (const auto* scale=ui_.model().find("ui_scale"); scale!=nullptr &&

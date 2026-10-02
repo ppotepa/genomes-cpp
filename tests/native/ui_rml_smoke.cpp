@@ -222,6 +222,10 @@ int main() {
                 assert(route_document->QuerySelector("#main-menu") == nullptr);
                 assert(route_document->GetInnerRML().find("{{ version }}") ==
                        std::string::npos);
+                for (const auto* binding : {"{{ fps }}", "{{ status }}", "{{ features }}",
+                                             "{{ seed }}", "{{ map_size }}"}) {
+                    assert(route_document->GetInnerRML().find(binding) == std::string::npos);
+                }
             }
             const auto route_position = route_main->GetAbsoluteOffset(Rml::BoxArea::Border);
             const auto route_size = route_main->GetBox().GetSize(Rml::BoxArea::Border);
