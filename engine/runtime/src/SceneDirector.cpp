@@ -6,6 +6,20 @@
 
 namespace genomes::runtime {
 
+namespace {
+
+[[nodiscard]] const char* loadingPhaseName(SceneLoadingPhase phase) noexcept {
+    switch (phase) {
+    case SceneLoadingPhase::Starting: return "starting";
+    case SceneLoadingPhase::InProgress: return "in-progress";
+    case SceneLoadingPhase::Completed: return "completed";
+    case SceneLoadingPhase::Failed: return "failed";
+    }
+    return "failed";
+}
+
+} // namespace
+
 SceneDirector::SceneDirector(render::IRenderer& renderer,
                              ui::UiRuntime& ui,
                              render::PresentationSnapshot& presentation,
@@ -152,6 +166,17 @@ void SceneDirector::frame_update(double dt) {
     // instances after a transition.
     presentation_.clear_scene_payload();
     current_->frame_update(context, dt);
+    const SceneLoadingStatus loading = current_->loading_status();
+    (void)ui_.model().set("scene_loading_phase",
+                          std::string{loadingPhaseName(loading.phase)});
+    (void)ui_.model().set("scene_loading_active",
+                          loading.phase == SceneLoadingPhase::Starting ||
+                              loading.phase == SceneLoadingPhase::InProgress);
+    (void)ui_.model().set("scene_loading_failed",
+                          loading.phase == SceneLoadingPhase::Failed);
+    (void)ui_.model().set("scene_loading_progress",
+                          std::clamp(loading.progress, 0.0, 1.0));
+    (void)ui_.model().set("scene_loading_message", loading.message);
     ui_.update(dt);
     current_->build_presentation(context);
     if (presentation_.has_camera_request) {

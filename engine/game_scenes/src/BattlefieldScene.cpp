@@ -71,6 +71,7 @@ bool sample_battlefield_ground(void* context, foundation::Vec3 position,
 
 [[nodiscard]] application::WorldGenerationConfig massBattleWorldConfig(
     application::WorldGenerationConfig config) noexcept {
+    if (config.seed == 0U) config.seed = 0x1F4A77U;
     config.map_size_m = 2000U;
     config.vegetation = std::min(config.vegetation, 0.18F);
     config.buildings = std::min(config.buildings, 0.08F);
@@ -85,6 +86,38 @@ foundation::SceneId BattlefieldScene::id() const noexcept {
     return mode_ == BattlefieldSceneMode::InfantryMassBattle
         ? foundation::scene_id("scene.infantry-mass-battle")
         : foundation::scene_id("scene.battlefield");
+}
+
+runtime::SceneLoadingStatus BattlefieldScene::loading_status() const {
+    if (simulation_failed_) {
+        return {runtime::SceneLoadingPhase::Failed, 0.0,
+                generation_error_.empty() ? "Scene initialization failed" : generation_error_};
+    }
+    if (!plan_ && !generation_error_.empty()) {
+        return {runtime::SceneLoadingPhase::Failed, 0.0, generation_error_};
+    }
+#if GENOMES_HAS_INFANTRY
+    if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
+        if (mass_battle_runtime_ == nullptr) {
+            return {runtime::SceneLoadingPhase::Starting, 0.05,
+                    "Starting infantry simulation"};
+        }
+        if (infantry_model_artifact_ == nullptr) {
+            return {runtime::SceneLoadingPhase::Failed, 0.15,
+                    generation_error_.empty() ? "Infantry model compilation failed"
+                                              : generation_error_};
+        }
+        if (!plan_) {
+            return {runtime::SceneLoadingPhase::InProgress, 0.45,
+                    "Infantry ready; generating terrain and world objects"};
+        }
+    }
+#endif
+    if (!plan_) {
+        return {runtime::SceneLoadingPhase::InProgress, 0.25,
+                "Generating terrain and world objects"};
+    }
+    return {runtime::SceneLoadingPhase::Completed, 1.0, "Scene ready"};
 }
 
 void BattlefieldScene::on_enter(SceneContext& context) {
@@ -142,6 +175,9 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
     if (auto model = infantry_model_compiler_.compile(model_request); model) {
         infantry_model_artifact_ = std::move(model.value().artifact);
+    } else {
+        generation_error_ = std::string(model.error().message);
+        simulation_failed_ = true;
     }
 #endif
     camera_request_ = {};

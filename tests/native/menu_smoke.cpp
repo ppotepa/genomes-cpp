@@ -13,15 +13,24 @@
 #include <memory>
 #include <thread>
 #include <string>
+#include <utility>
+#include <variant>
 
 namespace {
 
 class DummyScene final : public genomes::runtime::Scene {
 public:
-    explicit DummyScene(genomes::foundation::SceneId scene_id) : scene_id_(scene_id) {}
+    explicit DummyScene(
+        genomes::foundation::SceneId scene_id,
+        genomes::runtime::SceneLoadingStatus loading = {})
+        : scene_id_(scene_id), loading_{std::move(loading)} {}
 
     [[nodiscard]] genomes::foundation::SceneId id() const noexcept override {
         return scene_id_;
+    }
+
+    [[nodiscard]] genomes::runtime::SceneLoadingStatus loading_status() const override {
+        return loading_;
     }
 
     void frame_update(genomes::runtime::SceneContext& context, double) override {
@@ -30,6 +39,7 @@ public:
 
 private:
     genomes::foundation::SceneId scene_id_;
+    genomes::runtime::SceneLoadingStatus loading_{};
 };
 
 } // namespace
@@ -110,7 +120,11 @@ int main() {
         return std::make_unique<DummyScene>(unit_lab_id);
     });
     director.register_scene(mass_battle_id, [mass_battle_id] {
-        return std::make_unique<DummyScene>(mass_battle_id);
+        return std::make_unique<DummyScene>(
+            mass_battle_id,
+            genomes::runtime::SceneLoadingStatus{
+                genomes::runtime::SceneLoadingPhase::InProgress, 0.45,
+                "Infantry ready; generating terrain and world objects"});
     });
     director.register_scene(world_config_id, [world_profile, active_world_config] {
         return std::make_unique<genomes::game_scenes::WorldConfigScene>(
@@ -144,6 +158,11 @@ int main() {
     director.frame_update(1.0 / 60.0);
     director.present();
     assert(ui.model().find("title") != nullptr);
+    assert(std::get<std::string>(*ui.model().find("scene_loading_phase")) == "in-progress");
+    assert(std::get<bool>(*ui.model().find("scene_loading_active")));
+    assert(std::get<double>(*ui.model().find("scene_loading_progress")) == 0.45);
+    assert(std::get<std::string>(*ui.model().find("scene_loading_message")) ==
+           "Infantry ready; generating terrain and world objects");
     assert(presentation.instances.empty());
     assert(renderer.frames_started() == 2);
     assert(renderer.submitted_instances() == 3);

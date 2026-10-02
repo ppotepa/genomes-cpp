@@ -12,8 +12,22 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <string>
 
 namespace genomes::runtime {
+
+enum class SceneLoadingPhase : std::uint8_t {
+    Starting,
+    InProgress,
+    Completed,
+    Failed,
+};
+
+struct SceneLoadingStatus final {
+    SceneLoadingPhase phase{SceneLoadingPhase::Completed};
+    double progress{1.0};
+    std::string message{};
+};
 
 // The neutral runtime transports scene commands without knowing which
 // product/application owns their payload. Product layers derive their typed
@@ -78,6 +92,9 @@ public:
     virtual ~Scene() = default;
 
     [[nodiscard]] virtual foundation::SceneId id() const noexcept = 0;
+    [[nodiscard]] virtual SceneLoadingStatus loading_status() const {
+        return {};
+    }
     virtual void on_enter(SceneContext&) {}
     virtual void on_exit(SceneContext&) {}
     virtual void handle_input(SceneContext&, const input::InputFrame&) {}

@@ -134,6 +134,11 @@ int main() {
     (void)model_source.model().set("version", std::string{"Smoke"});
     (void)model_source.model().set("note", std::string{"Smoke"});
     (void)model_source.model().set("fps", std::string{"60 FPS"});
+    (void)model_source.model().set("scene_loading_phase", std::string{"completed"});
+    (void)model_source.model().set("scene_loading_active", false);
+    (void)model_source.model().set("scene_loading_failed", false);
+    (void)model_source.model().set("scene_loading_progress", 1.0);
+    (void)model_source.model().set("scene_loading_message", std::string{"Scene ready"});
     (void)model_source.model().set("selected", std::string{"Battlefield"});
     genomes::ui::UiFieldState map_size{};
     map_size.value = std::int64_t{600};
@@ -223,7 +228,9 @@ int main() {
                 assert(route_document->GetInnerRML().find("{{ version }}") ==
                        std::string::npos);
                 for (const auto* binding : {"{{ fps }}", "{{ status }}", "{{ features }}",
-                                             "{{ seed }}", "{{ map_size }}"}) {
+                                             "{{ seed }}", "{{ map_size }}",
+                                             "{{ scene_loading_phase }}",
+                                             "{{ scene_loading_message }}"}) {
                     assert(route_document->GetInnerRML().find(binding) == std::string::npos);
                 }
             }

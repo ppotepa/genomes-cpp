@@ -52,6 +52,7 @@ public:
           tactical_ai_profile_{tactical_ai_profile}, mode_{mode} {}
 
     [[nodiscard]] foundation::SceneId id() const noexcept override;
+    [[nodiscard]] runtime::SceneLoadingStatus loading_status() const override;
     void on_enter(SceneContext&) override;
     void on_exit(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;

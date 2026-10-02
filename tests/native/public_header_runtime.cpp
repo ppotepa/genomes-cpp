@@ -3,5 +3,6 @@
 
 static_assert(sizeof(genomes::runtime::Scene) > 0U);
 static_assert(sizeof(genomes::runtime::SceneDirector) > 0U);
+static_assert(sizeof(genomes::runtime::SceneLoadingStatus) > 0U);
 
 int main() { return 0; }

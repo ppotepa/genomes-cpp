@@ -342,6 +342,7 @@ if(NOT _core_mod_json MATCHES "scenes/infantry-mass-battle")
     message(FATAL_ERROR "core mod manifest must register Infantry Mass Battle")
 endif()
 file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/infantry-mass-battle/scene.json" _mass_battle_scene)
+file(READ "${GENOMES_SOURCE_DIR}/mods/core/scenes/infantry-mass-battle/screen.rml" _mass_battle_rml)
 foreach(_mass_battle_contract IN ITEMS "scene.infantry-mass-battle" "builtin.battlefield"
                                        "screen.rml" "screen.rcss" "scene.pause")
     string(FIND "${_mass_battle_scene}" "${_mass_battle_contract}" _mass_battle_found)
@@ -349,6 +350,28 @@ foreach(_mass_battle_contract IN ITEMS "scene.infantry-mass-battle" "builtin.bat
         message(FATAL_ERROR "Infantry Mass Battle manifest misses ${_mass_battle_contract}")
     endif()
 endforeach()
+foreach(_loading_contract IN ITEMS "scene-loading" "scene_loading_active"
+                                   "scene_loading_progress" "scene_loading_message"
+                                   "scene_loading_failed")
+    string(FIND "${_mass_battle_rml}" "${_loading_contract}" _loading_contract_found)
+    if(_loading_contract_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle loading UI misses ${_loading_contract}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/Scene.hpp" _scene_contract)
+foreach(_loading_contract IN ITEMS "SceneLoadingPhase" "Starting" "InProgress"
+                                   "Completed" "Failed" "loading_status")
+    string(FIND "${_scene_contract}" "${_loading_contract}" _loading_contract_found)
+    if(_loading_contract_found LESS 0)
+        message(FATAL_ERROR "Scene loading contract misses ${_loading_contract}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp" _battlefield_scene)
+string(FIND "${_battlefield_scene}" "if (config.seed == 0U) config.seed = 0x1F4A77U"
+       _mass_battle_seed_resolution)
+if(_mass_battle_seed_resolution LESS 0)
+    message(FATAL_ERROR "Infantry Mass Battle must resolve the automatic zero seed")
+endif()
 string(FIND "${_builtin_scenes}" "current_scene != foundation::scene_id(\"scene.infantry-mass-battle\")"
        _mass_battle_pause_route)
 if(_mass_battle_pause_route LESS 0)

@@ -25,6 +25,20 @@
         <p class="diagnostics" data-if="show_diagnostics">{{ diagnostics }}</p>
         <button class="ghost pause" data-action="scene.open-pause">Pause simulation</button>
       </section>
+      <section id="scene-loading" class="loading-panel" data-model="ui_builtin_battlefield"
+               data-if="scene_loading_active">
+        <p class="eyebrow">{{ scene_loading_phase }}</p>
+        <h2>Loading scene</h2>
+        <p>{{ scene_loading_message }}</p>
+        <progress value="0" max="1" data-value="scene_loading_progress"/>
+      </section>
+      <section id="scene-loading-failed" class="loading-panel failed"
+               data-model="ui_builtin_battlefield" data-if="scene_loading_failed">
+        <p class="eyebrow">FAILED</p>
+        <h2>Scene could not start</h2>
+        <p>{{ scene_loading_message }}</p>
+        <button data-action="scene.return-main-menu">Return to main menu</button>
+      </section>
     </main>
   </body>
 </rml>
