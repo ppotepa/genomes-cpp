@@ -22,32 +22,6 @@ namespace genomes::game_scenes {
 
 namespace {
 
-[[nodiscard]] const char* kind_name(world::WorldFeatureKind kind) noexcept {
-    switch (kind) {
-    case world::WorldFeatureKind::TerrainPatch:
-        return "terrain";
-    case world::WorldFeatureKind::Road:
-        return "road";
-    case world::WorldFeatureKind::Parcel:
-        return "parcel";
-    case world::WorldFeatureKind::Building:
-        return "building";
-    case world::WorldFeatureKind::Vegetation:
-        return "vegetation";
-    case world::WorldFeatureKind::Fence:
-        return "fence";
-    }
-    return "unknown";
-}
-
-[[nodiscard]] foundation::StableId mesh_id(world::WorldFeatureKind kind) noexcept {
-    return foundation::stable_id(std::string("mesh.world.") + kind_name(kind));
-}
-
-[[nodiscard]] foundation::StableId material_id(world::WorldFeatureKind kind) noexcept {
-    return foundation::stable_id(std::string("material.world.") + kind_name(kind));
-}
-
 #if GENOMES_HAS_INFANTRY
 bool sample_battlefield_ground(void* context, foundation::Vec3 position,
                                infantry::GroundSample& output) noexcept {
@@ -762,14 +736,6 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
         }
     }
 
-    if (plan_) {
-        context.presentation.instances.reserve(plan_->features.size());
-        for (const world::WorldFeature& feature : plan_->features) {
-            context.presentation.instances.push_back({feature.id, mesh_id(feature.kind),
-                                                       material_id(feature.kind), feature.position,
-                                                       feature.scale, feature.rotation_y});
-        }
-    }
 #if GENOMES_HAS_INFANTRY
     if (battlefield_runtime_ != nullptr || mass_battle_runtime_ != nullptr) {
         if (infantry_model_artifact_) {

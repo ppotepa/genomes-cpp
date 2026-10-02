@@ -372,6 +372,10 @@ string(FIND "${_battlefield_scene}" "if (config.seed == 0U) config.seed = 0x1F4A
 if(_mass_battle_seed_resolution LESS 0)
     message(FATAL_ERROR "Infantry Mass Battle must resolve the automatic zero seed")
 endif()
+string(FIND "${_battlefield_scene}" "mesh_id(feature.kind)" _legacy_world_feature_instance)
+if(NOT _legacy_world_feature_instance LESS 0)
+    message(FATAL_ERROR "Battlefield must not publish legacy WorldFeature instances without prototypes")
+endif()
 string(FIND "${_builtin_scenes}" "current_scene != foundation::scene_id(\"scene.infantry-mass-battle\")"
        _mass_battle_pause_route)
 if(_mass_battle_pause_route LESS 0)
