@@ -148,6 +148,17 @@ int main() {
     assert(renderer.frames_started() == 2);
     assert(renderer.submitted_instances() == 3);
     assert(renderer.submitted_ui_nodes() == 0);
+    assert(director.dispatch_ui_action(
+               genomes::foundation::stable_id("scene.open-pause"), {}) ==
+           genomes::ui::UiActionResult::Handled);
+    assert(ui.routes().top() != nullptr);
+    assert(ui.routes().top()->scene == genomes::foundation::scene_id("scene.pause"));
+    assert(ui.routes().top()->overlay);
+    assert(director.dispatch_ui_action(
+               genomes::foundation::stable_id("scene.return-main-menu"), {}) ==
+           genomes::ui::UiActionResult::Handled);
+    assert(director.current() != nullptr);
+    assert(director.current()->id() == menu_id);
 
     assert(director.start(menu_id));
     director.handle_input({.confirm_pressed = true, .events = {}});

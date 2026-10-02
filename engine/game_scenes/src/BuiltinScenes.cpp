@@ -98,7 +98,9 @@ void configureBuiltinSceneRouting(
             return ui::UiActionResult::Handled;
         }
         if (action == foundation::stable_id("scene.open-pause")) {
-            if (director.current_scene_id() != foundation::scene_id("scene.battlefield") ||
+            const auto current_scene = director.current_scene_id();
+            if ((current_scene != foundation::scene_id("scene.battlefield") &&
+                 current_scene != foundation::scene_id("scene.infantry-mass-battle")) ||
                 (ui.routes().top() != nullptr && ui.routes().top()->overlay))
                 return ui::UiActionResult::Rejected;
             ui.routes().push({foundation::scene_id("scene.pause"), {}, {}, {}, true});
