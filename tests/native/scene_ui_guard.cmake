@@ -381,16 +381,19 @@ foreach(_mass_loading_stage IN ITEMS "MassBattleLoadStage::Starting"
         message(FATAL_ERROR "Infantry Mass Battle staged loading misses ${_mass_loading_stage}")
     endif()
 endforeach()
-foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.rigid"
+foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.pose"
                                           "mass_battle_instancing"
-                                          "if (!mass_battle_instancing)")
+                                          "ticks_per_pose_frame"
+                                          "mass_battle_pose_meshes_")
     string(FIND "${_battlefield_scene}" "${_mass_instancing_contract}" _mass_instancing_found)
     if(_mass_instancing_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle bounded instancing misses ${_mass_instancing_contract}")
     endif()
 endforeach()
-foreach(_mass_camera_contract IN ITEMS "{0.0F, 140.0F, 300.0F}"
-                                       "{0.0F, 10.0F, 0.0F}")
+foreach(_mass_camera_contract IN ITEMS "CameraMode::Fixed"
+                                       "center.y + 103.0F"
+                                       "center.z + 260.0F"
+                                       "projection_offset_x = -0.12F")
     string(FIND "${_battlefield_scene}" "${_mass_camera_contract}" _mass_camera_found)
     if(_mass_camera_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle camera framing misses ${_mass_camera_contract}")

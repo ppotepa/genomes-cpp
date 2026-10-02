@@ -83,6 +83,8 @@ int main() {
 
     bool moved = false;
     bool phase_advanced = false;
+    float blue_advance = 0.0F;
+    float red_advance = 0.0F;
     for (std::size_t index = 0U; index < initial_states.size(); ++index) {
         const State& before = initial_states[index];
         const State& after = first.renderStates()[index];
@@ -90,8 +92,15 @@ int main() {
             moved = true;
         }
         if (before.animation_phase != after.animation_phase) phase_advanced = true;
+        if (before.team == infantry::Team::Blue) {
+            blue_advance += after.position.x - before.position.x;
+        } else {
+            red_advance += after.position.x - before.position.x;
+        }
     }
     assert(moved);
     assert(phase_advanced);
+    assert(blue_advance > 0.0F);
+    assert(red_advance < 0.0F);
     return 0;
 }

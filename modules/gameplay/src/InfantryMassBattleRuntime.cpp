@@ -82,13 +82,19 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
             Unit unit{};
             unit.entity = entity.value();
             unit.team = team;
-            unit.base_speed_mps = 0.75F +
-                unitRandom01(config_.seed, stable_key, 2U) * 1.65F;
+            unit.animation_variant = static_cast<std::uint8_t>(
+                unitRandom01(config_.seed, stable_key, 5U) * 5.0F);
+            const float pace = unitRandom01(config_.seed, stable_key, 2U);
+            switch (unit.animation_variant % 5U) {
+            case 0U: unit.base_speed_mps = 0.0F; break;
+            case 1U: unit.base_speed_mps = 1.05F + pace * 0.45F; break;
+            case 2U: unit.base_speed_mps = 2.15F + pace * 0.75F; break;
+            case 3U: unit.base_speed_mps = 0.0F; break;
+            default: unit.base_speed_mps = 0.48F + pace * 0.32F; break;
+            }
             unit.animation_speed = 0.78F +
                 unitRandom01(config_.seed, stable_key, 3U) * 0.48F;
             unit.animation_phase = unitRandom01(config_.seed, stable_key, 4U);
-            unit.animation_variant = static_cast<std::uint8_t>(
-                unitRandom01(config_.seed, stable_key, 5U) * 5.0F);
             units_.push_back(unit);
         }
     }
@@ -122,8 +128,11 @@ void InfantryMassBattleRuntime::updateUnit(Unit& unit,
         unit.last_direction_epoch = direction_epoch;
         ++unit.direction_changes;
     }
-    const float direction = (unitRandom01(
-        config_.seed, unit.entity.packed(), direction_epoch + 11U) * kTau) - kHalfTau;
+    const float advance_heading = unit.team == infantry::Team::Blue
+        ? kHalfTau * 0.5F : -kHalfTau * 0.5F;
+    const float formation_weave = (unitRandom01(
+        config_.seed, unit.entity.packed(), direction_epoch + 11U) - 0.5F) * 0.18F;
+    const float direction = advance_heading + formation_weave;
     const float current = *heading;
     const float delta = wrappedAngle(direction - current);
     const float turn_limit = (0.65F +

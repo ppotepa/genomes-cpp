@@ -25,8 +25,11 @@
 #include <genomes/world/WorldRegionStreamer.hpp>
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 
-#include <memory>
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -94,6 +97,10 @@ private:
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::optional<world_render::WorldMeshArtifact> world_mesh_artifact_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
+    static constexpr std::size_t MassBattlePoseVariantCount = 5U;
+    std::array<std::shared_ptr<render::RenderMesh>, MassBattlePoseVariantCount>
+        mass_battle_pose_meshes_{};
+    std::uint64_t mass_battle_pose_frame_{std::numeric_limits<std::uint64_t>::max()};
     std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
     camera::CameraRequest camera_request_{};
     combat::TacticalAIProfile tactical_ai_profile_{};
