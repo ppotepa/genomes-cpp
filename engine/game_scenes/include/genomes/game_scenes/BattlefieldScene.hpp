@@ -68,6 +68,17 @@ public:
 private:
     void finalize_plan(world::WorldPlan plan);
 #if GENOMES_HAS_INFANTRY
+    enum class MassBattleLoadStage : std::uint8_t {
+        Inactive,
+        Starting,
+        CreateSimulation,
+        CompileModel,
+        InitializeAnimation,
+        Ready,
+        Failed,
+    };
+
+    void advance_mass_battle_loading();
     void initialize_infantry_animation();
     void evaluate_infantry_animation(const simulation::TickContext& context);
 #endif
@@ -108,6 +119,7 @@ private:
     std::optional<infantry::AnimationSystem> animation_system_;
     std::vector<InfantryAnimationAgent> animation_agents_;
     std::vector<infantry::AnimationPose> animation_poses_;
+    MassBattleLoadStage mass_battle_load_stage_{MassBattleLoadStage::Inactive};
 #endif
     BattlefieldSceneMode mode_{BattlefieldSceneMode::Tactical};
     bool simulation_failed_{false};

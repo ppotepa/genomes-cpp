@@ -372,6 +372,23 @@ string(FIND "${_battlefield_scene}" "if (config.seed == 0U) config.seed = 0x1F4A
 if(_mass_battle_seed_resolution LESS 0)
     message(FATAL_ERROR "Infantry Mass Battle must resolve the automatic zero seed")
 endif()
+foreach(_mass_loading_stage IN ITEMS "MassBattleLoadStage::Starting"
+                                     "MassBattleLoadStage::CreateSimulation"
+                                     "MassBattleLoadStage::CompileModel"
+                                     "MassBattleLoadStage::InitializeAnimation"
+                                     "MassBattleLoadStage::Ready")
+    string(FIND "${_battlefield_scene}" "${_mass_loading_stage}" _mass_loading_stage_found)
+    if(_mass_loading_stage_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle staged loading misses ${_mass_loading_stage}")
+    endif()
+endforeach()
+foreach(_mass_camera_contract IN ITEMS "map_size * 0.38F" "map_size * 0.62F"
+                                       "camera_map_size * 0.38F" "camera_map_size * 0.62F")
+    string(FIND "${_battlefield_scene}" "${_mass_camera_contract}" _mass_camera_found)
+    if(_mass_camera_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle camera framing misses ${_mass_camera_contract}")
+    endif()
+endforeach()
 string(FIND "${_battlefield_scene}" "mesh_id(feature.kind)" _legacy_world_feature_instance)
 if(NOT _legacy_world_feature_instance LESS 0)
     message(FATAL_ERROR "Battlefield must not publish legacy WorldFeature instances without prototypes")

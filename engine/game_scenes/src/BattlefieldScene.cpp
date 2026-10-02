@@ -72,17 +72,27 @@ runtime::SceneLoadingStatus BattlefieldScene::loading_status() const {
     }
 #if GENOMES_HAS_INFANTRY
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
-        if (mass_battle_runtime_ == nullptr) {
+        if (mass_battle_load_stage_ == MassBattleLoadStage::Starting ||
+            mass_battle_load_stage_ == MassBattleLoadStage::CreateSimulation) {
             return {runtime::SceneLoadingPhase::Starting, 0.05,
                     "Starting infantry simulation"};
         }
-        if (infantry_model_artifact_ == nullptr) {
+        if (mass_battle_load_stage_ == MassBattleLoadStage::CompileModel) {
+            return {runtime::SceneLoadingPhase::InProgress, 0.25,
+                    "Compiling infantry presentation prototype"};
+        }
+        if (mass_battle_load_stage_ == MassBattleLoadStage::InitializeAnimation) {
+            return {runtime::SceneLoadingPhase::InProgress, 0.55,
+                    "Preparing infantry animation state"};
+        }
+        if (mass_battle_load_stage_ == MassBattleLoadStage::Failed ||
+            mass_battle_runtime_ == nullptr || infantry_model_artifact_ == nullptr) {
             return {runtime::SceneLoadingPhase::Failed, 0.15,
-                    generation_error_.empty() ? "Infantry model compilation failed"
+                    generation_error_.empty() ? "Infantry scene initialization failed"
                                               : generation_error_};
         }
         if (!plan_) {
-            return {runtime::SceneLoadingPhase::InProgress, 0.45,
+            return {runtime::SceneLoadingPhase::InProgress, 0.75,
                     "Infantry ready; generating terrain and world objects"};
         }
     }
@@ -108,16 +118,9 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     battlefield_runtime_.reset();
     mass_battle_runtime_.reset();
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
-        auto mass = gameplay::InfantryMassBattleRuntime::start(
-            {.seed = config_.seed, .map_size_m = config_.map_size_m,
-             .units_per_team = 1000U, .fixed_step_seconds = 1.0F / 60.0F}, jobs_);
-        if (mass) {
-            mass_battle_runtime_ = std::move(mass.value());
-        } else {
-            generation_error_ = std::string(mass.error().message);
-            simulation_failed_ = true;
-        }
+        mass_battle_load_stage_ = MassBattleLoadStage::Starting;
     } else {
+        mass_battle_load_stage_ = MassBattleLoadStage::Inactive;
         auto viability = gameplay::BattlefieldRuntime::start(
             {.seed = config_.seed,
              .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
@@ -144,14 +147,16 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     render_infantry_mesh_.reset();
     infantry_skinned_prototype_.reset();
     infantry_model_artifact_.reset();
-    infantry::InfantryModelRequest model_request{};
-    model_request.seed = config_.seed;
-    model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
-    if (auto model = infantry_model_compiler_.compile(model_request); model) {
-        infantry_model_artifact_ = std::move(model.value().artifact);
-    } else {
-        generation_error_ = std::string(model.error().message);
-        simulation_failed_ = true;
+    if (mode_ != BattlefieldSceneMode::InfantryMassBattle) {
+        infantry::InfantryModelRequest model_request{};
+        model_request.seed = config_.seed;
+        model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
+        if (auto model = infantry_model_compiler_.compile(model_request); model) {
+            infantry_model_artifact_ = std::move(model.value().artifact);
+        } else {
+            generation_error_ = std::string(model.error().message);
+            simulation_failed_ = true;
+        }
     }
 #endif
     camera_request_ = {};
@@ -161,18 +166,16 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
+#endif
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
         const float map_size = static_cast<float>(config_.map_size_m);
         camera_request_.preset = camera::CameraPreset::Battlefield;
         camera_request_.mode = camera::CameraMode::Orbit;
-        camera_request_.position = {map_size * 0.78F, map_size * 0.92F,
-                                    map_size * 0.82F};
-        camera_request_.target = {0.0F, 0.0F, 0.0F};
+        camera_request_.position = {0.0F, map_size * 0.38F, map_size * 0.62F};
+        camera_request_.target = {0.0F, 12.0F, 0.0F};
         camera_request_.up = {0.0F, 1.0F, 0.0F};
         camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, map_size * 4.0F)};
-        initialize_infantry_animation();
     }
-#endif
     if (jobs_ != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
         const auto requested = scenario_->requestNew(config_);
@@ -213,11 +216,58 @@ void BattlefieldScene::on_exit(SceneContext&) {
 #if GENOMES_HAS_INFANTRY
     battlefield_runtime_.reset();
     mass_battle_runtime_.reset();
+    mass_battle_load_stage_ = MassBattleLoadStage::Inactive;
 #endif
     jobs_ = nullptr;
 }
 
 #if GENOMES_HAS_INFANTRY
+void BattlefieldScene::advance_mass_battle_loading() {
+    if (mode_ != BattlefieldSceneMode::InfantryMassBattle || simulation_failed_) return;
+    switch (mass_battle_load_stage_) {
+    case MassBattleLoadStage::Starting:
+        mass_battle_load_stage_ = MassBattleLoadStage::CreateSimulation;
+        return;
+    case MassBattleLoadStage::CreateSimulation: {
+        auto mass = gameplay::InfantryMassBattleRuntime::start(
+            {.seed = config_.seed, .map_size_m = config_.map_size_m,
+             .units_per_team = 1000U, .fixed_step_seconds = 1.0F / 60.0F}, jobs_);
+        if (!mass) {
+            generation_error_ = std::string(mass.error().message);
+            simulation_failed_ = true;
+            mass_battle_load_stage_ = MassBattleLoadStage::Failed;
+            return;
+        }
+        mass_battle_runtime_ = std::move(mass.value());
+        mass_battle_load_stage_ = MassBattleLoadStage::CompileModel;
+        return;
+    }
+    case MassBattleLoadStage::CompileModel: {
+        infantry::InfantryModelRequest model_request{};
+        model_request.seed = config_.seed;
+        model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
+        auto model = infantry_model_compiler_.compile(model_request);
+        if (!model) {
+            generation_error_ = std::string(model.error().message);
+            simulation_failed_ = true;
+            mass_battle_load_stage_ = MassBattleLoadStage::Failed;
+            return;
+        }
+        infantry_model_artifact_ = std::move(model.value().artifact);
+        mass_battle_load_stage_ = MassBattleLoadStage::InitializeAnimation;
+        return;
+    }
+    case MassBattleLoadStage::InitializeAnimation:
+        initialize_infantry_animation();
+        mass_battle_load_stage_ = MassBattleLoadStage::Ready;
+        return;
+    case MassBattleLoadStage::Inactive:
+    case MassBattleLoadStage::Ready:
+    case MassBattleLoadStage::Failed:
+        return;
+    }
+}
+
 void BattlefieldScene::initialize_infantry_animation() {
     animation_system_.reset();
     animation_agents_.clear();
@@ -521,6 +571,9 @@ void BattlefieldScene::fixed_update(SceneContext&, const simulation::TickContext
 }
 
 void BattlefieldScene::frame_update(SceneContext& context, double) {
+#if GENOMES_HAS_INFANTRY
+    advance_mass_battle_loading();
+#endif
     if (scenario_) {
         const auto generated = scenario_->poll();
         if (!generated) {
@@ -679,9 +732,13 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
     camera_request_.mode = camera::CameraMode::Orbit;
-    camera_request_.position = {camera_map_size * 0.78F, camera_map_size * 0.92F,
-                                camera_map_size * 0.82F};
-    camera_request_.target = {0.0F, 0.0F, 0.0F};
+    camera_request_.position = mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? foundation::Vec3{0.0F, camera_map_size * 0.38F, camera_map_size * 0.62F}
+        : foundation::Vec3{camera_map_size * 0.78F, camera_map_size * 0.92F,
+                           camera_map_size * 0.82F};
+    camera_request_.target = mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? foundation::Vec3{0.0F, 12.0F, 0.0F}
+        : foundation::Vec3{0.0F, 0.0F, 0.0F};
     camera_request_.up = {0.0F, 1.0F, 0.0F};
     camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
     auto render_mesh = std::make_shared<render::RenderMesh>();
