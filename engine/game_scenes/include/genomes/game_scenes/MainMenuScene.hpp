@@ -19,6 +19,7 @@ using runtime::SceneContext;
 
 enum class MainMenuEntry {
     StartScenario,
+    MassBattle,
     UnitLab,
     BuildingLab,
     WorldLab,

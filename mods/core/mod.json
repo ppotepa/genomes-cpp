@@ -9,6 +9,7 @@
     "scenes/settings",
     "scenes/world-config",
     "scenes/battlefield",
+    "scenes/infantry-mass-battle",
     "scenes/building-lab",
     "scenes/unit-lab",
     "scenes/world-lab",

@@ -18,8 +18,9 @@ struct EntryDefinition {
     bool enabled;
 };
 
-constexpr std::array<EntryDefinition, 6> entries{{
+constexpr std::array<EntryDefinition, 7> entries{{
     {MainMenuEntry::StartScenario, "Battlefield", true},
+    {MainMenuEntry::MassBattle, "Infantry Mass Battle", true},
     {MainMenuEntry::UnitLab, "Unit Laboratory", true},
     {MainMenuEntry::BuildingLab, "Building Laboratory", true},
     {MainMenuEntry::WorldLab, "World Laboratory", true},
@@ -144,6 +145,11 @@ void MainMenuScene::activate(SceneContext& context) {
     case MainMenuEntry::StartScenario:
         application::enqueueApplicationCommand(
             context, application::ApplicationCommandKind::OpenWorldConfig,
+            config);
+        break;
+    case MainMenuEntry::MassBattle:
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle,
             config);
         break;
     case MainMenuEntry::UnitLab:

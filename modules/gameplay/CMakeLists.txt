@@ -4,7 +4,8 @@ add_library(genomes_gameplay STATIC
 if(GENOMES_ENABLE_INFANTRY)
     target_sources(genomes_gameplay PRIVATE
         src/BattlefieldScenario.cpp
-        src/BattlefieldRuntime.cpp)
+        src/BattlefieldRuntime.cpp
+        src/InfantryMassBattleRuntime.cpp)
 endif()
 
 target_include_directories(genomes_gameplay PUBLIC

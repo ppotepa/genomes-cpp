@@ -16,6 +16,7 @@
         </header>
         <nav class="menu-primary">
           <button class="menu-action" autofocus="autofocus" data-action="scene.open-world-config">Battlefield</button>
+          <button class="menu-action" data-action="scene.open-infantry-mass-battle">Infantry Mass Battle</button>
           <button class="menu-action" data-action="scene.open-unit-lab">Unit Laboratory</button>
           <button class="menu-action" data-action="scene.open-building-lab">Building Laboratory</button>
           <button class="menu-action" data-action="scene.open-world-lab">World Laboratory <span class="prototype-note">PROTOTYPE</span></button>

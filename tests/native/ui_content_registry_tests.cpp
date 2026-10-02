@@ -203,6 +203,15 @@ int main() {
     assert(!registry.is_allowed_path(*scene, "../mod.json"));
     assert(!registry.is_allowed_path(*scene, std::filesystem::path{"C:/outside.rml"}));
     assert(registry.find_scene("scene.pause") != nullptr);
+    const auto* mass_battle = registry.find_scene("scene.infantry-mass-battle");
+    assert(mass_battle != nullptr);
+    assert(mass_battle->controller == "builtin.battlefield");
+    assert(mass_battle->document == "screen.rml");
+    assert(mass_battle->stylesheets == std::vector<std::string>{"screen.rcss"});
+    assert(mass_battle->overlays == std::vector<std::string>{"scene.pause"});
+    assert(std::filesystem::is_regular_file(mass_battle->root / mass_battle->document));
+    assert(std::filesystem::is_regular_file(mass_battle->root /
+                                            mass_battle->stylesheets.front()));
     genomes::ui::UiNativePluginManager plugins;
     genomes::ui::UiPluginError plugin_error;
     assert(plugins.load(registry, false, &plugin_error));

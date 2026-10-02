@@ -53,6 +53,7 @@ std::optional<RunOptions> parse_options(int argc,char** argv) {
             return std::string_view{argv[++i]};
         };
         if (arg=="--battlefield") result.initial_scene=foundation::scene_id("scene.battlefield");
+        else if (arg=="--infantry-mass-battle") result.initial_scene=foundation::scene_id("scene.infantry-mass-battle");
         else if (arg=="--unit-lab") result.initial_scene=foundation::scene_id("scene.unit-lab");
         else if (arg=="--building-lab") result.initial_scene=foundation::scene_id("scene.building-lab");
         else if (arg=="--deterministic") result.deterministic=true;
@@ -304,7 +305,7 @@ foundation::Result<void,foundation::Error> GameApplication::resize_renderer(std:
 int GameApplication::run(int argc,char** argv) {
     const auto parsed=parse_options(argc,argv);
     if (!parsed) {
-        std::cerr<<"Usage: genomes_game [--unit-lab|--battlefield|--building-lab] "
+        std::cerr<<"Usage: genomes_game [--unit-lab|--battlefield|--infantry-mass-battle|--building-lab] "
             "[--unitlab-camera 3q|front|side|back|face|hands] [--unitlab-locomotion idle|walk|run|crouch] "
             "[--unitlab-expression neutral|alert|fear|anger|pain|fatigue|eyes-closed] "
             "[--unitlab-variation 0..1.75] [--unitlab-equipment SLOT ITEM] [--unitlab-gene GENE VALUE] "

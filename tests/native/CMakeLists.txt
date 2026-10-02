@@ -411,6 +411,15 @@ if(GENOMES_ENABLE_INFANTRY)
     set_tests_properties(simulation.battlefield_determinism PROPERTIES
         LABELS "cpu;simulation;determinism;infantry")
 
+    add_executable(genomes_test_infantry_mass_battle_runtime
+        infantry_mass_battle_runtime_tests.cpp)
+    target_link_libraries(genomes_test_infantry_mass_battle_runtime PRIVATE genomes::gameplay)
+    genomes_set_project_warnings(genomes_test_infantry_mass_battle_runtime)
+    genomes_enable_test_assertions(genomes_test_infantry_mass_battle_runtime)
+    add_test(NAME simulation.infantry_mass_battle COMMAND genomes_test_infantry_mass_battle_runtime)
+    set_tests_properties(simulation.infantry_mass_battle PROPERTIES
+        LABELS "cpu;simulation;determinism;infantry;mass-battle")
+
     add_executable(genomes_test_infantry_presentation infantry_presentation_tests.cpp)
     target_link_libraries(genomes_test_infantry_presentation PRIVATE genomes::game_scenes)
     target_compile_definitions(genomes_test_infantry_presentation PRIVATE

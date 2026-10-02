@@ -121,6 +121,7 @@ int main() {
         RouteFixture{"scenes/main-menu/screen.rml", "builtin.main-menu"},
         RouteFixture{"scenes/world-config/screen.rml", "builtin.world-config"},
         RouteFixture{"scenes/battlefield/screen.rml", "builtin.battlefield"},
+        RouteFixture{"scenes/infantry-mass-battle/screen.rml", "builtin.battlefield"},
         RouteFixture{"scenes/unit-lab/screen.rml", "builtin.unit-lab"},
         RouteFixture{"scenes/building-lab/screen.rml", "builtin.building-lab"},
         RouteFixture{"scenes/world-lab/screen.rml", "builtin.world-lab"},
@@ -215,6 +216,13 @@ int main() {
             auto* fps_readout = route_document->QuerySelector(".app-fps");
             assert(fps_readout != nullptr &&
                    fps_readout->GetInnerRML().find("60 FPS") != std::string::npos);
+            if (std::string_view{fixture.document}.find("infantry-mass-battle/") !=
+                std::string_view::npos) {
+                assert(route_document->GetElementById("infantry-mass-battle-hud") != nullptr);
+                assert(route_document->QuerySelector("#main-menu") == nullptr);
+                assert(route_document->GetInnerRML().find("{{ version }}") ==
+                       std::string::npos);
+            }
             const auto route_position = route_main->GetAbsoluteOffset(Rml::BoxArea::Border);
             const auto route_size = route_main->GetBox().GetSize(Rml::BoxArea::Border);
             assert(route_size.x > 0.0F && route_size.y > 0.0F);

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<rml>
+  <head>
+    <title>Infantry Mass Battle</title>
+    <link type="text/rcss" href="ui/theme.rcss"/>
+    <link type="text/rcss" href="screen.rcss"/>
+  </head>
+  <body>
+    <main>
+      <section id="infantry-mass-battle-hud" class="hud-card" data-model="ui_builtin_battlefield">
+        <header>
+          <p class="eyebrow">LIVE SIMULATION</p>
+          <div class="hud-title">
+            <h2>{{ title }}</h2>
+            <span class="live-dot"/>
+          </div>
+          <span class="app-fps">{{ fps }}</span>
+        </header>
+        <p class="status">{{ status }}</p>
+        <p class="feature">{{ features }}</p>
+        <div class="hud-meta">
+          <span>{{ seed }}</span>
+          <span>{{ map_size }}</span>
+        </div>
+        <p class="diagnostics" data-if="show_diagnostics">{{ diagnostics }}</p>
+        <button class="ghost pause" data-action="scene.open-pause">Pause simulation</button>
+      </section>
+    </main>
+  </body>
+</rml>

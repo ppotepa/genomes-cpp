@@ -78,6 +78,8 @@ void configureBuiltinSceneRouting(
         };
         if (action == foundation::stable_id("scene.start-battlefield"))
             return push(application::ApplicationCommandKind::StartScenario);
+        if (action == foundation::stable_id("scene.open-infantry-mass-battle"))
+            return push(application::ApplicationCommandKind::OpenMassBattle);
         if (action == foundation::stable_id("scene.open-unit-lab"))
             return push(application::ApplicationCommandKind::OpenUnitLab);
         if (action == foundation::stable_id("scene.open-building-lab"))
@@ -196,6 +198,7 @@ void configureBuiltinSceneRouting(
         const auto menu_id = foundation::scene_id("scene.main-menu");
         const auto world_config_id = foundation::scene_id("scene.world-config");
         const auto battlefield_id = foundation::scene_id("scene.battlefield");
+        const auto mass_battle_id = foundation::scene_id("scene.infantry-mass-battle");
         const auto unit_lab_id = foundation::scene_id("scene.unit-lab");
         const auto building_lab_id = foundation::scene_id("scene.building-lab");
         const auto world_lab_id = foundation::scene_id("scene.world-lab");
@@ -209,6 +212,11 @@ void configureBuiltinSceneRouting(
             if (active_world_config != nullptr)
                 *active_world_config = application_command->world_config;
             (void)director.start(battlefield_id);
+            break;
+        case application::ApplicationCommandKind::OpenMassBattle:
+            if (active_world_config != nullptr)
+                *active_world_config = application_command->world_config;
+            (void)director.start(mass_battle_id);
             break;
         case application::ApplicationCommandKind::OpenWorldConfig:
             if (active_world_config != nullptr)
@@ -243,6 +251,7 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
     const auto menu_id = foundation::scene_id("scene.main-menu");
     const auto world_config_id = foundation::scene_id("scene.world-config");
     const auto battlefield_id = foundation::scene_id("scene.battlefield");
+    const auto mass_battle_id = foundation::scene_id("scene.infantry-mass-battle");
     const auto unit_lab_id = foundation::scene_id("scene.unit-lab");
     const auto building_lab_id = foundation::scene_id("scene.building-lab");
     const auto world_lab_id = foundation::scene_id("scene.world-lab");
@@ -279,6 +288,18 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
         entries_.push_back({battlefield_id, [battlefield_id] {
             return std::make_unique<PlaceholderScene>(battlefield_id,
                                                       "Battlefield loading boundary");
+        }});
+    }
+    if (config.real_battlefield) {
+        entries_.push_back({mass_battle_id, [active_world_config, building_profile] {
+            return std::make_unique<game_scenes::BattlefieldScene>(
+                *active_world_config, building_profile, combat::TacticalAIProfile{},
+                game_scenes::BattlefieldSceneMode::InfantryMassBattle);
+        }});
+    } else {
+        entries_.push_back({mass_battle_id, [mass_battle_id] {
+            return std::make_unique<PlaceholderScene>(mass_battle_id,
+                                                      "Infantry mass battle boundary");
         }});
     }
 #if GENOMES_HAS_INFANTRY

@@ -5,6 +5,7 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
+#include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
 #endif
 #include <genomes/gameplay/WorldScenario.hpp>
 #if GENOMES_HAS_INFANTRY
@@ -25,6 +26,7 @@
 #include <genomes/world_render/WorldMeshCompiler.hpp>
 
 #include <memory>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -35,13 +37,19 @@ namespace genomes::game_scenes {
 using runtime::Scene;
 using runtime::SceneContext;
 
+enum class BattlefieldSceneMode : std::uint8_t {
+    Tactical,
+    InfantryMassBattle,
+};
+
 class BattlefieldScene final : public Scene {
 public:
     BattlefieldScene(application::WorldGenerationConfig config,
                      std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
-                     combat::TacticalAIProfile tactical_ai_profile = {})
+                     combat::TacticalAIProfile tactical_ai_profile = {},
+                     BattlefieldSceneMode mode = BattlefieldSceneMode::Tactical)
         : config_{std::move(config)}, building_profile_{std::move(building_profile)},
-          tactical_ai_profile_{tactical_ai_profile} {}
+          tactical_ai_profile_{tactical_ai_profile}, mode_{mode} {}
 
     [[nodiscard]] foundation::SceneId id() const noexcept override;
     void on_enter(SceneContext&) override;
@@ -80,6 +88,7 @@ private:
     combat::TacticalAIProfile tactical_ai_profile_{};
 #if GENOMES_HAS_INFANTRY
     std::unique_ptr<gameplay::BattlefieldRuntime> battlefield_runtime_;
+    std::unique_ptr<gameplay::InfantryMassBattleRuntime> mass_battle_runtime_;
     infantry::InfantryModelCompiler infantry_model_compiler_;
     std::shared_ptr<const infantry::InfantryModelArtifact> infantry_model_artifact_;
     struct InfantryAnimationAgent final {
@@ -99,6 +108,7 @@ private:
     std::vector<InfantryAnimationAgent> animation_agents_;
     std::vector<infantry::AnimationPose> animation_poses_;
 #endif
+    BattlefieldSceneMode mode_{BattlefieldSceneMode::Tactical};
     bool simulation_failed_{false};
     std::unique_ptr<world::WorldRegionStreamer> region_streamer_;
     jobs::JobSystem* jobs_{nullptr};

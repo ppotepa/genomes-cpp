@@ -95,6 +95,7 @@ int main() {
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
+    const auto mass_battle_id = genomes::foundation::scene_id("scene.infantry-mass-battle");
     const auto world_config_id = genomes::foundation::scene_id("scene.world-config");
     const auto battlefield_id = genomes::foundation::scene_id("scene.battlefield");
     director.register_scene(menu_id, [world_profile] {
@@ -107,6 +108,9 @@ int main() {
     assert(duplicate_menu.error().code == genomes::foundation::ErrorCode::InvalidState);
     director.register_scene(unit_lab_id, [unit_lab_id] {
         return std::make_unique<DummyScene>(unit_lab_id);
+    });
+    director.register_scene(mass_battle_id, [mass_battle_id] {
+        return std::make_unique<DummyScene>(mass_battle_id);
     });
     director.register_scene(world_config_id, [world_profile, active_world_config] {
         return std::make_unique<genomes::game_scenes::WorldConfigScene>(
@@ -135,7 +139,7 @@ int main() {
 
     director.handle_input({.down_pressed = true, .confirm_pressed = true, .events = {}});
     assert(director.current() != nullptr);
-    assert(director.current()->id() == unit_lab_id);
+    assert(director.current()->id() == mass_battle_id);
 
     director.frame_update(1.0 / 60.0);
     director.present();

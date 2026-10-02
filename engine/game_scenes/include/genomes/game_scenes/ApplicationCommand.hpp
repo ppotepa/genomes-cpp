@@ -14,6 +14,7 @@ namespace genomes::application {
 // SceneCommand owned by the application composition root.
 enum class ApplicationCommandKind : std::uint8_t {
     StartScenario,
+    OpenMassBattle,
     OpenWorldConfig,
     OpenUnitLab,
     OpenBuildingLab,
