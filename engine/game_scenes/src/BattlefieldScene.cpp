@@ -22,6 +22,74 @@ namespace genomes::game_scenes {
 
 namespace {
 
+constexpr std::uint64_t MassBattleRtsCameraRevision = 0x52545343414D3031ULL;
+// The authored infantry mesh faces +Z.  Heading zero is also +Z, so the
+// presentation transform intentionally has no hidden runtime correction.
+constexpr float MassBattleModelYawOffset = 0.0F;
+
+constexpr std::array<std::size_t, 5U> MassBattlePosePhaseCounts{1U,12U,12U,1U,8U};
+
+[[nodiscard]] constexpr const char* massBattleProfileName(
+    MassBattlePresentationProfile profile) noexcept {
+    switch (profile) {
+    case MassBattlePresentationProfile::Quality: return "Quality";
+    case MassBattlePresentationProfile::Balanced: return "Balanced";
+    case MassBattlePresentationProfile::Stress: return "Stress";
+    }
+    return "Balanced";
+}
+
+[[nodiscard]] constexpr const char* massBattleAnimationMode(
+    MassBattlePresentationProfile profile) noexcept {
+    return profile == MassBattlePresentationProfile::Quality ? "live skinning" : "atlas";
+}
+
+#if GENOMES_HAS_INFANTRY
+[[nodiscard]] constexpr infantry::AnimationState massBattleAnimationState(
+    std::uint8_t variant) noexcept {
+    switch (massBattleAnimationArchetype(variant)) {
+    case MassBattleAnimationArchetype::Idle: return infantry::AnimationState::IDLE;
+    case MassBattleAnimationArchetype::Walk: return infantry::AnimationState::WALK;
+    case MassBattleAnimationArchetype::Run: return infantry::AnimationState::RUN;
+    case MassBattleAnimationArchetype::Crouch: return infantry::AnimationState::CROUCH;
+    case MassBattleAnimationArchetype::CrouchWalk:
+        return infantry::AnimationState::CROUCH_WALK;
+    }
+    return infantry::AnimationState::IDLE;
+}
+
+[[nodiscard]] constexpr std::size_t massBattleArchetypeIndex(
+    std::uint8_t variant) noexcept {
+    return static_cast<std::size_t>(massBattleAnimationArchetype(variant));
+}
+#endif
+
+[[nodiscard]] constexpr std::size_t massBattlePoseOffset(std::size_t variant) noexcept {
+    std::size_t offset=0U;
+    for (std::size_t index=0U;index<variant;++index) offset+=MassBattlePosePhaseCounts[index];
+    return offset;
+}
+
+[[nodiscard]] constexpr std::size_t massBattlePoseBucket(std::size_t variant,float phase,
+                                                          std::size_t visible_phases) noexcept {
+    const std::size_t native_phases=MassBattlePosePhaseCounts[variant];
+    visible_phases=std::clamp(visible_phases,std::size_t{1U},native_phases);
+    const float wrapped=std::clamp(phase,0.0F,0.99999994F);
+    const std::size_t coarse=std::min(
+        static_cast<std::size_t>(wrapped*static_cast<float>(visible_phases)),visible_phases-1U);
+    const std::size_t native=std::min(
+        ((coarse*2U+1U)*native_phases)/(visible_phases*2U),native_phases-1U);
+    return massBattlePoseOffset(variant)+native;
+}
+
+static_assert(massBattlePoseOffset(0U)==0U&&massBattlePoseOffset(1U)==1U&&
+              massBattlePoseOffset(2U)==13U&&massBattlePoseOffset(3U)==25U&&
+              massBattlePoseOffset(4U)==26U);
+static_assert(massBattlePoseBucket(1U,0.0F,12U)==1U&&
+              massBattlePoseBucket(1U,0.99F,12U)==12U&&
+              massBattlePoseBucket(2U,0.25F,6U)>=13U&&
+              massBattlePoseBucket(4U,0.75F,2U)<34U);
+
 #if GENOMES_HAS_INFANTRY
 bool sample_battlefield_ground(void* context, foundation::Vec3 position,
                                infantry::GroundSample& output) noexcept {
@@ -87,6 +155,11 @@ runtime::SceneLoadingStatus BattlefieldScene::loading_status() const {
                     generation_error_.empty() ? "Infantry scene initialization failed"
                                               : generation_error_};
         }
+        if (mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
+            !mass_battle_pose_atlas_ready_) {
+            return {runtime::SceneLoadingPhase::InProgress, 0.65,
+                    "Baking animation atlas"};
+        }
         if (!plan_) {
             return {runtime::SceneLoadingPhase::InProgress, 0.75,
                     "Infantry ready; generating terrain and world objects"};
@@ -142,7 +215,12 @@ void BattlefieldScene::on_enter(SceneContext& context) {
 #if GENOMES_HAS_INFANTRY
     render_infantry_mesh_.reset();
     mass_battle_pose_meshes_.fill(nullptr);
-    mass_battle_pose_frame_ = std::numeric_limits<std::uint64_t>::max();
+    mass_battle_pose_atlas_ready_ = false;
+    mass_battle_visible_units_ = 0U;
+    mass_battle_active_pose_slots_ = 0U;
+    mass_battle_archetype_counts_.fill(0U);
+    mass_battle_lod_counts_.fill(0U);
+    mass_battle_evaluated_poses_ = 0U;
     infantry_skinned_prototype_.reset();
     infantry_model_artifact_.reset();
     if (mode_ != BattlefieldSceneMode::InfantryMassBattle) {
@@ -168,12 +246,16 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
         const float map_size = static_cast<float>(config_.map_size_m);
         camera_request_.preset = camera::CameraPreset::Battlefield;
-        camera_request_.mode = camera::CameraMode::Fixed;
+        camera_request_.mode = camera::CameraMode::RTS;
         camera_request_.position = {0.0F, 105.0F, 260.0F};
         camera_request_.target = {0.0F, 2.0F, 0.0F};
         camera_request_.up = {0.0F, 1.0F, 0.0F};
         camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, map_size * 4.0F)};
         camera_request_.lens.projection_offset_x = -0.12F;
+        camera_request_.rts.target_min = {-map_size * 0.5F + 16.0F,
+                                          -map_size * 0.5F + 16.0F};
+        camera_request_.rts.target_max = {map_size * 0.5F - 16.0F,
+                                          map_size * 0.5F - 16.0F};
     }
     if (jobs_ != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(*jobs_, building_profile_);
@@ -203,7 +285,12 @@ void BattlefieldScene::on_exit(SceneContext&) {
     world_mesh_artifact_.reset();
     render_infantry_mesh_.reset();
     mass_battle_pose_meshes_.fill(nullptr);
-    mass_battle_pose_frame_ = std::numeric_limits<std::uint64_t>::max();
+    mass_battle_pose_atlas_ready_ = false;
+    mass_battle_visible_units_ = 0U;
+    mass_battle_active_pose_slots_ = 0U;
+    mass_battle_archetype_counts_.fill(0U);
+    mass_battle_lod_counts_.fill(0U);
+    mass_battle_evaluated_poses_ = 0U;
     infantry_skinned_prototype_.reset();
     camera_request_ = {};
 #if GENOMES_HAS_INFANTRY
@@ -255,6 +342,11 @@ void BattlefieldScene::advance_mass_battle_loading() {
             return;
         }
         infantry_model_artifact_ = std::move(model.value().artifact);
+        // Mass Battle is staged independently from world-plan generation.  A
+        // plan may finish before the runtime exists, so the earlier
+        // finalize_plan() initialization is intentionally retried here once
+        // both the runtime and the model are available.
+        initialize_infantry_animation();
         mass_battle_load_stage_ = MassBattleLoadStage::Ready;
         return;
     }
@@ -266,6 +358,12 @@ void BattlefieldScene::advance_mass_battle_loading() {
 }
 
 void BattlefieldScene::initialize_infantry_animation() {
+    if (animation_system_ && infantry_model_artifact_) {
+        const std::size_t expected_count = battlefield_runtime_ != nullptr
+            ? battlefield_runtime_->renderStates().size()
+            : mass_battle_runtime_ != nullptr ? mass_battle_runtime_->renderStates().size() : 0U;
+        if (animation_agents_.size() == expected_count) return;
+    }
     animation_system_.reset();
     animation_agents_.clear();
     animation_poses_.clear();
@@ -296,7 +394,7 @@ void BattlefieldScene::initialize_infantry_animation() {
         agent.locomotion = std::move(locomotion.value());
         agent.locomotion_state = agent.locomotion->initialState();
         const auto preset = static_cast<infantry::BipedPreset>(
-            animation_variant % 5U);
+            massBattleAnimationArchetype(animation_variant));
         if (!agent.locomotion->setPreset(*agent.locomotion_state, preset, true)) {
             generation_error_ = "mass infantry animation preset rejected";
             return;
@@ -335,6 +433,11 @@ void BattlefieldScene::initialize_infantry_animation() {
 }
 
 void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext& context) {
+    if (mass_battle_runtime_ != nullptr &&
+        mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
+        mass_battle_pose_atlas_ready_) {
+        return;
+    }
     if (!animation_system_ || (!battlefield_runtime_ && !mass_battle_runtime_) ||
         !infantry_model_artifact_ ||
         animation_agents_.empty()) {
@@ -365,9 +468,12 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
         const float dz = position.z - camera_request_.position.z;
         const float distance2 = dx * dx + dy * dy + dz * dz;
         const infantry::AnimationLOD desired_lod =
-            distance2 <= near2 ? infantry::AnimationLOD::Near :
-            distance2 <= mid2 ? infantry::AnimationLOD::Mid :
-                                infantry::AnimationLOD::Far;
+            mass_battle && (mass_battle_profile_ == MassBattlePresentationProfile::Quality ||
+                            !mass_battle_pose_atlas_ready_)
+                ? infantry::AnimationLOD::Near
+                : distance2 <= near2 ? infantry::AnimationLOD::Near
+                : distance2 <= mid2 ? infantry::AnimationLOD::Mid
+                                    : infantry::AnimationLOD::Far;
         if (agent.lod.tier() != desired_lod) agent.lod.setTier(desired_lod);
 
         float distance = 0.0F;
@@ -392,23 +498,13 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
                                                 static_cast<float>(context.fixed_dt_seconds));
         }
         if (mass_battle) {
-            switch (animation_variant % 5U) {
-            case 0U:
-                (void)agent.locomotion->setRequested(
-                    *agent.locomotion_state, {{0.0F}, {0.0F}, std::nullopt});
-                break;
-            case 3U:
-                (void)agent.locomotion->setRequested(
-                    *agent.locomotion_state, {{0.60F}, {0.0F}, std::nullopt});
-                break;
-            case 4U:
-                (void)agent.locomotion->setRequested(
-                    *agent.locomotion_state, {{0.60F}, {speed}, std::nullopt});
-                break;
-            default:
-                (void)agent.locomotion->setRequested(
-                    *agent.locomotion_state, {{0.0F}, {speed}, std::nullopt});
-                break;
+            // The simulation assigns a stable archetype.  Motion context is
+            // updated every tick, but a new transition is requested only if
+            // the archetype itself changes.
+            const auto requested = massBattleAnimationState(animation_variant);
+            if (agent.locomotion_state->requested_state != requested) {
+                (void)agent.locomotion->setState(
+                    *agent.locomotion_state, requested, false);
             }
         } else {
             switch (state) {
@@ -524,8 +620,62 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
         return;
     }
     animation_poses_ = animation_system_->currentSnapshot().poses;
+    if (mass_battle_runtime_ != nullptr) {
+        mass_battle_lod_counts_.fill(0U);
+        for (const auto& agent : animation_agents_) {
+            const auto index = static_cast<std::size_t>(agent.lod.tier());
+            if (index < mass_battle_lod_counts_.size()) ++mass_battle_lod_counts_[index];
+        }
+        mass_battle_evaluated_poses_ = animation_system_->lastStats().evaluated_count;
+    }
 }
 #endif
+
+#if GENOMES_HAS_INFANTRY
+void BattlefieldScene::set_mass_battle_profile(
+    MassBattlePresentationProfile profile) noexcept {
+    mass_battle_profile_ = profile;
+    if (mode_ != BattlefieldSceneMode::InfantryMassBattle) return;
+    // Profile changes are presentation-only.  The runtime, entity positions
+    // and per-unit animation phase are deliberately left untouched.
+    if (profile == MassBattlePresentationProfile::Quality ||
+        !mass_battle_pose_atlas_ready_) {
+        for (auto& agent : animation_agents_) agent.lod.setTier(infantry::AnimationLOD::Near);
+    }
+}
+#endif
+
+ui::UiActionResult BattlefieldScene::handle_ui_action(
+    SceneContext&, ui::UiActionId action, const ui::UiActionArguments&) {
+    if (mode_ != BattlefieldSceneMode::InfantryMassBattle) {
+        return ui::UiActionResult::Unknown;
+    }
+    if (action == foundation::stable_id("mass-battle.profile-quality")) {
+#if GENOMES_HAS_INFANTRY
+        set_mass_battle_profile(MassBattlePresentationProfile::Quality);
+        return ui::UiActionResult::Handled;
+#else
+        return ui::UiActionResult::Unknown;
+#endif
+    }
+    if (action == foundation::stable_id("mass-battle.profile-balanced")) {
+#if GENOMES_HAS_INFANTRY
+        set_mass_battle_profile(MassBattlePresentationProfile::Balanced);
+        return ui::UiActionResult::Handled;
+#else
+        return ui::UiActionResult::Unknown;
+#endif
+    }
+    if (action == foundation::stable_id("mass-battle.profile-stress")) {
+#if GENOMES_HAS_INFANTRY
+        set_mass_battle_profile(MassBattlePresentationProfile::Stress);
+        return ui::UiActionResult::Handled;
+#else
+        return ui::UiActionResult::Unknown;
+#endif
+    }
+    return ui::UiActionResult::Unknown;
+}
 
 void BattlefieldScene::handle_input(SceneContext& context, const input::InputFrame& input) {
     if (input.cancel_pressed || input.confirm_pressed) {
@@ -567,7 +717,7 @@ void BattlefieldScene::fixed_update(SceneContext&, const simulation::TickContext
 #endif
 }
 
-void BattlefieldScene::frame_update(SceneContext& context, double) {
+void BattlefieldScene::frame_update(SceneContext& context, double dt) {
 #if GENOMES_HAS_INFANTRY
     advance_mass_battle_loading();
 #endif
@@ -594,7 +744,7 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
     (void)model.set("title", mode_ == BattlefieldSceneMode::InfantryMassBattle
         ? std::string{"INFANTRY MASS BATTLE"} : std::string{"BATTLEFIELD"});
     (void)model.set("description", mode_ == BattlefieldSceneMode::InfantryMassBattle
-        ? std::string{"1000 vs 1000 deterministic infantry stress scene"}
+        ? std::string{"WASD/arrows move | RMB rotate | MMB pan | wheel zoom | R frame battle"}
         : std::string{"Procedural world plan"});
     (void)model.set("error", std::string{});
     (void)model.set("seed", static_cast<std::int64_t>(config_.seed));
@@ -603,9 +753,43 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
         ? std::string{"2000 infantry units in two deterministic formations"}
         : std::string{"World features pending"});
     (void)model.set("status", std::string{"Preparing world presentation..."});
-    (void)model.set("diagnostics", "Renderer uploads " + std::to_string(context.render_telemetry.mesh_uploads) +
-                                  " | palette updates " + std::to_string(context.render_telemetry.palette_updates) +
-                                  " | draws " + std::to_string(context.render_telemetry.draw_calls));
+    const std::string profile = mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? massBattleProfileName(mass_battle_profile_) : "n/a";
+    (void)model.set("profile", profile);
+    (void)model.set("animation_mode", mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? massBattleAnimationMode(mass_battle_profile_) : "n/a");
+    (void)model.set("orientation", mode_ == BattlefieldSceneMode::InfantryMassBattle
+        ? "model +Z | blue +X | red -X" : "");
+    const double fps = std::isfinite(dt) && dt > 0.0 ? 1.0 / dt : 0.0;
+    std::string diagnostics = "profile " + profile + " | FPS " +
+        std::to_string(static_cast<int>(fps + 0.5)) +
+        " | draw calls " + std::to_string(context.render_telemetry.draw_calls) +
+        " | mesh uploads " + std::to_string(context.render_telemetry.mesh_uploads) +
+        " | palette updates " + std::to_string(context.render_telemetry.palette_updates);
+    if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
+        diagnostics += " | published " + std::to_string(mass_battle_visible_units_) +
+                       " | atlas slots " + std::to_string(mass_battle_active_pose_slots_) +
+                       " | idle " + std::to_string(mass_battle_archetype_counts_[0U]) +
+                       " walk " + std::to_string(mass_battle_archetype_counts_[1U]) +
+                       " run " + std::to_string(mass_battle_archetype_counts_[2U]) +
+                       " crouch " + std::to_string(mass_battle_archetype_counts_[3U]) +
+                       " crouch-walk " + std::to_string(mass_battle_archetype_counts_[4U]);
+        if (mass_battle_profile_ == MassBattlePresentationProfile::Quality) {
+            diagnostics += " | poses evaluated " +
+                           std::to_string(mass_battle_evaluated_poses_) +
+                           " | LOD near " + std::to_string(mass_battle_lod_counts_[0U]) +
+                           " mid " + std::to_string(mass_battle_lod_counts_[1U]) +
+                           " far " + std::to_string(mass_battle_lod_counts_[2U]);
+        } else {
+            diagnostics += std::string{" | atlas | phases "} +
+                           (mass_battle_profile_ == MassBattlePresentationProfile::Stress
+                                ? "full" : "adaptive") +
+                           " | shadows " +
+                           (mass_battle_profile_ == MassBattlePresentationProfile::Stress
+                                ? "full" : "180m");
+        }
+    }
+    (void)model.set("diagnostics",std::move(diagnostics));
     if (plan_) {
         (void)model.set("seed", static_cast<std::int64_t>(plan_->seed));
         (void)model.set("map_size", static_cast<std::int64_t>(plan_->map_size_m));
@@ -642,7 +826,12 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
         (void)model.set("elevation", "Elevation: " + std::to_string(terrain_min_height_) + " .. " +
                             std::to_string(terrain_max_height_) + " m");
         (void)model.set("hash", static_cast<std::int64_t>(plan_->content_hash));
-        (void)model.set("status", std::string{"World plan ready for terrain, navigation and rendering."});
+        (void)model.set("status",
+            mode_ == BattlefieldSceneMode::InfantryMassBattle &&
+                    mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
+                    !mass_battle_pose_atlas_ready_
+                ? std::string{"Baking animation atlas..."}
+                : std::string{"World plan ready for terrain, navigation and rendering."});
     } else if (scenario_ && scenario_->status().generation_pending) {
         (void)model.set("status", std::string{"Generating world on worker threads..."});
     } else if (scenario_ && scenario_->status().streaming_pending > 0U) {
@@ -655,6 +844,14 @@ void BattlefieldScene::frame_update(SceneContext& context, double) {
     } else {
         (void)model.set("error", "World generation failed: " + generation_error_);
     }
+#if GENOMES_HAS_INFANTRY
+    if (mode_ == BattlefieldSceneMode::InfantryMassBattle &&
+        mass_battle_runtime_ != nullptr && infantry_model_artifact_ != nullptr &&
+        mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
+        !mass_battle_pose_atlas_ready_) {
+        (void)model.set("status", std::string{"Baking animation atlas..."});
+    }
+#endif
 }
 
 void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
@@ -668,7 +865,12 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     world_mesh_artifact_.reset();
     render_infantry_mesh_.reset();
     mass_battle_pose_meshes_.fill(nullptr);
-    mass_battle_pose_frame_ = std::numeric_limits<std::uint64_t>::max();
+    mass_battle_pose_atlas_ready_ = false;
+    mass_battle_visible_units_ = 0U;
+    mass_battle_active_pose_slots_ = 0U;
+    mass_battle_archetype_counts_.fill(0U);
+    mass_battle_lod_counts_.fill(0U);
+    mass_battle_evaluated_poses_ = 0U;
     camera_request_ = {};
     const auto shared_artifact_handle =
         scenario_ != nullptr ? scenario_->activeArtifactHandle()
@@ -731,7 +933,7 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     const float camera_map_size = static_cast<float>(config_.map_size_m);
     camera_request_.preset = camera::CameraPreset::Battlefield;
     camera_request_.mode = mode_ == BattlefieldSceneMode::InfantryMassBattle
-        ? camera::CameraMode::Fixed : camera::CameraMode::Orbit;
+        ? camera::CameraMode::RTS : camera::CameraMode::Orbit;
     camera_request_.position = mode_ == BattlefieldSceneMode::InfantryMassBattle
         ? foundation::Vec3{0.0F, 105.0F, 260.0F}
         : foundation::Vec3{camera_map_size * 0.78F, camera_map_size * 0.92F,
@@ -743,6 +945,10 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     camera_request_.lens = {0.9F, 0.2F, std::max(1000.0F, camera_map_size * 4.0F)};
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
         camera_request_.lens.projection_offset_x = -0.12F;
+        camera_request_.rts.target_min = {-camera_map_size * 0.5F + 16.0F,
+                                          -camera_map_size * 0.5F + 16.0F};
+        camera_request_.rts.target_max = {camera_map_size * 0.5F - 16.0F,
+                                          camera_map_size * 0.5F - 16.0F};
     }
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
@@ -785,19 +991,28 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
 void BattlefieldScene::build_presentation(SceneContext& context) {
 #if GENOMES_HAS_INFANTRY
     if (mass_battle_runtime_ != nullptr && !mass_battle_runtime_->renderStates().empty()) {
-        foundation::Vec3 center{};
+        foundation::Vec3 minimum{std::numeric_limits<float>::max(),0.0F,
+                                 std::numeric_limits<float>::max()};
+        foundation::Vec3 maximum{std::numeric_limits<float>::lowest(),0.0F,
+                                 std::numeric_limits<float>::lowest()};
         for (const auto& state : mass_battle_runtime_->renderStates()) {
-            center.x += state.position.x;
-            center.z += state.position.z;
+            minimum.x=std::min(minimum.x,state.position.x);
+            minimum.z=std::min(minimum.z,state.position.z);
+            maximum.x=std::max(maximum.x,state.position.x);
+            maximum.z=std::max(maximum.z,state.position.z);
         }
-        const float inverse_count = 1.0F /
-            static_cast<float>(mass_battle_runtime_->renderStates().size());
-        center.x *= inverse_count;
-        center.z *= inverse_count;
+        foundation::Vec3 center{(minimum.x+maximum.x)*0.5F,0.0F,
+                                (minimum.z+maximum.z)*0.5F};
         center.y = terrain_ != nullptr ? terrain_->sampleBilinear(center.x, center.z) + 2.0F
                                        : 2.0F;
+        constexpr float initial_pitch=0.558505361F;
+        const float half_extent=std::max(maximum.x-minimum.x,maximum.z-minimum.z)*0.5F+10.0F;
+        const float distance=std::clamp(half_extent/std::tan(camera_request_.lens.vertical_fov*0.5F),
+                                        45.0F,650.0F);
         camera_request_.target = center;
-        camera_request_.position = {center.x, center.y + 103.0F, center.z + 260.0F};
+        camera_request_.position = {center.x,center.y+std::sin(initial_pitch)*distance,
+                                    center.z+std::cos(initial_pitch)*distance};
+        context.presentation.camera.revision=MassBattleRtsCameraRevision;
     }
 #endif
     context.publishCameraRequest(camera_request_);
@@ -825,55 +1040,71 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     infantry_model_artifact_->skeleton);
                 const auto bind_local_poses = infantry_presentation::makeLocalPoses(
                     infantry_model_artifact_->skeleton, {});
-                const bool mass_battle_instancing = mass_battle_runtime_ != nullptr;
+                const bool mass_battle_atlas =
+                    mass_battle_runtime_ != nullptr &&
+                    mass_battle_profile_ != MassBattlePresentationProfile::Quality;
                 std::unordered_map<foundation::StableId, const infantry::AnimationPose*> poses;
-                poses.reserve(animation_poses_.size());
-                for (const auto& pose : animation_poses_) poses.emplace(pose.semantic_id, &pose);
-                if (mass_battle_instancing) {
-                    constexpr std::uint64_t ticks_per_pose_frame = 6U;
-                    const std::uint64_t pose_frame =
-                        mass_battle_runtime_->snapshot().tick / ticks_per_pose_frame;
-                    if (mass_battle_pose_frame_ != pose_frame) {
-                        std::array<const infantry::AnimationPose*, MassBattlePoseVariantCount>
-                            representative_poses{};
-                        for (const auto& state : mass_battle_runtime_->renderStates()) {
-                            const std::size_t variant =
-                                state.animation_variant % MassBattlePoseVariantCount;
-                            if (representative_poses[variant] != nullptr) continue;
-                            const auto found = poses.find(
-                                foundation::stable_id("battlefield.infantry") ^
-                                state.entity.packed());
-                            if (found != poses.end()) representative_poses[variant] = found->second;
+                if (!mass_battle_atlas || !mass_battle_pose_atlas_ready_) {
+                    poses.reserve(animation_poses_.size());
+                    for (const auto& pose : animation_poses_) poses.emplace(pose.semantic_id,&pose);
+                }
+                if (mass_battle_atlas && !mass_battle_pose_atlas_ready_ && !poses.empty()) {
+                    std::array<const infantry::AnimationPose*,MassBattlePoseAtlasSize> samples{};
+                    std::array<float,MassBattlePoseAtlasSize> sample_errors{};
+                    sample_errors.fill(std::numeric_limits<float>::max());
+                    for (const auto& state:mass_battle_runtime_->renderStates()) {
+                        const std::size_t variant=state.animation_variant%MassBattlePoseVariantCount;
+                        const std::size_t phases=MassBattlePosePhaseCounts[variant];
+                        const std::size_t bucket=massBattlePoseBucket(variant,state.animation_phase,phases);
+                        const float target=(static_cast<float>(bucket-massBattlePoseOffset(variant))+.5F)/
+                                           static_cast<float>(phases);
+                        const float direct=std::abs(state.animation_phase-target);
+                        const float error=std::min(direct,1.0F-direct);
+                        const auto found=poses.find(foundation::stable_id("battlefield.infantry")^
+                                                    state.entity.packed());
+                        if (found!=poses.end() &&
+                            found->second->active_state == massBattleAnimationState(
+                                state.animation_variant) &&
+                            found->second->requested_state == found->second->active_state &&
+                            found->second->transition_stage == infantry::AnimationTransitionStage::None &&
+                            error<sample_errors[bucket]) {
+                            samples[bucket]=found->second;
+                            sample_errors[bucket]=error;
                         }
-                        for (std::size_t variant = 0U;
-                             variant < MassBattlePoseVariantCount; ++variant) {
-                            auto palette = bind_palette;
-                            if (representative_poses[variant] != nullptr) {
-                                palette = infantry_presentation::makePalette(
-                                    infantry_model_artifact_->skeleton,
-                                    std::span<const infantry::RigTransform>(
-                                        representative_poses[variant]->bones));
-                            }
-                            auto mesh = std::make_shared<render::RenderMesh>(
-                                render::deformSkinnedCPU(*infantry_skinned_prototype_, palette));
-                            mesh->mesh_id = foundation::stableHashCombine(
-                                foundation::stable_id("mesh.infantry.mass-battle.pose"),
-                                variant + 1U);
-                            mesh->revision = foundation::stableHashCombine(
-                                infantry_skinned_prototype_->revision,
-                                foundation::stableHashCombine(mesh->mesh_id, pose_frame + 1U));
-                            mass_battle_pose_meshes_[variant] = std::move(mesh);
-                        }
-                        mass_battle_pose_frame_ = pose_frame;
                     }
-                } else if (!context.render_capabilities.gpu_skinning &&
+                    bool complete=true;
+                    for (std::size_t variant=0U;variant<MassBattlePoseVariantCount;++variant) {
+                        const std::size_t begin=massBattlePoseOffset(variant);
+                        const std::size_t end=begin+MassBattlePosePhaseCounts[variant];
+                        for (std::size_t slot=begin;slot<end;++slot) {
+                            if (samples[slot]==nullptr) complete=false;
+                        }
+                    }
+                    for (std::size_t slot=0U;complete&&slot<MassBattlePoseAtlasSize;++slot) {
+                        const auto palette=infantry_presentation::makePalette(
+                            infantry_model_artifact_->skeleton,
+                            std::span<const infantry::RigTransform>(samples[slot]->bones));
+                        auto mesh=std::make_shared<render::RenderMesh>(
+                            render::deformSkinnedCPU(*infantry_skinned_prototype_,palette));
+                        mesh->mesh_id=foundation::stableHashCombine(
+                            foundation::stable_id("mesh.infantry.mass-battle.pose-atlas"),slot+1U);
+                        mesh->revision=foundation::stableHashCombine(
+                            infantry_skinned_prototype_->revision,mesh->mesh_id);
+                        mass_battle_pose_meshes_[slot]=std::move(mesh);
+                    }
+                    if (complete) {
+                        mass_battle_pose_atlas_ready_=true;
+                    } else {
+                        mass_battle_pose_meshes_.fill(nullptr);
+                    }
+                } else if (!mass_battle_atlas && !context.render_capabilities.gpu_skinning &&
                            !render_infantry_mesh_) {
                     render_infantry_mesh_ = std::make_shared<render::RenderMesh>(
                         render::deformSkinnedCPU(*infantry_skinned_prototype_, bind_palette));
                     render_infantry_mesh_->mesh_id = infantry_skinned_prototype_->mesh_id;
                     render_infantry_mesh_->revision = infantry_skinned_prototype_->revision;
                 }
-                if (mass_battle_instancing) {
+                if (mass_battle_atlas) {
                     for (const auto& mesh : mass_battle_pose_meshes_) {
                         if (mesh) context.presentation.instance_prototypes.push_back(mesh);
                     }
@@ -890,94 +1121,174 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     foundation::stable_id("material.infantry.blue");
                 const foundation::StableId red_material =
                     foundation::stable_id("material.infantry.red");
-                std::vector<infantry::InfantryRenderState> presentation_states;
-                std::unordered_map<std::uint64_t, std::uint8_t> mass_variants;
-                std::uint64_t presentation_tick = 0U;
                 if (mass_battle_runtime_ != nullptr) {
-                    presentation_tick = mass_battle_runtime_->snapshot().tick;
-                    presentation_states.reserve(mass_battle_runtime_->renderStates().size());
-                    mass_variants.reserve(mass_battle_runtime_->renderStates().size());
+                    mass_battle_archetype_counts_.fill(0U);
                     for (const auto& state : mass_battle_runtime_->renderStates()) {
-                        presentation_states.push_back(
-                            {state.entity, state.team, state.position, state.heading,
-                             state.height, state.state});
-                        mass_variants.emplace(state.entity.packed(), state.animation_variant);
-                    }
-                } else {
-                    presentation_tick = battlefield_runtime_->snapshot().tick;
-                    presentation_states = battlefield_runtime_->renderStates();
-                }
-                context.presentation.instances.reserve(
-                    context.presentation.instances.size() +
-                        presentation_states.size());
-                context.presentation.skinned_palettes.reserve(
-                    context.presentation.skinned_palettes.size() +
-                    presentation_states.size());
-                for (const infantry::InfantryRenderState& state : presentation_states) {
-                    const foundation::StableId object_id =
-                        foundation::stable_id("entity.infantry") ^ state.entity.packed();
-                    const foundation::StableId pose_id =
-                        foundation::stable_id("battlefield.infantry") ^ state.entity.packed();
-                    const auto pose_found = poses.find(pose_id);
-                    const infantry::AnimationPose* pose =
-                        pose_found != poses.end() ? pose_found->second : nullptr;
-                    if (!mass_battle_instancing) {
-                        render::SkinnedBonePalette palette{};
-                        palette.instance_id = object_id;
-                        palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
-                        palette.pose_revision = pose != nullptr ? pose->revision : 0U;
-                        if (pose != nullptr) {
-                            const auto pose_span =
-                                std::span<const infantry::RigTransform>(pose->bones);
-                            palette.matrices = infantry_presentation::makePalette(
-                                infantry_model_artifact_->skeleton, pose_span);
-                            palette.local_poses = infantry_presentation::makeLocalPoses(
-                                infantry_model_artifact_->skeleton, pose_span);
-                            palette.morph_weights[0] = pose->face.eyelids_close;
-                            palette.morph_weights[1] = pose->face.eyelids_arc;
-                            palette.morph_weights[2] = pose->face.neck_flex;
-                            palette.morph_weights[3] = pose->face.hands_relax;
-                        } else {
-                            palette.matrices = bind_palette;
-                            palette.local_poses = bind_local_poses;
+                        const auto index = massBattleArchetypeIndex(state.animation_variant);
+                        if (index < mass_battle_archetype_counts_.size()) {
+                            ++mass_battle_archetype_counts_[index];
                         }
-                        context.presentation.skinned_palettes.push_back(std::move(palette));
                     }
+                }
+                if (mass_battle_atlas) {
+                    if (!mass_battle_pose_atlas_ready_) return;
+                    const auto& states=mass_battle_runtime_->renderStates();
+                    context.presentation.instances.reserve(
+                        context.presentation.instances.size()+states.size());
+                    const foundation::Vec3 camera_position=context.presentation.camera.enabled
+                        ? context.presentation.camera.position : camera_request_.position;
+                    const foundation::Vec3 camera_target=context.presentation.camera.enabled
+                        ? context.presentation.camera.target : camera_request_.target;
+                    const float focal_pixels=static_cast<float>(std::max(1,context.framebuffer_height))*
+                        0.5F/std::tan(camera_request_.lens.vertical_fov*0.5F);
+                    std::array<bool,MassBattlePoseAtlasSize> used_pose_slots{};
+                    std::size_t visible_units=0U;
+                    for (const auto& state:states) {
+                        foundation::Vec3 presentation_position=state.position;
+                        if (terrain_!=nullptr) presentation_position.y=terrain_->sampleBilinear(
+                            presentation_position.x,presentation_position.z)+0.02F;
+                        const foundation::Vec3 center=presentation_position+
+                            foundation::Vec3{0.0F,state.height*0.5F,0.0F};
+                        // Keep the presentation path conservative until the
+                        // renderer's resolved-camera frustum convention is
+                        // shared with the scene layer.  A mismatched plane
+                        // orientation would discard every unit while the
+                        // terrain remains visible.  Distance/phase LOD below
+                        // still bounds the expensive animation work.
+                        const float distance=std::max(0.01F,math::length(camera_position-center));
+                        const float pixel_height=state.height*focal_pixels/distance;
+                        const std::size_t variant=state.animation_variant%MassBattlePoseVariantCount;
+                        const std::size_t native_phases=MassBattlePosePhaseCounts[variant];
+                        const std::size_t visible_phases =
+                            mass_battle_profile_ == MassBattlePresentationProfile::Stress
+                                ? native_phases
+                                : pixel_height >= 8.0F ? native_phases
+                                : pixel_height >= 3.0F ? std::min(native_phases, std::size_t{6U})
+                                : pixel_height >= 1.5F ? std::min(native_phases, std::size_t{2U})
+                                                        : 1U;
+                        const std::size_t atlas_slot=massBattlePoseBucket(
+                            variant,state.animation_phase,visible_phases);
+                        const auto& mesh=mass_battle_pose_meshes_[atlas_slot];
+                        if (!mesh) continue;
+                        used_pose_slots[atlas_slot]=true;
+                        ++visible_units;
+                        const float shadow_dx=presentation_position.x-camera_target.x;
+                        const float shadow_dz=presentation_position.z-camera_target.z;
+                        const bool casts_shadow=mass_battle_profile_ ==
+                            MassBattlePresentationProfile::Stress ||
+                            shadow_dx*shadow_dx+shadow_dz*shadow_dz<=180.0F*180.0F;
+                        std::uint32_t flags=render::RenderInstanceFlagDynamic|
+                            render::RenderInstanceFlagReceiveShadow|
+                            (state.team==infantry::Team::Red?render::RenderInstanceFlagTeamRed:0U);
+                        if (casts_shadow) flags|=render::RenderInstanceFlagCastShadow;
+                        const foundation::StableId object_id=
+                            foundation::stable_id("entity.infantry")^state.entity.packed();
+                        context.presentation.instances.push_back(
+                            {object_id,mesh->mesh_id,
+                             state.team==infantry::Team::Blue?blue_material:red_material,
+                             presentation_position,
+                             {state.height/model_height,state.height/model_height,state.height/model_height},
+                             state.heading+MassBattleModelYawOffset,
+                             mass_battle_runtime_->snapshot().tick,flags,
+                             state.team==infantry::Team::Red
+                                 ? foundation::Color{1.0F,0.78F,0.72F,1.0F}
+                                 : foundation::Color{0.78F,0.87F,1.0F,1.0F}});
+                    }
+                    mass_battle_visible_units_=visible_units;
+                    mass_battle_active_pose_slots_=static_cast<std::size_t>(std::count(
+                        used_pose_slots.begin(),used_pose_slots.end(),true));
+                    return;
+                }
+
+                const auto publish_live = [&](simulation::EntityId entity,
+                                              infantry::Team team,
+                                              foundation::Vec3 position,
+                                              float heading,
+                                              float height,
+                                              std::uint64_t presentation_tick,
+                                              const infantry::AnimationPose* pose) {
+                    const foundation::StableId object_id =
+                        foundation::stable_id("entity.infantry") ^ entity.packed();
+                    render::SkinnedBonePalette palette{};
+                    palette.instance_id = object_id;
+                    palette.skeleton_id = infantry_model_artifact_->skeleton.cacheKey();
+                    palette.pose_revision = pose != nullptr ? pose->revision : 0U;
+                    if (pose != nullptr) {
+                        const auto pose_span=std::span<const infantry::RigTransform>(pose->bones);
+                        palette.matrices=infantry_presentation::makePalette(
+                            infantry_model_artifact_->skeleton,pose_span);
+                        // Mass Battle is consumed by the GPU skinning path;
+                        // retaining a second local-space copy for every one
+                        // of 2000 units only duplicates the same skeleton
+                        // contract and creates avoidable allocator churn.
+                        if (mass_battle_runtime_ == nullptr) {
+                            palette.local_poses=infantry_presentation::makeLocalPoses(
+                                infantry_model_artifact_->skeleton,pose_span);
+                        }
+                        palette.morph_weights[0]=pose->face.eyelids_close;
+                        palette.morph_weights[1]=pose->face.eyelids_arc;
+                        palette.morph_weights[2]=pose->face.neck_flex;
+                        palette.morph_weights[3]=pose->face.hands_relax;
+                    } else {
+                        palette.matrices=bind_palette;
+                        palette.local_poses=bind_local_poses;
+                    }
+                    context.presentation.skinned_palettes.push_back(std::move(palette));
                     const std::uint32_t instance_flags =
                         render::RenderInstanceFlagDynamic |
                         render::RenderInstanceFlagCastShadow |
                         render::RenderInstanceFlagReceiveShadow |
-                        (state.team == infantry::Team::Red
+                        (team == infantry::Team::Red
                              ? render::RenderInstanceFlagTeamRed
                              : 0U);
-                    foundation::Vec3 presentation_position = state.position;
-                    if (mass_battle_instancing && terrain_ != nullptr) {
-                        presentation_position.y = terrain_->sampleBilinear(
-                            presentation_position.x, presentation_position.z) + 0.02F;
-                    }
-                    foundation::StableId presentation_mesh_id =
-                        infantry_skinned_prototype_->mesh_id;
-                    if (mass_battle_instancing) {
-                        const auto variant = mass_variants.find(state.entity.packed());
-                        const std::size_t pose_variant = variant != mass_variants.end()
-                            ? variant->second % MassBattlePoseVariantCount : 0U;
-                        if (mass_battle_pose_meshes_[pose_variant]) {
-                            presentation_mesh_id = mass_battle_pose_meshes_[pose_variant]->mesh_id;
-                        }
-                    }
                     context.presentation.instances.push_back(
                         {object_id,
-                         presentation_mesh_id,
-                         state.team == infantry::Team::Blue ? blue_material : red_material,
-                         presentation_position,
-                         {state.height / model_height, state.height / model_height,
-                          state.height / model_height},
-                         state.heading,
+                         infantry_skinned_prototype_->mesh_id,
+                         team == infantry::Team::Blue ? blue_material : red_material,
+                         position,
+                         {height / model_height, height / model_height, height / model_height},
+                         heading + MassBattleModelYawOffset,
                          presentation_tick,
                          instance_flags,
-                         state.team == infantry::Team::Red
+                         team == infantry::Team::Red
                              ? foundation::Color{1.0F, 0.78F, 0.72F, 1.0F}
                              : foundation::Color{0.78F, 0.87F, 1.0F, 1.0F}});
+                };
+                if (mass_battle_runtime_ != nullptr) {
+                    const auto& states = mass_battle_runtime_->renderStates();
+                    context.presentation.instances.reserve(
+                        context.presentation.instances.size() + states.size());
+                    context.presentation.skinned_palettes.reserve(
+                        context.presentation.skinned_palettes.size() + states.size());
+                    for (const auto& state : states) {
+                        foundation::Vec3 position = state.position;
+                        if (terrain_ != nullptr) {
+                            position.y = terrain_->sampleBilinear(position.x, position.z) + 0.02F;
+                        }
+                        const auto pose_found = poses.find(
+                            foundation::stable_id("battlefield.infantry") ^ state.entity.packed());
+                        publish_live(state.entity, state.team, position, state.heading, state.height,
+                                     mass_battle_runtime_->snapshot().tick,
+                                     pose_found != poses.end() ? pose_found->second : nullptr);
+                    }
+                    mass_battle_visible_units_ = states.size();
+                    mass_battle_active_pose_slots_ = 0U;
+                    return;
+                }
+
+                const std::uint64_t presentation_tick = battlefield_runtime_->snapshot().tick;
+                const auto& presentation_states = battlefield_runtime_->renderStates();
+                context.presentation.instances.reserve(context.presentation.instances.size() +
+                                                       presentation_states.size());
+                context.presentation.skinned_palettes.reserve(
+                    context.presentation.skinned_palettes.size() + presentation_states.size());
+                for (const infantry::InfantryRenderState& state : presentation_states) {
+                    const foundation::StableId pose_id =
+                        foundation::stable_id("battlefield.infantry") ^ state.entity.packed();
+                    const auto pose_found = poses.find(pose_id);
+                    publish_live(state.entity, state.team, state.position, state.heading,
+                                 state.height, presentation_tick,
+                                 pose_found != poses.end() ? pose_found->second : nullptr);
                 }
                 return;
             }

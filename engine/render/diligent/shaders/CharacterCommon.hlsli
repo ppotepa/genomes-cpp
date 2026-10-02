@@ -13,6 +13,8 @@ cbuffer SkinnedPassConstants {
     float4 MorphWeights;
     column_major float4x4 BonePalette[GENOMES_SKINNED_LAYOUT_PROFILE_BONE_COUNT];
 };
+StructuredBuffer<float4x4> BonePaletteBuffer;
+static const uint BonePaletteIndex = (uint)CharacterKeyDirectionIntensity.x;
 float3 transformSkinNormal(float3x3 m,float3 n) {
     float3 c0=cross(m[1],m[2]),c1=cross(m[2],m[0]),c2=cross(m[0],m[1]);
     float determinant=dot(m[0],c0);

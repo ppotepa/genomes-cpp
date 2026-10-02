@@ -30,6 +30,7 @@ public:
     }
     [[nodiscard]] ControlMode mode() const noexcept { return mode_; }
     void reset(const CameraRequest& request) noexcept;
+    void updateHome(const CameraRequest& request) noexcept;
     void update(CameraRequest& request, const CameraInput& input, float delta_seconds) noexcept;
 
 private:

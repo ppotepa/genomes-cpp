@@ -37,6 +37,7 @@ int main() {
 
     Config config{};
     config.seed = 0xA11CE55U;
+    config.map_size_m = 512U;
     auto first_result = Runtime::start(config);
     auto second_result = Runtime::start(config);
     assert(first_result);
@@ -50,6 +51,15 @@ int main() {
     assert(first.snapshot().red_units == 1000U);
     assert(first.renderStates().size() == 2000U);
     assertSameStates(first.renderStates(), second.renderStates());
+
+    constexpr float half_pi = 1.57079632679489661923F;
+    for (const State& state : first.renderStates()) {
+        if (state.team == infantry::Team::Blue) {
+            assert(std::abs(state.heading - half_pi) < 1.0e-5F);
+        } else {
+            assert(std::abs(state.heading + half_pi) < 1.0e-5F);
+        }
+    }
 
     std::unordered_set<std::uint8_t> variants;
     float maximum_abs_x = 0.0F;
@@ -102,5 +112,31 @@ int main() {
     assert(phase_advanced);
     assert(blue_advance > 0.0F);
     assert(red_advance < 0.0F);
+
+    // The map-edge reflection preserves the +Z heading convention: after an
+    // x-edge hit, blue temporarily faces -X and red temporarily faces +X.
+    Config reflection_config = config;
+    reflection_config.units_per_team = 100U;
+    auto reflection_result = Runtime::start(reflection_config);
+    assert(reflection_result);
+    Runtime& reflection = *reflection_result.value();
+    bool blue_reflected = false;
+    bool red_reflected = false;
+    for (std::uint64_t tick = 121U; tick <= 12000U; ++tick) {
+        const simulation::TickContext context{
+            foundation::SimulationTick{tick},
+            1.0 / 60.0,
+            simulation::SessionSimulationTickRateHz};
+        reflection.fixedUpdate(context);
+        for (const State& state : reflection.renderStates()) {
+            blue_reflected = blue_reflected ||
+                (state.team == infantry::Team::Blue && state.heading < -1.0F);
+            red_reflected = red_reflected ||
+                (state.team == infantry::Team::Red && state.heading > 1.0F);
+        }
+        if (blue_reflected && red_reflected) break;
+    }
+    assert(blue_reflected);
+    assert(red_reflected);
     return 0;
 }

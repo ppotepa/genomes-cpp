@@ -131,6 +131,9 @@ int main() {
     genomes::ui::UiRuntime model_source;
     (void)model_source.model().set("title", std::string{"Smoke"});
     (void)model_source.model().set("description", std::string{"Smoke"});
+    (void)model_source.model().set("profile", std::string{"Balanced"});
+    (void)model_source.model().set("animation_mode", std::string{"atlas"});
+    (void)model_source.model().set("orientation", std::string{"model +Z | blue +X | red -X"});
     (void)model_source.model().set("version", std::string{"Smoke"});
     (void)model_source.model().set("note", std::string{"Smoke"});
     (void)model_source.model().set("fps", std::string{"60 FPS"});
@@ -467,6 +470,7 @@ int main() {
     (void)runtime.update(1.0 / 60.0);
     assert(inspector_scroll->GetScrollTop() > 0.0F);
     assert(hud_wheel_filtered.mouse_wheel_y == 0.0F);
+    assert(hud_wheel_filtered.pointer_over_ui);
 
     genomes::input::InputFrame viewport_wheel{};
     viewport_wheel.mouse_x = 700.0F;
@@ -479,6 +483,7 @@ int main() {
                                      0.0F, 1.0F, {}});
     const auto viewport_wheel_filtered = runtime.filter_input(viewport_wheel);
     assert(viewport_wheel_filtered.mouse_wheel_y == 1.0F);
+    assert(!viewport_wheel_filtered.pointer_over_ui);
     bool viewport_wheel_reached_camera = false;
     for (const auto& event : viewport_wheel_filtered.events)
         viewport_wheel_reached_camera = viewport_wheel_reached_camera ||
@@ -492,6 +497,7 @@ int main() {
     const auto hud_filtered = runtime.filter_input(hud_press);
     assert(!hud_filtered.mouse_left_down);
     assert(hud_filtered.events.empty());
+    assert(hud_filtered.pointer_over_ui);
 
     genomes::input::InputFrame scene_press{};
     scene_press.mouse_left_down = true;
@@ -500,6 +506,7 @@ int main() {
                                   700.0F, 400.0F, 0.0F, 0.0F, {}});
     const auto scene_filtered = runtime.filter_input(scene_press);
     assert(scene_filtered.mouse_left_down && scene_filtered.mouse_left_pressed);
+    assert(!scene_filtered.pointer_over_ui);
 
     genomes::input::InputFrame captured_drag{};
     captured_drag.mouse_left_down = true;

@@ -9,7 +9,8 @@ using namespace diligent_detail;
 using namespace diligent_contract;
 
 DiligentBackend::Impl::Ptr<Diligent::IBuffer> DiligentBackend::Impl::buffer(
-    const char* name,std::size_t size,Diligent::BIND_FLAGS bind,bool dynamic,const void* data) {
+    const char* name,std::size_t size,Diligent::BIND_FLAGS bind,bool dynamic,
+    const void* data,std::uint32_t structured_stride) {
     (void)dynamic;
     // Keep Genomes uploads in default D3D12 resources. Diligent's dynamic
     // buffer path suballocates an over-aligned context array; the pinned
@@ -17,6 +18,10 @@ DiligentBackend::Impl::Ptr<Diligent::IBuffer> DiligentBackend::Impl::buffer(
     // UpdateBuffer below provides the same per-frame upload contract without
     // relying on that allocator path.
     Diligent::BufferDesc d{};d.Name=name;d.Size=static_cast<Diligent::Uint64>(size);d.BindFlags=bind;
+    if (structured_stride != 0U) {
+        d.Mode=Diligent::BUFFER_MODE_STRUCTURED;
+        d.ElementByteStride=structured_stride;
+    }
     d.Usage=Diligent::USAGE_DEFAULT;
     d.CPUAccessFlags=Diligent::CPU_ACCESS_NONE;
     Diligent::BufferData initial{data,static_cast<Diligent::Uint64>(size)};
@@ -57,6 +62,13 @@ void DiligentBackend::Impl::bindConstants(Pipeline& p) {
         if (auto* v=p.resources->GetVariableByName(stage,"MaterialConstants")) v->Set(material_buffer);
     }
     if (auto* v=p.resources->GetVariableByName(Diligent::SHADER_TYPE_PIXEL,"g_ShadowMap")) v->Set(shadow_view);
+    bindSkinPaletteBuffer(p);
+}
+void DiligentBackend::Impl::bindSkinPaletteBuffer(Pipeline& p) {
+    if (auto* v=p.resources->GetVariableByName(Diligent::SHADER_TYPE_VERTEX,
+                                               "BonePaletteBuffer")) {
+        v->Set(skin_palette_view);
+    }
 }
 RenderResult DiligentBackend::Impl::createPipeline(bool skin,bool shadow_pass,bool two_sided,MaterialAlphaMode alpha,Pipeline*& output) {
     const unsigned key=(skin?1U:0U)|(shadow_pass?2U:0U)|(two_sided?4U:0U)|(static_cast<unsigned>(alpha)<<3U);
@@ -74,6 +86,20 @@ RenderResult DiligentBackend::Impl::createPipeline(bool skin,bool shadow_pass,bo
         for (std::uint32_t k=0;k<kMorphCount;++k) layout.push_back({6U+k,0,3,f,no,80U+12U*k,stride});
         for (std::uint32_t k=0;k<kMorphCount;++k) layout.push_back({10U+k,0,3,f,no,128U+12U*k,stride});
         layout.push_back({14,0,1,Diligent::VT_UINT32,no,176,stride});
+        const auto skin_instance_stride=static_cast<Diligent::Uint32>(
+            sizeof(SkinnedInstanceGpuVertex));
+        layout.push_back({15,1,4,f,no,0,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
+        layout.push_back({16,1,4,f,no,16,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
+        layout.push_back({17,1,4,f,no,32,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
+        layout.push_back({18,1,4,f,no,48,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
+        layout.push_back({19,1,1,Diligent::VT_UINT32,no,64,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
+        layout.push_back({20,1,1,Diligent::VT_UINT32,no,68,skin_instance_stride,
+                          Diligent::INPUT_ELEMENT_FREQUENCY_PER_INSTANCE,1});
     } else {
         const auto stride=static_cast<Diligent::Uint32>(sizeof(RenderMeshVertex));
         layout={{0,0,3,f,no,static_cast<Diligent::Uint32>(offsetof(RenderMeshVertex,position)),stride},
@@ -131,9 +157,18 @@ RenderResult DiligentBackend::Impl::initializeResources() {
     if (!frame_fence) return error("could not allocate presentation fence",foundation::ErrorCode::Internal);
     scene_buffer=buffer("Genomes scene constants",sizeof(SceneConstants),Diligent::BIND_UNIFORM_BUFFER,true);
     skin_buffer=buffer("Genomes skin constants",(sizeof(SkinnedPassConstants)+255U)&~std::size_t{255U},Diligent::BIND_UNIFORM_BUFFER,true);
+    skin_palette_buffer=buffer("Genomes skin palette",sizeof(float)*16U*69U,
+                                Diligent::BIND_SHADER_RESOURCE,false,nullptr,
+                                static_cast<std::uint32_t>(sizeof(float)*16U));
+    if (skin_palette_buffer) {
+        skin_palette_view=skin_palette_buffer->GetDefaultView(
+            Diligent::BUFFER_VIEW_SHADER_RESOURCE);
+    }
     material_buffer=buffer("Genomes material constants",256U,Diligent::BIND_UNIFORM_BUFFER,true);
     ui_parameters=buffer("Genomes UI parameters",256U,Diligent::BIND_UNIFORM_BUFFER,true);
-    if (!scene_buffer||!skin_buffer||!material_buffer||!ui_parameters) return error("could not allocate draw constants",foundation::ErrorCode::Internal);
+    skin_palette_capacity=69U;
+    if (!scene_buffer||!skin_buffer||!skin_palette_buffer||!skin_palette_view||
+        !material_buffer||!ui_parameters) return error("could not allocate draw constants",foundation::ErrorCode::Internal);
     if (auto r=resizeDepth(config.width,config.height);!r) return r;
     Diligent::TextureDesc d{};d.Name="Genomes key shadow";d.Type=Diligent::RESOURCE_DIM_TEX_2D;
     d.Width=d.Height=shadow_size;d.Format=Diligent::TEX_FORMAT_D32_FLOAT;

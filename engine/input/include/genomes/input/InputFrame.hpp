@@ -45,6 +45,7 @@ struct InputFrame {
     bool reset_pressed{false};
     bool focus_lost{false};
     bool pointer_cancel{false};
+    bool pointer_over_ui{false};
     bool mouse_left_pressed{false};
     bool mouse_left_down{false};
     bool mouse_middle_down{false};

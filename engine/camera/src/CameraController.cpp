@@ -11,6 +11,14 @@ void CameraController::reset(const CameraRequest& request) noexcept {
     distance_=std::max(0.01F,math::length(offset));
     yaw_=std::atan2(offset.x,offset.z);
     pitch_=std::asin(std::clamp(offset.y/distance_,-0.999F,0.999F));
+    if (mode_==ControlMode::RTS) {
+        pitch_=std::clamp(pitch_,request.rts.min_pitch,request.rts.max_pitch);
+        distance_=std::clamp(distance_,request.rts.min_distance,request.rts.max_distance);
+    }
+}
+void CameraController::updateHome(const CameraRequest& request) noexcept {
+    home_position_=request.position;
+    home_target_=request.target;
 }
 void CameraController::update(CameraRequest& request,const CameraInput& input,float dt) noexcept {
     if (input.reset) { request.position=home_position_; request.target=home_target_; reset(request); return; }
@@ -46,9 +54,29 @@ void CameraController::update(CameraRequest& request,const CameraInput& input,fl
         request.position=request.target+math::Vec3{std::sin(yaw_)*cp*distance_,std::sin(pitch_)*distance_,std::cos(yaw_)*cp*distance_};
         return;
     }
-    const float speed=(mode_==ControlMode::RTS?8.0F:4.0F)*dt;
+    if (mode_==ControlMode::RTS) {
+        yaw_+=input.orbit_x;
+        pitch_=std::clamp(pitch_+input.orbit_y,request.rts.min_pitch,request.rts.max_pitch);
+        distance_=std::clamp(distance_*std::exp(std::clamp(input.zoom,-10.0F,10.0F)),
+                             request.rts.min_distance,request.rts.max_distance);
+        const math::Vec3 forward{-std::sin(yaw_),0.0F,-std::cos(yaw_)};
+        const math::Vec3 right{std::cos(yaw_),0.0F,-std::sin(yaw_)};
+        math::Vec3 movement=right*input.move_x+forward*input.move_z;
+        const float movement_length=math::length(movement);
+        if (movement_length>1.0F) movement=movement/movement_length;
+        const float speed=std::clamp(distance_*0.65F,18.0F,220.0F)*dt;
+        orbit_target_=orbit_target_+movement*speed-right*(input.pan_x*distance_*2.0F)+
+                      forward*(input.pan_y*distance_*2.0F);
+        orbit_target_.x=std::clamp(orbit_target_.x,request.rts.target_min.x,request.rts.target_max.x);
+        orbit_target_.z=std::clamp(orbit_target_.z,request.rts.target_min.y,request.rts.target_max.y);
+        request.target=orbit_target_;
+        const float cp=std::cos(pitch_);
+        request.position=request.target+math::Vec3{std::sin(yaw_)*cp*distance_,
+            std::sin(pitch_)*distance_,std::cos(yaw_)*cp*distance_};
+        return;
+    }
+    const float speed=4.0F*dt;
     request.position=request.position+math::Vec3{input.move_x*speed,input.move_y*speed,input.move_z*speed};
     request.target=request.target+math::Vec3{input.move_x*speed,input.move_y*speed,input.move_z*speed};
-    if (mode_==ControlMode::RTS) request.position.y=std::max(0.05F,request.position.y+input.zoom*speed*4.0F);
 }
 } // namespace genomes::camera

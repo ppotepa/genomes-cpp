@@ -108,6 +108,7 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
         }
         items.push_back(item);
     }
+    if (auto result=prepareSkinPalettes();!result) return result;
     camera=snapshot.camera;
     const auto& desc=swap->GetDesc();
     if (have_resolved_camera) {
@@ -195,12 +196,49 @@ RenderResult DiligentBackend::Impl::prepare(const PresentationSnapshot& snapshot
     }
     prepared=true;return RenderResult::success();
 }
+RenderResult DiligentBackend::Impl::prepareSkinPalettes() {
+    skin_palette_scratch.clear();
+    std::size_t skin_items=0U;
+    for (auto& item:items) {
+        if (!item.skin || !item.pose) continue;
+        item.skin_palette_index=static_cast<std::uint32_t>(skin_items*kBoneCount);
+        skin_palette_scratch.insert(skin_palette_scratch.end(),item.pose->matrices.begin(),
+                                    item.pose->matrices.end());
+        ++skin_items;
+    }
+    if (skin_items==0U) return RenderResult::success();
+    const std::size_t required=skin_palette_scratch.size();
+    if (required>skin_palette_capacity) {
+        std::size_t next=std::max<std::size_t>(kBoneCount,skin_palette_capacity);
+        while (next<required) {
+            if (next>std::numeric_limits<std::size_t>::max()/2U)
+                return error("skin palette buffer size overflow",foundation::ErrorCode::Internal);
+            next*=2U;
+        }
+        auto candidate=buffer("Genomes skin palette",next*sizeof(std::array<float,16U>),
+                              Diligent::BIND_SHADER_RESOURCE,false,nullptr,
+                              static_cast<std::uint32_t>(sizeof(std::array<float,16U>)));
+        if (!candidate) return error("could not allocate skin palette buffer",
+                                     foundation::ErrorCode::Internal);
+        skin_palette_buffer=std::move(candidate);
+        skin_palette_view=skin_palette_buffer->GetDefaultView(
+            Diligent::BUFFER_VIEW_SHADER_RESOURCE);
+        if (!skin_palette_view) return error("skin palette buffer view is missing",
+                                             foundation::ErrorCode::Internal);
+        skin_palette_capacity=next;
+        for (auto& entry:pipelines) bindSkinPaletteBuffer(entry.second);
+    }
+    if (auto result=mapCopy(skin_palette_buffer,skin_palette_scratch.data(),
+                            required*sizeof(std::array<float,16U>));!result) return result;
+    telemetry.palette_updates+=static_cast<std::uint32_t>(skin_items);
+    return RenderResult::success();
+}
 RenderResult DiligentBackend::Impl::renderItems(bool /*direct*/,bool shadow_pass) {
-    last_skin_instance=0;
-    using Key=std::tuple<foundation::StableId,std::uint64_t,std::size_t,bool>;
-    std::map<Key,std::vector<const Item*>> rigid;
+    using Key=std::tuple<foundation::StableId,std::uint64_t,foundation::StableId,
+                         std::size_t,bool>;
+    std::map<Key,std::vector<const Item*>> rigid,skin;
     struct Draw {const Item* item;std::size_t range;float depth;};
-    std::vector<Draw> skin_draws,transparent;
+    std::vector<Draw> transparent;
     for (const auto& item:items) {
         if (shadow_pass&&(item.instance.flags&RenderInstanceFlagCastShadow)==0U) continue;
         for (std::size_t k=0;k<item.gpu->ranges.size();++k) {
@@ -210,17 +248,10 @@ RenderResult DiligentBackend::Impl::renderItems(bool /*direct*/,bool shadow_pass
                 if (!shadow_pass) transparent.push_back({&item,k,math::dot(delta,delta)});
                 continue;
             }
-            if (item.skin) skin_draws.push_back({&item,k,0});
-            else rigid[{item.instance.mesh_id,item.gpu->revision,k,
+            auto& batches=item.skin?skin:rigid;
+            batches[{item.instance.mesh_id,item.gpu->revision,item.instance.material_id,k,
                 (item.instance.flags&RenderInstanceFlagReceiveShadow)!=0U}].push_back(&item);
         }
-    }
-    for (const auto& [key,batch]:rigid) {
-        if (auto result=drawRange(batch,std::get<2>(key),shadow_pass);!result) return result;
-    }
-    for (const auto& draw:skin_draws) {
-        const Item* one=draw.item;
-        if (auto result=drawRange({&one,1U},draw.range,shadow_pass);!result) return result;
     }
     std::stable_sort(transparent.begin(),transparent.end(),[](const Draw& a,const Draw& b) {
         if (a.depth!=b.depth) return a.depth>b.depth;
@@ -228,9 +259,94 @@ RenderResult DiligentBackend::Impl::renderItems(bool /*direct*/,bool shadow_pass
             return a.item->instance.object_id<b.item->instance.object_id;
         return a.range<b.range;
     });
+
+    instance_scratch.clear();
+    skin_instance_scratch.clear();
+    std::size_t regular_count=0U,skin_count=0U;
+    for (const auto& entry:rigid) regular_count+=entry.second.size();
+    for (const auto& entry:skin) skin_count+=entry.second.size();
+    for (const auto& draw:transparent) {
+        if (draw.item->skin) ++skin_count;
+        else ++regular_count;
+    }
+    instance_scratch.reserve(regular_count);
+    skin_instance_scratch.reserve(skin_count);
+    const auto append_regular=[this](std::span<const Item* const> batch) {
+        const std::size_t offset=instance_scratch.size();
+        for (const auto* item:batch) {
+            InstanceGpuVertex vertex{};
+            vec(vertex.position_rotation,item->instance.position,item->instance.rotation_y);
+            vec(vertex.scale,item->instance.scale,0.0F);
+            color(vertex.tint,item->instance.tint,item->instance.tint.a);
+            instance_scratch.push_back(vertex);
+        }
+        return offset;
+    };
+    const auto append_skin=[this](std::span<const Item* const> batch) {
+        const std::size_t offset=skin_instance_scratch.size();
+        for (const auto* item:batch) {
+            SkinnedInstanceGpuVertex vertex{};
+            vec(vertex.position_rotation,item->instance.position,item->instance.rotation_y);
+            vec(vertex.scale,item->instance.scale,0.0F);
+            color(vertex.tint,item->instance.tint,item->instance.tint.a);
+            if (item->pose) {
+                std::copy(item->pose->morph_weights.begin(),item->pose->morph_weights.end(),
+                          vertex.morph_weights);
+                vertex.debug_weight_bone=item->pose->debug_weight_bone<0
+                    ? std::numeric_limits<std::uint32_t>::max()
+                    : static_cast<std::uint32_t>(item->pose->debug_weight_bone);
+            }
+            vertex.palette_index=item->skin_palette_index;
+            skin_instance_scratch.push_back(vertex);
+        }
+        return offset;
+    };
+    std::vector<std::size_t> rigid_offsets;
+    rigid_offsets.reserve(rigid.size());
+    for (const auto& entry:rigid) rigid_offsets.push_back(append_regular(entry.second));
+    std::vector<std::size_t> skin_offsets;
+    skin_offsets.reserve(skin.size());
+    for (const auto& entry:skin) skin_offsets.push_back(append_skin(entry.second));
+    std::vector<std::size_t> transparent_regular_offsets,transparent_skin_offsets;
+    transparent_regular_offsets.reserve(transparent.size());
+    transparent_skin_offsets.reserve(transparent.size());
     for (const auto& draw:transparent) {
         const Item* one=draw.item;
-        if (auto result=drawRange({&one,1U},draw.range,false);!result) return result;
+        if (draw.item->skin) transparent_skin_offsets.push_back(append_skin({&one,1U}));
+        else transparent_regular_offsets.push_back(append_regular({&one,1U}));
+    }
+    if (!instance_scratch.empty()) {
+        const std::size_t bytes=instance_scratch.size()*sizeof(InstanceGpuVertex);
+        if (auto result=grow(instance_buffer,instance_capacity,bytes,Diligent::BIND_VERTEX_BUFFER,
+                             "Genomes frame instance data");!result) return result;
+        if (auto result=mapCopy(instance_buffer,instance_scratch.data(),bytes);!result) return result;
+    }
+    if (!skin_instance_scratch.empty()) {
+        const std::size_t bytes=skin_instance_scratch.size()*sizeof(SkinnedInstanceGpuVertex);
+        if (auto result=grow(skin_instance_buffer,skin_instance_capacity,bytes,
+                             Diligent::BIND_VERTEX_BUFFER,"Genomes frame skin instances");!result)
+            return result;
+        if (auto result=mapCopy(skin_instance_buffer,skin_instance_scratch.data(),bytes);!result)
+            return result;
+    }
+
+    std::size_t rigid_index=0U;
+    for (const auto& [key,batch]:rigid) {
+        if (auto result=drawRange(batch,std::get<3>(key),shadow_pass,
+                                  rigid_offsets[rigid_index++]);!result) return result;
+    }
+    std::size_t skin_index=0U;
+    for (const auto& [key,batch]:skin) {
+        if (auto result=drawRange(batch,std::get<3>(key),shadow_pass,
+                                  skin_offsets[skin_index++]);!result) return result;
+    }
+    std::size_t transparent_regular_index=0U,transparent_skin_index=0U;
+    for (const auto& draw:transparent) {
+        const Item* one=draw.item;
+        const std::size_t offset=draw.item->skin
+            ? transparent_skin_offsets[transparent_skin_index++]
+            : transparent_regular_offsets[transparent_regular_index++];
+        if (auto result=drawRange({&one,1U},draw.range,false,offset);!result) return result;
     }
     return RenderResult::success();
 }
@@ -247,7 +363,7 @@ void DiligentBackend::Impl::retireCompleted() noexcept {
         [completed](const RetiredMesh& mesh) { return mesh.fence <= completed; }),retired_meshes.end());
 }
 void DiligentBackend::Impl::prune() {
-    const auto old=telemetry.frame>600U?telemetry.frame-600U:0U;items.clear();last_skin_instance=0;
+    const auto old=telemetry.frame>600U?telemetry.frame-600U:0U;items.clear();
     for (auto it=regular_cache.begin();it!=regular_cache.end();) {
         if (it->second.last_seen<old) { retireMesh(it->second);it=regular_cache.erase(it); } else ++it;
     }

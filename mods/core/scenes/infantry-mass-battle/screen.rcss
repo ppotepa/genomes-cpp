@@ -6,6 +6,13 @@ main { width: 100%; height: 100%; }
 .hud-title h2 { flex: 1; margin-bottom: 0dp; }
 .live-dot { width: 8dp; height: 8dp; background-color: #45d1a0; }
 .feature { color: #d6e2ee; }
+.controls { color: #8cb3cc; font-size: 11dp; }
+.mass-battle-profile { margin: 10dp 0dp; padding: 8dp; background-color: #0d1926; }
+.profile-label { color: #d6e2ee; font-size: 11dp; }
+.profile-buttons { display: flex; margin-top: 6dp; }
+.profile-buttons button { flex: 1; margin-right: 4dp; font-size: 10dp; }
+.profile-buttons button:last-child { margin-right: 0dp; }
+.orientation { margin: 6dp 0dp 0dp 0dp; color: #8196ab; font-size: 10dp; }
 .hud-meta { display: flex; padding: 9dp 0dp; color: #8196ab; border-top: 1dp #28394b; border-bottom: 1dp #28394b; }
 .hud-meta span { flex: 1; }
 .diagnostics { padding: 8dp; color: #8cb3cc; background-color: #0a1420; font-size: 11dp; }

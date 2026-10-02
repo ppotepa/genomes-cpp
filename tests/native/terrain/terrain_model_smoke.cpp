@@ -1,4 +1,5 @@
 #include <genomes/terrain/HeightField.hpp>
+#include <genomes/terrain/TerrainMesh.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -28,6 +29,13 @@ int main() {
     assert(std::abs(normal.x + 2.0F / std::sqrt(14.0F)) < 1e-5F);
     assert(std::abs(normal.y - 1.0F / std::sqrt(14.0F)) < 1e-5F);
     assert(std::abs(normal.z + 3.0F / std::sqrt(14.0F)) < 1e-5F);
+    const auto mesh=genomes::terrain::TerrainMeshBuilder::build(field);
+    assert(mesh && mesh.value().indices.size()>=3U);
+    const auto& terrain_mesh=mesh.value();
+    const auto a=terrain_mesh.vertices[terrain_mesh.indices[0]].position;
+    const auto b=terrain_mesh.vertices[terrain_mesh.indices[1]].position;
+    const auto c=terrain_mesh.vertices[terrain_mesh.indices[2]].position;
+    assert(genomes::math::dot(genomes::math::cross(b-a,c-a),{0,1,0})>0.0F);
 
     genomes::terrain::TerrainSpec invalid;
     invalid.samples_x = 1;

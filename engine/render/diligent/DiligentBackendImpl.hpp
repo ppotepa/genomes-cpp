@@ -77,6 +77,7 @@ struct DiligentBackend::Impl final {
         RenderInstance instance{};
         const SkinnedMeshPrototype* skin{nullptr};
         const SkinnedBonePalette* pose{nullptr};
+        std::uint32_t skin_palette_index{0U};
         bool direct{false};
     };
     struct UiTextureGpu {
@@ -97,10 +98,13 @@ struct DiligentBackend::Impl final {
     Ptr<Diligent::ISwapChain> swap;
     Ptr<Diligent::ITexture> depth,shadow;
     Ptr<Diligent::ITextureView> depth_view,shadow_depth,shadow_view;
-    Ptr<Diligent::IBuffer> scene_buffer,skin_buffer,material_buffer,ui_parameters;
-    Ptr<Diligent::IBuffer> instance_buffer,debug_buffer,ui_vertices_buffer,ui_indices_buffer;
+    Ptr<Diligent::IBuffer> scene_buffer,skin_buffer,skin_palette_buffer,material_buffer,ui_parameters;
+    Ptr<Diligent::IBufferView> skin_palette_view;
+    Ptr<Diligent::IBuffer> instance_buffer,skin_instance_buffer,debug_buffer,
+                           ui_vertices_buffer,ui_indices_buffer;
     Ptr<Diligent::IFence> frame_fence;
-    std::size_t instance_capacity{0},debug_capacity{0},ui_vertex_capacity{0},ui_index_capacity{0};
+    std::size_t instance_capacity{0},skin_instance_capacity{0},skin_palette_capacity{0},
+                 debug_capacity{0},ui_vertex_capacity{0},ui_index_capacity{0};
     std::map<unsigned,Pipeline> pipelines;
     Pipeline debug_pipeline,ui_pipeline;
     std::unordered_map<foundation::StableId,Mesh> regular_cache,skin_cache;
@@ -108,6 +112,8 @@ struct DiligentBackend::Impl final {
     std::unordered_map<std::uint64_t,UiTextureGpu> ui_textures;
     std::vector<Item> items;
     std::vector<diligent_contract::InstanceGpuVertex> instance_scratch;
+    std::vector<diligent_contract::SkinnedInstanceGpuVertex> skin_instance_scratch;
+    std::vector<std::array<float,16U>> skin_palette_scratch;
     std::shared_ptr<const RenderMesh> preview_fallback;
     RenderCamera camera{};
     camera::ResolvedCamera resolved_camera{};
@@ -118,8 +124,6 @@ struct DiligentBackend::Impl final {
     std::optional<std::filesystem::path> pending_capture;
     std::string capture_metadata;
     std::uint64_t next_fence{1},active_fence{0},last_submitted_fence{0};
-    // Valid only within one pass. Never reuse transient allocations across frames.
-    foundation::StableId last_skin_instance{0};
     static constexpr std::uint32_t shadow_size=2048U;
 
     RenderResult initializeResources();
@@ -132,17 +136,21 @@ struct DiligentBackend::Impl final {
     RenderResult renderUi(const ui::UiRenderFrame&);
     RenderResult writeCapture();
     RenderResult createPipeline(bool skinned,bool shadow_pass,bool double_sided,MaterialAlphaMode,Pipeline*&);
-    RenderResult drawRange(std::span<const Item* const>,std::size_t range_index,bool shadow_pass);
+    RenderResult drawRange(std::span<const Item* const>,std::size_t range_index,bool shadow_pass,
+                           std::size_t instance_offset=0U);
+    RenderResult prepareSkinPalettes();
     RenderResult setSceneConstants(bool shadow_pass);
     void viewport(const camera::PixelViewport&);
     void restoreTargets();
     void prune();
     void retireMesh(Mesh&) noexcept;
     void retireCompleted() noexcept;
-    Ptr<Diligent::IBuffer> buffer(const char*,std::size_t,Diligent::BIND_FLAGS,bool,const void* data=nullptr);
+    Ptr<Diligent::IBuffer> buffer(const char*,std::size_t,Diligent::BIND_FLAGS,bool,
+                                  const void* data=nullptr,std::uint32_t structured_stride=0U);
     RenderResult mapCopy(Diligent::IBuffer*,const void*,std::size_t);
     RenderResult grow(Ptr<Diligent::IBuffer>&,std::size_t&,std::size_t,Diligent::BIND_FLAGS,const char*);
     bool compile(const char*,const char*,Diligent::SHADER_TYPE,Ptr<Diligent::IShader>&);
     void bindConstants(Pipeline&);
+    void bindSkinPaletteBuffer(Pipeline&);
 };
 } // namespace genomes::render

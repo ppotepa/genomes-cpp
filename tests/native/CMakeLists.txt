@@ -427,6 +427,13 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_set_project_warnings(genomes_test_infantry_presentation)
     genomes_enable_test_assertions(genomes_test_infantry_presentation)
     add_test(NAME infantry.presentation COMMAND genomes_test_infantry_presentation)
+
+    add_executable(genomes_test_infantry_mass_battle_scene
+        infantry_mass_battle_scene_tests.cpp)
+    target_link_libraries(genomes_test_infantry_mass_battle_scene PRIVATE genomes::game_scenes)
+    genomes_set_project_warnings(genomes_test_infantry_mass_battle_scene)
+    genomes_enable_test_assertions(genomes_test_infantry_mass_battle_scene)
+    add_test(NAME infantry.mass_battle_scene COMMAND genomes_test_infantry_mass_battle_scene)
 endif()
 
 add_executable(genomes_test_foundation_primitives

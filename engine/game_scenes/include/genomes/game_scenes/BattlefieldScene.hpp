@@ -45,6 +45,31 @@ enum class BattlefieldSceneMode : std::uint8_t {
     InfantryMassBattle,
 };
 
+enum class MassBattlePresentationProfile : std::uint8_t {
+    Quality,
+    Balanced,
+    Stress,
+};
+
+enum class MassBattleAnimationArchetype : std::uint8_t {
+    Idle,
+    Walk,
+    Run,
+    Crouch,
+    CrouchWalk,
+};
+
+[[nodiscard]] constexpr MassBattleAnimationArchetype
+massBattleAnimationArchetype(std::uint8_t variant) noexcept {
+    switch (variant % 5U) {
+    case 0U: return MassBattleAnimationArchetype::Idle;
+    case 1U: return MassBattleAnimationArchetype::Walk;
+    case 2U: return MassBattleAnimationArchetype::Run;
+    case 3U: return MassBattleAnimationArchetype::Crouch;
+    default: return MassBattleAnimationArchetype::CrouchWalk;
+    }
+}
+
 class BattlefieldScene final : public Scene {
 public:
     BattlefieldScene(application::WorldGenerationConfig config,
@@ -59,6 +84,8 @@ public:
     void on_enter(SceneContext&) override;
     void on_exit(SceneContext&) override;
     void handle_input(SceneContext&, const input::InputFrame&) override;
+    [[nodiscard]] ui::UiActionResult handle_ui_action(
+        SceneContext&, ui::UiActionId, const ui::UiActionArguments&) override;
     void fixed_update(SceneContext&, const simulation::TickContext&) override;
     void frame_update(SceneContext&, double) override;
     void build_presentation(SceneContext&) override;
@@ -67,6 +94,14 @@ public:
         return plan_ ? &*plan_ : nullptr;
     }
     [[nodiscard]] bool simulationFailed() const noexcept { return simulation_failed_; }
+    [[nodiscard]] MassBattlePresentationProfile massBattleProfile() const noexcept {
+        return mass_battle_profile_;
+    }
+#if GENOMES_HAS_INFANTRY
+    [[nodiscard]] bool massBattleAtlasReady() const noexcept {
+        return mass_battle_pose_atlas_ready_;
+    }
+#endif
 
 private:
     void finalize_plan(world::WorldPlan plan);
@@ -83,6 +118,7 @@ private:
     void advance_mass_battle_loading();
     void initialize_infantry_animation();
     void evaluate_infantry_animation(const simulation::TickContext& context);
+    void set_mass_battle_profile(MassBattlePresentationProfile profile) noexcept;
 #endif
 
     application::WorldGenerationConfig config_{};
@@ -97,10 +133,18 @@ private:
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::optional<world_render::WorldMeshArtifact> world_mesh_artifact_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
+    MassBattlePresentationProfile mass_battle_profile_{
+        MassBattlePresentationProfile::Balanced};
     static constexpr std::size_t MassBattlePoseVariantCount = 5U;
-    std::array<std::shared_ptr<render::RenderMesh>, MassBattlePoseVariantCount>
+    static constexpr std::size_t MassBattlePoseAtlasSize = 34U;
+    std::array<std::shared_ptr<render::RenderMesh>, MassBattlePoseAtlasSize>
         mass_battle_pose_meshes_{};
-    std::uint64_t mass_battle_pose_frame_{std::numeric_limits<std::uint64_t>::max()};
+    bool mass_battle_pose_atlas_ready_{false};
+    std::size_t mass_battle_visible_units_{0U};
+    std::size_t mass_battle_active_pose_slots_{0U};
+    std::array<std::size_t, 5U> mass_battle_archetype_counts_{};
+    std::array<std::size_t, 4U> mass_battle_lod_counts_{};
+    std::size_t mass_battle_evaluated_poses_{0U};
     std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
     camera::CameraRequest camera_request_{};
     combat::TacticalAIProfile tactical_ai_profile_{};

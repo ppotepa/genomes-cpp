@@ -159,6 +159,7 @@ private:
     UiRenderFrame frame_{};
     std::array<bool, 3> ui_mouse_capture_{};
     std::array<bool, 3> passthrough_mouse_capture_{};
+    bool pointer_over_ui_{false};
     std::function<UiActionResult(const UiEvent&)> event_router_{};
 };
 } // namespace genomes::ui::rml

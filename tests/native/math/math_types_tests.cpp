@@ -29,6 +29,15 @@ int main() {
     const Mat4 projection=perspectiveD3D(1.0F,1.0F,0.1F,100.0F);
     assert(view.finite() && projection.finite() && view.inverse().has_value());
     const Vec3 cameraSpace=transformPoint(view,{0,0,0}); assert(cameraSpace.z<0);
+    const Vec3 tilted_eye{3.0F,5.0F,7.0F};
+    const Vec3 tilted_target{-2.0F,1.0F,0.5F};
+    const Mat4 tilted=lookAtRH(tilted_eye,tilted_target,{0,1,0});
+    assert(length(transformPoint(tilted,tilted_eye))<1e-5F);
+    const Vec3 tilted_target_view=transformPoint(tilted,tilted_target);
+    assert(std::fabs(tilted_target_view.x)<1e-5F && std::fabs(tilted_target_view.y)<1e-5F &&
+           tilted_target_view.z<0.0F);
+    assert(transformVector(tilted,{1,0,0}).x>0.0F);
+    assert(transformVector(tilted,{0,1,0}).y>0.0F);
     Aabb bounds; bounds.include({-1,-2,-3}); bounds.include({1,2,3});
     assert(!bounds.empty && bounds.center().x==0 && bounds.extent().y==2);
     const Aabb moved=bounds.transformed(Transform{{2,0,0},{},{1,1,1}}.matrix());

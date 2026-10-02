@@ -17,7 +17,17 @@
           <span class="app-fps">{{ fps }}</span>
         </header>
         <p class="status">{{ status }}</p>
+        <p class="controls">{{ description }}</p>
         <p class="feature">{{ features }}</p>
+        <div class="mass-battle-profile">
+          <span class="profile-label">{{ profile }} · {{ animation_mode }}</span>
+          <div class="profile-buttons">
+            <button data-action="mass-battle.profile-quality">Quality</button>
+            <button data-action="mass-battle.profile-balanced">Balanced</button>
+            <button data-action="mass-battle.profile-stress">Stress</button>
+          </div>
+          <p class="orientation">{{ orientation }}</p>
+        </div>
         <div class="hud-meta">
           <span>{{ seed }}</span>
           <span>{{ map_size }}</span>

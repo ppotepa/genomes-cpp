@@ -32,6 +32,19 @@ int main() {
     assert(controller.mode() == CameraMode::Fly);
     controller.update(request,{0,0,1,0,0,0,false,false,false},1.0F);
     assert(request.position.x>original.x);
+    CameraRequest rts{};
+    rts.mode=CameraMode::RTS; rts.position={0.0F,50.0F,80.0F}; rts.target={0,0,0};
+    rts.rts.target_min={-20,-20}; rts.rts.target_max={20,20};
+    CameraController rts_controller{CameraMode::RTS}; rts_controller.reset(rts);
+    rts_controller.update(rts,{.move_x=1.0F,.move_z=1.0F},1.0F);
+    assert(rts.target.x>0.0F && rts.target.z<0.0F);
+    assert(genomes::math::length(rts.target)<29.0F);
+    rts_controller.update(rts,{.orbit_y=10.0F,.zoom=-10.0F},0.0F);
+    assert(genomes::math::length(rts.position-rts.target)<=650.001F);
+    assert(rts.position.y>rts.target.y);
+    rts_controller.updateHome({.mode=CameraMode::RTS,.position={4,40,30},.target={4,0,3}});
+    rts_controller.update(rts,{.reset=true},0.0F);
+    assert(rts.target.x==4.0F && rts.target.z==3.0F);
     // The same physical drag must produce the same orbit at any frame rate.
     CameraRequest reference{};
     CameraController reference_controller;

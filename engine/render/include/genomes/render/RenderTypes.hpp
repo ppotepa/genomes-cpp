@@ -154,6 +154,7 @@ struct RenderCamera final {
     float viewport_height{1.0F};
     std::uint64_t revision{0U};
     camera::CameraMode mode{camera::CameraMode::Orbit};
+    camera::RtsCameraSettings rts{};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto finite = [](foundation::Vec3 v) noexcept {
@@ -189,6 +190,7 @@ struct RenderCamera final {
         request.lens.projection_offset_x=projection_offset_x;
         request.lens.projection_offset_y=projection_offset_y;
         request.viewport={viewport_left,viewport_top,viewport_width,viewport_height};
+        request.rts=rts;
         return request;
     }
     void applyRequest(const camera::CameraRequest& request) noexcept {
@@ -200,6 +202,7 @@ struct RenderCamera final {
         projection_offset_y=request.lens.projection_offset_y;
         viewport_left=request.viewport.x; viewport_top=request.viewport.y;
         viewport_width=request.viewport.width; viewport_height=request.viewport.height;
+        rts=request.rts;
     }
 };
 

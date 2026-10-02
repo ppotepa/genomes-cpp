@@ -41,6 +41,19 @@ int main() {
     assert(std::fabs(shifted_screen.value().y-315.0F)<1.0e-3F);
     const auto shifted_world=unproject(shifted_resolved.value(),shifted_screen.value());
     assert(shifted_world && genomes::math::lengthSquared(shifted_world.value()-shifted.target)<1.0e-5F);
+    CameraRequest tilted{};
+    tilted.position={17.0F,31.0F,43.0F}; tilted.target={-4.0F,2.0F,7.0F};
+    const auto tilted_resolved=resolve(tilted,1600,900);
+    assert(tilted_resolved);
+    const auto tilted_screen=project(tilted_resolved.value(),tilted.target);
+    assert(tilted_screen);
+    const auto tilted_world=unproject(tilted_resolved.value(),tilted_screen.value());
+    assert(tilted_world && genomes::math::length(tilted_world.value()-tilted.target)<1.0e-3F);
+    const auto center_ray=screenRay(tilted_resolved.value(),tilted_screen.value().x,
+                                    tilted_screen.value().y);
+    assert(center_ray);
+    const auto expected_direction=genomes::math::normalized(tilted.target-tilted.position);
+    assert(genomes::math::dot(center_ray.value().second,expected_direction)>0.9999F);
     shifted.lens.projection_offset_x=NAN;
     assert(!resolve(shifted,1280,720));
     return 0;

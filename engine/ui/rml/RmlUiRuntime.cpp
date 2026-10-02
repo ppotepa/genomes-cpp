@@ -498,6 +498,7 @@ input::InputFrame Runtime::filter_input(const input::InputFrame& input) {
             event.type == input::EventType::PointerCancel) {
             ui_mouse_capture_.fill(false);
             passthrough_mouse_capture_.fill(false);
+            pointer_over_ui_ = false;
         }
         bool consumed = process_event(event);
         const auto button_index = event.mouse_button - 1;
@@ -513,6 +514,11 @@ input::InputFrame Runtime::filter_input(const input::InputFrame& input) {
                    (passthrough_mouse_capture_[0] || passthrough_mouse_capture_[1] ||
                     passthrough_mouse_capture_[2])) {
             consumed = false;
+        }
+        if (event.type == input::EventType::MouseMove ||
+            event.type == input::EventType::MouseButtonDown ||
+            event.type == input::EventType::MouseWheel) {
+            pointer_over_ui_ = consumed;
         }
 
         // Release must reach downstream controls even when RmlUi owned the
@@ -530,6 +536,8 @@ input::InputFrame Runtime::filter_input(const input::InputFrame& input) {
     filtered.mouse_left_down = input.mouse_left_down && !ui_mouse_capture_[0];
     filtered.mouse_middle_down = input.mouse_middle_down && !ui_mouse_capture_[2];
     filtered.mouse_right_down = input.mouse_right_down && !ui_mouse_capture_[1];
+    filtered.pointer_over_ui = pointer_over_ui_ || ui_mouse_capture_[0] ||
+                               ui_mouse_capture_[1] || ui_mouse_capture_[2];
     return filtered;
 }
 

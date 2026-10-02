@@ -358,6 +358,20 @@ foreach(_loading_contract IN ITEMS "scene-loading" "scene_loading_active"
         message(FATAL_ERROR "Infantry Mass Battle loading UI misses ${_loading_contract}")
     endif()
 endforeach()
+string(FIND "${_mass_battle_rml}" "<p class=\"controls\">{{ description }}</p>"
+       _mass_battle_controls)
+if(_mass_battle_controls LESS 0)
+    message(FATAL_ERROR "Infantry Mass Battle HUD must expose the RTS controls")
+endif()
+foreach(_mass_profile_ui_contract IN ITEMS "{{ profile }}" "{{ animation_mode }}"
+                                              "mass-battle.profile-quality"
+                                              "mass-battle.profile-balanced"
+                                              "mass-battle.profile-stress")
+    string(FIND "${_mass_battle_rml}" "${_mass_profile_ui_contract}" _mass_profile_found)
+    if(_mass_profile_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle HUD misses ${_mass_profile_ui_contract}")
+    endif()
+endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/Scene.hpp" _scene_contract)
 foreach(_loading_contract IN ITEMS "SceneLoadingPhase" "Starting" "InProgress"
                                    "Completed" "Failed" "loading_status")
@@ -381,18 +395,31 @@ foreach(_mass_loading_stage IN ITEMS "MassBattleLoadStage::Starting"
         message(FATAL_ERROR "Infantry Mass Battle staged loading misses ${_mass_loading_stage}")
     endif()
 endforeach()
-foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.pose"
-                                          "mass_battle_instancing"
-                                          "ticks_per_pose_frame"
+foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.pose-atlas"
+                                          "mass_battle_atlas"
+                                          "MassBattlePresentationProfile"
+                                          "mass-battle.profile-quality"
+                                          "MassBattlePosePhaseCounts"
+                                          "massBattlePoseBucket"
+                                          "mass_battle_pose_atlas_ready_"
+                                          "pixel_height"
+                                          "animation_system_"
+                                          "MassBattleModelYawOffset"
+                                          "Baking animation atlas"
+                                          "used_pose_slots"
                                           "mass_battle_pose_meshes_")
     string(FIND "${_battlefield_scene}" "${_mass_instancing_contract}" _mass_instancing_found)
     if(_mass_instancing_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle bounded instancing misses ${_mass_instancing_contract}")
     endif()
 endforeach()
-foreach(_mass_camera_contract IN ITEMS "CameraMode::Fixed"
-                                       "center.y + 103.0F"
-                                       "center.z + 260.0F"
+if(_battlefield_scene MATCHES "ticks_per_pose_frame|mass_battle_pose_frame_")
+    message(FATAL_ERROR "Infantry Mass Battle must not rebuild and upload pose meshes per frame")
+endif()
+foreach(_mass_camera_contract IN ITEMS "CameraMode::RTS"
+                                       "MassBattleRtsCameraRevision"
+                                       "minimum.x"
+                                       "rts.target_min"
                                        "projection_offset_x = -0.12F")
     string(FIND "${_battlefield_scene}" "${_mass_camera_contract}" _mass_camera_found)
     if(_mass_camera_found LESS 0)

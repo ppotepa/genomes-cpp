@@ -3,6 +3,7 @@
 #include <genomes/camera/CameraController.hpp>
 #include <genomes/input/InputFrame.hpp>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 
 namespace genomes::runtime {
@@ -26,6 +27,8 @@ public:
             request_.lens = declared.lens;
             request_.viewport = declared.viewport;
             request_.up = declared.up;
+            request_.rts = declared.rts;
+            if (declared.mode == camera::CameraMode::RTS) controller_.updateHome(declared);
         }
         revision_ = revision;
     }
@@ -34,6 +37,7 @@ public:
         if (!initialized_ || request_.mode == camera::CameraMode::Fixed) return;
         if (input.focus_lost || input.pointer_cancel || input.cancel_pressed) {
             cancelGesture();
+            keys_.fill(false);
             return;
         }
         const float width = std::max(1.0F, request_.viewport.width * input.viewport_width);
@@ -59,18 +63,47 @@ public:
                           button_ == 2 ? input.mouse_middle_down :
                           button_ == 3 && input.mouse_right_down;
         if (!held) button_ = 0;
-        if (button_ == 1) {
+        if (request_.mode == camera::CameraMode::RTS && button_ == 3) {
             pending_.orbit_x += input.mouse_delta_x / height * 4.0F;
             pending_.orbit_y += input.mouse_delta_y / height * 4.0F;
-        } else if (button_ != 0) {
+        } else if (request_.mode == camera::CameraMode::Orbit && button_ == 1) {
+            pending_.orbit_x += input.mouse_delta_x / height * 4.0F;
+            pending_.orbit_y += input.mouse_delta_y / height * 4.0F;
+        } else if ((request_.mode == camera::CameraMode::RTS && button_ == 2) ||
+                   (request_.mode == camera::CameraMode::Orbit && button_ != 0)) {
             // Both axes use viewport height: equal pixel drags have equal scale.
             pending_.pan_x += input.mouse_delta_x / height;
             pending_.pan_y += input.mouse_delta_y / height;
         }
         if (inside(input.mouse_x, input.mouse_y)) pending_.zoom -= input.mouse_wheel_y * .12F;
         pending_.reset |= input.reset_pressed;
-        pending_.move_x = static_cast<float>(input.right_pressed) - static_cast<float>(input.left_pressed);
-        pending_.move_z = static_cast<float>(input.down_pressed) - static_cast<float>(input.up_pressed);
+        for (const auto& event : input.events) {
+            if (event.type != input::EventType::KeyDown && event.type != input::EventType::KeyUp) continue;
+            const bool down = event.type == input::EventType::KeyDown;
+            switch (event.scancode) {
+            case 4: keys_[0] = down; break;  // A
+            case 7: keys_[1] = down; break;  // D
+            case 22: keys_[2] = down; break; // S
+            case 26: keys_[3] = down; break; // W
+            case 80: keys_[4] = down; break; // Left
+            case 79: keys_[5] = down; break; // Right
+            case 81: keys_[6] = down; break; // Down
+            case 82: keys_[7] = down; break; // Up
+            default: break;
+            }
+        }
+        pending_.move_x = static_cast<float>(keys_[1] || keys_[5]) -
+                          static_cast<float>(keys_[0] || keys_[4]);
+        pending_.move_z = static_cast<float>(keys_[3] || keys_[7]) -
+                          static_cast<float>(keys_[2] || keys_[6]);
+        if (request_.mode == camera::CameraMode::RTS && request_.rts.edge_scroll &&
+            !input.pointer_over_ui && inside(input.mouse_x,input.mouse_y)) {
+            const float edge=request_.rts.edge_scroll_pixels;
+            pending_.move_x += static_cast<float>(input.mouse_x >= left+width-edge) -
+                               static_cast<float>(input.mouse_x < left+edge);
+            pending_.move_z += static_cast<float>(input.mouse_y < top+edge) -
+                               static_cast<float>(input.mouse_y >= top+height-edge);
+        }
     }
 
     [[nodiscard]] camera::CameraRequest update(float dt) noexcept {
@@ -85,6 +118,7 @@ private:
     camera::CameraInput pending_{};
     std::uint64_t revision_{0};
     int button_{0};
+    std::array<bool, 8> keys_{};
     bool initialized_{false};
 };
 

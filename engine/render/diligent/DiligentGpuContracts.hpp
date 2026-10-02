@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 namespace genomes::render::diligent_contract {
@@ -56,6 +57,15 @@ struct InstanceGpuVertex final {
     float scale[4]{};
     float tint[4]{};
 };
+struct SkinnedInstanceGpuVertex final {
+    float position_rotation[4]{};
+    float scale[4]{};
+    float tint[4]{};
+    float morph_weights[4]{};
+    std::uint32_t palette_index{0U};
+    std::uint32_t debug_weight_bone{std::numeric_limits<std::uint32_t>::max()};
+    std::uint32_t reserved[2]{};
+};
 struct DebugGpuVertex final { float position[3]{},color[4]{}; };
 struct UiGpuVertex final { float position[2]{},uv[2]{},color[4]{}; };
 
@@ -71,6 +81,8 @@ static_assert(sizeof(SceneConstants)==256U);
 static_assert(offsetof(SceneConstants,shadow_parameters)==240U);
 static_assert(sizeof(MaterialConstants)==64U && offsetof(MaterialConstants,tint)==32U && offsetof(MaterialConstants,flags)==48U);
 static_assert(sizeof(InstanceGpuVertex)==48U && sizeof(UiGpuVertex)==32U);
+static_assert(sizeof(SkinnedInstanceGpuVertex)==80U &&
+              offsetof(SkinnedInstanceGpuVertex,palette_index)==64U);
 
 inline bool finite(foundation::Vec3 v) noexcept { return std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z); }
 inline bool validInstance(const RenderInstance& v) noexcept {

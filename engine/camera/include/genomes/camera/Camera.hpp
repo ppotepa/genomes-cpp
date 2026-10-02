@@ -21,6 +21,16 @@ struct CameraLens final {
     float projection_offset_x{0.0F};
     float projection_offset_y{0.0F};
 };
+struct RtsCameraSettings final {
+    math::Vec2 target_min{-1000.0F, -1000.0F};
+    math::Vec2 target_max{1000.0F, 1000.0F};
+    float min_pitch{0.436332313F};
+    float max_pitch{1.22173048F};
+    float min_distance{45.0F};
+    float max_distance{650.0F};
+    float edge_scroll_pixels{12.0F};
+    bool edge_scroll{true};
+};
 struct CameraRequest final {
     CameraPreset preset{CameraPreset::Custom};
     CameraMode mode{CameraMode::Orbit};
@@ -29,6 +39,7 @@ struct CameraRequest final {
     genomes::math::Vec3 up{0,1,0};
     CameraLens lens{};
     ViewportNormalized viewport{};
+    RtsCameraSettings rts{};
 };
 struct PixelViewport final { int x{0}; int y{0}; int width{0}; int height{0}; };
 struct ResolvedCamera final {

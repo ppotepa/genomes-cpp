@@ -121,52 +121,51 @@ foreach(_token "std::move(mesh.vertices),std::move(mesh.indices),"
     endif()
 endforeach()
 
-# Palette writes use a candidate constant block as well.  A failed upload must
-# leave the per-pass publication markers untouched, otherwise a later material
-# could reuse a missing/partial palette while telemetry reports a successful
-# update.  Keep this as a source contract because a headless test cannot inject
-# a Diligent map/update failure.
+# Regular and skinned instance transforms are packed linearly and mapped once
+# per render pass; individual material/mesh batches select their range by byte
+# offset.  Skinned instances additionally carry the shared palette base index.
 file(READ "${_root}/DiligentDraw.cpp" _draw)
-string(FIND "${_draw}" "if (first.skin)" _skin_draw_start)
-string(FIND "${_draw}" "} else {" _skin_draw_end)
-if(_skin_draw_start LESS 0 OR _skin_draw_end LESS_EQUAL _skin_draw_start)
-    message(FATAL_ERROR "Skinned palette publication block is missing or malformed")
-endif()
-string(SUBSTRING "${_draw}" ${_skin_draw_start} ${_skin_draw_end} _skin_draw)
-set(_last -1)
-foreach(_token "SkinnedPassConstants skin{}"
-               "std::copy(first.pose->morph_weights.begin(),first.pose->morph_weights.end(),skin.morph_weights)"
-               "for (std::size_t k=0;k<kBoneCount;++k) std::copy(first.pose->matrices[k].begin(),first.pose->matrices[k].end(),skin.bone_palette[k])"
-               "if (auto r=mapCopy(skin_buffer,&skin,sizeof(skin));!r) return r;"
-               "last_skin_instance=first.instance.object_id"
-               "++telemetry.palette_updates")
-    string(FIND "${_skin_draw}" "${_token}" _offset)
+foreach(_token "instance_scratch.reserve(regular_count)"
+               "skin_instance_scratch.reserve(skin_count)"
+               "mapCopy(instance_buffer,instance_scratch.data(),bytes)"
+               "mapCopy(skin_instance_buffer,skin_instance_scratch.data(),bytes)"
+               "item.instance.material_id"
+               "SkinnedInstanceGpuVertex vertex{}"
+               "first.skin?sizeof(SkinnedInstanceGpuVertex)"
+               "instance_offset*instance_stride")
+    string(FIND "${_passes}${_draw}" "${_token}" _offset)
     if(_offset LESS 0)
-        message(FATAL_ERROR "Atomic palette publication token missing: ${_token}")
+        message(FATAL_ERROR "Linear instance upload contract missing: ${_token}")
     endif()
-    if(_offset LESS_EQUAL _last)
-        message(FATAL_ERROR "Atomic palette publication order violated: ${_token}")
-    endif()
-    set(_last ${_offset})
 endforeach()
-# A failed palette copy is a transaction failure, not a new presentation
-# revision.  Keep the previous per-pass marker and telemetry untouched until
-# mapCopy has succeeded; this source contract protects the failure path even
-# when a headless test cannot inject a Diligent map/update error.
-string(FIND "${_skin_draw}" "if (auto r=mapCopy(skin_buffer,&skin,sizeof(skin));!r) return r;" _palette_copy_error)
-string(FIND "${_skin_draw}" "last_skin_instance=first.instance.object_id" _palette_revision)
-string(FIND "${_skin_draw}" "++telemetry.palette_updates" _palette_telemetry)
-if(_palette_copy_error LESS 0 OR _palette_revision LESS 0 OR _palette_telemetry LESS 0)
-    message(FATAL_ERROR "Palette failure transaction markers are missing")
+
+# Palette writes happen once in the scene pass, before any draw reads the
+# shared structured buffer.  The draw path must not regress to one full bone
+# palette constant block per unit/material range.
+foreach(_token "item.skin_palette_index=static_cast<std::uint32_t>(skin_items*kBoneCount)"
+               "skin_palette_scratch.insert(skin_palette_scratch.end()"
+               "mapCopy(skin_palette_buffer,skin_palette_scratch.data(),"
+               "telemetry.palette_updates+=static_cast<std::uint32_t>(skin_items)")
+    string(FIND "${_passes}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Shared palette publication token missing: ${_token}")
+    endif()
+endforeach()
+if(_draw MATCHES "SkinnedPassConstants|last_skin_instance|mapCopy\\(skin_buffer")
+    message(FATAL_ERROR "Per-draw skinned palette upload remains active")
 endif()
-if(_palette_revision LESS_EQUAL _palette_copy_error OR _palette_telemetry LESS_EQUAL _palette_revision)
-    message(FATAL_ERROR "Palette publication must follow a successful mapCopy")
-endif()
-string(SUBSTRING "${_skin_draw}" 0 ${_palette_copy_error} _palette_before_error)
-string(FIND "${_palette_before_error}" "last_skin_instance=first.instance.object_id" _early_palette_revision)
-string(FIND "${_palette_before_error}" "++telemetry.palette_updates" _early_palette_telemetry)
-if(_early_palette_revision GREATER_EQUAL 0 OR _early_palette_telemetry GREATER_EQUAL 0)
-    message(FATAL_ERROR "Palette failure path publishes a revision before mapCopy")
+file(READ "${_root}/DiligentResources.cpp" _resources)
+foreach(_token "v->Set(skin_palette_view)"
+               "Diligent::BUFFER_VIEW_SHADER_RESOURCE"
+               "sizeof(SkinnedInstanceGpuVertex)")
+    string(FIND "${_resources}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Skinned structured-buffer binding token missing: ${_token}")
+    endif()
+endforeach()
+file(READ "${_root}/shaders/CharacterCommon.hlsli" _character_common)
+if(NOT _character_common MATCHES "StructuredBuffer<float4x4> BonePaletteBuffer")
+    message(FATAL_ERROR "Shared GPU bone palette declaration is missing")
 endif()
 file(READ "${_root}/DiligentBackend.cpp" _backend_fence)
 foreach(_token "EnqueueSignal" "last_submitted_fence")
@@ -202,6 +201,15 @@ foreach(_token "data-model=\"ui_builtin_unit_lab\"" "id=\"unit-toolbar\""
     string(FIND "${_lab}" "${_token}" _offset)
     if(_offset LESS 0)
         message(FATAL_ERROR "UnitLab data binding missing: ${_token}")
+    endif()
+endforeach()
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp" _mass_battle_scene)
+foreach(_token "MassBattlePresentationProfile::Quality" "mass_battle_atlas"
+               "skinned_prototypes.push_back" "instance_prototypes.push_back"
+               "MassBattleModelYawOffset" "RenderInstanceFlagCastShadow")
+    string(FIND "${_mass_battle_scene}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "Mass Battle renderer profile contract missing: ${_token}")
     endif()
 endforeach()
 message(STATUS "Diligent source contracts inspected; this is not a GPU/compiler validation")
