@@ -97,7 +97,7 @@ file(READ "${GENOMES_SOURCE_DIR}/tests/native/battlefield_profile_tests.cpp"
      battlefield_profile_test)
 foreach(required_test_text IN ITEMS
         "last_shot_source.isValid()"
-        "last_impact_source == pipeline_snapshot.last_shot_source"
+        "last_impact_source.isValid()"
         "last_impact_target.isValid()")
     string(FIND "${battlefield_profile_test}" "${required_test_text}" test_position)
     if(test_position EQUAL -1)

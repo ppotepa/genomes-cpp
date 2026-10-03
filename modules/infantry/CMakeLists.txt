@@ -1,5 +1,6 @@
 add_library(genomes_infantry STATIC
     src/InfantrySimulation.cpp
+    src/InfantryUnitController.cpp
     src/InfantryGenome.cpp
 src/PhenotypeResolver.cpp
 src/FaceAnatomy.cpp
@@ -24,16 +25,19 @@ src/AppearanceMorphBuilder.cpp
     src/GroundContact.cpp
     src/FaceAnimator.cpp
     src/AnimationSystem.cpp
+    src/PresentationAnimation.cpp
     src/InfantryDamage.cpp
     src/RagdollController.cpp
     src/AppearanceCatalog.cpp
-    src/InfantryModelCompiler.cpp)
+    src/InfantryModelCompiler.cpp
+    src/InfantryProcedural.cpp)
 
 target_include_directories(genomes_infantry PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(genomes_infantry PRIVATE
     "${CMAKE_SOURCE_DIR}/external/json/single_include")
 target_link_libraries(genomes_infantry PUBLIC
+    genomes::api
 genomes::foundation
     genomes::content
 genomes::geometry

@@ -6,7 +6,9 @@ option(GENOMES_ENABLE_SDL "Configure pinned SDL3 and the desktop platform module
 option(GENOMES_ENABLE_RMLUI "Build the RmlUi-backed UI runtime" OFF)
 option(GENOMES_ENABLE_INFANTRY "Build and compose the optional infantry domain module" ON)
 option(GENOMES_ENABLE_JS_REFERENCE_PARITY
-    "Regenerate infantry parity fixtures with pinned JavaScript (developer-only)" OFF)
+    "Regenerate versioned infantry reference artifacts with pinned JavaScript (developer-only)" OFF)
+option(GENOMES_BUILD_INFANTRY_REFERENCE_COMPARISON
+    "Build the opt-in, non-gating C++ vs JavaScript comparison diagnostic" OFF)
 option(GENOMES_ENABLE_MESHOPTIMIZER
     "Prepare render index order with pinned CPU-only meshoptimizer" OFF)
 option(GENOMES_ENABLE_ASSETS

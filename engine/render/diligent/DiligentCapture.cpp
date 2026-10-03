@@ -34,6 +34,9 @@ bool writeBytes(const std::filesystem::path& path,const void* data,std::size_t s
 }
 }
 RenderResult DiligentBackend::capture(const std::filesystem::path& path) noexcept {
+    if (impl_ && !impl_->render_lane.ownsCurrentThread()) return error("Diligent capture outside render lane");
+    if (impl_ && impl_->health.state==RendererHealthState::DeviceLost)
+        return error("Diligent device is lost",foundation::ErrorCode::Internal);
     if (!impl_ || !impl_->caps.initialized || !impl_->swap) return error("capture requires an initialized windowed Diligent renderer");
     try {
         std::string extension=path.extension().string();

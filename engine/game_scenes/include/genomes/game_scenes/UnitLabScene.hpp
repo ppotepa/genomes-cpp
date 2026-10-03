@@ -5,16 +5,14 @@
 #include <genomes/infantry/AppearanceCatalog.hpp>
 #include <genomes/infantry/LocomotionController.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
-#include <genomes/infantry/AnimationSystem.hpp>
+#include <genomes/infantry/PresentationAnimation.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/runtime/Scene.hpp>
-#include <genomes/game_scenes/UnitLabModelRequestGate.hpp>
-#include <genomes/jobs/JobHandle.hpp>
 
 #include <memory>
 #include <optional>
 #include <cstddef>
 #include <cstdint>
-#include <mutex>
 #include <utility>
 #include <variant>
 
@@ -164,11 +162,12 @@ private:
     bool applyCommand(SceneContext&, const UnitLabCommand&);
     bool executeControl(SceneContext&, Control);
     void rebuildModel(SceneContext* context = nullptr);
-    void startModelRequest(SceneContext&, infantry::InfantryModelRequest,
-                           UnitLabModelRequestToken);
+    void startModelRequest(SceneContext&, infantry::InfantryModelRequest);
     void seekAnimation(float phase) noexcept;
     void publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
                                                foundation::Error>&& result);
+    [[nodiscard]] foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>
+    compileModel(const infantry::InfantryModelRequest& request);
 
     double elapsed_seconds_{0.0};
     std::uint64_t fixed_tick_{0};
@@ -208,26 +207,19 @@ private:
     std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
+    proc::GeneratorRegistry procedural_registry_;
+    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
     std::shared_ptr<const infantry::InfantryModelArtifact> model_artifact_;
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog_;
     std::optional<infantry::LocomotionController> locomotion_;
     std::optional<infantry::LocomotionState> locomotion_state_;
     infantry::AnimationTransitionRuntime transition_runtime_{};
     std::optional<infantry::FaceAnimator> face_animator_;
-    std::optional<infantry::AnimationSystem> animation_system_;
+    std::optional<infantry::PresentationAnimation> animation_system_;
     std::optional<infantry::AnimationPose> animation_pose_;
     std::optional<foundation::Error> last_generation_error_;
-    struct PendingModelResult final {
-        mutable std::mutex mutex;
-        std::optional<std::uint64_t> revision;
-        std::optional<foundation::StableId> request_key;
-        std::optional<foundation::Result<infantry::InfantryModelCompileResult,
-                                         foundation::Error>> result;
-    };
-    std::shared_ptr<PendingModelResult> pending_model_result_;
-    jobs::JobHandle model_job_;
-    UnitLabModelRequestGate model_request_gate_;
-    std::optional<infantry::InfantryModelRequest> queued_model_request_;
+    proc::GenerationChannel model_channel_;
+    proc::GenerationTicket<infantry::InfantryModelCompileResult> model_ticket_;
 };
 
 } // namespace genomes::game_scenes

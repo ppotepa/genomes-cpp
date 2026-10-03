@@ -2,6 +2,7 @@
 #include "DiligentBackend.hpp"
 #include "DiligentGpuContracts.hpp"
 #include <genomes/render/DrawMaterialPlan.hpp>
+#include <genomes/render/RenderLane.hpp>
 #include <DiligentCore/Common/interface/RefCntAutoPtr.hpp>
 #include <DiligentCore/Graphics/GraphicsEngine/interface/RenderDevice.h>
 #include <DiligentCore/Graphics/GraphicsEngine/interface/DeviceContext.h>
@@ -72,6 +73,11 @@ struct DiligentBackend::Impl final {
         std::shared_ptr<const void> owner;
         std::uint64_t fence{0};
     };
+    struct RetiredBuffer final {
+        Ptr<Diligent::IBuffer> buffer;
+        Ptr<Diligent::IBufferView> view;
+        std::uint64_t fence{0};
+    };
     struct Item {
         Mesh* gpu{nullptr};
         RenderInstance instance{};
@@ -91,6 +97,8 @@ struct DiligentBackend::Impl final {
         caps.presentation=!c.headless;caps.instanced_rendering=!c.headless;caps.gpu_skinning=!c.headless;
     }
     RenderConfig config;
+    RenderLane render_lane{};
+    RendererHealthDiagnostics health{};
     RenderCapabilities caps{};
     // Destruction order: caches and pipelines first, device/context last.
     Ptr<Diligent::IRenderDevice> device;
@@ -109,6 +117,7 @@ struct DiligentBackend::Impl final {
     Pipeline debug_pipeline,ui_pipeline;
     std::unordered_map<foundation::StableId,Mesh> regular_cache,skin_cache;
     std::vector<RetiredMesh> retired_meshes;
+    std::vector<RetiredBuffer> retired_buffers;
     std::unordered_map<std::uint64_t,UiTextureGpu> ui_textures;
     std::vector<Item> items;
     std::vector<diligent_contract::InstanceGpuVertex> instance_scratch;

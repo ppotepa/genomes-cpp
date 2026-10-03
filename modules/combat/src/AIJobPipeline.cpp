@@ -29,12 +29,12 @@ foundation::Result<void, foundation::Error> runStage(
         }
         return foundation::Result<void, foundation::Error>::success();
     }
-    const std::size_t batch_count = (entities.size() + batch_size - 1U) / batch_size;
+    const std::size_t batch_count = entities.size() / batch_size +
+                                    (entities.size() % batch_size != 0U ? 1U : 0U);
     std::vector<foundation::Error> errors(batch_count);
     std::atomic_bool failed{false};
-    const auto handles = jobs::parallelFor(
-        jobs, 0U, entities.size(), batch_size,
-        [&](jobs::BatchRange range) {
+    const bool completed = jobs::parallelForAndWait(
+        jobs, 0U, entities.size(), batch_size, [&](const jobs::BatchRange& range) {
             if (canceled(jobs, cancel)) {
                 failed.store(true, std::memory_order_release);
                 return;
@@ -45,11 +45,8 @@ foundation::Result<void, foundation::Error> runStage(
                 failed.store(true, std::memory_order_release);
             }
         });
-    for (const jobs::JobHandle& handle : handles) {
-        jobs.wait(handle);
-        if (handle.failed()) {
-            failed.store(true, std::memory_order_release);
-        }
+    if (!completed) {
+        failed.store(true, std::memory_order_release);
     }
     if (canceled(jobs, cancel)) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -89,7 +86,8 @@ foundation::Result<std::vector<AIIntent>, foundation::Error> AIJobPipeline::eval
         return foundation::Result<std::vector<AIIntent>, foundation::Error>::success(
             std::vector<AIIntent>{});
     }
-    const std::size_t batch_count = (entities.size() + config.batch_size - 1U) / config.batch_size;
+    const std::size_t batch_count = entities.size() / config.batch_size +
+                                    (entities.size() % config.batch_size != 0U ? 1U : 0U);
     stats_.batch_count = config.parallel ? batch_count : 1U;
     for (const AIBatchStage* stage : {&config.broadphase_stage, &config.line_of_sight_stage,
                                       &config.squad_stage}) {
@@ -116,9 +114,8 @@ foundation::Result<std::vector<AIIntent>, foundation::Error> AIJobPipeline::eval
     std::vector<std::vector<AIIntent>> batch_intents(batch_count);
     std::vector<foundation::Error> batch_errors(batch_count);
     std::atomic_bool failed{false};
-    const auto handles = jobs::parallelFor(
-        jobs, 0U, entities.size(), config.batch_size,
-        [&](jobs::BatchRange range) {
+    const bool completed = jobs::parallelForAndWait(
+        jobs, 0U, entities.size(), config.batch_size, [&](const jobs::BatchRange& range) {
             if (canceled(jobs, cancel)) {
                 failed.store(true, std::memory_order_release);
                 return;
@@ -132,11 +129,8 @@ foundation::Result<std::vector<AIIntent>, foundation::Error> AIJobPipeline::eval
             }
             batch_intents[range.batch_index] = std::move(result.value());
         });
-    for (const jobs::JobHandle& handle : handles) {
-        jobs.wait(handle);
-        if (handle.failed()) {
-            failed.store(true, std::memory_order_release);
-        }
+    if (!completed) {
+        failed.store(true, std::memory_order_release);
     }
     if (canceled(jobs, cancel)) {
         stats_.canceled = true;

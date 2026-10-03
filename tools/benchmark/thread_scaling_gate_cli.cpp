@@ -1,14 +1,15 @@
 #include "tools/benchmark/thread_scaling_gate.hpp"
 
+#include <genomes/jobs/JobSystem.hpp>
+
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace {
@@ -17,14 +18,6 @@ using genomes::benchmark::thread_scaling::Baseline;
 using genomes::benchmark::thread_scaling::GateStatus;
 using genomes::benchmark::thread_scaling::MachineFingerprint;
 using genomes::benchmark::thread_scaling::RunConfig;
-using genomes::benchmark::thread_scaling::WorkloadResult;
-
-[[nodiscard]] std::uint64_t mix(std::uint64_t value) noexcept {
-    value += 0x9E3779B97F4A7C15ULL;
-    value = (value ^ (value >> 30U)) * 0xBF58476D1CE4E5B9ULL;
-    value = (value ^ (value >> 27U)) * 0x94D049BB133111EBULL;
-    return value ^ (value >> 31U);
-}
 
 [[nodiscard]] bool parseUnsigned(const std::string& text, std::uint32_t& result) {
     try {
@@ -63,46 +56,19 @@ void printUsage() {
               << "  --warmups N           warmup samples (default: 1)\n"
               << "  --seed N              deterministic workload seed\n"
               << "  --baseline PATH       versioned JSON baseline for a hard gate\n"
-              << "  --machine CLASS       baseline machine class (default: reference)\n"
+              << "  --machine CLASS       baseline machine class (default: unclassified)\n"
               << "  --compiler NAME       compiler profile (default: portable)\n"
               << "  --dependencies NAME   dependency profile (default: native)\n"
               << "  --json                emit machine-readable report\n"
               << "  --report PATH         write report to PATH\n";
 }
 
-[[nodiscard]] WorkloadResult runDeterministicWorkload(const std::uint32_t worker_count,
-                                                       const std::uint64_t seed) {
-    constexpr std::uint32_t item_count = 131'072;
-    std::vector<std::uint64_t> partial(worker_count, 0);
-    std::vector<std::thread> workers;
-    workers.reserve(worker_count);
-    for (std::uint32_t worker = 0; worker < worker_count; ++worker) {
-        workers.emplace_back([&, worker]() {
-            const std::uint32_t begin = item_count * worker / worker_count;
-            const std::uint32_t end = item_count * (worker + 1) / worker_count;
-            std::uint64_t value = 0;
-            for (std::uint32_t index = begin; index < end; ++index) {
-                value ^= mix(seed ^ static_cast<std::uint64_t>(index));
-            }
-            partial[worker] = value;
-        });
-    }
-    for (auto& worker : workers) {
-        worker.join();
-    }
-    std::uint64_t semantic_hash = 0;
-    for (const auto value : partial) {
-        semantic_hash ^= value;
-    }
-    return WorkloadResult{0.0, semantic_hash, {}};
-}
-
 } // namespace
 
 int main(int argc, char** argv) {
     RunConfig config;
-    config.workload = "deterministic_partitioned_batch";
-    config.machine = MachineFingerprint{"reference", "portable", "native"};
+    config.workload = genomes::benchmark::thread_scaling::JobSystemWorkload;
+    config.machine = MachineFingerprint{"unclassified", "portable", "native"};
     config.worker_counts = {1, 2, 4};
 
     std::string baseline_path;
@@ -165,8 +131,21 @@ int main(int argc, char** argv) {
         }
     }
 
+    // Reuse one pool through its warmups and samples. Retire it before changing
+    // the worker count so idle pools cannot affect subsequent measurements.
+    std::unique_ptr<genomes::jobs::JobSystem> scheduler;
+    std::uint32_t active_workers = 0;
     const auto run = genomes::benchmark::thread_scaling::runDeterministic(
-        config, runDeterministicWorkload);
+        config, [&](std::uint32_t workers, std::uint64_t seed) {
+            if (active_workers != workers) {
+                scheduler.reset();
+                scheduler = std::make_unique<genomes::jobs::JobSystem>(
+                    genomes::jobs::SchedulerConfig{.worker_count = workers,
+                                                    .enable_io_worker = false});
+                active_workers = workers;
+            }
+            return genomes::benchmark::thread_scaling::runJobSystemWorkload(*scheduler, seed);
+        });
     Baseline baseline;
     std::string error;
     const auto workload_report = [&]() {
@@ -184,20 +163,9 @@ int main(int argc, char** argv) {
         status = gate.status;
         report = json ? genomes::benchmark::thread_scaling::renderJsonReport(run, &gate)
                       : genomes::benchmark::thread_scaling::renderReport(run, &gate);
-        if (gate.status == GateStatus::Regression ||
-            gate.status == GateStatus::CorrectnessFailure ||
-            gate.status == GateStatus::InvalidRun) {
-            if (json) {
-                std::cout << report;
-            } else {
-                std::cerr << report;
-            }
-            return 1;
-        }
     } else {
         report = json ? workload_report() : genomes::benchmark::thread_scaling::renderReport(run);
     }
-    static_cast<void>(status);
     if (!report_path.empty()) {
         std::ofstream output(report_path, std::ios::out | std::ios::trunc);
         if (!output) {
@@ -205,7 +173,13 @@ int main(int argc, char** argv) {
             return 2;
         }
         output << report;
+        if (!output) {
+            std::cerr << "unable to write report: " << report_path << '\n';
+            return 2;
+        }
     }
     std::cout << report;
-    return 0;
+    return !run.error.empty() || !run.semantic_hash_consistent ||
+                   status == GateStatus::Regression || status == GateStatus::CorrectnessFailure ||
+                   status == GateStatus::InvalidRun ? 1 : 0;
 }

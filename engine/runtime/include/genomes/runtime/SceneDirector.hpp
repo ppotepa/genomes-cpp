@@ -8,6 +8,7 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/camera/Camera.hpp>
 #include <genomes/runtime/ViewportController.hpp>
+#include <genomes/api/Api.hpp>
 
 #include <functional>
 #include <memory>
@@ -16,8 +17,31 @@
 
 namespace genomes::runtime {
 
-class SceneDirector {
+class SceneDirector : public api::CoreControlApi {
 public:
+    class PresentationBridge final : public api::PresentationFacade {
+    public:
+        void requestSnapshot(api::SnapshotView snapshot) override {
+            if (snapshot.scene_epoch < latest_.scene_epoch ||
+                (snapshot.scene_epoch == latest_.scene_epoch &&
+                 snapshot.tick < latest_.tick)) {
+                ++rejected_stale_;
+                return;
+            }
+            latest_ = snapshot;
+        }
+
+        [[nodiscard]] const api::SnapshotView& latest() const noexcept { return latest_; }
+        [[nodiscard]] std::uint64_t rejectedStale() const noexcept { return rejected_stale_; }
+        void reset(std::uint64_t epoch) noexcept {
+            if (latest_.scene_epoch < epoch) latest_ = {};
+        }
+
+    private:
+        api::SnapshotView latest_{};
+        std::uint64_t rejected_stale_{0U};
+    };
+
     using Factory = std::function<std::unique_ptr<Scene>()>;
     using ApplicationActionRouter = std::function<ui::UiActionResult(
         ui::UiActionId, const ui::UiActionArguments&)>;
@@ -49,11 +73,20 @@ public:
         session_show_diagnostics_ = value;
     }
     void request_quit() noexcept { quit_requested_ = true; }
+    [[nodiscard]] bool startScene(foundation::SceneId scene) override { return start(scene); }
+    void requestQuit() noexcept override { request_quit(); }
 
     foundation::Result<void, foundation::Error>
     register_scene(foundation::SceneId id, Factory factory);
     foundation::Result<void, foundation::Error>
     register_unavailable_scene(foundation::SceneId id, foundation::Error error);
+    [[nodiscard]] foundation::Result<void, foundation::Error> register_module(
+        api::ModuleDescriptor descriptor, api::ModuleHost::Registration registration) {
+        return modules_.registerModule(std::move(descriptor), std::move(registration));
+    }
+    [[nodiscard]] foundation::Result<void, foundation::Error> finalize_modules() {
+        return modules_.finalize();
+    }
     bool start(foundation::SceneId id);
     void handle_input(const input::InputFrame&);
     [[nodiscard]] ui::UiActionResult dispatch_ui_action(
@@ -64,6 +97,10 @@ public:
     void fixed_update(double dt);
     void frame_update(double dt);
     void present();
+    [[nodiscard]] bool rendererHealthy() const noexcept { return renderer_.healthy(); }
+    [[nodiscard]] foundation::Error rendererLastError() const noexcept {
+        return renderer_.last_error();
+    }
 
     void set_deterministic_capture(bool enabled) noexcept {
         deterministic_capture_ = enabled;
@@ -84,6 +121,12 @@ public:
     [[nodiscard]] const foundation::Error& last_error() const noexcept {
         return last_error_;
     }
+    [[nodiscard]] api::ModuleHost& module_host() noexcept { return modules_; }
+    [[nodiscard]] const api::ModuleHost& module_host() const noexcept { return modules_; }
+    [[nodiscard]] const PresentationBridge& presentation_api() const noexcept {
+        return presentation_api_;
+    }
+    [[nodiscard]] api::EngineTelemetry& telemetry() noexcept { return telemetry_; }
 
 private:
     [[nodiscard]] SceneContext make_context() noexcept;
@@ -99,6 +142,7 @@ private:
     bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
     jobs::JobSystem* jobs_{nullptr};
+    bool scheduler_explicit_{false};
     bool quit_requested_{false};
     foundation::Error last_error_{};
     bool deterministic_capture_{false};
@@ -116,6 +160,11 @@ private:
     ApplicationActionRouter application_action_router_{};
     SceneCommandHandler scene_command_handler_{};
     render::SnapshotExchange presentation_exchange_{3};
+    api::ModuleHost modules_{};
+    jobs::CancelSource scene_cancellation_{};
+    PresentationBridge presentation_api_{};
+    api::EngineTelemetry telemetry_{};
+    api::EngineServices engine_services_{};
 };
 
 } // namespace genomes::runtime

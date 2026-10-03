@@ -592,6 +592,10 @@ bool Runtime::mount_routes(const std::vector<UiRoute>& routes, const UiRuntime& 
         set_model(runtime.model());
         set_route_models(runtime);
         if (!push_document(route.document)) return false;
+        // Refresh after parsing so list bindings populated before the
+        // document load are materialized by RmlUi's data-for views.
+        set_model(runtime.model());
+        set_route_models(runtime);
     }
     return true;
 }
@@ -602,14 +606,18 @@ bool Runtime::push_document(const std::filesystem::path& relative_path) {
     if (document == nullptr) return false;
     document->Show();
     modal_document_ = document;
-    document->AddEventListener("click", &action_listener_);
-    document->AddEventListener("input", &action_listener_);
-    document->AddEventListener("change", &action_listener_);
-    document->AddEventListener("submit", &action_listener_);
-    // Register semantic owners directly as well as on the document. RmlUi
-    // does not guarantee that a click originating in a nested inline element
-    // will bubble through a custom element tree in the same way as native
-    // HTML, so direct registration keeps nested labels and spans reliable.
+    // Route data may have been populated before the document was parsed. Mark
+    // the model dirty after binding the document so data-for/data-if views are
+    // materialized even when the subsequent model refresh has no value delta.
+    if (!route_models_.empty()) {
+        auto& route = *route_models_.back();
+        for (const auto& name : route.bound_lists)
+            route.model.GetModelHandle().DirtyVariable(name);
+        route.model.GetModelHandle().DirtyAllVariables();
+    }
+    // Register semantic owners directly. This handles nested labels/spans and
+    // avoids dispatching the same event once on the owner and again on the
+    // document during bubbling.
     Rml::ElementList semantic_elements;
     document->QuerySelectorAll(semantic_elements, "[data-action]");
     document->QuerySelectorAll(semantic_elements, "[data-control]");

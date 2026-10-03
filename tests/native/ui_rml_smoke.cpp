@@ -1,4 +1,5 @@
 #include <RmlUiRuntime.hpp>
+#include <RmlUi/Core/Elements/ElementFormControlSelect.h>
 #include <genomes/ui/UiRuntime.hpp>
 
 #include <algorithm>
@@ -384,7 +385,9 @@ int main() {
     }
     auto* phase_control = value_document->QuerySelector("[data-control=\"unit.phase\"]");
     assert(phase_control != nullptr);
-    phase_control->DispatchEvent("change", Rml::Dictionary{});
+    Rml::Dictionary phase_change;
+    phase_change["value"] = Rml::Variant{0.4F};
+    phase_control->DispatchEvent("change", phase_change);
     assert(phase_commands == 1); // Explicit user/control events still reach the router.
     runtime.set_event_router({});
     for (const char* control_name : {"unit.animation-speed", "unit.phase"}) {
@@ -433,15 +436,19 @@ int main() {
                                       "select[data-control=\"unit.equipment-item\"]");
             assert(equipment_selects.size() == 24U);
             for (auto* select : equipment_selects) {
-                Rml::ElementList options;
-                select->QuerySelectorAll(options, "option");
+                auto* select_control = dynamic_cast<Rml::ElementFormControlSelect*>(select);
                 // The structural data-for template remains in the tree and
                 // is hidden; twenty-four generated options follow it.
-                assert(options.size() == 25U);
+                assert(select_control != nullptr &&
+                       select_control->GetNumOptions() == 25);
                 std::size_t visible_options = 0U;
-                for (auto* option : options)
+                for (int option_index = 0;
+                     option_index < select_control->GetNumOptions(); ++option_index) {
+                    auto* option = select_control->GetOption(option_index);
+                    assert(option != nullptr);
                     visible_options += option->GetLocalStyleProperties().count(
                         Rml::PropertyId::Display) == 0U ? 1U : 0U;
+                }
                 // Every generated select receives the complete stable list,
                 // but its data-if predicate must leave only its own slot.
                 assert(visible_options == 1U);

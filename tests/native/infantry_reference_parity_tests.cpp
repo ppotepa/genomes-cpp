@@ -4,6 +4,7 @@
 #include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/FaceAnatomy.hpp>
+#include <genomes/infantry/GroundContact.hpp>
 #include <genomes/infantry/InfantryDamage.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
 #include <genomes/infantry/PhenotypeResolver.hpp>
@@ -28,6 +29,12 @@
 #include <nlohmann/json.hpp>
 
 namespace {
+
+[[nodiscard]] bool fixtureFlatGround(void*, genomes::foundation::Vec3,
+                                     genomes::infantry::GroundSample& output) noexcept {
+    output = {};
+    return true;
+}
 
 [[nodiscard]] genomes::foundation::Color referenceSrgb(std::uint32_t hex) {
     const auto channel=[](std::uint32_t value){
@@ -105,7 +112,29 @@ namespace {
             std::memcpy(&reference,expected->bytes.data()+index*sizeof(float),sizeof(float));
             const double actual=value_at(index);if(std::abs(actual-reference)>tolerance){
                 std::cerr<<"gear fixture stream mismatch fixture="<<label<<" stream="<<name
-                    <<" element="<<index<<" expected="<<reference<<" actual="<<actual<<'\n';return false;}}
+                    <<" element="<<index<<" expected="<<reference<<" actual="<<actual;
+                if(name=="gear.normals"){
+                    const std::size_t vertex=index/3U;
+                    const auto* positions=fixture.find("gear.positions");
+                    if(positions!=nullptr&&positions->element_count>=vertex*3U+3U){
+                        std::cerr<<" vertex="<<vertex<<" position_expected=(";
+                        for(std::size_t axis=0U;axis<3U;++axis){float coordinate{};
+                            std::memcpy(&coordinate,positions->bytes.data()+(vertex*3U+axis)*sizeof(float),sizeof(float));
+                            if(axis!=0U){std::cerr<<',';}std::cerr<<coordinate;}
+                        const auto& point=mesh.vertices[vertex].position;
+                        std::cerr<<std::setprecision(12)<<") position_actual=("<<point.x<<','<<point.y<<','<<point.z<<')';
+                        for(std::size_t triangle=0U;triangle+2U<mesh.indices.size();triangle+=3U){
+                            const auto a=mesh.indices[triangle],b=mesh.indices[triangle+1U],c=mesh.indices[triangle+2U];
+                            if(a!=vertex&&b!=vertex&&c!=vertex){continue;}
+                            std::cerr<<" incident=("<<a<<','<<b<<','<<c<<')';
+                            for(const auto adjacent:{a,b,c}){
+                                const auto& p=mesh.vertices[adjacent].position;
+                                std::cerr<<" v"<<adjacent<<"=("<<p.x<<','<<p.y<<','<<p.z<<")";
+                            }
+                        }
+                    }
+                }
+                std::cerr<<'\n';return false;}}
         return true;};
     if(!stream("gear.positions",[&](std::size_t i){const auto& v=mesh.vertices[i/3U].position;return i%3U==0U?v.x:i%3U==1U?v.y:v.z;},mesh.vertices.size()*3U,2e-6)||
        !stream("gear.normals",[&](std::size_t i){const auto& v=mesh.vertices[i/3U].normal;return i%3U==0U?v.x:i%3U==1U?v.y:v.z;},mesh.vertices.size()*3U,normal_tolerance)||
@@ -480,6 +509,20 @@ int main() {
                                     <<" pointError="<<std::abs(static_cast<double>(p.x)-expected_point[0])<<','
                                     <<std::abs(static_cast<double>(p.y)-expected_point[1])<<','
                                     <<std::abs(static_cast<double>(p.z)-expected_point[2]);}}
+                        if(name=="body.skinWeights"){const auto vertex=static_cast<std::uint32_t>(index/4U);
+                            for(const auto& tag:jacket.tags)if(std::find(tag.vertices.begin(),tag.vertices.end(),vertex)!=tag.vertices.end())std::cerr<<" tag="<<tag.name;
+                            const auto& p=jacket.vertices[vertex].position;std::cerr<<std::setprecision(17)<<" vertex="<<vertex<<" point="<<p.x<<','<<p.y<<','<<p.z;
+                            for(const auto bone:{BoneId::SpineLower,BoneId::SpineUpper,BoneId::Chest})std::cerr<<" bindY="<<native_fit.value().reference_bind_points[boneIndex(bone)][1];}
+                        if(name=="body.morph.handsRelax.normals"){const auto vertex=index/3U;
+                            const auto& base=jacket.vertices[vertex].normal;const auto& delta=morph_normals[3U][vertex];
+                            const auto& position=jacket.vertices[vertex].position;const auto& morph=morph_positions[3U][vertex];
+                            std::cerr<<std::setprecision(17)<<" vertex="<<vertex<<" base="<<base.x<<','<<base.y<<','<<base.z
+                                <<" delta="<<delta.x<<','<<delta.y<<','<<delta.z<<" position="<<position.x<<','<<position.y<<','<<position.z
+                                <<" morph="<<morph.x<<','<<morph.y<<','<<morph.z;
+                            const auto expected_component=[&](std::string_view stream,std::size_t component){float value{};const auto* source=avatar_fixture.find(stream);
+                                if(source!=nullptr)std::memcpy(&value,source->bytes.data()+(vertex*3U+component)*sizeof(float),sizeof(float));return value;};
+                            std::cerr<<" expectedBase="<<expected_component("body.normals",0U)<<','<<expected_component("body.normals",1U)<<','<<expected_component("body.normals",2U)
+                                <<" expectedMorph="<<expected_component("body.morph.handsRelax.positions",0U)<<','<<expected_component("body.morph.handsRelax.positions",1U)<<','<<expected_component("body.morph.handsRelax.positions",2U);}
                         std::cerr<<'\n';return false;}}
                 return true;};
             if(const auto* positions=avatar_fixture.find("body.positions");positions==nullptr||
@@ -552,7 +595,14 @@ int main() {
             if(first!=count){float expected{};std::memcpy(&expected,stream->bytes.data()+first*sizeof(float),sizeof(float));
                 std::cerr<<"equipment stream mismatch stream="<<name<<" element="<<first
                          <<" expected="<<expected<<" actual="<<value_at(first)
-                         <<" maximum="<<maximum<<'\n';return false;}return true;};
+                         <<" maximum="<<maximum;
+                const auto vertex=static_cast<std::uint32_t>(first/(name=="gear.skinIndices"||name=="gear.skinWeights"?4U:name=="gear.uvs"?2U:3U));
+                for(const auto& tag:native_surface.value().tags)if(std::find(tag.vertices.begin(),tag.vertices.end(),vertex)!=tag.vertices.end())std::cerr<<" tag="<<tag.name;
+                if(name=="gear.normals"){const auto* positions=gnif.find("gear.positions");const auto& point=native_surface.value().vertices[vertex].position;
+                    std::array<float,3U> expected_point{};if(positions!=nullptr)std::memcpy(expected_point.data(),positions->bytes.data()+vertex*3U*sizeof(float),3U*sizeof(float));
+                    std::cerr<<std::setprecision(17)<<" point="<<point.x<<','<<point.y<<','<<point.z<<" expectedPoint="<<expected_point[0]<<','<<expected_point[1]<<','<<expected_point[2];
+                    if(vertex==2991U){const double y=native_fit.value().mapTorsoYExact(.793);for(std::size_t i=0;i+1U<native_fit.value().jacket.size();++i)if(y<=native_fit.value().jacket[i+1U].reference_y){const auto& a=native_fit.value().jacket[i];const auto& b=native_fit.value().jacket[i+1U];const double t=(y-a.reference_y)/(b.reference_y-a.reference_y);std::cerr<<" profile="<<a.reference_half_width+(b.reference_half_width-a.reference_half_width)*t<<','<<a.reference_half_depth+(b.reference_half_depth-a.reference_half_depth)*t;break;}}}
+                std::cerr<<" vertex="<<vertex<<'\n';return false;}return true;};
         const auto& surface=native_surface.value();
         if(!compare_stream("gear.positions",[&](std::size_t i){const auto& v=surface.vertices[i/3U].position;return i%3U==0U?v.x:i%3U==1U?v.y:v.z;},surface.vertices.size()*3U,2e-6)||
            !compare_stream("gear.normals",[&](std::size_t i){const auto& v=surface.vertices[i/3U].normal;return i%3U==0U?v.x:i%3U==1U?v.y:v.z;},surface.vertices.size()*3U,2e-5)||
@@ -701,7 +751,8 @@ int main() {
                 std::memcpy(&expected,stream->bytes.data()+index*sizeof(float),sizeof(float));
                 const double actual=value_at(index);if(std::abs(actual-expected)>tolerance){
                     std::cerr<<"field cap stream mismatch stream="<<name<<" element="<<index
-                        <<" expected="<<expected<<" actual="<<actual<<'\n';return false;}}return true;};
+                        <<" expected="<<expected<<" actual="<<actual;
+                    std::cerr<<'\n';return false;}}return true;};
         const auto& cap_surface=cap_mesh.value();
         if(!cap_stream("gear.normals",[&](std::size_t i){const auto& v=cap_surface.vertices[i/3U].normal;return i%3U==0U?v.x:i%3U==1U?v.y:v.z;},cap_surface.vertices.size()*3U,2e-5)||
            !cap_stream("gear.colors",[&](std::size_t i){const auto& v=cap_surface.vertices[i/3U].color;return i%3U==0U?v.r:i%3U==1U?v.g:v.b;},cap_surface.vertices.size()*3U,2e-6)||
@@ -1184,11 +1235,17 @@ int main() {
                 ReferenceBodySurfaceGenerator::build(animation_fit.value(),rig.value(),kDefaultUniformColor,3U):
                 genomes::foundation::Result<ReferenceAvatarSurface,genomes::foundation::Error>::failure(
                     {genomes::foundation::ErrorCode::InvalidState,"animation surface"});
+            const auto animation_gear=animation_fit?
+                GearGenerator::build(animation_equipment.value(),animation_fit.value(),rig.value(),
+                                     kDefaultUniformColor,3U,.25F):
+                genomes::foundation::Result<GearArtifact,genomes::foundation::Error>::failure(
+                    {genomes::foundation::ErrorCode::InvalidState,"animation gear"});
             const auto* translations = fixture.find("animation.REST.translations");
             const auto* rotations = fixture.find("animation.REST.rotations");
             const auto* morphs = fixture.find("animation.REST.morphWeights");
             const auto* locomotion = fixture.find("animation.REST.locomotion");
-            if (!rig || translations == nullptr || rotations == nullptr || morphs == nullptr ||
+            if (!rig || !animation_surface || !animation_gear ||
+                translations == nullptr || rotations == nullptr || morphs == nullptr ||
                 locomotion == nullptr ||
                 translations->element_count != 600U * kRigBoneCount * 3U ||
                 rotations->element_count != 600U * kRigBoneCount * 4U ||
@@ -1232,19 +1289,24 @@ int main() {
                 const std::string prefix=std::string("animation.")+state_name;
                 const auto* targets=fixture.find(prefix+".bipedTargets");
                 const auto* limbs=fixture.find(prefix+".limbTargets");
-                const auto* rotations_stream=fixture.find(prefix+".targetRotations");
+                const auto* target_rotations=fixture.find(prefix+".targetRotations");
+                const auto* final_rotations=fixture.find(prefix+".rotations");
                 const auto* channels=fixture.find(prefix+".poseChannels");
-                if(targets==nullptr||limbs==nullptr||rotations_stream==nullptr||channels==nullptr)return false;
+                if(targets==nullptr||limbs==nullptr||target_rotations==nullptr||
+                   final_rotations==nullptr||channels==nullptr)return false;
                 auto native=controller.value().initialState();
                 if(!controller.value().setFamily(native,LocomotionFamily::Prone,moving))return false;
+                native.treadmill=true;
                 native.actual_speed_mps=moving?.35F:0.0F;
                 auto animation_result=AnimationSystem::create();if(!animation_result)return false;
                 auto animation=std::move(animation_result.value());
                 AnimationTransitionRuntime transition_runtime{};
                 AnimationEntity entity{};entity.semantic_id=3U;entity.skeleton=&rig.value();
-                // The JS animation fixture uses the flat contact surface, not
-                // the skinned body mesh, for prone hand/foot placement.
-                entity.surface=nullptr;
+                // The JS exporter uses FlatSurface for prone contact while
+                // retaining the authored surface as the hand/foot support mesh.
+                entity.surface=&animation_surface.value().mesh;
+                entity.gear=&animation_gear.value();
+                entity.ground_surface={1U,nullptr,fixtureFlatGround};
                 entity.locomotion=&controller.value();entity.locomotion_state=&native;
                 entity.transition_runtime=&transition_runtime;
                 entity.lod.setTier(AnimationLOD::Near);std::array<AnimationEntity,1U> entities{entity};
@@ -1255,44 +1317,90 @@ int main() {
                         native.phase-=std::floor(native.phase);}
                     if(!animation.evaluate(entities,frame,1.0F/60.0F))return false;
                     const auto& pose=animation.currentSnapshot().poses.front();
+                    const auto& authored=transition_runtime.current;
                     const auto& hips=pose.target_bones[boneIndex(BoneId::Hips)].translation;
                     const std::array<float,4U> expected_channels{hips.x/body.height,hips.y/body.height,
                         hips.z/body.height,pose.target_hand_curl};
                     for(std::size_t component=0;component<4U;++component)
-                        if(std::abs(valueAt(*channels,frame*4U+component)-expected_channels[component])>2e-5F)return false;
+                        if(std::abs(valueAt(*channels,frame*4U+component)-expected_channels[component])>2e-5F){
+                            std::cerr<<"prone channel mismatch state="<<state_name<<" frame="<<frame
+                                     <<" component="<<component<<" expected="
+                                     <<valueAt(*channels,frame*4U+component)<<" actual="
+                                     <<expected_channels[component]<<'\n';return false;}
                     for(const auto bone:sampled_bones)for(std::size_t component=0;component<4U;++component){
                         const auto element=(frame*kRigBoneCount+bone)*4U+component;
                         const auto& q=pose.target_bones[bone].rotation;
                         const float actual=component==0U?q.x:component==1U?q.y:component==2U?q.z:q.w;
-                        if(std::abs(valueAt(*rotations_stream,element)-actual)>2e-5F)return false;}
+                        if(std::abs(valueAt(*target_rotations,element)-actual)>2e-5F){
+                            std::cerr<<"prone target rotation mismatch state="<<state_name
+                                     <<" frame="<<frame<<" bone="<<bone<<" component="
+                                     <<component<<" expected="<<valueAt(*target_rotations,element)
+                                     <<" actual="<<actual<<'\n';return false;}}
                     for(std::size_t side=0;side<2U;++side){
-                        const std::array<float,11U> feet{pose.foot_targets[side].x,pose.foot_targets[side].y,
-                            pose.foot_targets[side].z,pose.knee_targets[side].x,pose.knee_targets[side].y,
-                            pose.knee_targets[side].z,pose.foot_plant[side],pose.foot_support[side],
-                            pose.foot_pitch[side],pose.toe_pitch[side],pose.foot_yaw[side]};
-                        const std::array<float,11U> arms{pose.hand_targets[side].x,pose.hand_targets[side].y,
-                            pose.hand_targets[side].z,pose.elbow_targets[side].x,pose.elbow_targets[side].y,
-                            pose.elbow_targets[side].z,pose.hand_plant[side],pose.hand_lift[side],
-                            pose.foot_relative[side],pose.ankle_pitch[side],pose.ankle_yaw[side]};
+                        const std::array<float,11U> feet{authored.foot_targets[side].x,
+                            authored.foot_targets[side].y,authored.foot_targets[side].z,
+                            authored.knee_targets[side].x,authored.knee_targets[side].y,
+                            authored.knee_targets[side].z,authored.foot_plant[side],
+                            authored.foot_support[side],authored.foot_pitch[side],
+                            authored.toe_pitch[side],authored.foot_yaw[side]};
+                        const std::array<float,11U> arms{authored.hand_targets[side].x,
+                            authored.hand_targets[side].y,authored.hand_targets[side].z,
+                            authored.elbow_targets[side].x,authored.elbow_targets[side].y,
+                            authored.elbow_targets[side].z,authored.hand_plant[side],
+                            authored.hand_lift[side],authored.foot_relative[side],
+                            authored.ankle_pitch[side],authored.ankle_yaw[side]};
                         for(std::size_t component=0;component<11U;++component){
                             const auto element=frame*22U+side*11U+component;
                             if(std::abs(valueAt(*targets,element)-feet[component])>5e-5F||
-                               std::abs(valueAt(*limbs,element)-arms[component])>5e-5F)return false;}
+                               std::abs(valueAt(*limbs,element)-arms[component])>5e-5F){
+                                std::cerr<<"prone target mismatch state="<<state_name<<" frame="
+                                         <<frame<<" side="<<side<<" component="<<component
+                                         <<" feet_expected="<<valueAt(*targets,element)
+                                         <<" feet_actual="<<feet[component]<<" arms_expected="
+                                         <<valueAt(*limbs,element)<<" arms_actual="
+                                         <<arms[component]<<'\n';return false;}}
                     }
                     for(std::size_t bone=0U;bone<kRigBoneCount;++bone){
                         const auto base=(frame*kRigBoneCount+bone)*4U;
                         const auto& q=pose.bones[bone].rotation;
-                        const double d=static_cast<double>(valueAt(*rotations_stream,base))*q.x+
-                            static_cast<double>(valueAt(*rotations_stream,base+1U))*q.y+
-                            static_cast<double>(valueAt(*rotations_stream,base+2U))*q.z+
-                            static_cast<double>(valueAt(*rotations_stream,base+3U))*q.w;
-                        const double en=std::sqrt(static_cast<double>(valueAt(*rotations_stream,base))*valueAt(*rotations_stream,base)+
-                            static_cast<double>(valueAt(*rotations_stream,base+1U))*valueAt(*rotations_stream,base+1U)+
-                            static_cast<double>(valueAt(*rotations_stream,base+2U))*valueAt(*rotations_stream,base+2U)+
-                            static_cast<double>(valueAt(*rotations_stream,base+3U))*valueAt(*rotations_stream,base+3U));
+                        const double d=static_cast<double>(valueAt(*final_rotations,base))*q.x+
+                            static_cast<double>(valueAt(*final_rotations,base+1U))*q.y+
+                            static_cast<double>(valueAt(*final_rotations,base+2U))*q.z+
+                            static_cast<double>(valueAt(*final_rotations,base+3U))*q.w;
+                        const double en=std::sqrt(static_cast<double>(valueAt(*final_rotations,base))*valueAt(*final_rotations,base)+
+                            static_cast<double>(valueAt(*final_rotations,base+1U))*valueAt(*final_rotations,base+1U)+
+                            static_cast<double>(valueAt(*final_rotations,base+2U))*valueAt(*final_rotations,base+2U)+
+                            static_cast<double>(valueAt(*final_rotations,base+3U))*valueAt(*final_rotations,base+3U));
                         const double an=std::sqrt(static_cast<double>(q.x)*q.x+static_cast<double>(q.y)*q.y+
                             static_cast<double>(q.z)*q.z+static_cast<double>(q.w)*q.w);
-                        if(2.0*std::acos(std::clamp(std::abs(d)/(en*an),0.0,1.0))>2e-4)return false;
+                        const double angle=2.0*std::acos(std::clamp(std::abs(d)/(en*an),0.0,1.0));
+                        if(angle>2e-4){const auto* final_translations=fixture.find(prefix+".translations");
+                            const auto hips_base=frame*kRigBoneCount*3U+boneIndex(BoneId::Hips)*3U;
+                            std::cerr<<"prone final rotation mismatch state="<<state_name
+                            <<" frame="<<frame<<" bone="<<bone<<" angle="<<angle
+                            <<" expected="<<valueAt(*final_rotations,base)<<','
+                            <<valueAt(*final_rotations,base+1U)<<','
+                            <<valueAt(*final_rotations,base+2U)<<','
+                            <<valueAt(*final_rotations,base+3U)<<" actual="
+                            <<q.x<<','<<q.y<<','<<q.z<<','<<q.w<<" target="
+                            <<pose.target_bones[bone].rotation.x<<','
+                            <<pose.target_bones[bone].rotation.y<<','
+                            <<pose.target_bones[bone].rotation.z<<','
+                            <<pose.target_bones[bone].rotation.w
+                            <<" hip_y="<<pose.bones[boneIndex(BoneId::Hips)].translation.y
+                            <<" expected_hip_y="<<(final_translations?
+                                valueAt(*final_translations,hips_base+1U):0.0F)
+                            <<" authored_hip_y="<<authored.bones[boneIndex(BoneId::Hips)].translation.y
+                            <<" hand_goal="<<pose.hand_targets[0].x<<','<<pose.hand_targets[0].y
+                            <<','<<pose.hand_targets[0].z<<" authored_hand="
+                            <<authored.hand_targets[0].x<<','<<authored.hand_targets[0].y<<','
+                            <<authored.hand_targets[0].z<<" elbow_pole="
+                            <<pose.elbow_targets[0].x<<','<<pose.elbow_targets[0].y<<','
+                            <<pose.elbow_targets[0].z<<" fore="
+                            <<pose.bones[boneIndex(BoneId::ForeArmL)].rotation.x<<','
+                            <<pose.bones[boneIndex(BoneId::ForeArmL)].rotation.y<<','
+                            <<pose.bones[boneIndex(BoneId::ForeArmL)].rotation.z<<','
+                            <<pose.bones[boneIndex(BoneId::ForeArmL)].rotation.w<<'\n';return false;}
                     }
                 }
                 return true;
@@ -1314,6 +1422,9 @@ int main() {
                    foot_goals->element_count!=600U*6U){std::cerr<<"locomotion fixture shape mismatch state="<<state.name<<'\n';return 2;}
                 auto native=controller.value().initialState();
                 if(!controller.value().setPreset(native,state.preset,true))return 2;
+                // The JS exporter samples the authored pose on a flat treadmill
+                // and runs its ground-clearance pass for every animation frame.
+                native.treadmill=true;
                 auto animation_result=AnimationSystem::create();
                 if(!animation_result)return 2;
                 auto animation=std::move(animation_result.value());
@@ -1322,6 +1433,8 @@ int main() {
                 // Terrain contact is flat in this fixture, while support
                 // points still come from the authored skinned body surface.
                 entity.surface=&animation_surface.value().mesh;
+                entity.gear=&animation_gear.value();
+                entity.ground_surface={1U,nullptr,fixtureFlatGround};
                 entity.locomotion=&controller.value();entity.locomotion_state=&native;
                 entity.transition_runtime=&transition_runtime;
                 entity.lod.setTier(AnimationLOD::Near);
@@ -1357,8 +1470,39 @@ int main() {
                         if(std::abs(valueAt(*foot_goals,frame*6U+side*3U+component)-actual)>2e-5F){
                             std::cerr<<"biped foot goal mismatch seed="<<seed<<" state="<<state.name
                                      <<" frame="<<frame<<" side="<<side<<" component="<<component
-                                     <<" expected="<<valueAt(*foot_goals,frame*6U+side*3U+component)
-                                     <<" actual="<<actual<<'\n';return 2;}}
+                                     <<std::setprecision(12)<<" expected="
+                                     <<valueAt(*foot_goals,frame*6U+side*3U+component)
+                                     <<" actual="<<actual<<" hips_y="
+                                     <<pose.bones[boneIndex(BoneId::Hips)].translation.y
+                                     <<" foot_target_y="<<pose.foot_targets[side].y
+                                     <<" foot_pitch="<<pose.foot_pitch[side]
+                                     <<" foot_yaw="<<pose.foot_yaw[side]
+                                     <<" foot_relative="<<pose.foot_relative[side]
+                                     <<" ankle_pitch="<<pose.ankle_pitch[side]
+                                     <<" body_height="<<body.height
+                                     <<" thigh_rotation="
+                                     <<pose.bones[boneIndex(side==0U?BoneId::ThighL:BoneId::ThighR)].rotation.x
+                                     <<','<<pose.bones[boneIndex(side==0U?BoneId::ThighL:BoneId::ThighR)].rotation.y
+                                     <<','<<pose.bones[boneIndex(side==0U?BoneId::ThighL:BoneId::ThighR)].rotation.z
+                                     <<','<<pose.bones[boneIndex(side==0U?BoneId::ThighL:BoneId::ThighR)].rotation.w
+                                     ;
+                            const auto* expected_rotations=fixture.find(
+                                std::string("animation.")+state.name+".rotations");
+                            if(expected_rotations!=nullptr){
+                                const auto expected_bone=boneIndex(side==0U?BoneId::ThighL:BoneId::ThighR);
+                                const auto expected_base=(frame*kRigBoneCount+expected_bone)*4U;
+                                std::cerr<<" thigh_expected="<<valueAt(*expected_rotations,expected_base)<<','
+                                    <<valueAt(*expected_rotations,expected_base+1U)<<','
+                                    <<valueAt(*expected_rotations,expected_base+2U)<<','
+                                    <<valueAt(*expected_rotations,expected_base+3U);
+                            }
+                            const auto* expected_translations=fixture.find(
+                                std::string("animation.")+state.name+".translations");
+                            if(expected_translations!=nullptr){
+                                const auto hips_base=frame*kRigBoneCount*3U+boneIndex(BoneId::Hips)*3U;
+                                std::cerr<<" hips_y_expected="<<valueAt(*expected_translations,hips_base+1U);
+                            }
+                            std::cerr<<'\n';return 2;}}
                     if(state.actual_speed==0.0F)for(std::size_t bone=0;bone<kRigBoneCount;++bone){
                         const auto base=(frame*kRigBoneCount+bone)*4U;
                         const auto& q=pose.bones[bone].rotation;
@@ -1373,11 +1517,52 @@ int main() {
                         const double an=std::sqrt(static_cast<double>(q.x)*q.x+static_cast<double>(q.y)*q.y+
                             static_cast<double>(q.z)*q.z+static_cast<double>(q.w)*q.w);
                         const float angle=static_cast<float>(2.0*std::acos(std::clamp(std::abs(d)/(en*an),0.0,1.0)));
-                        if(angle>2e-4F){std::cerr<<"biped final rotation mismatch seed="<<seed
+                        if(angle>2e-4F){std::cerr<<std::setprecision(12)<<"biped final rotation mismatch seed="<<seed
                             <<" state="<<state.name<<" frame="<<frame<<" bone="<<bone
                             <<" angle="<<angle<<" expected="<<valueAt(*final_rotations,base)<<','
                             <<valueAt(*final_rotations,base+1U)<<','<<valueAt(*final_rotations,base+2U)<<','
-                            <<valueAt(*final_rotations,base+3U)<<" actual="<<q.x<<','<<q.y<<','<<q.z<<','<<q.w
+                            <<valueAt(*final_rotations,base+3U)<<" actual="<<q.x<<','<<q.y<<','<<q.z<<','<<q.w;
+                            const auto& target=pose.target_bones[bone].rotation;
+                            std::cerr<<" target="<<target.x<<','<<target.y<<','<<target.z<<','<<target.w;
+                            const auto& target_hips=pose.target_bones[boneIndex(BoneId::Hips)].translation;
+                            std::cerr<<" target_hips_y="<<target_hips.y
+                                <<" body_height="<<body.height
+                                <<" reference_height="<<body.reference_height
+                                <<" hip_y="<<body.hip_y
+                                <<" reference_hip_y="<<body.reference_hip_y
+                                <<" anatomy_leg_length="<<body.anatomy_leg_length;
+                            const auto* animation_translations=fixture.find(
+                                std::string("animation.")+state.name+".translations");
+                            if(animation_translations!=nullptr){
+                                const auto hips_base=frame*kRigBoneCount*3U+
+                                    boneIndex(BoneId::Hips)*3U;
+                                const auto thigh_base=frame*kRigBoneCount*3U+
+                                    boneIndex(BoneId::ThighL)*3U;
+                                const auto& hips_pose=pose.bones[boneIndex(BoneId::Hips)].translation;
+                                const auto& thigh_pose=pose.bones[boneIndex(BoneId::ThighL)].translation;
+                                std::cerr<<" hips_y_expected="<<valueAt(*animation_translations,hips_base+1U)
+                                    <<" hips_y_actual="<<hips_pose.y
+                                    <<" thigh_y_expected="<<valueAt(*animation_translations,thigh_base+1U)
+                                    <<" thigh_y_actual="<<thigh_pose.y;
+                            }
+                            if(bone==boneIndex(BoneId::ThighL)||bone==boneIndex(BoneId::ThighR)){
+                                const std::size_t side=bone==boneIndex(BoneId::ThighL)?0U:1U;
+                                const auto foot_base=frame*6U+side*3U;
+                                const auto target_base=frame*22U+side*11U;
+                                std::cerr<<" foot_goal_expected="<<valueAt(*foot_goals,foot_base)<<','
+                                    <<valueAt(*foot_goals,foot_base+1U)<<','<<valueAt(*foot_goals,foot_base+2U)
+                                    <<" foot_target="<<pose.foot_targets[side].x<<','
+                                    <<pose.foot_targets[side].y<<','<<pose.foot_targets[side].z
+                                    <<" foot_target_expected="<<valueAt(*targets_stream,target_base)<<','
+                                    <<valueAt(*targets_stream,target_base+1U)<<','
+                                    <<valueAt(*targets_stream,target_base+2U)
+                                    <<" knee_target="<<pose.knee_targets[side].x<<','
+                                    <<pose.knee_targets[side].y<<','<<pose.knee_targets[side].z
+                                    <<" knee_expected="<<valueAt(*targets_stream,target_base+3U)<<','
+                                    <<valueAt(*targets_stream,target_base+4U)<<','
+                                    <<valueAt(*targets_stream,target_base+5U);
+                            }
+                            std::cerr
                             <<'\n';return 2;}
                     }
                     const auto& hips=pose.target_bones[boneIndex(BoneId::Hips)].translation;

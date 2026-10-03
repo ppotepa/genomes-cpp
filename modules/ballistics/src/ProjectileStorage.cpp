@@ -154,12 +154,16 @@ std::vector<ProjectileChunk> ProjectileStorage::activeChunks() const {
     if (dense_handles_.empty()) {
         return result;
     }
-    const std::size_t chunk_count =
-        (dense_handles_.size() + config_.chunk_size - 1U) / config_.chunk_size;
+    const std::size_t chunk_count = dense_handles_.size() / config_.chunk_size +
+                                    (dense_handles_.size() % config_.chunk_size != 0U
+                                         ? 1U
+                                         : 0U);
     result.reserve(chunk_count);
     for (std::size_t index = 0; index < chunk_count; ++index) {
         const std::size_t begin = index * config_.chunk_size;
-        const std::size_t end = std::min(dense_handles_.size(), begin + config_.chunk_size);
+        const std::size_t end = begin +
+                                std::min(dense_handles_.size() - begin,
+                                         static_cast<std::size_t>(config_.chunk_size));
         result.push_back({index, std::span<const ProjectileHandle>(dense_handles_.data() + begin,
                                                                      end - begin)});
     }

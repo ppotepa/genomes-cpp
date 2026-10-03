@@ -5,7 +5,9 @@
 #include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/render/SkinnedMeshOptimizer.hpp>
+#include <genomes/weapons/WeaponProcedural.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <algorithm>
@@ -160,16 +162,22 @@ void buildMaterialGroups(render::SkinnedMeshPrototype& mesh) {
 
 } // namespace
 
-void appendStowedWeapon(render::SkinnedMeshPrototype&,
-                        const infantry::InfantryModelArtifact&);
+void appendWeapon(render::SkinnedMeshPrototype&,
+                  const infantry::InfantryModelArtifact&,
+                  proc::ProceduralRuntime*, WeaponPoseAttachment);
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
-    const infantry::InfantryModelArtifact& model, PrototypePreparation preparation) {
+    const infantry::InfantryModelArtifact& model, PrototypePreparation preparation,
+    proc::ProceduralRuntime* procedural_runtime, WeaponPoseAttachment weapon_attachment) {
     const std::uint64_t optimizer_fingerprint =
         preparation == PrototypePreparation::OptimizeDrawOrder
             ? geometry::indexOptimizerFingerprint() : 0U;
-    const auto cache_key = optimizer_fingerprint == 0U ? model.cache_key :
+    auto cache_key = optimizer_fingerprint == 0U ? model.cache_key :
         foundation::stableHashCombine(model.cache_key, optimizer_fingerprint);
+    if (weapon_attachment == WeaponPoseAttachment::RightHand) {
+        cache_key = foundation::stableHashCombine(
+            cache_key, foundation::stable_id("infantry.weapon-attachment.right-hand"));
+    }
     {
         std::scoped_lock cache_lock(prototype_cache_mutex);
         if (const auto found = prototype_cache.find(cache_key); found != prototype_cache.end()) {
@@ -224,7 +232,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
         append(gear_surface.value());
     }
-    appendStowedWeapon(*mesh, model);
+    appendWeapon(*mesh, model, procedural_runtime, weapon_attachment);
 
     mesh->morph_target_count = static_cast<std::uint32_t>(
         std::min<std::size_t>(model.appearance.morphs.size(), mesh->morphs.size()));
@@ -265,7 +273,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
             // Do not cache a rejected preparation under the optimized identity.
             std::clog << "Infantry index optimization skipped for model " << model.cache_key
                       << ": " << optimized.error().message << '\n';
-            return makePrototype(model, PrototypePreparation::ReferenceOrder);
+            return makePrototype(model, PrototypePreparation::ReferenceOrder, procedural_runtime);
         }
     }
     {
@@ -342,20 +350,47 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
             value.z + 2.0F * (quaternion.w * uv.z + uuv.z)};
 }
 
-void appendStowedWeapon(render::SkinnedMeshPrototype& mesh,
-                        const infantry::InfantryModelArtifact& model) {
+void appendWeapon(render::SkinnedMeshPrototype& mesh,
+                  const infantry::InfantryModelArtifact& model,
+                  proc::ProceduralRuntime* procedural_runtime,
+                  WeaponPoseAttachment attachment) {
     const auto* equipment = model.gear.equipment.item(infantry::EquipmentSlot::PrimaryWeapon);
     if (equipment == nullptr) return;
     const auto* item = infantry::EquipmentCatalog::findItem(equipment->definition_id);
     if (item == nullptr) return;
     const auto* definition = weapons::WeaponCatalog::find(item->identifier);
     if (definition == nullptr) return;
-    const auto built = weapons::WeaponGeometryGenerator::build(*definition,
-        {model.gear.equipment.equipment_seed, equipment->variant.size,
-         model.gear.wear, static_cast<std::uint32_t>(model.gear.detail_level)});
+    const weapons::WeaponVariant variant{model.gear.equipment.equipment_seed,
+                                         equipment->variant.size,
+                                         model.gear.wear,
+                                         static_cast<std::uint32_t>(model.gear.detail_level)};
+    foundation::Result<weapons::WeaponArtifact, foundation::Error> built =
+        weapons::WeaponGeometryGenerator::build(*definition, variant);
+    if (procedural_runtime != nullptr &&
+        procedural_runtime->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
+        proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
+            request;
+        request.generator = proc::generatorId("weapons.artifact");
+        request.input = std::make_shared<const weapons::WeaponGenerationRequest>(
+            weapons::WeaponGenerationRequest{*definition, variant});
+        request.seed_path = proc::SeedPath(variant.seed);
+        request.options.input_hash = foundation::stableHashCombine(
+            static_cast<std::uint64_t>(definition->id), variant.seed);
+        request.options.retained_bytes = sizeof(weapons::WeaponArtifact);
+        const auto generated = procedural_runtime->generateInline(request);
+        if (generated) {
+            built = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
+                *generated.value());
+        } else {
+            built = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
+                generated.error());
+        }
+    }
     if (!built || built.value().mesh.vertices.empty() || built.value().mesh.indices.empty()) return;
+    const bool held = attachment == WeaponPoseAttachment::RightHand;
     const auto& socket = model.gear.fit.socket(infantry::EquipmentSocketId::WeaponBack);
-    const auto* bone = model.skeleton.find(socket.bone);
+    const infantry::BoneId bone_id = held ? infantry::BoneId::HandR : socket.bone;
+    const auto* bone = model.skeleton.find(bone_id);
     if (bone == nullptr) return;
     const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
     const auto rotateToBack = [](foundation::Vec3 value) noexcept {
@@ -375,19 +410,44 @@ void appendStowedWeapon(render::SkinnedMeshPrototype& mesh,
     mesh.vertices.reserve(mesh.vertices.size() + built.value().mesh.vertices.size());
     for (const auto& source : built.value().mesh.vertices) {
         render::SkinnedMeshVertex vertex{};
-        const auto local = rotateQuaternion(rotateToBack(source.position), bone->world_bind.rotation);
-        // Fit sockets are normalized by body height; weapon geometry is in metres.
-        // All skinned vertices remain in model bind space. The palette already
-        // applies inverse_bind, so applying it here would subtract the bone twice.
-        vertex.position = {
-            socket.position.x * model.gear.fit.height + local.x,
-            socket.position.y * model.gear.fit.height + local.y,
-            socket.position.z * model.gear.fit.height + local.z};
-        vertex.normal = rotateQuaternion(rotateToBack(source.normal), bone->world_bind.rotation);
+        if (held) {
+            // Align the weapon's authored grip frame to the right-hand bind
+            // frame. The hand overlay then moves the complete weapon with the
+            // same animated wrist instead of leaving a second copy on the back.
+            const auto& grip_rotation = built.value().primary_grip.local_rotation;
+            const infantry::RigQuaternion grip_inverse{
+                -grip_rotation[0], -grip_rotation[1], -grip_rotation[2], grip_rotation[3]};
+            const auto& hand_rotation = bone->world_bind.rotation;
+            const infantry::RigQuaternion attachment_rotation{
+                hand_rotation.w * grip_inverse.x + hand_rotation.x * grip_inverse.w +
+                    hand_rotation.y * grip_inverse.z - hand_rotation.z * grip_inverse.y,
+                hand_rotation.w * grip_inverse.y - hand_rotation.x * grip_inverse.z +
+                    hand_rotation.y * grip_inverse.w + hand_rotation.z * grip_inverse.x,
+                hand_rotation.w * grip_inverse.z + hand_rotation.x * grip_inverse.y -
+                    hand_rotation.y * grip_inverse.x + hand_rotation.z * grip_inverse.w,
+                hand_rotation.w * grip_inverse.w - hand_rotation.x * grip_inverse.x -
+                    hand_rotation.y * grip_inverse.y - hand_rotation.z * grip_inverse.z};
+            vertex.position = bone->world_bind.translation + rotateQuaternion(
+                source.position - built.value().primary_grip.local_position,
+                attachment_rotation);
+            vertex.normal = rotateQuaternion(source.normal, attachment_rotation);
+        } else {
+            const auto local = rotateQuaternion(
+                rotateToBack(source.position), bone->world_bind.rotation);
+            // Fit sockets are normalized by body height; weapon geometry is in metres.
+            // All skinned vertices remain in model bind space. The palette already
+            // applies inverse_bind, so applying it here would subtract the bone twice.
+            vertex.position = {
+                socket.position.x * model.gear.fit.height + local.x,
+                socket.position.y * model.gear.fit.height + local.y,
+                socket.position.z * model.gear.fit.height + local.z};
+            vertex.normal = rotateQuaternion(
+                rotateToBack(source.normal), bone->world_bind.rotation);
+        }
         vertex.uv = source.uv;
         vertex.color = source.color;
         vertex.material_region = material(source.material_region);
-        vertex.bone_indices[0] = static_cast<std::uint16_t>(socket.bone);
+        vertex.bone_indices[0] = static_cast<std::uint16_t>(infantry::boneIndex(bone_id));
         vertex.bone_weights[0] = 1.0F;
         mesh.vertices.push_back(vertex);
     }

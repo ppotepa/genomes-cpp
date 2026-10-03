@@ -1,8 +1,9 @@
 GENOMES NATIVE VALIDATION REPORT
 ======================================================================
 CHAPTER: 22.3 THREAD_SCALING_REGRESSION_GATES
-STATUS: IMPLEMENTED
-PROFILE: config/performance/thread_scaling_baselines/job_system_reference.json
+STATUS: full headless CTest PASS (151/151); dev-release build PASS; benchmark hard gate PASS; DRED Battlefield and Mass Battle smoke PASS; visual and weapon behavior acceptance unresolved
+TEST FIXTURE: config/performance/thread_scaling_baselines/job_system_reference.json
+MEASURED PROFILE: config/performance/thread_scaling_baselines/job_system_i5_12600k_clang_release.json
 
 SCOPE
 ----------------------------------------------------------------------
@@ -18,8 +19,18 @@ tools/benchmark/thread_scaling_gate.hpp/.cpp provide deterministic seeded
 sampling, warmups, median/p95/p99 and variance statistics, strict versioned
 baseline JSON parsing, exact machine/compiler/dependency matching, scheduler
 telemetry fields, correctness status, and text/JSON reports.  The
-genomes_thread_scaling_gate CLI executes a portable partitioned batch and can
-write either report format.
+genomes_thread_scaling_gate CLI executes deterministic_job_batch_v1 on the
+shared jobs::JobSystem implementation, reusing one pool for each worker count.
+It submits 64 fixed partitions of 2048 items, with 64 integer mixing rounds
+per item, then XOR-reduces partial results after the group completes.
+The seed is identical across warmups, repetitions and worker counts.
+Timing includes submission, execution, helping wait and reduction; it excludes
+pool creation/shutdown and output buffer allocation. Worker counts mean pool
+threads; the submitting thread may help while waiting, as in the application.
+No dedicated IO worker is created. Steals are measured from scheduler telemetry;
+the other optional telemetry fields are not measured by this workload.
+Text/JSON include timing and semantic hashes. JSON also includes the seed,
+raw measured samples and any error. Failed gates still write --report output.
 
 GATE POLICY
 ----------------------------------------------------------------------
@@ -32,12 +43,114 @@ is not converted into an unjustified speedup requirement.
 FOCUSED EVIDENCE
 ----------------------------------------------------------------------
 tests/native/stress/thread_scaling_smoke.cpp covers percentile calculation,
-fixture parsing, semantic parity, machine mismatch, noisy input, regression,
-and a flat/no-speedup workload that still passes its per-worker budgets.
+fixture parsing, native semantic equality, machine mismatch, noisy input,
+regression, transient warmup/sample hash mismatches, and a flat/no-speedup
+workload that still passes its per-worker budgets. It also runs the actual CLI
+workload on serial and 1/2/4-worker schedulers and compares their hashes.
+These are native concurrency checks; JavaScript parity is not an acceptance gate.
 
 LIMITS
 ----------------------------------------------------------------------
 The checked-in numbers are a deterministic parser/test fixture, not a claim
-about every host.  Dedicated runners must record refreshed profiles before
+about every host. Its machine class is synthetic-gate-fixture; the CLI default
+is unclassified. Workload IDs agree, but the fixture intentionally cannot act
+as a hardware timing baseline for a normal CLI invocation.
+Dedicated runners must record refreshed profiles before
 enabling a production timing gate; hosted CI should use the smoke/scaling
 shape policy.
+
+OWNER-RUN ACCEPTANCE: THREADING AND BATTLEFIELD
+----------------------------------------------------------------------
+Preserve the current dirty worktree and record git rev-parse HEAD plus git
+status --short with each run. A SHA alone does not identify these local changes.
+Use a configured C++ developer PowerShell from the repository root. Configure
+only if the selected build tree is missing or incompatible:
+
+  rtk proxy cmake --preset headless-core-debug
+
+First build only the affected benchmark/HUD tests:
+
+  rtk proxy cmake --build --preset headless-core-debug --target genomes_test_thread_scaling_gate genomes_test_infantry_mass_battle_scene
+  rtk proxy ctest --preset headless-core-debug -R '^(stress\.thread_scaling_gate|infantry\.mass_battle_scene|ui\.scene_guard)$' --output-on-failure
+
+Then the plan's native lifecycle, failure and integration acceptance:
+
+  rtk proxy cmake --build --preset headless-core-debug --target genomes_test_jobs_smoke genomes_test_job_fence genomes_test_job_system_lifecycle genomes_test_job_system_worker_violation genomes_test_job_scheduler genomes_test_system_graph_batch genomes_test_battlefield_determinism genomes_test_battlefield_profile genomes_test_infantry_mass_battle_runtime
+  rtk proxy ctest --preset headless-core-debug -R '^(jobs\.(core|fence|lifecycle|scheduler|worker_shutdown_violation|worker_destructor_violation)|simulation\.(system_graph_batch|battlefield_determinism|battlefield_pipeline_source_contract|infantry_mass_battle)|gameplay\.battlefield_profile)$' --output-on-failure
+
+T01-T05, T09 and T10 in ARCHITECTURE_REFACTOR_TRACKER.md remain NOT_RUN
+until those runs supply evidence. No JS reference/parity tests are selected.
+
+The requested production rebuild after EntityController.hpp's Types.hpp fix
+and the benchmark use the committed dev-release preset (benchmarks enabled):
+
+  rtk proxy cmake --build --preset dev-release --target genomes_game genomes_thread_scaling_gate
+  rtk proxy .\build\dev-release\tools\genomes_thread_scaling_gate.exe --workers 1,2,4 --warmups 2 --repetitions 10 --machine local-desktop --compiler msvc-release --dependencies diligent-meshopt --json --report thread-scaling-local.json
+
+If this tree is absent/incompatible, first run cmake --preset dev-release.
+Use actual machine/compiler/dependency labels and retain them in the baseline.
+Create a separate measured baseline JSON using the existing v1 schema: copy
+workload, machine and semantic_hash from the report, and group samples[].elapsed_ms
+by worker_count into workers. Set explicit thresholds and expected_trend to
+no_assumption. Review noise and measurements before using --baseline with that
+file on a later run of the same seed/profile. Do not overwrite the test fixture
+with measurements or treat its synthetic semantic hash as this workload's hash.
+
+MASS BATTLE PRESENTATION
+----------------------------------------------------------------------
+BuiltinSceneConfig.live_animation_budget and BattlefieldScene's optional final
+constructor parameter default to 96. The effective value clamps to the scene's
+unit count; HUD -32/+32/Maximum changes only presentation work. Balanced/Stress
+retain transition priority, camera distance and existing selection hysteresis.
+Maximum selects the whole crowd and forces Near animation cadence. Quality
+continues animating all units independently of this budget. Atlas bootstrap
+also retains its existing all-unit evaluation until the atlas is ready.
+Zero uses only atlas poses after bootstrap and clears the previous live poses.
+camera::RtsCameraSettings is carried by BuiltinSceneConfig and BattlefieldScene;
+the default RTS range is 12..6400 m, while orbit/pan/zoom sensitivities and
+movement factors remain scene-configurable.
+Weapon holster/draw remains an open functional gap: the current weapon is still
+attached to the hand. No renderer fix or GPU acceptance is inferred from source.
+
+DRED smoke acceptance is complete for the recorded Battlefield and Mass Battle
+runs; no device-loss report was emitted. Visual acceptance remains open.
+Separately inspect posture transitions at 96, 0 and Maximum, switching
+Quality/Balanced/Stress and moving the camera. Record animation smoothness,
+frame cost and weapon attachment behavior.
+
+AGENT WORKTREE CHECK, 2026-10-03
+----------------------------------------------------------------------
+headless-core-debug built the thread-scaling and Battlefield scene test targets,
+the Battlefield profile/determinism/mass-battle targets, and the jobs lifecycle,
+fence and scheduler targets. The complete headless CTest suite passed 151/151,
+including the Diligent source contract, Mass Battle scene, animation and
+scheduler checks.
+dev-release configure and the genomes_game plus genomes_thread_scaling_gate
+builds passed after fixing D3D12 header ordering, the Windows DRED environment
+lookup, Clang's intentional COM __uuidof extension warning and the missing
+d3d12 link dependency. CMake still reports Diligent deprecation and SDK-version
+warnings; it identifies D3D12 support and the build succeeds.
+
+The release benchmark ran 2 warmups and 5 measured samples at each of 1/2/4
+workers on an Intel i5-12600K (10C/16T), Clang 22.1.0, dev-release Diligent with
+meshoptimizer. All 15 semantic hashes agreed at 12013421788458781143. The
+latest hard-gated run passed against the separate machine-keyed local baseline:
+medians 19.3086/9.6841/4.9807 ms and coefficients of variation
+0.000846/0.0104/0.0157 for 1/2/4 workers. The synthetic test fixture is
+unchanged.
+
+With GENOMES_D3D12_DRED=1, the dev-release Battlefield and Mass Battle each
+completed their smoke runs (300 and 30 deterministic frames respectively) on
+an NVIDIA GeForce RTX 3070 Ti (8017 MB), both with exit code 0 and no device
+loss report. The Mass Battle run previously exposed two native defects: a
+scene animation callback outliving the scene during shutdown and an atlas
+sample array large enough to overflow the application stack. The scene now
+waits for its animation job before destruction, and atlas samples live on the
+heap. Visual posture, budget transitions and weapon holster/draw behavior
+remain unverified; the current weapon attachment is still hand-bound.
+
+The stale T10 assertion compared the latest impact with the latest shot even
+though projectiles have different flight times. It now asserts both source
+EntityIds exist in the authoritative ECS and the impact target is also valid;
+the runtime source guard still checks the projectile-to-EntityId mapping.
+The HUD guard now refers to the actual infantryPresentationYaw helper.

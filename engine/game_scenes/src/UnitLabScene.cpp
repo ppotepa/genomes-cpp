@@ -1,7 +1,9 @@
 #include <genomes/game_scenes/UnitLabScene.hpp>
+#include <genomes/gameplay/ProductionGenerators.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 #include <genomes/game_scenes/UnitLabCommandParsing.hpp>
 #include <genomes/game_scenes/InfantryPresentation.hpp>
+#include <genomes/infantry/InfantryProcedural.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -165,8 +167,8 @@ struct DebugBoneTransform final {
 } // namespace
 
 UnitLabScene::~UnitLabScene() {
-    if (model_job_.valid()) {
-        model_job_.wait();
+    if (model_ticket_.valid()) {
+        model_ticket_.wait();
     }
 }
 
@@ -507,7 +509,7 @@ void UnitLabScene::publishModelResult(
         face_animator_ = std::move(face.value());
         (void)face_animator_->setExpression(expression_, expression_intensity_);
     }
-    if (auto animation = infantry::AnimationSystem::create(1U); animation) {
+    if (auto animation = infantry::PresentationAnimation::create(1U); animation) {
         animation_system_ = std::move(animation.value());
     }
     transition_runtime_.reset();
@@ -519,6 +521,27 @@ void UnitLabScene::publishModelResult(
     markDirty(UnitLabDirtyFlag::Pose);
     markDirty(UnitLabDirtyFlag::Presentation);
     markDirty(UnitLabDirtyFlag::Ui);
+}
+
+foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>
+UnitLabScene::compileModel(const infantry::InfantryModelRequest& request) {
+    if (!procedural_runtime_) {
+        return model_compiler_.compile(request);
+    }
+    proc::GenerationRequest<infantry::InfantryModelRequest,
+                            infantry::InfantryModelCompileResult> generation;
+    generation.generator = proc::generatorId("infantry.model");
+    generation.input = std::make_shared<const infantry::InfantryModelRequest>(request);
+    generation.seed_path = proc::SeedPath(request.seed);
+    generation.options.input_hash = infantry::InfantryModelCompiler::canonicalRequestKey(request);
+    generation.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
+    const auto generated = procedural_runtime_->generateInline(generation);
+    if (!generated) {
+        return foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>::failure(
+            generated.error());
+    }
+    return foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>::success(
+        *generated.value());
 }
 
 void UnitLabScene::rebuildModel(SceneContext* context) {
@@ -540,47 +563,39 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
-    const auto request_key = infantry::InfantryModelCompiler::canonicalRequestKey(request);
-    if (context != nullptr && context->jobs != nullptr && !context->deterministic_capture) {
-        const auto submission = model_request_gate_.submit(request_key);
-        if (submission.queued) {
-            // Keep at most one active compile and one overwriteable request.
-            // The current prototype remains visible while the newest request waits.
-            queued_model_request_ = std::move(request);
-            markDirty(UnitLabDirtyFlag::Ui);
-            return;
-        }
-        startModelRequest(*context, std::move(request), submission.token);
+    if (context != nullptr && context->scheduler != nullptr &&
+        context->scheduler_explicit && !context->deterministic_capture) {
+        startModelRequest(*context, std::move(request));
         return;
     }
-    const auto submission = model_request_gate_.submit(request_key);
-    auto result = model_compiler_.compile(request);
-    const auto completion = model_request_gate_.complete(submission.token);
-    if (completion.action == UnitLabModelRequestAction::Publish) {
-        publishModelResult(std::move(result));
+    if (model_ticket_.valid() && !model_ticket_.complete()) {
+        model_ticket_.cancel();
     }
+    auto result = compileModel(request);
+    publishModelResult(std::move(result));
 }
 
 void UnitLabScene::startModelRequest(SceneContext& context,
-                                     infantry::InfantryModelRequest request,
-                                     UnitLabModelRequestToken token) {
-    const auto pending = std::make_shared<PendingModelResult>();
-    pending_model_result_ = pending;
-    model_job_ = context.jobs->submit(
-            [this, request, token, pending](jobs::JobContext&) mutable {
-                auto result = model_compiler_.compile(request);
-                {
-                    std::lock_guard lock(pending->mutex);
-                    pending->revision = token.revision;
-                    pending->request_key = token.request_key;
-                    pending->result = std::move(result);
-                }
-            });
+                                     infantry::InfantryModelRequest request) {
+    (void)context;
+    if (!procedural_runtime_) {
+        publishModelResult(compileModel(request));
+        return;
+    }
+    proc::GenerationRequest<infantry::InfantryModelRequest,
+                            infantry::InfantryModelCompileResult> generation;
+    generation.generator = proc::generatorId("infantry.model");
+    generation.input = std::make_shared<const infantry::InfantryModelRequest>(std::move(request));
+    generation.seed_path = proc::SeedPath(generation.input->seed);
+    generation.options.input_hash = infantry::InfantryModelCompiler::canonicalRequestKey(
+        *generation.input);
+    generation.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
+    model_ticket_ = procedural_runtime_->request(std::move(generation), &model_channel_);
     markDirty(UnitLabDirtyFlag::Ui);
 }
 
 void UnitLabScene::on_enter(SceneContext& context) {
-    model_request_gate_.cancel();
+    model_channel_ = proc::GenerationChannel{};
     elapsed_seconds_ = 0.0;
     fixed_tick_ = 0;
     fixed_accumulator_ = 0.0F;
@@ -595,6 +610,16 @@ void UnitLabScene::on_enter(SceneContext& context) {
     dirty_.markAll();
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
+    procedural_runtime_.reset();
+    procedural_registry_ = {};
+    if (context.scheduler != nullptr) {
+        auto registry = gameplay::makeProductionGeneratorRegistry();
+        if (registry) {
+            procedural_registry_ = std::move(registry.value());
+            procedural_runtime_ = std::make_unique<proc::ProceduralRuntime>(
+                procedural_registry_, *context.scheduler);
+        }
+    }
     rebuildModel(&context);
     dirty_.clear(UnitLabDirtyFlag::Geometry);
     dirty_.clear(UnitLabDirtyFlag::Material);
@@ -603,13 +628,12 @@ void UnitLabScene::on_enter(SceneContext& context) {
 }
 
 void UnitLabScene::on_exit(SceneContext&) {
-    if (model_job_.valid()) {
-        model_job_.wait();
-        model_job_ = {};
+    if (model_ticket_.valid()) {
+        model_ticket_.wait();
+        model_ticket_ = {};
     }
-    pending_model_result_.reset();
-    queued_model_request_.reset();
-    model_request_gate_.cancel();
+    procedural_runtime_.reset();
+    procedural_registry_ = {};
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
@@ -951,38 +975,18 @@ void UnitLabScene::fixed_update(SceneContext&, double dt) {
 }
 
 void UnitLabScene::frame_update(SceneContext& context, double) {
-    if (model_job_.valid() && model_job_.isComplete()) {
-        if (pending_model_result_) {
-            std::optional<foundation::Result<infantry::InfantryModelCompileResult,
-                                              foundation::Error>> result;
-            std::uint64_t revision = 0U;
-            foundation::StableId request_key = 0U;
-            {
-                std::lock_guard lock(pending_model_result_->mutex);
-                if (pending_model_result_->revision && pending_model_result_->request_key &&
-                    pending_model_result_->result) {
-                    revision = *pending_model_result_->revision;
-                    request_key = *pending_model_result_->request_key;
-                    result = std::move(pending_model_result_->result);
-                }
+    if (model_ticket_.valid() && model_ticket_.complete()) {
+        if (model_ticket_.status() == proc::GenerationStatus::Completed) {
+            const auto artifact = model_ticket_.artifact();
+            if (artifact) {
+                publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
+                                                      foundation::Error>::success(*artifact));
             }
-            const auto completion = model_request_gate_.complete({revision, request_key});
-            // Release the completed job before starting the queued request;
-            // otherwise the cleanup below can erase the new job handle.
-            model_job_ = {};
-            pending_model_result_.reset();
-            if (result && completion.action == UnitLabModelRequestAction::Publish) {
-                publishModelResult(std::move(*result));
-            }
-            if (completion.action == UnitLabModelRequestAction::StartPending &&
-                queued_model_request_) {
-                auto request = std::move(*queued_model_request_);
-                queued_model_request_.reset();
-                startModelRequest(context, std::move(request), completion.next);
-            }
+        } else {
+            last_generation_error_ = model_ticket_.error();
+            markDirty(UnitLabDirtyFlag::Ui);
         }
-        // The completed handle was released above. A queued request, when
-        // present, now owns the live model_job_ and pending result.
+        model_ticket_ = {};
     }
     if (!dirty_.contains(UnitLabDirtyFlag::Ui)) return;
     dirty_.clear(UnitLabDirtyFlag::Ui);
@@ -1156,7 +1160,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
     (void)model.set_field("expression_intensity", std::move(expression_intensity_field));
     (void)model.set("expression_intensity_enabled", expression_ != infantry::FaceExpression::Neutral);
     (void)model.set("pause_label", std::string{animation_paused_ ? "Resume" : "Pause"});
-    const bool updating = model_job_.valid() && !model_job_.isComplete();
+    const bool updating = model_ticket_.valid() && !model_ticket_.complete();
     const bool failed = last_generation_error_.has_value();
     (void)model.set("status_compact", std::string{failed ? "Error" : updating ? "Updating" : "Ready"});
     (void)model.set("status_updating", updating);
@@ -1258,7 +1262,7 @@ void UnitLabScene::frame_update(SceneContext& context, double) {
             : std::string{"Unavailable"});
     }
     (void)model.set_list("bones", std::move(bones));
-    (void)model.set("busy", model_job_.valid() && !model_job_.isComplete());
+    (void)model.set("busy", model_ticket_.valid() && !model_ticket_.complete());
     (void)model.set("error", last_generation_error_ ?
         std::string{last_generation_error_->message} : std::string{});
 }
@@ -1268,7 +1272,9 @@ void UnitLabScene::build_presentation(SceneContext& context) {
         if (dirty_.contains(UnitLabDirtyFlag::Geometry) ||
             dirty_.contains(UnitLabDirtyFlag::Material) || !skinned_prototype_ ||
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
-            const auto base_prototype = infantry_presentation::makePrototype(*model_artifact_);
+            const auto base_prototype = infantry_presentation::makePrototype(
+                *model_artifact_, infantry_presentation::PrototypePreparation::OptimizeDrawOrder,
+                procedural_runtime_.get());
             if (!base_prototype) return;
             skinned_prototype_ = appearance_preset_ == 0U
                 ? base_prototype

@@ -1,10 +1,13 @@
 add_library(genomes_runtime_core STATIC
+    src/FrameCoordinator.cpp
+    src/RenderCoordinator.cpp
     src/SceneDirector.cpp)
 
 target_include_directories(genomes_runtime_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_runtime_core PUBLIC
     genomes::foundation
+    genomes::api
     genomes::jobs
     genomes::simulation
     genomes::camera

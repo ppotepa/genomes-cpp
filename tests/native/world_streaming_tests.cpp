@@ -1,8 +1,10 @@
 #include <genomes/world/WorldStreamer.hpp>
+#include <genomes/world/WorldRegionStreamer.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
 #include <filesystem>
+#include <memory>
 #include <thread>
 
 int main() {
@@ -66,5 +68,49 @@ int main() {
         std::this_thread::yield();
     }
     assert(streamer.residentCount() == 0U);
+
+    // Leaving a region's desired set cancels its generation task.  That
+    // deliberate supersession must not be reported as a streamer failure.
+    world::WorldRegionStreamer region_streamer(
+        world::WorldId(2U), generation, coordinates, jobs, 0U);
+    region_streamer.update({0.0, 0.0, 0.0});
+    region_streamer.update({coordinates.region_size_m * 20.0, 0.0, 0.0});
+    for (std::size_t attempt = 0U;
+         attempt < 10000U && region_streamer.pending_count() != 0U; ++attempt) {
+        region_streamer.poll();
+        std::this_thread::yield();
+    }
+    assert(!region_streamer.failed());
+
+    proc::GeneratorRegistry::Builder failing_builder;
+    const proc::GeneratorDescriptor failing_descriptor{
+        proc::generatorId("world.plan"), "world.plan", {world::WorldGeneratorVersion, 0, 0},
+        foundation::stable_id("world.generation.request"), foundation::stable_id("world.plan"),
+        true, proc::GeneratorExecutionPolicy::Cpu, proc::GeneratorCachePolicy::None};
+    assert((failing_builder.addTyped<world::WorldGenerationRequest, world::WorldPlan>(
+        failing_descriptor,
+        [](const world::WorldGenerationRequest&, proc::GenerationContext&)
+            -> foundation::Result<std::shared_ptr<const world::WorldPlan>, foundation::Error> {
+            return foundation::Result<std::shared_ptr<const world::WorldPlan>, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal, "synthetic world generation failure"});
+        })));
+    auto failing_registry = std::move(failing_builder).freeze();
+    assert(failing_registry);
+    world::WorldStreamer failing_streamer(world::WorldId(3U), generation, coordinates, jobs, {},
+                                          std::move(failing_registry.value()));
+    const world::RegionId failing_region = world::regionId(world::WorldId(3U), origin);
+    assert(failing_streamer.setDesired({failing_region, origin, semantic_simulation,
+                                        world::ResidencyReason::Simulation, 0U, 0U, {0U}}));
+    bool saw_failure = false;
+    for (std::size_t attempt = 0U; attempt < 10000U && !saw_failure; ++attempt) {
+        const auto polled = failing_streamer.poll({static_cast<std::uint64_t>(attempt)});
+        if (!polled) {
+            saw_failure = true;
+            assert(polled.error().code == foundation::ErrorCode::Internal);
+            assert(failing_streamer.lastError().message == "synthetic world generation failure");
+        }
+        std::this_thread::yield();
+    }
+    assert(saw_failure);
     return 0;
 }

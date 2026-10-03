@@ -47,6 +47,7 @@ RenderResult DiligentBackend::Impl::grow(Ptr<Diligent::IBuffer>& target,std::siz
     while (next<size) { if (next>std::numeric_limits<std::size_t>::max()/2U) return error("buffer size overflow"); next*=2U; }
     auto candidate=buffer(name,next,bind,true);
     if (!candidate) return error("could not allocate transient buffer",foundation::ErrorCode::Internal);
+    if (target) retired_buffers.push_back({target,{},active_fence != 0U ? active_fence : last_submitted_fence});
     target=std::move(candidate);capacity=next;return RenderResult::success();
 }
 bool DiligentBackend::Impl::compile(const char* source,const char* name,Diligent::SHADER_TYPE stage,Ptr<Diligent::IShader>& out) {
@@ -126,6 +127,15 @@ RenderResult DiligentBackend::Impl::createPipeline(bool skin,bool shadow_pass,bo
         blend.SrcBlendAlpha=Diligent::BLEND_FACTOR_ONE;blend.DestBlendAlpha=Diligent::BLEND_FACTOR_INV_SRC_ALPHA;
     }
     ci.PSODesc.ResourceLayout.DefaultVariableType=Diligent::SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE;
+    // The palette grows when a scene publishes more skinned instances. Diligent
+    // permits rebinding an SRB variable only when its type is dynamic.
+    const Diligent::ShaderResourceVariableDesc palette_binding{
+        Diligent::SHADER_TYPE_VERTEX,"BonePaletteBuffer",
+        Diligent::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC};
+    if (skin) {
+        ci.PSODesc.ResourceLayout.Variables=&palette_binding;
+        ci.PSODesc.ResourceLayout.NumVariables=1U;
+    }
     Diligent::SamplerDesc sampler{};
     sampler.MinFilter=sampler.MagFilter=sampler.MipFilter=Diligent::FILTER_TYPE_COMPARISON_LINEAR;
     sampler.ComparisonFunc=Diligent::COMPARISON_FUNC_LESS_EQUAL;

@@ -22,7 +22,43 @@ namespace {
     if (left->sequence != right->sequence) {
         return left->sequence < right->sequence;
     }
-    return static_cast<std::uint8_t>(left->type) < static_cast<std::uint8_t>(right->type);
+    if (left->type != right->type) {
+        return static_cast<std::uint8_t>(left->type) <
+               static_cast<std::uint8_t>(right->type);
+    }
+    // A duplicated semantic key is a malformed producer situation, but the
+    // commit order must still be stable rather than depending on buffer
+    // collection order. Compare the remaining immutable payload fields as a
+    // deterministic tie-break before applying the command conflict policy.
+    if (left->target.is_token != right->target.is_token) {
+        return left->target.is_token < right->target.is_token;
+    }
+    if (left->target.is_token) {
+        if (left->target.token.key != right->target.token.key) {
+            return left->target.token.key < right->target.token.key;
+        }
+    } else if (left->target.entity != right->target.entity) {
+        return left->target.entity < right->target.entity;
+    }
+    if (left->component != right->component) {
+        return left->component < right->component;
+    }
+    if (left->create_key.components != right->create_key.components) {
+        return left->create_key.components < right->create_key.components;
+    }
+    if (left->value != right->value) {
+        return left->value < right->value;
+    }
+    if (left->components.size() != right->components.size()) {
+        return left->components.size() < right->components.size();
+    }
+    for (std::size_t index = 0; index < left->components.size(); ++index) {
+        const auto& lhs = left->components[index];
+        const auto& rhs = right->components[index];
+        if (lhs.id != rhs.id) return lhs.id < rhs.id;
+        if (lhs.bytes != rhs.bytes) return lhs.bytes < rhs.bytes;
+    }
+    return false;
 }
 
 } // namespace

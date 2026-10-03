@@ -220,11 +220,16 @@ RenderResult DiligentBackend::Impl::prepareSkinPalettes() {
                               static_cast<std::uint32_t>(sizeof(std::array<float,16U>)));
         if (!candidate) return error("could not allocate skin palette buffer",
                                      foundation::ErrorCode::Internal);
+        Ptr<Diligent::IBufferView> candidate_view{candidate->GetDefaultView(
+            Diligent::BUFFER_VIEW_SHADER_RESOURCE)};
+        if (!candidate_view) return error("skin palette buffer view is missing",
+                                          foundation::ErrorCode::Internal);
+        if (skin_palette_buffer) {
+            retired_buffers.push_back({skin_palette_buffer,skin_palette_view,
+                active_fence != 0U ? active_fence : last_submitted_fence});
+        }
         skin_palette_buffer=std::move(candidate);
-        skin_palette_view=skin_palette_buffer->GetDefaultView(
-            Diligent::BUFFER_VIEW_SHADER_RESOURCE);
-        if (!skin_palette_view) return error("skin palette buffer view is missing",
-                                             foundation::ErrorCode::Internal);
+        skin_palette_view=std::move(candidate_view);
         skin_palette_capacity=next;
         for (auto& entry:pipelines) bindSkinPaletteBuffer(entry.second);
     }
@@ -361,6 +366,8 @@ void DiligentBackend::Impl::retireCompleted() noexcept {
     const auto completed=frame_fence->GetCompletedValue();
     retired_meshes.erase(std::remove_if(retired_meshes.begin(),retired_meshes.end(),
         [completed](const RetiredMesh& mesh) { return mesh.fence <= completed; }),retired_meshes.end());
+    retired_buffers.erase(std::remove_if(retired_buffers.begin(),retired_buffers.end(),
+        [completed](const RetiredBuffer& buffer) { return buffer.fence <= completed; }),retired_buffers.end());
 }
 void DiligentBackend::Impl::prune() {
     const auto old=telemetry.frame>600U?telemetry.frame-600U:0U;items.clear();

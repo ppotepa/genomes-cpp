@@ -70,7 +70,10 @@ REQUIRES
 PRESERVES
 ======================================================================
 
-Existing JS tests remain authoritative migration evidence.
+Existing JS tests describe and verify the JavaScript prototype itself. They can
+illustrate product concepts, but do not define native C++ algorithms, numeric
+outputs, or acceptance. Any adopted requirement belongs in a focused native
+contract/test.
 
 Native test infrastructure is additive.
 

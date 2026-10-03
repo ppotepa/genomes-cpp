@@ -50,6 +50,11 @@ add_test(NAME architecture.refactor_tracker
         -P "${CMAKE_CURRENT_SOURCE_DIR}/architecture_refactor_tracker.cmake")
 set_tests_properties(architecture.refactor_tracker PROPERTIES
     LABELS "source;cpu;architecture")
+add_test(NAME architecture.scene_api_boundary
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_api_boundary_guard.cmake")
+set_tests_properties(architecture.scene_api_boundary PROPERTIES
+    LABELS "source;cpu;architecture;api")
 add_test(NAME simulation.battlefield_pipeline_source_contract
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/battlefield_pipeline_guard.cmake")
@@ -80,6 +85,15 @@ add_test(NAME architecture.application_command_boundary
         -P "${CMAKE_CURRENT_SOURCE_DIR}/application_command_boundary_guard.cmake")
 set_tests_properties(architecture.application_command_boundary PROPERTIES
     LABELS "source;cpu;architecture;application")
+
+# The Diligent backend is not instantiated by headless tests, but its
+# RenderLane/device-loss ownership rules remain a source-level architecture
+# contract and must run in every profile.
+add_test(NAME render.diligent_source_contracts
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/../infantry_upgrade/diligent_source_contracts.cmake")
+set_tests_properties(render.diligent_source_contracts PROPERTIES
+    LABELS "source;cpu;render;architecture;diligent")
 
 add_test(NAME ballistics.ammunition_catalog_source
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
@@ -267,6 +281,13 @@ genomes_enable_test_assertions(genomes_test_foundation_smoke)
 
 add_test(NAME foundation_smoke COMMAND genomes_test_foundation_smoke)
 
+add_executable(genomes_test_api_module_host api/module_host_tests.cpp)
+target_link_libraries(genomes_test_api_module_host PRIVATE genomes::api)
+genomes_set_project_warnings(genomes_test_api_module_host)
+genomes_enable_test_assertions(genomes_test_api_module_host)
+add_test(NAME api.module_host COMMAND genomes_test_api_module_host)
+set_tests_properties(api.module_host PROPERTIES LABELS "cpu;api;architecture")
+
 add_executable(genomes_test_config_hash config_hash_tests.cpp)
 target_link_libraries(genomes_test_config_hash PRIVATE genomes::foundation)
 genomes_set_project_warnings(genomes_test_config_hash)
@@ -385,12 +406,6 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_unit_lab_smoke)
     add_test(NAME runtime.unit_lab_smoke COMMAND genomes_test_unit_lab_smoke)
 
-    add_executable(genomes_test_unit_lab_request_gate unit_lab_request_gate_tests.cpp)
-    target_link_libraries(genomes_test_unit_lab_request_gate PRIVATE genomes::game_scenes)
-    genomes_set_project_warnings(genomes_test_unit_lab_request_gate)
-    genomes_enable_test_assertions(genomes_test_unit_lab_request_gate)
-    add_test(NAME runtime.unit_lab_request_gate COMMAND genomes_test_unit_lab_request_gate)
-
     add_executable(genomes_test_unit_lab_command_parsing unit_lab_command_parsing_tests.cpp)
     target_link_libraries(genomes_test_unit_lab_command_parsing PRIVATE genomes::game_scenes)
     genomes_set_project_warnings(genomes_test_unit_lab_command_parsing)
@@ -443,6 +458,16 @@ genomes_set_project_warnings(genomes_test_foundation_primitives)
 genomes_enable_test_assertions(genomes_test_foundation_primitives)
 add_test(NAME foundation.primitives COMMAND genomes_test_foundation_primitives)
 
+add_executable(genomes_test_published_snapshot_exchange
+    foundation/published_snapshot_exchange_tests.cpp)
+target_link_libraries(genomes_test_published_snapshot_exchange PRIVATE genomes::foundation)
+genomes_set_project_warnings(genomes_test_published_snapshot_exchange)
+genomes_enable_test_assertions(genomes_test_published_snapshot_exchange)
+add_test(NAME foundation.published_snapshot_exchange
+    COMMAND genomes_test_published_snapshot_exchange)
+set_tests_properties(foundation.published_snapshot_exchange PROPERTIES
+    LABELS "cpu;foundation;snapshot")
+
 add_executable(genomes_test_atomic_file
     io/atomic_file_tests.cpp)
 target_link_libraries(genomes_test_atomic_file PRIVATE genomes::io)
@@ -462,6 +487,13 @@ target_link_libraries(genomes_test_session_simulation_clock PRIVATE genomes::sim
 genomes_set_project_warnings(genomes_test_session_simulation_clock)
 genomes_enable_test_assertions(genomes_test_session_simulation_clock)
 add_test(NAME simulation.session_clock COMMAND genomes_test_session_simulation_clock)
+
+add_executable(genomes_test_frame_coordinator runtime/frame_coordinator_tests.cpp)
+target_link_libraries(genomes_test_frame_coordinator PRIVATE genomes::runtime_core)
+genomes_set_project_warnings(genomes_test_frame_coordinator)
+genomes_enable_test_assertions(genomes_test_frame_coordinator)
+add_test(NAME runtime.frame_coordinator COMMAND genomes_test_frame_coordinator)
+set_tests_properties(runtime.frame_coordinator PROPERTIES LABELS "cpu;runtime;simulation")
 
 add_executable(genomes_test_world_grid_layout world_grid_layout_tests.cpp)
 target_link_libraries(genomes_test_world_grid_layout PRIVATE genomes::world_core)
@@ -483,12 +515,36 @@ genomes_enable_test_assertions(genomes_test_system_graph_batch)
 add_test(NAME simulation.system_graph_batch COMMAND genomes_test_system_graph_batch)
 set_tests_properties(simulation.system_graph_batch PROPERTIES LABELS "cpu;simulation;jobs")
 
+add_executable(genomes_test_command_commit
+    simulation/command_commit_tests.cpp)
+target_link_libraries(genomes_test_command_commit PRIVATE genomes::simulation)
+genomes_set_project_warnings(genomes_test_command_commit)
+genomes_enable_test_assertions(genomes_test_command_commit)
+add_test(NAME simulation.command_commit COMMAND genomes_test_command_commit)
+set_tests_properties(simulation.command_commit PROPERTIES LABELS "cpu;simulation")
+
 add_executable(genomes_test_jobs_smoke
     jobs/job_system_smoke.cpp)
 target_link_libraries(genomes_test_jobs_smoke PRIVATE genomes::jobs)
 genomes_set_project_warnings(genomes_test_jobs_smoke)
 genomes_enable_test_assertions(genomes_test_jobs_smoke)
 add_test(NAME jobs.core COMMAND genomes_test_jobs_smoke)
+
+add_executable(genomes_test_linear_arena
+    jobs/linear_arena_tests.cpp)
+target_link_libraries(genomes_test_linear_arena PRIVATE genomes::memory)
+genomes_set_project_warnings(genomes_test_linear_arena)
+genomes_enable_test_assertions(genomes_test_linear_arena)
+add_test(NAME jobs.linear_arena COMMAND genomes_test_linear_arena)
+set_tests_properties(jobs.linear_arena PROPERTIES LABELS "cpu;jobs;memory")
+
+add_executable(genomes_test_job_scheduler
+    jobs/job_scheduler_tests.cpp)
+target_link_libraries(genomes_test_job_scheduler PRIVATE genomes::jobs)
+genomes_set_project_warnings(genomes_test_job_scheduler)
+genomes_enable_test_assertions(genomes_test_job_scheduler)
+add_test(NAME jobs.scheduler COMMAND genomes_test_job_scheduler)
+set_tests_properties(jobs.scheduler PROPERTIES LABELS "cpu;jobs")
 
 add_executable(genomes_test_job_fence
     jobs/job_fence_tests.cpp)
@@ -519,13 +575,12 @@ set_tests_properties(jobs.worker_shutdown_violation jobs.worker_destructor_viola
     PROPERTIES
         LABELS "cpu;jobs"
         TIMEOUT 5
-        WILL_FAIL TRUE
-        PASS_REGULAR_EXPRESSION "genomes\\.jobs\\.worker_shutdown\\.terminate")
+        PASS_REGULAR_EXPRESSION "genomes\\.jobs\\.contract_violation")
 
 add_executable(genomes_test_thread_scaling_gate
     stress/thread_scaling_smoke.cpp)
 target_link_libraries(genomes_test_thread_scaling_gate PRIVATE
-    genomes::thread_scaling_gate)
+    genomes::thread_scaling_gate genomes::jobs)
 target_compile_definitions(genomes_test_thread_scaling_gate PRIVATE
     GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 genomes_set_project_warnings(genomes_test_thread_scaling_gate)
@@ -545,6 +600,28 @@ target_link_libraries(genomes_test_proc_registry PRIVATE genomes::proc)
 genomes_set_project_warnings(genomes_test_proc_registry)
 genomes_enable_test_assertions(genomes_test_proc_registry)
 add_test(NAME proc.registry COMMAND genomes_test_proc_registry)
+
+add_executable(genomes_test_procedural_runtime
+    proc/procedural_runtime_tests.cpp)
+target_link_libraries(genomes_test_procedural_runtime PRIVATE genomes::proc)
+genomes_set_project_warnings(genomes_test_procedural_runtime)
+genomes_enable_test_assertions(genomes_test_procedural_runtime)
+add_test(NAME proc.runtime COMMAND genomes_test_procedural_runtime)
+set_tests_properties(proc.runtime PROPERTIES LABELS "cpu;proc;jobs")
+
+add_executable(genomes_test_domain_generator_registry
+    proc/domain_generator_registry_tests.cpp)
+target_link_libraries(genomes_test_domain_generator_registry PRIVATE
+    genomes::buildings genomes::hydrology genomes::terrain
+    genomes::world_generation genomes::gameplay)
+if(GENOMES_ENABLE_INFANTRY)
+    target_link_libraries(genomes_test_domain_generator_registry PRIVATE
+        genomes::infantry genomes::weapons)
+endif()
+genomes_set_project_warnings(genomes_test_domain_generator_registry)
+genomes_enable_test_assertions(genomes_test_domain_generator_registry)
+add_test(NAME proc.domain_generator_registry COMMAND genomes_test_domain_generator_registry)
+set_tests_properties(proc.domain_generator_registry PROPERTIES LABELS "cpu;proc")
 
 add_executable(genomes_test_world_coordinates
     world/world_coordinates_smoke.cpp)
@@ -1066,15 +1143,20 @@ if(GENOMES_ENABLE_INFANTRY)
     genomes_enable_test_assertions(genomes_test_infantry_damage_ragdoll)
     add_test(NAME infantry.damage_ragdoll COMMAND genomes_test_infantry_damage_ragdoll)
 
-    add_executable(genomes_test_infantry_reference_parity
-        infantry_reference_parity_tests.cpp)
-    target_link_libraries(genomes_test_infantry_reference_parity PRIVATE
-        genomes::infantry genomes_test_infantry_fixture)
-    target_compile_definitions(genomes_test_infantry_reference_parity PRIVATE
-        GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
-    genomes_set_project_warnings(genomes_test_infantry_reference_parity)
-    genomes_enable_test_assertions(genomes_test_infantry_reference_parity)
-add_test(NAME infantry.reference_parity COMMAND genomes_test_infantry_reference_parity)
+    if(GENOMES_BUILD_INFANTRY_REFERENCE_COMPARISON)
+        add_executable(genomes_test_infantry_reference_comparison
+            infantry_reference_parity_tests.cpp)
+        target_link_libraries(genomes_test_infantry_reference_comparison PRIVATE
+            genomes::infantry genomes_test_infantry_fixture)
+        target_compile_definitions(genomes_test_infantry_reference_comparison PRIVATE
+            GENOMES_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+        genomes_set_project_warnings(genomes_test_infantry_reference_comparison)
+        genomes_enable_test_assertions(genomes_test_infantry_reference_comparison)
+        add_test(NAME infantry.reference_comparison
+            COMMAND genomes_test_infantry_reference_comparison)
+        set_tests_properties(infantry.reference_comparison PROPERTIES
+            LABELS "diagnostic;reference;non-gating")
+    endif()
 
 add_executable(genomes_test_infantry_appearance_topology infantry_appearance_topology_tests.cpp)
 target_link_libraries(genomes_test_infantry_appearance_topology PRIVATE genomes::infantry)

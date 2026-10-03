@@ -64,9 +64,12 @@ void CameraController::update(CameraRequest& request,const CameraInput& input,fl
         math::Vec3 movement=right*input.move_x+forward*input.move_z;
         const float movement_length=math::length(movement);
         if (movement_length>1.0F) movement=movement/movement_length;
-        const float speed=std::clamp(distance_*0.65F,18.0F,220.0F)*dt;
-        orbit_target_=orbit_target_+movement*speed-right*(input.pan_x*distance_*2.0F)+
-                      forward*(input.pan_y*distance_*2.0F);
+        const float speed=std::clamp(distance_*request.rts.move_speed_factor,
+                                     request.rts.min_move_speed,
+                                     request.rts.max_move_speed)*dt;
+        const float pan_distance = distance_ * request.rts.pan_distance_factor;
+        orbit_target_=orbit_target_+movement*speed-right*(input.pan_x*pan_distance)+
+                      forward*(input.pan_y*pan_distance);
         orbit_target_.x=std::clamp(orbit_target_.x,request.rts.target_min.x,request.rts.target_max.x);
         orbit_target_.z=std::clamp(orbit_target_.z,request.rts.target_min.y,request.rts.target_max.y);
         request.target=orbit_target_;

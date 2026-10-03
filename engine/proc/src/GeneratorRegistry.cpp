@@ -30,7 +30,29 @@ foundation::Result<void, Error> GeneratorRegistry::Builder::add(
                 {ErrorCode::InvalidState, "duplicate generator name"});
         }
     }
-    entries_.push_back({descriptor, std::move(generate)});
+    entries_.push_back({descriptor, std::move(generate), typeid(void), typeid(void), {}});
+    return foundation::Result<void, Error>::success();
+}
+
+foundation::Result<void, Error> GeneratorRegistry::Builder::addTypedErased(
+    GeneratorDescriptor descriptor,
+    std::type_index input_type,
+    std::type_index output_type,
+    ErasedGeneratorFunction generate) {
+    if (!descriptor.valid() || !generate) {
+        return foundation::Result<void, Error>::failure(invalidDescriptor());
+    }
+    for (const GeneratorEntry& entry : entries_) {
+        if (entry.descriptor.id == descriptor.id) {
+            return foundation::Result<void, Error>::failure(
+                {ErrorCode::InvalidState, "duplicate generator id"});
+        }
+        if (entry.descriptor.name == descriptor.name) {
+            return foundation::Result<void, Error>::failure(
+                {ErrorCode::InvalidState, "duplicate generator name"});
+        }
+    }
+    entries_.push_back({descriptor, {}, input_type, output_type, std::move(generate)});
     return foundation::Result<void, Error>::success();
 }
 
@@ -49,6 +71,10 @@ foundation::Result<void, Error> GeneratorRegistry::run(GeneratorId id,
     if (entry == nullptr) {
         return foundation::Result<void, Error>::failure(
             {ErrorCode::NotFound, "generator not registered"});
+    }
+    if (!entry->generate) {
+        return foundation::Result<void, Error>::failure(
+            {ErrorCode::InvalidArgument, "typed generator requires a typed request"});
     }
     return entry->generate(context);
 }

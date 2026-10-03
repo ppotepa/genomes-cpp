@@ -16,11 +16,14 @@ No Creature/Humanoid extraction or new physics/navigation framework is in scope.
 ## Preserved reference implementation
 
 The lightweight toolkit replaces shared math, geometry, camera, and presentation
-utilities. It does not replace the infantry reference geometry, rig, morph
-targets, parity algorithms, fixtures, tolerances, semantic vertex numbering, or
-generator outputs. General-purpose primitives must not be composed into a new
-anatomical human. Presentation optimization remains outside the domain generator
-and must preserve every reference vertex stream and identity.
+utilities. The JavaScript mockup is a product/concept reference: it helps identify
+the intended character, equipment, animation states, and broad visual direction.
+It does not prescribe C++ algorithms, numeric outputs, buffer ordering, internal
+data structures, or exact vertex streams. Native C++ contracts and tests define
+shipping behavior. C++ may use different algorithms where they better fit its
+architecture, provided domain requirements and native invariants are preserved.
+Presentation optimization remains outside the domain generator and must preserve
+the identities and semantics defined by the native artifact contract.
 
 ## First delivered slice
 
@@ -49,9 +52,9 @@ cached as a successfully optimized mesh.
 The renderer migration is now represented by `ADR_LIGHTWEIGHT_TOOLKIT.md`.
 `dev-debug` and `dev-release` select the Diligent/D3D12 profile; `HEADLESS` is
 the CPU-only profile. The production application has no threepp provider or GL
-context path. This ADR still governs the infantry domain: reference geometry,
-rigs, morphs, fixtures, tolerances, semantic vertex numbering and generator
-outputs remain unchanged.
+context path. This ADR still governs the infantry domain and its module
+boundaries. It does not make exact JavaScript fixture parity an acceptance
+condition.
 
 Source readiness is not runtime acceptance. Configure, build, CTest, benchmark,
 shader, GPU and visual evidence must be supplied by the user at an exact SHA.

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <genomes/foundation/Error.hpp>
-#include <genomes/jobs/JobHandle.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/world/WorldPlan.hpp>
 
 #include <memory>
@@ -12,49 +12,54 @@
 
 namespace genomes::world {
 
+[[nodiscard]] foundation::Result<void, foundation::Error> registerWorldGenerator(
+    proc::GeneratorRegistry::Builder& builder);
+
 class WorldGenerationTask final {
 public:
     WorldGenerationTask() = default;
 
-    [[nodiscard]] bool valid() const noexcept {
-        return static_cast<bool>(state_);
-    }
-
-    [[nodiscard]] bool ready() const noexcept;
+    [[nodiscard]] bool valid() const noexcept { return ticket_.valid(); }
+    [[nodiscard]] bool ready() const noexcept { return ticket_.complete(); }
     [[nodiscard]] bool failed() const noexcept;
     [[nodiscard]] foundation::Error error() const noexcept;
-    void wait() const noexcept;
+    void cancel() noexcept { ticket_.cancel(); }
+    void wait() const noexcept { ticket_.wait(); }
     [[nodiscard]] std::optional<WorldPlan> take_result();
 
 private:
-    struct State final {
-        mutable std::mutex mutex;
-        bool complete{false};
-        bool failed{false};
-        foundation::Error error{};
-        std::optional<WorldPlan> plan;
+    struct ConsumptionState final {
+        std::mutex mutex;
+        bool consumed{false};
     };
 
     friend class WorldGenerationService;
+    explicit WorldGenerationTask(proc::GenerationTicket<WorldPlan> ticket) noexcept
+        : ticket_(std::move(ticket)), consumption_(std::make_shared<ConsumptionState>()) {}
 
-    WorldGenerationTask(std::shared_ptr<State> state, jobs::JobHandle handle) noexcept
-        : state_(std::move(state)), handle_(std::move(handle)) {}
-
-    std::shared_ptr<State> state_;
-    jobs::JobHandle handle_;
+    proc::GenerationTicket<WorldPlan> ticket_;
+    std::shared_ptr<ConsumptionState> consumption_;
 };
 
 class WorldGenerationService final {
 public:
     explicit WorldGenerationService(jobs::JobSystem& jobs,
-                                    std::shared_ptr<proc::ArtifactCache> cache = {}) noexcept
-        : jobs_{jobs}, cache_{cache} {}
+                                    std::shared_ptr<proc::ArtifactCache> cache = {});
+    WorldGenerationService(jobs::JobSystem& jobs,
+                           std::shared_ptr<proc::ArtifactCache> cache,
+                           proc::GeneratorRegistry registry);
 
-    [[nodiscard]] WorldGenerationTask submit(const WorldGenerationRequest& request);
+    [[nodiscard]] WorldGenerationTask submit(
+        const WorldGenerationRequest& request,
+        proc::GenerationChannel* channel = nullptr);
+    [[nodiscard]] const proc::GeneratorRegistry& registry() const noexcept { return registry_; }
 
 private:
-    jobs::JobSystem& jobs_;
+    [[nodiscard]] static proc::GeneratorRegistry makeRegistry();
+
     std::shared_ptr<proc::ArtifactCache> cache_;
+    proc::GeneratorRegistry registry_;
+    proc::ProceduralRuntime runtime_;
 };
 
 } // namespace genomes::world

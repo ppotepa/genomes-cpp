@@ -1,0 +1,22 @@
+{
+  "schema": "genomes.thread_scaling_baseline.v1",
+  "workload": "deterministic_job_batch_v1",
+  "machine": {
+    "class": "intel-i5-12600k-10c16t",
+    "compiler": "clang-22.1.0-release",
+    "dependency_profile": "dev-release-diligent-meshopt"
+  },
+  "semantic_hash": 12013421788458781143,
+  "thresholds": {
+    "median_regression_percent": 10.0,
+    "p95_regression_percent": 20.0,
+    "maximum_coefficient_of_variation": 0.25,
+    "minimum_samples": 5
+  },
+  "expected_trend": "no_assumption",
+  "workers": {
+    "1": [19.2729, 19.2969, 19.3227, 19.3975, 19.2954],
+    "2": [9.7563, 9.695, 9.6561, 9.6631, 9.6671],
+    "4": [4.8763, 4.9022, 4.8997, 4.983, 4.8808]
+  }
+}

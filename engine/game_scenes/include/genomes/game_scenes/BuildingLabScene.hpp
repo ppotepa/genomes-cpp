@@ -4,6 +4,7 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/runtime/Scene.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -40,6 +41,10 @@ private:
     buildings::BuildingPlan plan_{};
     std::unique_ptr<buildings::BuildingRuntime> runtime_;
     std::shared_ptr<render::RenderMesh> render_mesh_;
+    proc::GeneratorRegistry procedural_registry_;
+    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
+    proc::GenerationChannel generation_channel_;
+    proc::GenerationTicket<buildings::BuildingPlan> generation_ticket_;
     std::size_t selected_part_{0};
     std::uint64_t seed_{0xB01D1A9u};
     float damage_amount_{0.20F};

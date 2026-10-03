@@ -1,6 +1,5 @@
 #include <genomes/infantry/ReferenceBodySurfaceGenerator.hpp>
 #include <genomes/infantry/ReferenceFaceSurfaceGenerator.hpp>
-#include <genomes/infantry/AppearanceMeshFinalizer.hpp>
 
 #include <algorithm>
 #include <array>
@@ -31,7 +30,8 @@ namespace {
     const double lower=referenceBind(fit,BoneId::SpineLower).y;
     const double upper=referenceBind(fit,BoneId::SpineUpper).y;
     const double chest_y=referenceBind(fit,BoneId::Chest).y;
-    if(point.y<lower){const double t=smooth((point.y-fit.hip_y)/std::max(.001,lower-fit.hip_y));
+    if(point.y<lower){const double t=smooth((point.y-fit.reference_hip_y)/
+        std::max(.001,lower-fit.reference_hip_y));
         return {{static_cast<std::uint16_t>(boneIndex(BoneId::Hips)),1.0-t},
                 {static_cast<std::uint16_t>(boneIndex(BoneId::SpineLower)),t}};}
     if(point.y<upper){const double t=smooth((point.y-lower)/std::max(.001,upper-lower));
@@ -69,9 +69,10 @@ foundation::Result<ReferenceAvatarSurface,foundation::Error> ReferenceBodySurfac
     constexpr std::array<std::string_view,4U> names{"eyelidsClose","eyelidsArc","neckFlex","handsRelax"};
     ReferenceAvatarSurface result{};for(std::size_t index=0;index<names.size();++index){result.morphs[index].name=names[index];
         result.morphs[index].position_deltas=builder.morphPositions(names[index]);}
+    // The reference builder has already performed JS-compatible winding and
+    // normal generation.  A generic repair pass would replace intentionally
+    // unused zero normals and mutate the normative vertex streams.
     result.mesh=builder.finalize();
-    if(auto finalized=finalizeAppearanceMesh(result.mesh);!finalized)
-        return foundation::Result<ReferenceAvatarSurface,foundation::Error>::failure(finalized.error());
     result.mesh.materials={
         {"body",uniform,.95F,0.0F,1.0F,false},
         {"skin",fit.body.skin_color,.95F,0.0F,1.0F,false},
@@ -238,7 +239,7 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendHand(
         direction.y/direction_length,direction.z/direction_length};
     ReferenceVec3 u{direction.y,-direction.x,0.0};const double u_length=length(u);
     u={u.x/u_length,u.y/u_length,0.0};const ReferenceVec3 z_axis{0.0,0.0,1.0};
-    const double hand_scale=fit.body.hand_scale;const std::uint32_t palm_segments=
+    const double hand_scale=fit.body.reference_hand_scale;const std::uint32_t palm_segments=
         detail_level==3U?16U:detail_level==1U?6U:10U;
     const std::uint32_t digit_segments=detail_level==3U?10U:detail_level==1U?4U:6U;
     const ReferenceColor color{hand_color.r,hand_color.g,hand_color.b};
@@ -256,12 +257,18 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendHand(
         for(std::uint32_t index=0U;index<segments;++index){const double angle=
             6.283185307179586476925286766559*static_cast<double>(index)/segments;
             const double xx=std::cos(angle),zz=std::sin(angle);
-            const ReferenceVec3 point{center.x+ring_u.x*radius_x*xx+ring_v.x*radius_z*zz,
-                center.y+ring_u.y*radius_x*xx+ring_v.y*radius_z*zz,
-                center.z+ring_u.z*radius_x*xx+ring_v.z*radius_z*zz};
-            ReferenceVec3 normal{ring_u.x*xx/std::max(radius_x,1e-5)+ring_v.x*zz/std::max(radius_z,1e-5),
-                ring_u.y*xx/std::max(radius_x,1e-5)+ring_v.y*zz/std::max(radius_z,1e-5),
-                ring_u.z*xx/std::max(radius_x,1e-5)+ring_v.z*zz/std::max(radius_z,1e-5)};
+            const auto add_scaled=[](double value,double direction_value,double scale){
+                volatile double product=direction_value*scale;
+                volatile double sum=value+static_cast<double>(product);
+                return static_cast<double>(sum);};
+            ReferenceVec3 point=center;
+            const double radial_x=radius_x*xx,radial_z=radius_z*zz;
+            point.x=add_scaled(point.x,ring_u.x,radial_x);point.y=add_scaled(point.y,ring_u.y,radial_x);point.z=add_scaled(point.z,ring_u.z,radial_x);
+            point.x=add_scaled(point.x,ring_v.x,radial_z);point.y=add_scaled(point.y,ring_v.y,radial_z);point.z=add_scaled(point.z,ring_v.z,radial_z);
+            ReferenceVec3 normal{ring_u.x*xx/std::max(radius_x,1e-5),
+                ring_u.y*xx/std::max(radius_x,1e-5),ring_u.z*xx/std::max(radius_x,1e-5)};
+            const double normal_scale=zz/std::max(radius_z,1e-5);
+            normal.x=add_scaled(normal.x,ring_v.x,normal_scale);normal.y=add_scaled(normal.y,ring_v.y,normal_scale);normal.z=add_scaled(normal.z,ring_v.z,normal_scale);
             const double normal_length=length(normal);normal={normal.x/normal_length,normal.y/normal_length,normal.z/normal_length};
             ring.push_back(builder.vertex(point,weights,ring_color,normal,
                 {static_cast<double>(index)/segments*3.0,uv_y},0U));}return ring;};
@@ -550,7 +557,9 @@ ReferenceJacketBuild ReferenceBodySurfaceGenerator::appendClothDetails(
                 ReferenceVec3 normal{u.x*c+v.x*s,u.y*c+v.y*s,u.z*c+v.z*s};
                 const double nl=std::sqrt(normal.x*normal.x+normal.y*normal.y+normal.z*normal.z);
                 normal={normal.x/nl,normal.y/nl,normal.z/nl};
-                ring.push_back(builder.vertex(point,torsoWeights(fit,point),color,normal,{static_cast<double>(index)/segments*3.0,static_cast<double>(at)/points.size()}));}
+                // SurfaceBuilder.tubePath evaluates a functional weight source
+                // once at the path centre, then reuses it for the whole ring.
+                ring.push_back(builder.vertex(point,torsoWeights(fit,points[at]),color,normal,{static_cast<double>(index)/segments*3.0,static_cast<double>(at)/points.size()}));}
             if(!previous.empty()){builder.bridge(previous,ring);triangles+=segments*2U;}previous=std::move(ring);}};
     for(const double sign:{1.0,-1.0}){const double x=sign*.054;patch_grid(x-.023,x+.023,.694,.750,.0025,shade(.88));
         patch_grid(x-.025,x+.025,.738,.755,.004,shade(.74));if(detail_level==3U){std::vector<ReferenceVec3> line,hem;

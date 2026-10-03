@@ -26,6 +26,8 @@ public:
     [[nodiscard]] RenderResult abort_frame() noexcept;
     [[nodiscard]] RenderResult resize(std::uint32_t,std::uint32_t) noexcept;
     [[nodiscard]] RenderResult wait_idle() noexcept override;
+    [[nodiscard]] RendererHealthState healthState() const noexcept override;
+    [[nodiscard]] RendererHealthDiagnostics healthDiagnostics() const noexcept override;
     [[nodiscard]] RenderResult capture(const std::filesystem::path&) noexcept;
     void set_resolved_camera(const camera::ResolvedCamera&) noexcept;
     void shutdown() noexcept override;
@@ -33,5 +35,6 @@ private:
     struct Impl;
     explicit DiligentBackend(std::unique_ptr<Impl>) noexcept;
     std::unique_ptr<Impl> impl_;
+    RendererHealthDiagnostics last_health_{};
 };
 } // namespace genomes::render

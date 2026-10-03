@@ -1,5 +1,6 @@
 add_library(genomes_gameplay STATIC
-    src/WorldScenario.cpp)
+    src/WorldScenario.cpp
+    src/ProductionGenerators.cpp)
 
 if(GENOMES_ENABLE_INFANTRY)
     target_sources(genomes_gameplay PRIVATE
@@ -12,11 +13,13 @@ target_include_directories(genomes_gameplay PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_gameplay PUBLIC
     genomes::foundation
+    genomes::api
     genomes::jobs
     genomes::world_generation
     genomes::buildings
     genomes::terrain
-    genomes::simulation)
+    genomes::simulation
+    genomes::destruction)
 if(GENOMES_ENABLE_INFANTRY)
     target_link_libraries(genomes_gameplay PUBLIC
         genomes::spatial
@@ -25,8 +28,7 @@ if(GENOMES_ENABLE_INFANTRY)
         genomes::combat
         genomes::infantry
         genomes::weapons
-        genomes::ballistics
-        genomes::destruction)
+        genomes::ballistics)
     target_compile_definitions(genomes_gameplay PUBLIC GENOMES_HAS_INFANTRY=1)
 else()
     target_compile_definitions(genomes_gameplay PUBLIC GENOMES_HAS_INFANTRY=0)

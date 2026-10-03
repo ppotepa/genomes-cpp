@@ -1,6 +1,7 @@
 add_library(genomes_proc STATIC
     src/Seed.cpp
     src/GeneratorRegistry.cpp
+    src/ProceduralRuntime.cpp
     src/ArtifactCache.cpp)
 
 target_include_directories(genomes_proc PUBLIC

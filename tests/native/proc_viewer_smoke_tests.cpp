@@ -4,6 +4,7 @@
 #include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <thread>
@@ -26,7 +27,8 @@ int main() {
     const world::WorldGenerationRequest request =
         profile.value().makeRequest(0x7777ULL);
     assert(viewer.regenerate(request));
-    for (std::size_t attempt = 0U; attempt < 10000U && viewer.artifact() == nullptr; ++attempt) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (viewer.artifact() == nullptr && std::chrono::steady_clock::now() < deadline) {
         assert(viewer.poll());
         std::this_thread::yield();
     }

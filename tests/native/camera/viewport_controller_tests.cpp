@@ -78,7 +78,10 @@ int main() {
     viewport.configure(rts,4);
     input::InputFrame key_down{};
     key_down.mouse_x=640; key_down.mouse_y=360;
-    key_down.events.push_back({input::EventType::KeyDown,26});
+    input::Event key_event{};
+    key_event.type = input::EventType::KeyDown;
+    key_event.scancode = 26;
+    key_down.events.push_back(key_event);
     viewport.handleInput(key_down);
     const auto rts_moved=viewport.update(.25F);
     assert(rts_moved.target.z<0.0F);
@@ -99,4 +102,41 @@ int main() {
     edge.pointer_over_ui=true;
     viewport.handleInput(edge);
     assert(close(viewport.update(.1F).target,edge_moved.target));
+
+    // RTS input tuning is carried by the camera request and can vary by scene.
+    camera::CameraRequest stock_rts = rts;
+    stock_rts.position = {0,60,80};
+    stock_rts.target = {0,0,0};
+    camera::CameraRequest tuned_rts = stock_rts;
+    tuned_rts.rts.zoom_sensitivity = 0.24F;
+    tuned_rts.rts.move_speed_factor = 1.30F;
+    runtime::ViewportController stock_controls;
+    runtime::ViewportController tuned_controls;
+    stock_controls.configure(stock_rts, 5);
+    tuned_controls.configure(tuned_rts, 5);
+    input::InputFrame tuned_wheel{};
+    tuned_wheel.viewport_width = 1280;
+    tuned_wheel.viewport_height = 720;
+    tuned_wheel.mouse_x = 640;
+    tuned_wheel.mouse_y = 360;
+    tuned_wheel.mouse_wheel_y = 1.0F;
+    stock_controls.handleInput(tuned_wheel);
+    tuned_controls.handleInput(tuned_wheel);
+    const auto stock_zoomed = stock_controls.update(0.0F);
+    const auto tuned_zoomed = tuned_controls.update(0.0F);
+    assert(close(tuned_zoomed.target, stock_zoomed.target));
+    assert(math::length(tuned_zoomed.position - tuned_zoomed.target) <
+           math::length(stock_zoomed.position - stock_zoomed.target));
+
+    input::InputFrame tuned_move{};
+    tuned_move.viewport_width = 1280;
+    tuned_move.viewport_height = 720;
+    tuned_move.mouse_x = 640;
+    tuned_move.mouse_y = 360;
+    tuned_move.right_pressed = true;
+    stock_controls.handleInput(tuned_move);
+    tuned_controls.handleInput(tuned_move);
+    const auto stock_moved = stock_controls.update(.25F);
+    const auto tuned_moved = tuned_controls.update(.25F);
+    assert(math::length(tuned_moved.target) > math::length(stock_moved.target));
 }

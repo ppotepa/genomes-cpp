@@ -12,8 +12,15 @@ public:
     void end_frame() override;
     [[nodiscard]] RenderCapabilities capabilities() const noexcept override { return backend_.capabilities(); }
     [[nodiscard]] RenderUploadTelemetry uploadTelemetry() const noexcept override { return backend_.uploadTelemetry(); }
-    [[nodiscard]] bool healthy() const noexcept override { return frame_.healthy(); }
-    [[nodiscard]] foundation::Error last_error() const noexcept override { return frame_.error(); }
+    [[nodiscard]] bool healthy() const noexcept override {
+        return frame_.healthy() && backend_.healthState() != RendererHealthState::DeviceLost &&
+               backend_.healthState() != RendererHealthState::Stopped;
+    }
+    [[nodiscard]] foundation::Error last_error() const noexcept override {
+        const auto diagnostics = backend_.healthDiagnostics();
+        return diagnostics.error.code == foundation::ErrorCode::None ? frame_.error()
+                                                                      : diagnostics.error;
+    }
     [[nodiscard]] RenderResult capture(const std::filesystem::path& path) override { return backend_.capture(path); }
     [[nodiscard]] std::size_t submitted_instances() const noexcept { return instances_; }
     [[nodiscard]] std::size_t submitted_ui_nodes() const noexcept { return ui_nodes_; }

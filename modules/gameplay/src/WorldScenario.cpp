@@ -1,5 +1,6 @@
 #include <genomes/gameplay/WorldScenario.hpp>
 
+#include <genomes/buildings/BuildingProcedural.hpp>
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/proc/SeedPath.hpp>
 #include <genomes/terrain/TerrainGenerator.hpp>
@@ -17,7 +18,7 @@ foundation::Result<void, foundation::Error> WorldScenario::requestNew(
             {foundation::ErrorCode::InvalidArgument,
              "invalid world scenario request or building profile"});
     }
-    pending_ = generation_service_.submit(request);
+    pending_ = generation_service_.submit(request, &generation_channel_);
     pending_request_ = request;
     status_.generation_pending = true;
     status_.last_error = {};
@@ -66,8 +67,8 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
                                "world generation completed without a request"};
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
     }
-    const auto artifact = compileArtifact(std::move(*candidate), *completed_request,
-                                          *building_profile_);
+    const auto artifact = compileArtifactImpl(std::move(*candidate), *completed_request,
+                                              *building_profile_, &procedural_runtime_);
     if (!artifact) {
         status_.last_error = artifact.error();
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
@@ -85,7 +86,8 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
     coordinates.region_size_m = static_cast<double>(completed_request->map_size_m);
     streamer_ = std::make_unique<world::WorldStreamer>(
         world::WorldId(foundation::stableHashU64(completed_request->seed)),
-        *completed_request, coordinates, jobs_);
+        *completed_request, coordinates, jobs_, world::WorldStreamerConfig{},
+        generation_service_.registry());
     // Keep the first region immediately available while an adjacent region is
     // prepared asynchronously through the normal streaming service.
     (void)requestRegion({1, 0, 0});
@@ -141,6 +143,9 @@ std::vector<world::StreamedRegion> WorldScenario::takeStreamedRegions() {
 }
 
 void WorldScenario::cancelPending() noexcept {
+    if (pending_.has_value()) {
+        pending_->cancel();
+    }
     pending_.reset();
     pending_request_.reset();
     status_.generation_pending = false;
@@ -188,6 +193,13 @@ bool WorldScenario::validCandidate(const world::WorldPlan& plan) noexcept {
 foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifact(
     world::WorldPlan plan, const world::WorldGenerationRequest& request,
     const buildings::FrozenBuildingProfile& building_profile) {
+    return compileArtifactImpl(std::move(plan), request, building_profile, nullptr);
+}
+
+foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifactImpl(
+    world::WorldPlan plan, const world::WorldGenerationRequest& request,
+    const buildings::FrozenBuildingProfile& building_profile,
+    proc::ProceduralRuntime* procedural_runtime) {
     if (!request.valid() || !validCandidate(plan) || plan.seed != request.seed ||
         !building_profile.frozen()) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
@@ -211,7 +223,27 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     terrain_spec.cell_size_m = layout.spacing_m;
     terrain_spec.origin_offset_x = static_cast<double>(layout.origin.x);
     terrain_spec.origin_offset_z = static_cast<double>(layout.origin.z);
-    const auto terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
+    foundation::Result<terrain::HeightField, foundation::Error> terrain_result =
+        terrain::TerrainGenerator::generate(terrain_spec);
+    if (procedural_runtime != nullptr &&
+        procedural_runtime->registry().find(proc::generatorId("terrain.height-field")) !=
+            nullptr) {
+        proc::GenerationRequest<terrain::TerrainSpec, terrain::HeightField> generation;
+        generation.generator = proc::generatorId("terrain.height-field");
+        generation.input = std::make_shared<const terrain::TerrainSpec>(terrain_spec);
+        generation.seed_path = terrain_spec.seed_path;
+        generation.options.input_hash = foundation::stableHashCombine(
+            foundation::stableHashU64(request.seed), request.map_size_m);
+        generation.options.retained_bytes = sizeof(terrain::HeightField);
+        const auto generated = procedural_runtime->generateInline(generation);
+        if (generated) {
+            terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::success(
+                *generated.value());
+        } else {
+            terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::failure(
+                generated.error());
+        }
+    }
     if (!terrain_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             terrain_result.error());
@@ -235,8 +267,30 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     auto resolved_buildings = std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
     resolved_buildings->reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
-        auto building = buildings::BuildingGenerator::generateSite(
-            site, building_profile.siteGeneration());
+        foundation::Result<buildings::BuildingGenerationResult, foundation::Error> building =
+            buildings::BuildingGenerator::generateSite(site, building_profile.siteGeneration());
+        if (procedural_runtime != nullptr &&
+            procedural_runtime->registry().find(proc::generatorId("buildings.site")) != nullptr) {
+            proc::GenerationRequest<buildings::BuildingSiteGenerationRequest,
+                                    buildings::BuildingGenerationResult>
+                generation;
+            generation.generator = proc::generatorId("buildings.site");
+            generation.input = std::make_shared<const buildings::BuildingSiteGenerationRequest>(
+                buildings::BuildingSiteGenerationRequest{site, building_profile.siteGeneration()});
+            generation.seed_path = proc::SeedPath(site.seed);
+            generation.options.input_hash = foundation::stableHashCombine(
+                site.request_id, static_cast<std::uint64_t>(site.seed));
+            generation.options.dependency_hash = building_profile.fingerprint().value;
+            generation.options.retained_bytes = sizeof(buildings::BuildingGenerationResult);
+            const auto generated = procedural_runtime->generateInline(generation);
+            if (generated) {
+                building = foundation::Result<buildings::BuildingGenerationResult,
+                                               foundation::Error>::success(*generated.value());
+            } else {
+                building = foundation::Result<buildings::BuildingGenerationResult,
+                                               foundation::Error>::failure(generated.error());
+            }
+        }
         if (!building) {
             return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
                 building.error());

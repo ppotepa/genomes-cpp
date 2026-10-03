@@ -135,6 +135,40 @@ int main() {
         close(deformed.vertices[weapon_begin+i].position, expected);
         assert(first->vertices[weapon_begin+i].bone_indices[0] == static_cast<std::uint16_t>(socket.bone));
     }
+    const auto* hand_bone = artifact.skeleton.find(infantry::BoneId::HandR);
+    assert(hand_bone);
+    const auto held_prototype = game_scenes::infantry_presentation::makePrototype(
+        artifact, game_scenes::infantry_presentation::PrototypePreparation::OptimizeDrawOrder,
+        nullptr, game_scenes::infantry_presentation::WeaponPoseAttachment::RightHand);
+    assert(held_prototype);
+    assert(held_prototype != first);
+    assert(held_prototype->mesh_id != first->mesh_id);
+    assert(held_prototype->vertices.size() == first->vertices.size());
+    const auto held_bind = game_scenes::infantry_presentation::makeBindPalette(artifact.skeleton);
+    const auto held_deformed = render::deformSkinnedCPU(*held_prototype, held_bind, {});
+    const auto& grip_rotation = weapon.value().primary_grip.local_rotation;
+    const infantry::RigQuaternion grip_inverse{
+        -grip_rotation[0], -grip_rotation[1], -grip_rotation[2], grip_rotation[3]};
+    const auto& hand_rotation = hand_bone->world_bind.rotation;
+    const infantry::RigQuaternion attachment_rotation{
+        hand_rotation.w * grip_inverse.x + hand_rotation.x * grip_inverse.w +
+            hand_rotation.y * grip_inverse.z - hand_rotation.z * grip_inverse.y,
+        hand_rotation.w * grip_inverse.y - hand_rotation.x * grip_inverse.z +
+            hand_rotation.y * grip_inverse.w + hand_rotation.z * grip_inverse.x,
+        hand_rotation.w * grip_inverse.z + hand_rotation.x * grip_inverse.y -
+            hand_rotation.y * grip_inverse.x + hand_rotation.z * grip_inverse.w,
+        hand_rotation.w * grip_inverse.w - hand_rotation.x * grip_inverse.x -
+            hand_rotation.y * grip_inverse.y - hand_rotation.z * grip_inverse.z};
+    for (std::size_t i = 0; i < weapon.value().mesh.vertices.size(); ++i) {
+        const auto& vertex = held_prototype->vertices[weapon_begin+i];
+        const auto expected = hand_bone->world_bind.translation + rotate(
+            weapon.value().mesh.vertices[i].position - weapon.value().primary_grip.local_position,
+            attachment_rotation);
+        close(vertex.position, expected);
+        close(held_deformed.vertices[weapon_begin+i].position, expected);
+        assert(vertex.bone_indices[0] == static_cast<std::uint16_t>(infantry::BoneId::HandR));
+        assert(std::abs(vertex.bone_weights[0] - 1.0F) < 1.0e-6F);
+    }
     // Gear shares the body's model-space bind convention too.
     for (std::size_t i = 0; i < first->vertices.size(); ++i)
         close(deformed.vertices[i].position, first->vertices[i].position);

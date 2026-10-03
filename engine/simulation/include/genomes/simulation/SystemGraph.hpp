@@ -10,12 +10,15 @@
 #include <genomes/simulation/SystemId.hpp>
 
 #include <cstddef>
+#include <functional>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
 
 namespace genomes::simulation {
+
+class SystemExecutionPlan;
 
 using AccessKey = foundation::StableId;
 
@@ -95,6 +98,8 @@ public:
         jobs::JobSystem* jobs = nullptr,
         CommandBufferSet* command_buffers = nullptr);
 
+    [[nodiscard]] SystemExecutionPlan executionPlan() noexcept;
+
     bool setCadenceTier(SystemId,
                         CadenceTier,
                         foundation::SimulationTick) noexcept;
@@ -103,6 +108,7 @@ public:
     [[nodiscard]] std::string dump() const;
 
 private:
+    friend class SystemExecutionPlan;
     struct CompiledNode final {
         SystemDescriptor descriptor;
         std::vector<std::size_t> successors;
@@ -120,6 +126,33 @@ private:
     std::vector<CompiledNode> graph_;
     std::string diagnostic_;
     bool compiled_{false};
+};
+
+// Execution form of a compiled semantic SystemGraph. Dependencies are mapped
+// directly to JobGraph edges, so a successor is released by the final direct
+// prerequisite rather than by a whole-frontier barrier.
+class SystemExecutionPlan final {
+public:
+    SystemExecutionPlan() = default;
+
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] jobs::JobCompletion start(
+        foundation::SimulationTick tick,
+        double fixed_dt,
+        jobs::JobSystem* jobs = nullptr,
+        CommandBufferSet* command_buffers = nullptr,
+        std::function<void()> deterministic_commit = {}) const;
+    [[nodiscard]] foundation::Result<SystemGraphRunResult, foundation::Error> run(
+        foundation::SimulationTick tick,
+        double fixed_dt,
+        jobs::JobSystem* jobs = nullptr,
+        CommandBufferSet* command_buffers = nullptr) const;
+
+private:
+    friend class SystemGraph;
+    explicit SystemExecutionPlan(SystemGraph& graph) noexcept : graph_(&graph) {}
+
+    SystemGraph* graph_{nullptr};
 };
 
 } // namespace genomes::simulation

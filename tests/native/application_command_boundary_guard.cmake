@@ -71,8 +71,7 @@ foreach(_canonical_product_header IN ITEMS
         "${_game_scenes_dir}/include/genomes/game_scenes/WorldLabScene.hpp"
         "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabScene.hpp"
         "${_game_scenes_dir}/include/genomes/game_scenes/InfantryPresentation.hpp"
-        "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabCommandParsing.hpp"
-        "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabModelRequestGate.hpp")
+        "${_game_scenes_dir}/include/genomes/game_scenes/UnitLabCommandParsing.hpp")
     if(NOT EXISTS "${_canonical_product_header}")
         message(FATAL_ERROR "canonical product header is missing: ${_canonical_product_header}")
     endif()
@@ -96,7 +95,7 @@ endforeach()
 foreach(_product_header IN ITEMS
         MainMenuScene.hpp BattlefieldScene.hpp BuildingLabScene.hpp
         WorldLabScene.hpp WorldConfigScene.hpp UnitLabScene.hpp
-        UnitLabCommandParsing.hpp UnitLabModelRequestGate.hpp)
+        UnitLabCommandParsing.hpp)
     file(READ "${_game_scenes_dir}/include/genomes/game_scenes/${_product_header}"
          _product_header_text)
     if(_product_header_text MATCHES "namespace genomes::runtime")

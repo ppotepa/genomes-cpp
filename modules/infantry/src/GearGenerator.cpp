@@ -413,6 +413,56 @@ foundation::Result<EquipmentFit, foundation::Error> EquipmentFitter::build(
             bone.world_bind.translation.y / body.reference_height,
             bone.world_bind.translation.z / body.reference_height};
     }
+    // The runtime skeleton stores Float32 transforms. Reference surface skin
+    // weights are authored before that boundary in JavaScript, so retain the
+    // exact normalized torso joints used by InfantryAnatomy.
+    const auto reference_mix=[](double a,double b,double t){return a+(b-a)*t;};
+    const auto& reference_face=phenotype.face.reference;
+    const double chin_shape=std::exp(-std::pow((.881-.887)/.015,2.0));
+    const double chin_y=std::clamp(
+        .925+(.881-.925)*reference_face.jaw_length_scale+
+            reference_face.chin_height*chin_shape*.65,
+        .8755,.8855);
+    const double reference_head_y=std::clamp(chin_y+.018,.892,.904);
+    const double reference_neck_y=reference_mix(.837,.843,std::clamp(
+        (body.reference_neck_scale-.76)/.56,0.0,1.0));
+    const double reference_chest_y=reference_mix(body.reference_hip_y,reference_neck_y,.76);
+    const double reference_spine_upper_y=reference_mix(body.reference_hip_y,reference_neck_y,.56);
+    const double reference_spine_lower_y=reference_mix(body.reference_hip_y,reference_neck_y,.25);
+    const auto set_reference_y=[&](BoneId bone,double y){
+        result.reference_bind_points[boneIndex(bone)]={0.0,y,0.0};};
+    set_reference_y(BoneId::Hips,body.reference_hip_y);
+    set_reference_y(BoneId::SpineLower,reference_spine_lower_y);
+    set_reference_y(BoneId::SpineUpper,reference_spine_upper_y);
+    set_reference_y(BoneId::Chest,reference_chest_y);
+    set_reference_y(BoneId::Neck,reference_neck_y);
+    set_reference_y(BoneId::Head,reference_head_y);
+    const double reference_shoulder_y=reference_mix(reference_chest_y,reference_neck_y,.34);
+    const double reference_shoulder_half=.128*body.reference_shoulder_width_scale;
+    const double reference_clavicle_half=.050*(.75+.25*body.reference_shoulder_width_scale);
+    const double reference_arm_angle=22.0*3.14159265358979323846/180.0;
+    const double reference_axis_x=std::sin(reference_arm_angle);
+    const double reference_axis_y=-std::cos(reference_arm_angle);
+    const double reference_upper_length=.18*body.reference_arm_length_scale;
+    const double reference_fore_length=.155*body.reference_arm_length_scale;
+    const auto set_reference_arm=[&](double sign,BoneId clavicle,BoneId upper,BoneId fore,BoneId hand){
+        result.reference_bind_points[boneIndex(clavicle)]={reference_clavicle_half*sign,reference_shoulder_y-.010,0.0};
+        result.reference_bind_points[boneIndex(upper)]={reference_shoulder_half*sign,reference_shoulder_y,0.0};
+        result.reference_bind_points[boneIndex(fore)]={reference_shoulder_half*sign+reference_axis_x*sign*reference_upper_length,
+            reference_shoulder_y+reference_axis_y*reference_upper_length,0.0};
+        result.reference_bind_points[boneIndex(hand)]={reference_shoulder_half*sign+reference_axis_x*sign*(reference_upper_length+reference_fore_length),
+            reference_shoulder_y+reference_axis_y*(reference_upper_length+reference_fore_length),0.0};};
+    set_reference_arm(1.0,BoneId::ClavicleL,BoneId::UpperArmL,BoneId::ForeArmL,BoneId::HandL);
+    set_reference_arm(-1.0,BoneId::ClavicleR,BoneId::UpperArmR,BoneId::ForeArmR,BoneId::HandR);
+    const double reference_hip_half=.052*body.reference_hip_width_scale;
+    const double reference_thigh_y=body.reference_hip_y-.015,reference_ankle_y=.045;
+    const double reference_knee_y=reference_ankle_y+(reference_thigh_y-reference_ankle_y)*.50;
+    const auto set_reference_leg=[&](double sign,BoneId thigh,BoneId shin,BoneId foot){
+        result.reference_bind_points[boneIndex(thigh)]={reference_hip_half*sign,reference_thigh_y,0.0};
+        result.reference_bind_points[boneIndex(shin)]={reference_hip_half*sign,reference_knee_y,0.0};
+        result.reference_bind_points[boneIndex(foot)]={reference_hip_half*sign,reference_ankle_y,0.0};};
+    set_reference_leg(1.0,BoneId::ThighL,BoneId::ShinL,BoneId::FootL);
+    set_reference_leg(-1.0,BoneId::ThighR,BoneId::ShinR,BoneId::FootR);
     const auto set_socket = [&result](EquipmentSocketId id, BoneId bone,
                                       foundation::Vec3 position,
                                       foundation::Vec3 normal = {0.0F, 0.0F, 1.0F}) {

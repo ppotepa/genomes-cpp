@@ -8,8 +8,9 @@ set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.
 set(director_header "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/SceneDirector.hpp")
 set(director_source "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp")
 set(clock_header "${GENOMES_SOURCE_DIR}/engine/simulation/include/genomes/simulation/SessionSimulationClock.hpp")
+set(coordinator_source "${GENOMES_SOURCE_DIR}/engine/runtime/src/FrameCoordinator.cpp")
 
-foreach(file IN ITEMS game_header game_source scene_source director_header director_source clock_header)
+foreach(file IN ITEMS game_header game_source scene_source director_header director_source clock_header coordinator_source)
     if(NOT EXISTS "${${file}}")
         message(FATAL_ERROR "Missing session clock source: ${${file}}")
     endif()
@@ -18,12 +19,12 @@ endforeach()
 
 foreach(required_text IN ITEMS
         "simulation::SessionSimulationClock clock_;"
-        "director_.fixed_update(context);"
+        "director_.fixed_update(tick);"
         "fixed_update(const simulation::TickContext& context)"
         "current_->fixed_update(scene_context, tick_context);"
         "callback(TickContext{tick, fixed_dt, SessionSimulationTickRateHz});")
     set(found FALSE)
-    foreach(file IN ITEMS game_header game_source scene_source director_header director_source clock_header)
+    foreach(file IN ITEMS game_header game_source scene_source director_header director_source clock_header coordinator_source)
         string(FIND "${${file}_text}" "${required_text}" position)
         if(NOT position EQUAL -1)
             set(found TRUE)

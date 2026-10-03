@@ -12,6 +12,7 @@ add_library(genomes_destruction STATIC
 target_include_directories(genomes_destruction PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_destruction PUBLIC
+    genomes::api
     genomes::foundation
     genomes::content
     genomes::proc

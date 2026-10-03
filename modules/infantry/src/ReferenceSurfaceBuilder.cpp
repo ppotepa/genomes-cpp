@@ -112,25 +112,36 @@ std::vector<foundation::Vec3> ReferenceSurfaceBuilder::morphPositions(std::strin
 
 std::vector<foundation::Vec3> ReferenceSurfaceBuilder::morphNormals(
     std::string_view name,const AppearanceMesh& base) const {
-    const auto deltas=morphPositions(name);std::vector<foundation::Vec3> positions;
-    positions.reserve(base.vertices.size());for(std::size_t index=0;index<base.vertices.size();++index){const auto& p=base.vertices[index].position;
-        positions.push_back({static_cast<float>(p.x+deltas[index].x),static_cast<float>(p.y+deltas[index].y),static_cast<float>(p.z+deltas[index].z)});}
+    constexpr std::array<std::string_view,4U> names{"eyelidsClose","eyelidsArc","neckFlex","handsRelax"};
+    const auto found=std::find(names.begin(),names.end(),name);
+    const std::size_t morph_index=found==names.end()?morphs_.size():static_cast<std::size_t>(found-names.begin());
+    std::vector<foundation::Vec3> positions;positions.reserve(base.vertices.size());
+    for(std::size_t index=0;index<base.vertices.size();++index){const auto& p=base.vertices[index].position;
+        ReferenceVec3 delta{};if(morph_index<morphs_.size()&&index<morphs_[morph_index].size()&&
+            morphs_[morph_index][index])delta=*morphs_[morph_index][index];
+        // JS stores the exported delta in Float32 but adds the original Number
+        // delta to the Float32 base position when compiling morph normals.
+        positions.push_back({static_cast<float>(static_cast<double>(p.x)+delta.x*height_),
+            static_cast<float>(static_cast<double>(p.y)+delta.y*height_),
+            static_cast<float>(static_cast<double>(p.z)+delta.z*height_)});}
     std::vector<foundation::Vec3> normals(base.vertices.size());for(std::size_t offset=0;offset<base.indices.size();offset+=3U){const auto a=base.indices[offset],b=base.indices[offset+1U],c=base.indices[offset+2U];
         const auto& pa=positions[a];const auto& pb=positions[b];const auto& pc=positions[c];const auto normal=cross(
             {jsSubtract(pc.x,pb.x),jsSubtract(pc.y,pb.y),jsSubtract(pc.z,pb.z)},
             {jsSubtract(pa.x,pb.x),jsSubtract(pa.y,pb.y),jsSubtract(pa.z,pb.z)});
         for(const auto vertex:{a,b,c}){addFloat32(normals[vertex].x,normal.x);addFloat32(normals[vertex].y,normal.y);addFloat32(normals[vertex].z,normal.z);}}
     for(std::size_t index=0;index<normals.size();++index){auto& value=normals[index];const double length=jsLength(value.x,value.y,value.z);
-        if(length>0){value.x=static_cast<float>(value.x/length);value.y=static_cast<float>(value.y/length);value.z=static_cast<float>(value.z/length);}value.x-=base.vertices[index].normal.x;value.y-=base.vertices[index].normal.y;value.z-=base.vertices[index].normal.z;}
+        const double scale=length==0.0?1.0:1.0/length;
+        value.x=static_cast<float>(static_cast<double>(value.x)*scale-base.vertices[index].normal.x);
+        value.y=static_cast<float>(static_cast<double>(value.y)*scale-base.vertices[index].normal.y);
+        value.z=static_cast<float>(static_cast<double>(value.z)*scale-base.vertices[index].normal.z);}
     return normals;
 }
 
 void ReferenceSurfaceBuilder::triangle(VertexIndex a,VertexIndex b,VertexIndex c,
                                        std::uint16_t material) {
     if(material>=triangles_.size()||a>=vertices_.size()||b>=vertices_.size()||c>=vertices_.size())return;
-    // JS performs the primitive-local winding test while positions are still
-    // held in the builder's number arrays. The Float32 conversion happens
-    // later, during finish(), before the global adjacency pass.
+    // JS keeps builder positions as Number values until finish() creates the
+    // Float32 attribute, so its local winding test observes authoring doubles.
     const auto& pa=vertices_[a].position;
     const auto& pb=vertices_[b].position;
     const auto& pc=vertices_[c].position;
@@ -201,20 +212,10 @@ AppearanceMesh ReferenceSurfaceBuilder::finalize() {
             found->second.direction==entry.direction?1U:0U;neighbours[triangle].push_back({found->second.triangle,different});
             neighbours[found->second.triangle].push_back({triangle,different});}}
     std::vector<std::int8_t> flips(triangle_count,-1);
-    // Three.js performs the connected-face orientation while the builder's
-    // authoring-number position array is still alive (before the Float32
-    // BufferAttribute is created). Reconstruct that point() path here rather
-    // than using the already-quantized mesh positions.
+    // SurfaceBuilder orients connected faces before replacing its Number
+    // position array with a Float32 BufferAttribute.
     const auto authoringPoint=[this](std::uint32_t index) noexcept {
-        // SurfaceBuilder.point() reads the already-created Float32 position
-        // attribute and divides by H; mirror that quantization exactly for
-        // connected-face orientation.
-        const float x=static_cast<float>(vertices_[index].position.x*height_);
-        const float y=static_cast<float>(vertices_[index].position.y*height_);
-        const float z=static_cast<float>(vertices_[index].position.z*height_);
-        return ReferenceVec3{static_cast<double>(x)/height_,
-                             static_cast<double>(y)/height_,
-                             static_cast<double>(z)/height_};
+        return vertices_[index].position;
     };
     for(std::uint32_t start=0U;start<triangle_count;++start){if(flips[start]!=-1)continue;
         flips[start]=0;std::vector<std::uint32_t> queue{start};double score=0.0;
@@ -245,6 +246,25 @@ AppearanceMesh ReferenceSurfaceBuilder::finalize() {
             addFloat32(mesh.vertices[index].normal.y,normal.y);addFloat32(mesh.vertices[index].normal.z,normal.z);}}
     for(auto& vertex:mesh.vertices){const double length=jsLength(vertex.normal.x,vertex.normal.y,vertex.normal.z);if(length>0.0){vertex.normal.x=static_cast<float>(vertex.normal.x/length);
         vertex.normal.y=static_cast<float>(vertex.normal.y/length);vertex.normal.z=static_cast<float>(vertex.normal.z/length);}}
+
+    // The connected-face pass works on authoring-space hints.  At hard seams
+    // the final shared-vertex normals can still select the opposite winding
+    // for a very small face after Float32 quantization.  Keep the published
+    // normals authoritative and repair only the index order here.
+    for(std::size_t offset=0U;offset<mesh.indices.size();offset+=3U){
+        const auto a=mesh.indices[offset],b=mesh.indices[offset+1U],c=mesh.indices[offset+2U];
+        const auto& pa=mesh.vertices[a].position;const auto& pb=mesh.vertices[b].position;
+        const auto& pc=mesh.vertices[c].position;
+        const auto normal=cross({jsSubtract(pb.x,pa.x),jsSubtract(pb.y,pa.y),jsSubtract(pb.z,pa.z)},
+                                {jsSubtract(pc.x,pa.x),jsSubtract(pc.y,pa.y),jsSubtract(pc.z,pa.z)});
+        const ReferenceVec3 average{
+            (mesh.vertices[a].normal.x+mesh.vertices[b].normal.x+mesh.vertices[c].normal.x)/3.0F,
+            (mesh.vertices[a].normal.y+mesh.vertices[b].normal.y+mesh.vertices[c].normal.y)/3.0F,
+            (mesh.vertices[a].normal.z+mesh.vertices[b].normal.z+mesh.vertices[c].normal.z)/3.0F};
+        if(dot(normal,normal)>1.0e-12F && dot(normal,average)<-1.0e-6F)
+            std::swap(mesh.indices[offset+1U],mesh.indices[offset+2U]);
+    }
+
     for(auto& tag:tags_)mesh.tags.push_back({std::move(tag.name),std::move(tag.vertices)});
     if(mesh.vertices.empty())return mesh;
     mesh.minimum={std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity()};

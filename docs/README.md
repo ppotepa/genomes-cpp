@@ -55,6 +55,8 @@ The most important repository-wide contracts are:
   — benchmark/determinism policy;
 - [SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt](SOURCE_PROTOTYPE_AND_MOCKUP_CONTRACT.txt)
   — how legacy/prototype evidence is classified.
+- [infantry-js-parity.md](infantry-js-parity.md)
+  — JS mockup purpose and the non-gating status of exact infantry comparisons.
 
 ### Architecture diagrams
 
@@ -63,6 +65,9 @@ exports.
 
 Use these for a high-level view, then verify concrete dependencies against the
 current CMake target graph and source tree.
+
+For the simulation order/controller/animation boundary, see
+[architecture/ENTITY_CONTROL_FLOW.md](architecture/ENTITY_CONTROL_FLOW.md).
 
 ### Decisions: `decisions/`
 
@@ -77,6 +82,9 @@ Currently relevant migration decisions include:
 is historical/superseded context. The current production presentation target is
 Diligent/D3D12; do not use the old threepp migration material as current build
 guidance.
+
+For investigating Windows GPU resets, see
+[D3D12_DEVICE_LOSS_DIAGNOSTICS.md](D3D12_DEVICE_LOSS_DIAGNOSTICS.md).
 
 ### Migration and upgrade work
 

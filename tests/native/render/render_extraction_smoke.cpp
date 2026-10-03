@@ -54,10 +54,20 @@ int main() {
     assert(updated && updated.value().changes.size() == 1);
     assert(updated.value().changes.front().kind == render::RenderChangeKind::Updated);
 
+    const foundation::StableId second_object_id = foundation::stable_id("extract.object.second");
+    snapshot.instances.push_back({second_object_id, foundation::stable_id("mesh"),
+                                  foundation::stable_id("material"), {}, {1.0F, 1.0F, 1.0F},
+                                  0.0F, 7});
+    const auto second_added = extractor.extract(snapshot);
+    assert(second_added && second_added.value().changes.size() == 1);
+    assert(second_added.value().changes.front().semantic_id == second_object_id);
+
     snapshot.instances.clear();
     const auto removed = extractor.extract(snapshot);
-    assert(removed && removed.value().changes.size() == 1);
-    assert(removed.value().changes.front().kind == render::RenderChangeKind::Removed);
+    assert(removed && removed.value().changes.size() == 2);
+    assert(removed.value().changes[0].kind == render::RenderChangeKind::Removed);
+    assert(removed.value().changes[1].kind == render::RenderChangeKind::Removed);
+    assert(removed.value().changes[0].semantic_id < removed.value().changes[1].semantic_id);
     assert(extractor.trackedCount() == 0);
     return 0;
 }

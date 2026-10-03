@@ -22,9 +22,9 @@ struct Patch {Feature feature{};double y0{},y1{},t0{},t1{},half_x{},half_y{};std
 
 class Layout final {
 public:
-    explicit Layout(const EquipmentFit& fit,bool emulate_cache):face(fit.face),height(fit.body.reference_height),cache_enabled(emulate_cache) {
+    explicit Layout(const EquipmentFit& fit,bool emulate_cache):face(fit.face.reference),height(fit.body.reference_height),cache_enabled(emulate_cache) {
         const auto& body=fit.body;
-        const double neck_x=.0285*body.neck_scale,neck_z=.024*body.neck_scale;
+        const double neck_x=.0285*body.reference_neck_scale,neck_z=.024*body.reference_neck_scale;
         constexpr std::array<Section,12U> base{{
             {.881,.034,.030,.013},{.890,.039,.037,.010},{.900,.041,.041,.008},
             {.913,.045,.044,.005},{.925,.049,.046,.003},{.938,.048,.046,.002},
@@ -37,8 +37,8 @@ public:
             if(y0>.947)y=.999-(.999-y0)*face.head_length_scale;
             double scale=mix(1,face.jaw_width_scale,low)*mix(1,face.jaw_angle,low*low*.40);
             scale=mix(scale,face.temple_width_scale,temple*.55);scale=mix(scale,face.forehead_width_scale,forehead*.65);
-            shaped[i]={y,base[i].rx*scale*face.reference_head_width_scale*mix(1,body.reference_head_scale,.4),
-                base[i].rz*face.reference_head_depth_scale*mix(1,body.reference_head_scale,.4),base[i].z};}
+            shaped[i]={y,base[i].rx*scale*face.head_width_scale*mix(1,body.reference_head_scale,.4),
+                base[i].rz*face.head_depth_scale*mix(1,body.reference_head_scale,.4),base[i].z};}
         shaped[0].y=std::clamp(shaped[0].y,.8755,.8855);
         for(std::size_t i=1;i<shaped.size();++i)shaped[i].y=std::max(shaped[i].y,shaped[i-1].y+.003);
         levels.reserve(19U);levels.push_back({.828,neck_x*1.14,neck_z*1.12,-.002});
@@ -47,30 +47,29 @@ public:
             mix(neck_x*.99,shaped[0].rx,blend),mix(neck_z*1.01,shaped[0].rz,blend),mix(.001,shaped[0].z,blend)});}
         levels.insert(levels.end(),shaped.begin(),shaped.end());
         chin_y=levels.at(7U).y;head_pivot_y=std::clamp(chin_y+.018,.892,.904);top_y=levels.back().y;
-        mouth_y=std::clamp(static_cast<double>(face.mouth_y_ratio),chin_y+.014,
-            static_cast<double>(face.eye_y_ratio)-.031);
-        const double mouth_requested=face.mouth_width/height;
+        mouth_y=std::clamp(face.mouth_y,chin_y+.014,face.eye_y-.031);
+        const double mouth_requested=face.mouth_width;
         mouth_half=std::clamp(mouth_requested*.5,.007,section(mouth_y).rx*.57);
         const double eye_w=.0083*face.eye_width_scale,eye_h=.0034*face.eye_height_scale;
         const double radius=std::max(eye_w*1.12,eye_h*1.65)*.82;
-        const double minimum=radius*1.20+.003,maximum=std::max(minimum,section(face.eye_y_ratio).rx*.66);
-        const double spacing=std::clamp(static_cast<double>(face.eye_spacing_ratio),minimum,maximum);
+        const double minimum=radius*1.20+.003,maximum=std::max(minimum,section(face.eye_y).rx*.66);
+        const double spacing=std::clamp(face.eye_spacing,minimum,maximum);
         for(std::size_t index=0;index<2U;++index){const double sign=index==0U?1.0:-1.0;
-            auto& eye=eyes[index];eye.x=sign*spacing;eye.y=face.eye_y_ratio+sign*face.eye_asymmetry*.5;
+            auto& eye=eyes[index];eye.x=sign*spacing;eye.y=face.eye_y+sign*face.eye_asymmetry*.5;
             eye.radius=radius;eye.w=eye_w;eye.h=eye_h;eye.tilt=sign*face.eye_tilt;
             eye.roundness=face.eye_roundness;eye.z=front(eye.x,eye.y)-radius*.80+face.eye_depth*.16;
-            const double requested=face.brow_y/height+sign*face.brow_asymmetry*.5,by=std::max(requested,eye.y+eye_h+.006);
+            const double requested=face.brow_y+sign*face.brow_asymmetry*.5,by=std::max(requested,eye.y+eye_h+.006);
             const double inner_x=sign*std::max(.006,spacing-.007+face.brow_spacing*.5),outer_x=sign*(spacing+.008+face.brow_spacing*.5);
             brows[index].inner={inner_x,by,front(inner_x,by)+.0012};const double outer_y=by+face.brow_tilt*.006;
             brows[index].outer={outer_x,outer_y,front(outer_x,outer_y)+.0012};}
         hair_floor=std::max({brows[0].inner.y,brows[1].inner.y,brows[0].outer.y,brows[1].outer.y})+.006;
         neck_joint_y=mix(.837,.843,std::clamp((static_cast<double>(fit.body.neck_scale)-.76)/.56,0.0,1.0));
-        nose_base_y=std::max(static_cast<double>(face.eye_y_ratio)-.031*face.nose_length_scale,mouth_y+.010);
+        nose_base_y=std::max(face.eye_y-.031*face.nose_length_scale,mouth_y+.010);
         for(std::size_t index=0;index<2U;++index){const double sign=index==0U?1.0:-1.0;
-            (void)front(sign*mouth_half,mouth_y);(void)front(eyes[index].x+sign*.006,face.eye_y_ratio-.016);}
+            (void)front(sign*mouth_half,mouth_y);(void)front(eyes[index].x+sign*.006,face.eye_y-.016);}
         for(const double jacket_y:{.841,.852,.859}){const double t=std::clamp((jacket_y-.504)/.355,0.0,1.0);
             (void)section(mix(static_cast<double>(fit.body.hip_y)-.036,.859,t));}
-        (void)front(0.0,face.eye_y_ratio);
+        (void)front(0.0,face.eye_y);
     }
     [[nodiscard]] Section section(double y) const {
         if(cache_enabled){const auto cached=std::find_if(section_cache.begin(),section_cache.end(),[&](const auto& entry){return entry.first==y;});
@@ -101,19 +100,41 @@ public:
         if(cz>0.0&&y>.882){const double front=smooth((cz-.02)/.48),cheek=bell((std::abs(x)-.030*face.cheekbone_scale)/.014,(y-(.925+face.cheekbone_y))/.016);
             z+=(.0014+face.cheek_fullness*.42+(face.cheekbone_scale-1.0)*.0018)*cheek*front;
             z+=face.chin_projection*.30*bell(x/.023,(y-(chin_y+.014))/.020)*front;
-            z+=face.brow_ridge*bell((std::abs(x)-face.eye_spacing_ratio)/.017,(y-(face.eye_y_ratio+.010))/.009)*cz;
+            z+=face.brow_ridge*bell((std::abs(x)-face.eye_spacing)/.017,(y-(face.eye_y+.010))/.009)*cz;
             z+=face.midface_projection*.38*bell(x/.034,(y-.918)/.024)*cz;
             z+=face.forehead_slope*smooth((y-.947)/.045)*cz;}return{x,y,z};}
     [[nodiscard]] ReferenceVec3 point(double y,double theta) const {return pointFromSection(y,theta,section(y));}
-    [[nodiscard]] double front(double x,double y) const {const auto s=section(y);const double sx=std::clamp(x/std::max(.00001,s.rx),-.9999,.9999);
-        return pointFromSection(y,std::asin(sx),s).z;}
+    [[nodiscard]] double front(double x,double y) const {
+        const auto s=section(y);
+        // Match the optimized JavaScript frontZFromSection path.  Rebuilding
+        // an angle with asin() and then calling sin/cos introduces a different
+        // rounding path for the face features and breaks fixture parity.
+        const double sx=std::clamp(x/std::max(.00001,s.rx),-.9999,.9999);
+        const double cz=std::sqrt(std::max(0.0,1.0-sx*sx));
+        const double chin=bell((y-(chin_y+.014))/.020);
+        const double side=smooth((std::abs(sx)-.10)/.72);
+        const double px=s.rx*sx*(1.0+(face.chin_width_scale-1.0)*.30*chin*side);
+        double z=s.z+s.rz*cz;
+        if(cz>0.0&&y>.882){
+            const double front_weight=smooth((cz-.02)/.48);
+            const double cheek=bell((std::abs(px)-.030*face.cheekbone_scale)/.014,
+                                    (y-(.925+face.cheekbone_y))/.016);
+            z+=(.0014+face.cheek_fullness*.42+(face.cheekbone_scale-1.0)*.0018)*cheek*front_weight;
+            z+=face.chin_projection*.30*bell(px/.023,(y-(chin_y+.014))/.020)*front_weight;
+            z+=face.brow_ridge*bell((std::abs(px)-face.eye_spacing)/.017,
+                                     (y-(face.eye_y+.010))/.009)*cz;
+            z+=face.midface_projection*.38*bell(px/.034,(y-.918)/.024)*cz;
+            z+=face.forehead_slope*smooth((y-.947)/.045)*cz;
+        }
+        return z;
+    }
     [[nodiscard]] double hairBottom(double theta) const {const double front_weight=std::max(0.0,std::cos(theta)),side=std::abs(std::sin(theta)),back=std::max(0.0,-std::cos(theta));
-        double y=face.hairline_ratio+face.temple_recession*front_weight*std::pow(side,1.8)-face.widow_peak*front_weight*std::pow(1.0-side,1.5);
+        double y=face.hairline+face.temple_recession*front_weight*std::pow(side,1.8)-face.widow_peak*front_weight*std::pow(1.0-side,1.5);
         y-=back*.011;const double safety=mix(.931,hair_floor,smooth((front_weight-.25)/.50));return std::clamp(std::max(y,safety),.933,top_y-.012);}
     [[nodiscard]] std::vector<ReferenceInfluence> weights(ReferenceVec3 p) const {std::array<double,10U> value{};
         const double front_weight=smooth((p.z-.003)/.025),jaw=(1.0-smooth((p.y-(mouth_y-.002))/.018))*front_weight*.92;
         value[2]=1.0-jaw;value[3]=jaw;if(p.y>head_pivot_y-.040)for(std::size_t side=0;side<2U;++side){const double sign=side==0U?1.0:-1.0;
-            const double cx=sign*(eyes[side].x*sign+.006),cheek=.30*front_weight*bell((p.x-cx)/.016,(p.y-(face.eye_y_ratio-.016))/.012);
+            const double cx=sign*(eyes[side].x*sign+.006),cheek=.30*front_weight*bell((p.x-cx)/.016,(p.y-(face.eye_y-.016))/.012);
             const std::size_t cheek_index=side==0U?4U:7U,inner_index=side==0U?5U:8U,outer_index=side==0U?6U:9U;
             if(cheek>.0005){for(std::size_t i=2;i<10U;++i)value[i]*=1.0-cheek;value[cheek_index]=cheek;}
             const auto& brow=brows[side];const double t=std::clamp((std::abs(p.x)-std::min(std::abs(brow.inner.x),std::abs(brow.outer.x)))/
@@ -126,7 +147,7 @@ public:
         for(std::size_t i=3;i<10U;++i)value[i]*=transition;constexpr std::array<BoneId,10U> bones{BoneId::Chest,BoneId::Neck,BoneId::Head,
             BoneId::Jaw,BoneId::CheekL,BoneId::BrowInnerL,BoneId::BrowOuterL,BoneId::CheekR,BoneId::BrowInnerR,BoneId::BrowOuterR};
         std::vector<ReferenceInfluence> out;for(std::size_t i=0;i<10U;++i)if(value[i]>0.0)out.push_back({static_cast<std::uint16_t>(boneIndex(bones[i])),value[i]});return out;}
-    const FacePhenotype& face;double height{},chin_y{},head_pivot_y{},top_y{},mouth_y{},mouth_half{},neck_joint_y{},nose_base_y{},hair_floor{};
+    const ReferenceFaceParameters& face;double height{},chin_y{},head_pivot_y{},top_y{},mouth_y{},mouth_half{},neck_joint_y{},nose_base_y{},hair_floor{};
     std::vector<Section> levels;std::array<Feature,2U> eyes{};std::array<Brow,2U> brows{};
     mutable std::deque<std::pair<double,std::size_t>> section_cache{};
     mutable std::array<std::array<double,5U>,256U> section_cache_values{};
@@ -247,7 +268,7 @@ ReferenceJacketBuild ReferenceFaceSurfaceGenerator::appendShell(ReferenceSurface
         const std::array<ReferenceInfluence,2U> cap_weights{{{static_cast<std::uint16_t>(boneIndex(BoneId::Head)),.5},
             {static_cast<std::uint16_t>(boneIndex(BoneId::Jaw)),.5}}};builder.cap(last,cap_weights,inside,{0,0,1},1U);triangles+=last.size();};
     append_mouth(patches[2]);
-    builder.setTag("nose");const double nose_y0=layout.face.eye_y_ratio+.005,nose_yb=layout.nose_base_y;
+    builder.setTag("nose");const double nose_y0=layout.face.eye_y+.005,nose_yb=layout.nose_base_y;
     const std::vector<std::array<double,4U>> nose_profiles=far?std::vector<std::array<double,4U>>{
         {nose_y0,.0028*layout.face.nose_bridge_scale,.0013,.0005},
         {mix(nose_y0,nose_yb,.5),.0046*layout.face.nose_bridge_scale,.004,.003},

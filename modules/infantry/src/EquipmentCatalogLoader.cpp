@@ -22,6 +22,11 @@ namespace genomes::infantry {
 
 namespace {
 
+// The exported catalog contains the immutable reference geometry index.  It is
+// larger than the generic 1 MiB content default, but remains explicitly
+// bounded at this domain boundary rather than disabling content limits.
+constexpr std::size_t kEquipmentCatalogReadLimit = 4U * 1024U * 1024U;
+
 constexpr std::string_view kReferenceSchema = "genomes.infantry.reference.v1";
 constexpr std::string_view kEquipmentSchema = "EQUIPMENT/v1";
 
@@ -219,7 +224,9 @@ const EquipmentItemDefinition* FrozenEquipmentCatalog::findItem(
 
 foundation::Result<FrozenEquipmentCatalog, foundation::Error> loadEquipmentCatalog(
     const std::filesystem::path& path) {
-    auto document = content::readContentText(path);
+    auto document = content::readContentText(path,
+                                              content::ContentReadLimits{
+                                                  kEquipmentCatalogReadLimit});
     if (!document) {
         return foundation::Result<FrozenEquipmentCatalog, foundation::Error>::failure(
             document.error());

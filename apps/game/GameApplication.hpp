@@ -5,6 +5,7 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
+#include <genomes/runtime/FrameCoordinator.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/simulation/SessionSimulationClock.hpp>
@@ -69,7 +70,10 @@ private:
     // control and input ordering belong to SceneDirector, not the renderer.
     std::unique_ptr<render::RenderBackend> backend_owner_;
     std::unique_ptr<render::IRenderer> renderer_;
-    jobs::JobSystem jobs_;
+    // The process scheduler is the single CPU execution authority for the
+    // application; this reference keeps the composition root explicit
+    // without owning a second worker pool.
+    jobs::JobSystem& jobs_;
     ui::UiRuntime ui_;
     ui::UiContentRegistry content_;
     ui::UiNativePluginManager plugins_;
@@ -84,6 +88,7 @@ private:
     // resulting TickContext through the director; frame time remains a
     // presentation-only input.
     simulation::SessionSimulationClock clock_;
+    runtime::FrameCoordinator frame_coordinator_;
 #if defined(GENOMES_HAS_RMLUI)
     [[nodiscard]] std::string resolve_document(foundation::SceneId scene) const;
     std::unique_ptr<platform::SdlFileDialogService> file_dialog_service_;

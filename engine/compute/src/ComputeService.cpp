@@ -1,4 +1,5 @@
 #include <genomes/compute/ComputeService.hpp>
+#include <genomes/jobs/ParallelFor.hpp>
 
 #include <algorithm>
 #include <exception>
@@ -26,21 +27,10 @@ foundation::Result<void, foundation::Error> CpuComputeService::dispatch(
         return foundation::Result<void, foundation::Error>::success();
     }
 
-    std::vector<jobs::JobHandle> handles;
-    handles.reserve((dispatch.element_count + dispatch.grain_size - 1) /
-                    dispatch.grain_size);
-    for (std::size_t begin = 0; begin < dispatch.element_count; begin += dispatch.grain_size) {
-        const std::size_t end = std::min(dispatch.element_count, begin + dispatch.grain_size);
-        handles.push_back(jobs_->submit([&function, begin, end](jobs::JobContext&) {
-            function(begin, end);
-        }));
-    }
-    bool failed = false;
-    for (const jobs::JobHandle& handle : handles) {
-        jobs_->wait(handle);
-        failed = failed || handle.failed() || handle.wasCanceled();
-    }
-    if (failed) {
+    const bool completed = jobs::parallelForAndWait(
+        *jobs_, 0U, dispatch.element_count, dispatch.grain_size,
+        [&function](const jobs::BatchRange& range) { function(range.begin, range.end); });
+    if (!completed) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::Internal, "CPU compute worker failed"});
     }

@@ -1,125 +1,143 @@
 #include <genomes/world/WorldGenerationTask.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/hydrology/HydrologyProcedural.hpp>
 
-#include <exception>
-#include <cstdint>
 #include <memory>
 #include <utility>
 
 namespace genomes::world {
 
-bool WorldGenerationTask::ready() const noexcept {
-    if (!state_) {
-        return true;
-    }
-    std::lock_guard lock(state_->mutex);
-    return state_->complete;
+namespace {
+
+[[nodiscard]] foundation::StableId requestHash(const WorldGenerationRequest& request) noexcept {
+    std::uint64_t input_hash = foundation::stableHashFloat(
+        static_cast<float>(request.map_size_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.vegetation));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.buildings));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.fenced_parcels));
+    input_hash = foundation::stableHashCombine(
+        input_hash, static_cast<std::uint64_t>(request.hydrology_mode));
+    return foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.river_probability));
 }
 
+} // namespace
+
 bool WorldGenerationTask::failed() const noexcept {
-    if (!state_) {
-        return false;
-    }
-    std::lock_guard lock(state_->mutex);
-    return state_->complete && state_->failed;
+    const proc::GenerationStatus status = ticket_.status();
+    return status == proc::GenerationStatus::Failed ||
+           status == proc::GenerationStatus::Canceled ||
+           status == proc::GenerationStatus::Superseded;
 }
 
 foundation::Error WorldGenerationTask::error() const noexcept {
-    if (!state_) {
+    if (!ticket_.valid()) {
         return {foundation::ErrorCode::InvalidState, "invalid world generation task"};
     }
-    std::lock_guard lock(state_->mutex);
-    return state_->error;
-}
-
-void WorldGenerationTask::wait() const noexcept {
-    handle_.wait();
+    const proc::GenerationStatus status = ticket_.status();
+    if (status == proc::GenerationStatus::Canceled ||
+        status == proc::GenerationStatus::Superseded) {
+        return {foundation::ErrorCode::InvalidState, "world generation task was canceled"};
+    }
+    return ticket_.error();
 }
 
 std::optional<WorldPlan> WorldGenerationTask::take_result() {
-    if (!state_) {
+    if (!consumption_ || ticket_.status() != proc::GenerationStatus::Completed) {
         return std::nullopt;
     }
-    std::lock_guard lock(state_->mutex);
-    if (!state_->complete || state_->failed || !state_->plan) {
+    std::lock_guard lock(consumption_->mutex);
+    if (consumption_->consumed) {
         return std::nullopt;
     }
-    std::optional<WorldPlan> result{std::move(state_->plan)};
-    state_->plan.reset();
-    return result;
+    const auto artifact = ticket_.artifact();
+    if (!artifact) {
+        return std::nullopt;
+    }
+    consumption_->consumed = true;
+    return *artifact;
 }
 
-WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest& request) {
-    auto state = std::make_shared<WorldGenerationTask::State>();
-    proc::ArtifactKey cache_key{};
-    if (cache_) {
-        std::uint64_t input_hash = foundation::stableHashFloat(
-            static_cast<float>(request.map_size_m));
-        input_hash = foundation::stableHashCombine(input_hash,
-                                                   foundation::stableHashFloat(request.vegetation));
-        input_hash = foundation::stableHashCombine(input_hash,
-                                                   foundation::stableHashFloat(request.buildings));
-        input_hash = foundation::stableHashCombine(
-            input_hash, foundation::stableHashFloat(request.fenced_parcels));
-        input_hash = foundation::stableHashCombine(
-            input_hash, static_cast<std::uint64_t>(request.hydrology_mode));
-        input_hash = foundation::stableHashCombine(
-            input_hash, foundation::stableHashFloat(request.river_probability));
-        cache_key = {foundation::stable_id("world.plan"), WorldGeneratorVersion, request.seed,
-                     input_hash};
-        if (const auto cached = cache_->find<WorldPlan>(cache_key)) {
-            std::lock_guard lock(state->mutex);
-            state->plan = *cached;
-            state->complete = true;
-            return WorldGenerationTask(std::move(state), {});
-        }
-    }
-    const WorldGenerationRequest copied_request = request;
-    jobs::JobHandle handle = jobs_.submit(
-        [state = state, copied_request, cache = cache_, cache_key](jobs::JobContext&) {
-            try {
-                auto generated = WorldGenerator::generate(copied_request);
-                std::lock_guard lock(state->mutex);
-                if (generated) {
-                    if (cache) {
-                        try {
-                            const WorldPlan& plan = generated.value();
-                            const std::size_t deep_bytes = sizeof(WorldPlan) +
-                                plan.features.size() * sizeof(WorldFeature) +
-                                plan.building_sites.size() * sizeof(BuildingSiteRequest) +
-                                plan.city.parcels.size() * sizeof(CityParcel);
-                            cache->store<WorldPlan>(
-                                cache_key, std::make_shared<const WorldPlan>(generated.value()),
-                                {deep_bytes});
-                        } catch (...) {
-                            // Cache exhaustion or allocation failure is a
-                            // cache miss condition, not a world-generation
-                            // failure. The generated plan remains authoritative.
-                        }
-                    }
-                    state->plan = std::move(generated.value());
-                } else {
-                    state->failed = true;
-                    state->error = generated.error();
-                }
-                state->complete = true;
-            } catch (...) {
-                std::lock_guard lock(state->mutex);
-                state->failed = true;
-                state->error = {foundation::ErrorCode::Internal,
-                                "world generation task threw an exception"};
-                state->complete = true;
+foundation::Result<void, foundation::Error> registerWorldGenerator(
+    proc::GeneratorRegistry::Builder& builder) {
+    const proc::GeneratorDescriptor descriptor{
+        proc::generatorId("world.plan"),
+        "world.plan",
+        {static_cast<std::uint16_t>(WorldGeneratorVersion), 0, 0},
+        foundation::stable_id("world.generation.request"),
+        foundation::stable_id("world.plan"),
+        true,
+        proc::GeneratorExecutionPolicy::Cpu,
+        proc::GeneratorCachePolicy::Artifact};
+    const auto added = builder.addTyped<WorldGenerationRequest, WorldPlan>(
+        descriptor,
+        [](const WorldGenerationRequest& request,
+           proc::GenerationContext& context)
+            -> foundation::Result<std::shared_ptr<const WorldPlan>, foundation::Error> {
+            if (context.cancellationRequested()) {
+                return foundation::Result<std::shared_ptr<const WorldPlan>,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "world generation canceled"});
             }
+            auto generated = WorldGenerator::generate(request);
+            if (!generated) {
+                return foundation::Result<std::shared_ptr<const WorldPlan>,
+                                          foundation::Error>::failure(generated.error());
+            }
+            if (context.cancellationRequested()) {
+                return foundation::Result<std::shared_ptr<const WorldPlan>,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "world generation canceled"});
+            }
+            return foundation::Result<std::shared_ptr<const WorldPlan>,
+                                      foundation::Error>::success(
+                std::make_shared<const WorldPlan>(std::move(generated.value())));
         });
-    if (handle.wasCanceled()) {
-        std::lock_guard lock(state->mutex);
-        state->failed = true;
-        state->error = {foundation::ErrorCode::InvalidState,
-                        "world generation service is shutting down"};
-        state->complete = true;
+    return added;
+}
+
+proc::GeneratorRegistry WorldGenerationService::makeRegistry() {
+    proc::GeneratorRegistry::Builder builder;
+    if (!registerWorldGenerator(builder)) {
+        return {};
     }
-    return WorldGenerationTask(std::move(state), std::move(handle));
+    if (!hydrology::registerHydrologyGenerator(builder)) {
+        return {};
+    }
+    auto registry = std::move(builder).freeze();
+    return registry ? std::move(registry).value() : proc::GeneratorRegistry{};
+}
+
+WorldGenerationService::WorldGenerationService(
+    jobs::JobSystem& jobs,
+    std::shared_ptr<proc::ArtifactCache> cache)
+    : WorldGenerationService(jobs, std::move(cache), makeRegistry()) {}
+
+WorldGenerationService::WorldGenerationService(
+    jobs::JobSystem& jobs,
+    std::shared_ptr<proc::ArtifactCache> cache,
+    proc::GeneratorRegistry registry)
+    : cache_(std::move(cache)), registry_(registry.size() != 0U
+                                               ? std::move(registry)
+                                               : makeRegistry()),
+      runtime_(registry_, jobs, cache_.get()) {}
+
+WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest& request,
+                                                   proc::GenerationChannel* channel) {
+    proc::GenerationRequest<WorldGenerationRequest, WorldPlan> generation;
+    generation.generator = proc::generatorId("world.plan");
+    generation.input = std::make_shared<const WorldGenerationRequest>(request);
+    generation.seed_path = proc::SeedPath(request.seed);
+    generation.options.input_hash = requestHash(request);
+    generation.options.retained_bytes = sizeof(WorldPlan);
+    // ProceduralRuntime owns an internal cache when no shared cache was
+    // supplied, so world generation remains cacheable in both configurations.
+    generation.options.use_cache = true;
+    return WorldGenerationTask(runtime_.request(std::move(generation), channel));
 }
 
 } // namespace genomes::world

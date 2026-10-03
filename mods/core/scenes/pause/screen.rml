@@ -5,7 +5,7 @@
     <link type="text/rcss" href="ui/theme.rcss"/>
     <link type="text/rcss" href="screen.rcss"/>
   </head>
-  <body class="overlay" id="pause-overlay">
+  <body class="overlay" id="pause-overlay" data-model="ui">
     <span class="app-fps overlay-fps">{{ fps }}</span>
     <main>
       <section class="panel" tabindex="0">

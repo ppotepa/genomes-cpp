@@ -7,7 +7,11 @@
 #include <string_view>
 #include <vector>
 
+namespace genomes::jobs { class JobSystem; }
+
 namespace genomes::benchmark::thread_scaling {
+
+inline constexpr std::string_view JobSystemWorkload = "deterministic_job_batch_v1";
 
 // A fingerprint is intentionally explicit.  A baseline from another machine,
 // compiler, or dependency profile is informational and must never become a
@@ -65,6 +69,12 @@ struct WorkloadResult final {
     SchedulerTelemetry telemetry{};
 };
 
+// Fixed partitions and input across worker counts. The caller owns the pool;
+// timing covers submission, execution, wait and deterministic reduction, not
+// pool creation/shutdown. Also usable with a serial scheduler as a CPU oracle.
+[[nodiscard]] WorkloadResult runJobSystemWorkload(jobs::JobSystem& system,
+                                                std::uint64_t seed);
+
 struct RunConfig final {
     std::string workload;
     MachineFingerprint machine;
@@ -87,8 +97,8 @@ struct RunResult final {
 };
 
 // Worker counts are sorted and de-duplicated before execution.  The callback
-// receives a stable seed derived from RunConfig::seed, worker count, warmup,
-// and repetition, so the workload does not depend on wall-clock state.
+// receives the same RunConfig::seed for every warmup and measured repetition,
+// so all semantic hashes describe the same logical input.
 [[nodiscard]] RunResult runDeterministic(const RunConfig& config,
                                          const DeterministicWorkload& workload);
 

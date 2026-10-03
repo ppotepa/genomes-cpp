@@ -1,4 +1,5 @@
 #include <genomes/gameplay/WorldScenario.hpp>
+#include <genomes/gameplay/ProductionGenerators.hpp>
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/world/GridLayout.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
@@ -6,6 +7,8 @@
 #include <cassert>
 #include <filesystem>
 #include <memory>
+#include <thread>
+#include <utility>
 
 int main() {
     using namespace genomes;
@@ -46,6 +49,26 @@ int main() {
     assert(scenario.activePlan() == &artifact->plan);
     assert(artifact->resolved_buildings->size() == artifact->plan.building_sites.size());
 
+    // Production scenes and region streaming share the same frozen generator
+    // registry; the terrain stage must remain parity-equivalent to the legacy
+    // synchronous facade.
+    jobs::JobSystem production_jobs(2U);
+    auto production_registry_result = gameplay::makeProductionGeneratorRegistry();
+    assert(production_registry_result);
+    gameplay::WorldScenario production_scenario(
+        production_jobs, building_profile, {}, std::move(production_registry_result.value()));
+    assert(production_scenario.startNew(request));
+    const auto* production_artifact = production_scenario.activeArtifact();
+    assert(production_artifact != nullptr && production_artifact->valid());
+    assert(production_artifact->plan.content_hash == artifact->plan.content_hash);
+    assert(production_artifact->terrain->width() == artifact->terrain->width());
+    assert(production_artifact->terrain->height() == artifact->terrain->height());
+    assert(production_artifact->terrain->at(0U, 0U) == artifact->terrain->at(0U, 0U));
+    assert(production_artifact->terrain->at(artifact->terrain->width() - 1U,
+                                             artifact->terrain->height() - 1U) ==
+           artifact->terrain->at(artifact->terrain->width() - 1U,
+                                 artifact->terrain->height() - 1U));
+
     const auto deterministic_artifact = gameplay::WorldScenario::compileArtifact(
         artifact->plan, request, *building_profile);
     assert(deterministic_artifact && deterministic_artifact.value().valid());
@@ -77,5 +100,21 @@ int main() {
     scenario.cancelPending();
     assert(!scenario.status().generation_pending);
     assert(scenario.status().active_content_hash == first_hash);
+
+    world::WorldGenerationRequest superseded_request = request;
+    superseded_request.seed += 1U;
+    world::WorldGenerationRequest latest_request = request;
+    latest_request.seed += 2U;
+    assert(scenario.requestNew(superseded_request));
+    assert(scenario.requestNew(latest_request));
+    for (std::size_t attempt = 0U; attempt < 20'000U &&
+         scenario.status().generation_pending; ++attempt) {
+        const auto polled = scenario.poll();
+        assert(polled);
+        std::this_thread::yield();
+    }
+    assert(!scenario.status().generation_pending);
+    assert(scenario.activeRequest() != nullptr);
+    assert(scenario.activeRequest()->seed == latest_request.seed);
     return 0;
 }

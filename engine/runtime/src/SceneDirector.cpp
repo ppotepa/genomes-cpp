@@ -24,14 +24,53 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
                              ui::UiRuntime& ui,
                              render::PresentationSnapshot& presentation,
                              jobs::JobSystem* jobs)
-    : renderer_(renderer), ui_(ui), presentation_(presentation), jobs_{jobs} {}
+    : renderer_(renderer), ui_(ui), presentation_(presentation),
+      jobs_{jobs != nullptr ? jobs : &jobs::processScheduler()},
+      scheduler_explicit_{jobs != nullptr} {
+    const auto core_module = modules_.registerModule(
+        {.id = foundation::stable_id("core"),
+         .version = {},
+         .required_modules = {},
+         .required_capabilities = {},
+         .provided_capabilities = {foundation::stable_id("core.scheduler"),
+                                   foundation::stable_id("core.scenes")}},
+        [](api::ModuleRegistry& registry, api::ModuleContext&) {
+            api::ApiOperationDescriptor start_scene{};
+            start_scene.id = foundation::stable_id("core.scene.start");
+            start_scene.arguments = {api::ValueType::UnsignedInteger};
+            auto result = registry.declareCommand(foundation::stable_id("core"), start_scene);
+            if (!result) return result;
+            api::ApiOperationDescriptor quit{};
+            quit.id = foundation::stable_id("core.quit");
+            result = registry.declareCommand(foundation::stable_id("core"), quit);
+            if (!result) return result;
+            api::ApiSystemDescriptor time{};
+            time.id = foundation::stable_id("core.time");
+            time.lane = jobs::ExecutionLane::Main;
+            result = registry.declareSystem(foundation::stable_id("core"), std::move(time));
+            if (!result) return result;
+            return registry.declareResourceWrite(
+                foundation::stable_id("core"), foundation::stable_id("core.session_time"));
+        });
+    (void)core_module;
+    engine_services_.scheduler = jobs_;
+    engine_services_.presentation = &presentation_api_;
+    engine_services_.core = this;
+    engine_services_.modules = &modules_;
+    engine_services_.telemetry = &telemetry_;
+    engine_services_.cancellation = scene_cancellation_.token();
+    engine_services_.scene_epoch = scene_epoch_;
+}
 
 SceneContext SceneDirector::make_context() noexcept {
-    return {commands_, ui_, presentation_, jobs_, renderer_.capabilities(),
+    return {commands_, ui_, presentation_, jobs_, scheduler_explicit_, jobs_->telemetry(),
+            renderer_.capabilities(),
             renderer_.uploadTelemetry(),
             deterministic_capture_, framebuffer_width_, framebuffer_height_, session_ui_scale_,
             &presentation_.camera_request,
-            &presentation_.has_camera_request};
+            &presentation_.has_camera_request,
+            scene_epoch_,
+            &engine_services_};
 }
 
 foundation::Result<void, foundation::Error>
@@ -64,6 +103,13 @@ SceneDirector::register_unavailable_scene(foundation::SceneId id, foundation::Er
 }
 
 bool SceneDirector::start(foundation::SceneId id) {
+    if (!modules_.frozen()) {
+        const auto modules_ready = modules_.finalize();
+        if (!modules_ready) {
+            last_error_ = modules_ready.error();
+            return false;
+        }
+    }
     scene_registry_frozen_ = true;
     return change_to(id);
 }
@@ -120,6 +166,15 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     }
 
     ++scene_epoch_;
+    scene_cancellation_.cancel();
+    scene_cancellation_ = jobs::CancelSource{};
+    // No scene may observe or publish the previous runtime after the epoch
+    // changes. The incoming scene must explicitly bind its own facade.
+    engine_services_.simulation = nullptr;
+    engine_services_.scene_epoch = scene_epoch_;
+    engine_services_.cancellation = scene_cancellation_.token();
+    presentation_exchange_.rejectBeforeSceneEpoch(scene_epoch_);
+    presentation_api_.reset(scene_epoch_);
     viewport_controller_.clear();
 
     SceneContext context = make_context();
@@ -179,6 +234,9 @@ void SceneDirector::frame_update(double dt) {
     (void)ui_.model().set("scene_loading_message", loading.message);
     ui_.update(dt);
     current_->build_presentation(context);
+    if (engine_services_.simulation != nullptr) {
+        telemetry_.semantic_hash = engine_services_.simulation->snapshotView().semantic_hash;
+    }
     if (presentation_.has_camera_request) {
         const camera::CameraRequest declared = presentation_.camera_request;
         const std::uint64_t declared_revision = presentation_.camera.revision;
@@ -204,6 +262,7 @@ void SceneDirector::frame_update(double dt) {
         }
     }
     presentation_.scene_epoch = scene_epoch_;
+    presentation_.revision = frame_number_ + 1U;
     presentation_.previous_simulation_tick = previous_presentation_tick_.value;
     presentation_.simulation_tick = next_presentation_tick_.value;
     presentation_.interpolation_alpha = interpolation_alpha_;
@@ -217,7 +276,10 @@ void SceneDirector::frame_update(double dt) {
     if (write) {
         write.value().snapshot() = presentation_;
         write.value().snapshot().frame_number = frame_number_ + 1;
-        (void)presentation_exchange_.publish(std::move(write.value()));
+        if (const auto published = presentation_exchange_.publish(
+                std::move(write.value())); published) {
+            presentation_.snapshot_generation = presentation_exchange_.publishedSerial();
+        }
     }
 }
 

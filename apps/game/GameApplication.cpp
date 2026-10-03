@@ -3,6 +3,17 @@
 #include <DiligentSceneRenderer.hpp>
 #include <genomes/platform/Platform.hpp>
 #include <genomes/platform/SdlFileDialogService.hpp>
+#include <genomes/api/Api.hpp>
+#include <genomes/world/WorldModule.hpp>
+#include <genomes/buildings/BuildingsModule.hpp>
+#include <genomes/combat/CombatModule.hpp>
+#include <genomes/weapons/WeaponsModule.hpp>
+#include <genomes/hydrology/HydrologyModule.hpp>
+#include <genomes/roads/RoadsModule.hpp>
+#include <genomes/navigation/NavigationModule.hpp>
+#include <genomes/destruction/DestructionModule.hpp>
+#include <genomes/ballistics/BallisticsModule.hpp>
+#include <genomes/world_render/WorldRenderModule.hpp>
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <algorithm>
@@ -15,12 +26,14 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
 #include <variant>
 #include <type_traits>
 #if GENOMES_HAS_INFANTRY
+#include <genomes/infantry/InfantryModule.hpp>
 #include <genomes/game_scenes/UnitLabCommandParsing.hpp>
 #endif
 
@@ -152,7 +165,9 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
 #endif
                                  )
     :platform_(std::move(platform)),backend_owner_(std::move(backend_owner)),
-     renderer_(std::move(renderer)),jobs_(0U,2U),director_(*renderer_,ui_,presentation_,&jobs_) {
+     renderer_(std::move(renderer)),jobs_(jobs::processScheduler()),
+     director_(*renderer_,ui_,presentation_,&jobs_),
+     frame_coordinator_(director_,clock_,jobs_) {
     application::BuiltinSceneConfig scene_config{};
     scene_config.real_battlefield = true;
     scene_config.world_generation_profile = std::move(world_profile);
@@ -163,6 +178,25 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
 #endif
     scene_catalog_ = std::make_unique<application::BuiltinSceneCatalog>(std::move(scene_config));
     scene_catalog_->install(director_);
+    const auto register_domain = [this](auto registrar) {
+        const auto result = registrar(director_.module_host());
+        if (!result) throw std::runtime_error(std::string{result.error().message});
+    };
+    register_domain(world::registerModule);
+    register_domain(buildings::registerModule);
+    register_domain(combat::registerModule);
+    register_domain(weapons::registerModule);
+    register_domain(hydrology::registerModule);
+    register_domain(roads::registerModule);
+    register_domain(navigation::registerModule);
+    register_domain(destruction::registerModule);
+    register_domain(ballistics::registerModule);
+    register_domain(world_render::registerModule);
+#if GENOMES_HAS_INFANTRY
+    if (const auto module = infantry::registerModule(director_.module_host()); !module) {
+        throw std::runtime_error(std::string{module.error().message});
+    }
+#endif
     if (auto content=ui::UiContentRegistry::discover("mods")) {
         content_=std::move(content.value());ui::UiPluginError plugin_error;
 if (!plugins_.load(content_, false, &plugin_error)) std::cerr<<"UI plugin loading failed: "<<plugin_error.message<<'\n';
@@ -318,7 +352,11 @@ int GameApplication::run(int argc,char** argv) {
     if (!rml_ui_ || !rml_ui_->valid()) {std::cerr<<"RmlUi initialization failed; refusing an invisible interface\n";return 1;}
 #endif
     director_.set_deterministic_capture(options.deterministic);
-    if (!director_.start(options.initial_scene)) {std::cerr<<"Could not start initial scene\n";return 1;}
+    if (!director_.start(options.initial_scene)) {
+        std::cerr << "Could not start initial scene: "
+                  << director_.last_error().message << '\n';
+        return 1;
+    }
     if (options.initial_scene==foundation::scene_id("scene.unit-lab")) {
         const auto repeat=[this](std::string_view action,std::uint8_t count) {
             for (std::uint8_t i=0;i<count;++i)
@@ -426,12 +464,12 @@ int GameApplication::run(int argc,char** argv) {
             director_.handle_input(platform_frame.input);
 #endif
         }
-        const auto advance = clock_.advanceBy(
-            elapsed, [&](const simulation::TickContext& context) noexcept {
-                director_.fixed_update(context);
-            });
-        director_.set_presentation_timing(advance.first_tick,advance.next_tick,advance.interpolation_alpha);
-        const double dt=std::chrono::duration<double>(elapsed).count();director_.frame_update(dt);
+        const double dt=std::chrono::duration<double>(elapsed).count();
+        const auto coordinated_frame = frame_coordinator_.advance(
+            elapsed, dt,
+            options.deterministic ? simulation::TickSchedulingMode::DeterministicCapture
+                                  : simulation::TickSchedulingMode::Interactive);
+        (void)coordinated_frame;
         if (dt > 0.0 && dt < 1.0) {
             fps_window_seconds += dt;
             ++fps_window_frames;
@@ -478,13 +516,20 @@ int GameApplication::run(int argc,char** argv) {
         if (capture_now) if (auto result=renderer_->capture(*options.capture_path);!result) {
             std::cerr<<"Capture request failed: "<<result.error().message<<'\n';return 1;
         }
-        director_.present();++frames;
-        if (!renderer_->healthy()) {std::cerr<<"Renderer failed: "<<renderer_->last_error().message<<'\n';return 1;}
+        frame_coordinator_.present();++frames;
+        if (!renderer_->healthy()) {
+            frame_coordinator_.markGpuFailure();
+            std::cerr<<"Renderer failed: "<<renderer_->last_error().message<<'\n';
+            return 1;
+        }
         if (capture_now) {captured=true;std::cout<<"Capture complete frame="<<frames<<" path="<<options.capture_path->string()<<'\n';}
         if (options.max_frames && frames>=options.max_frames) break;
         if (!options.deterministic) std::this_thread::sleep_for(std::chrono::milliseconds{1});
     }
-    if (backend_owner_) if (auto result=backend_owner_->wait_idle();!result) {
+    if (backend_owner_ &&
+        backend_owner_->healthState() != render::RendererHealthState::DeviceLost &&
+        backend_owner_->healthState() != render::RendererHealthState::Stopped)
+        if (auto result=backend_owner_->wait_idle();!result) {
         std::cerr<<"GPU wait failed: "<<result.error().message<<'\n';return 1;
     }
     if (options.capture_path&&!captured) {std::cerr<<"Application stopped before the requested capture\n";return 1;}

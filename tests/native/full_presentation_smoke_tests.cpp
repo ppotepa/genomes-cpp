@@ -28,7 +28,10 @@ int main() {
     assert(source.simulation_tick == 42U && source.camera.enabled);
     assert(source.instances.empty());
     const auto debug = pipeline.prepare(source, {0.75F, 3U, 64U, 1000.0F, true});
-    assert(debug && debug.value().stats.output_instances == 3U);
+    // Clearing a published scene payload is authoritative.  The presentation
+    // pipeline must not resurrect instances from a previous snapshot.
+    assert(debug && debug.value().stats.input_instances == 0U &&
+           debug.value().stats.output_instances == 0U);
     assert(debug.value().stats.debug_overlays);
     assert(debug.value().snapshot.simulation_tick == low.value().snapshot.simulation_tick);
     return 0;

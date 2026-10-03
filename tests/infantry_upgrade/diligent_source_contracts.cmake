@@ -157,7 +157,10 @@ endif()
 file(READ "${_root}/DiligentResources.cpp" _resources)
 foreach(_token "v->Set(skin_palette_view)"
                "Diligent::BUFFER_VIEW_SHADER_RESOURCE"
-               "sizeof(SkinnedInstanceGpuVertex)")
+               "sizeof(SkinnedInstanceGpuVertex)"
+               "Diligent::SHADER_TYPE_VERTEX,\"BonePaletteBuffer\""
+               "Diligent::SHADER_RESOURCE_VARIABLE_TYPE_DYNAMIC"
+               "ci.PSODesc.ResourceLayout.Variables=&palette_binding")
     string(FIND "${_resources}" "${_token}" _offset)
     if(_offset LESS 0)
         message(FATAL_ERROR "Skinned structured-buffer binding token missing: ${_token}")
@@ -174,6 +177,62 @@ foreach(_token "EnqueueSignal" "last_submitted_fence")
         message(FATAL_ERROR "GPU submission fence contract missing: ${_token}")
     endif()
 endforeach()
+
+# Every public GPU operation stays on the logical RenderLane.  Keep this as a
+# source contract because headless CI cannot instantiate the D3D12 backend.
+foreach(_token
+        "DiligentBackend::begin_frame"
+        "DiligentBackend::draw_meshes"
+        "DiligentBackend::draw_instances"
+        "DiligentBackend::draw_ui"
+        "DiligentBackend::abort_frame"
+        "DiligentBackend::end_frame"
+        "DiligentBackend::resize"
+        "DiligentBackend::wait_idle")
+    string(FIND "${_backend}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "RenderLane entry point missing: ${_token}")
+    endif()
+endforeach()
+foreach(_token
+        "!impl_->render_lane.ownsCurrentThread()"
+        "health.state==RendererHealthState::DeviceLost"
+        "safe_gpu_shutdown=impl_->render_lane.ownsCurrentThread()"
+        "markDeviceLostIfRemoved"
+        "classifyD3D12Failure"
+        "GetAdapterLuid"
+        "before frame abort")
+    string(FIND "${_backend}" "${_token}" _offset)
+    if(_offset LESS 0)
+        message(FATAL_ERROR "RenderLane/device-loss guard missing: ${_token}")
+    endif()
+endforeach()
+string(FIND "${_backend}" "RenderResult DiligentBackend::draw_meshes" _draw_start)
+string(FIND "${_backend}" "RenderResult DiligentBackend::draw_instances" _draw_end)
+if(_draw_start LESS 0 OR _draw_end LESS_EQUAL _draw_start)
+    message(FATAL_ERROR "Could not isolate the Diligent draw error boundary")
+endif()
+math(EXPR _draw_length "${_draw_end} - ${_draw_start}")
+string(SUBSTRING "${_backend}" ${_draw_start} ${_draw_length} _draw_body)
+if(NOT _draw_body MATCHES "classifyD3D12Failure")
+    message(FATAL_ERROR "Diligent draw failures must detect device removal before frame abort")
+endif()
+string(FIND "${_backend}" "RenderResult DiligentBackend::abort_frame" _abort_start)
+string(FIND "${_backend}" "RenderResult DiligentBackend::end_frame" _abort_end)
+if(_abort_start LESS 0 OR _abort_end LESS_EQUAL _abort_start)
+    message(FATAL_ERROR "Could not isolate the Diligent frame-abort boundary")
+endif()
+math(EXPR _abort_length "${_abort_end} - ${_abort_start}")
+string(SUBSTRING "${_backend}" ${_abort_start} ${_abort_length} _abort_body)
+string(FIND "${_abort_body}" "markDeviceLostIfRemoved" _abort_guard)
+string(FIND "${_abort_body}" "EnqueueSignal" _abort_signal)
+if(_abort_guard LESS 0 OR _abort_signal LESS 0 OR _abort_guard GREATER _abort_signal)
+    message(FATAL_ERROR "Frame abort must detect device removal before signaling its fence")
+endif()
+file(READ "${_root}/DiligentCapture.cpp" _capture_lane)
+if(NOT _capture_lane MATCHES "render_lane\.ownsCurrentThread\(\)")
+    message(FATAL_ERROR "Diligent capture must remain on the RenderLane")
+endif()
 file(READ "${_root}/shaders/SceneCommon.hlsli" _scene)
 set(_last -1)
 foreach(_field BaseColor MaterialFactors DrawTint MaterialFlags)

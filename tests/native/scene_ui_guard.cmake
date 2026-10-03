@@ -366,7 +366,13 @@ endif()
 foreach(_mass_profile_ui_contract IN ITEMS "{{ profile }}" "{{ animation_mode }}"
                                               "mass-battle.profile-quality"
                                               "mass-battle.profile-balanced"
-                                              "mass-battle.profile-stress")
+                                              "mass-battle.profile-stress"
+                                              "{{ live_animation_budget }}"
+                                              "{{ live_animation_limit }}"
+                                              "{{ live_animation_note }}"
+                                              "mass-battle.animation-decrease"
+                                              "mass-battle.animation-increase"
+                                              "mass-battle.animation-maximum")
     string(FIND "${_mass_battle_rml}" "${_mass_profile_ui_contract}" _mass_profile_found)
     if(_mass_profile_found LESS 0)
         message(FATAL_ERROR "Infantry Mass Battle HUD misses ${_mass_profile_ui_contract}")
@@ -404,7 +410,7 @@ foreach(_mass_instancing_contract IN ITEMS "mesh.infantry.mass-battle.pose-atlas
                                           "mass_battle_pose_atlas_ready_"
                                           "pixel_height"
                                           "animation_system_"
-                                          "MassBattleModelYawOffset"
+                                          "infantryPresentationYaw"
                                           "Baking animation atlas"
                                           "used_pose_slots"
                                           "mass_battle_pose_meshes_")

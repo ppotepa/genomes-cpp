@@ -1,6 +1,7 @@
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/weapons/WeaponProcedural.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -31,25 +32,32 @@ constexpr float kTargetHalfExtent = 0.5F;
     return {code, message};
 }
 
+[[nodiscard]] jobs::JobSystem& fallbackScheduler() {
+    return jobs::processScheduler();
+}
+
 } // namespace
 
 BattlefieldRuntime::BattlefieldRuntime(BattlefieldScenarioConfig config,
                                          jobs::JobSystem* jobs,
-                                         BattlefieldExecutionMode execution_mode)
-    : config_{config}, execution_mode_{execution_mode}, jobs_{jobs}, combat_{entities_},
+                                         BattlefieldExecutionMode execution_mode,
+                                         proc::ProceduralRuntime* procedural_runtime)
+    : config_{config}, execution_mode_{execution_mode}, jobs_{jobs},
+      procedural_runtime_{procedural_runtime}, combat_{entities_},
       tactical_ai_{config.tactical_ai_profile} {}
 
 foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>
 BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
                            jobs::JobSystem* jobs,
-                           BattlefieldExecutionMode execution_mode) {
+                           BattlefieldExecutionMode execution_mode,
+                           proc::ProceduralRuntime* procedural_runtime) {
     if (!config.valid()) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidArgument,
                           "invalid 25x25 battlefield scenario configuration"));
     }
     auto scenario = std::unique_ptr<BattlefieldRuntime>(
-        new BattlefieldRuntime(config, jobs, execution_mode));
+        new BattlefieldRuntime(config, jobs, execution_mode, procedural_runtime));
     const auto initialized = scenario->initialize();
     if (!initialized) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
@@ -59,10 +67,35 @@ BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
         std::move(scenario));
 }
 
+api::CommandReceipt BattlefieldRuntime::submit(api::CommandEnvelope command) {
+    return api_commands_.enqueue(std::move(command), simulation_tick_);
+}
+
+api::SnapshotView BattlefieldRuntime::snapshotView() const noexcept {
+    return {simulation_snapshot_.metadata.tick == 0U
+                ? foundation::SimulationTick{}
+                : foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+            simulation_snapshot_.metadata.scene_epoch,
+            simulation_snapshot_.semantic_hash,
+            api_snapshot_bytes_};
+}
+
+api::SnapshotView BattlefieldRuntime::query(api::ApiId query_id,
+                                            const api::EncodedValue&) const {
+    if (query_id == foundation::stable_id("world.snapshot")) {
+        return snapshotView();
+    }
+    return {};
+}
+
 foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
-    if (jobs_ == nullptr) {
-        owned_jobs_ = std::make_unique<jobs::JobSystem>(2U, 1U);
-        jobs_ = owned_jobs_.get();
+    // Inline is a whole-runtime execution policy. Do not let a caller's
+    // parallel compatibility scheduler leak into infantry internals while
+    // the system graph itself is running on the serial executor.
+    if (execution_mode_ == BattlefieldExecutionMode::Inline) {
+        jobs_ = &jobs::processSerialScheduler();
+    } else if (jobs_ == nullptr) {
+        jobs_ = &fallbackScheduler();
     }
 
     navigation_ = std::make_unique<navigation::GridNavigationWorld>(
@@ -112,9 +145,30 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     weapon_definition_ = weapon;
     weapon_spec_ = {weapon->rounds_per_second, weapon->muzzle_velocity_mps, weapon->damage,
                     weapon->range_m, 30U};
-    const auto artifact = weapons::WeaponGeometryGenerator::build(
-        *weapon, {proc::Seed(foundation::stableHashCombine(config_.seed, 0xB17U)), 1.0F,
-                  0.0F, 0U});
+    const weapons::WeaponVariant weapon_variant{
+        proc::Seed(foundation::stableHashCombine(config_.seed, 0xB17U)), 1.0F, 0.0F, 0U};
+    foundation::Result<weapons::WeaponArtifact, foundation::Error> artifact =
+        weapons::WeaponGeometryGenerator::build(*weapon, weapon_variant);
+    if (procedural_runtime_ != nullptr &&
+        procedural_runtime_->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
+        proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
+            generation;
+        generation.generator = proc::generatorId("weapons.artifact");
+        generation.input = std::make_shared<const weapons::WeaponGenerationRequest>(
+            weapons::WeaponGenerationRequest{*weapon, weapon_variant});
+        generation.seed_path = proc::SeedPath(weapon_variant.seed);
+        generation.options.input_hash = foundation::stableHashCombine(
+            foundation::stable_id("weapon.carbine"), weapon_variant.seed);
+        generation.options.retained_bytes = sizeof(weapons::WeaponArtifact);
+        const auto generated = procedural_runtime_->generateInline(generation);
+        if (generated) {
+            artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
+                *generated.value());
+        } else {
+            artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
+                generated.error());
+        }
+    }
     if (!artifact) {
         return foundation::Result<void, foundation::Error>::failure(artifact.error());
     }
@@ -277,7 +331,11 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
         foundation::stable_id("component.entity.flags")};
     sense.access.resource_writes = {foundation::stable_id("battlefield.perception")};
     sense.cadence = every_tick;
-    sense.main_thread_only = true;
+    // These callbacks are simulation-owned and do not require OS/main-thread
+    // affinity.  The execution plan runs them on the central worker lane;
+    // graph dependencies provide the ordering and the commit phase remains
+    // the sole authoritative state publication point.
+    sense.main_thread_only = false;
     sense.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             runPerception();
@@ -297,7 +355,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     decide.access.resource_reads = {foundation::stable_id("battlefield.perception")};
     decide.access.resource_writes = {foundation::stable_id("battlefield.intent")};
     decide.cadence = every_tick;
-    decide.main_thread_only = true;
+    decide.main_thread_only = false;
+    decide.after = {foundation::stable_id("battlefield.sense")};
     decide.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             runDecision();
@@ -317,7 +376,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                               foundation::stable_id("component.entity.velocity")};
     navigate.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
     navigate.cadence = every_tick;
-    navigate.main_thread_only = true;
+    navigate.main_thread_only = false;
+    navigate.after = {foundation::stable_id("battlefield.decide")};
     navigate.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
             infantry_->fixedUpdate(context.fixed_dt, context.tick);
@@ -341,7 +401,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     move_intent.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     move_intent.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     move_intent.cadence = every_tick;
-    move_intent.main_thread_only = true;
+    move_intent.main_thread_only = false;
+    move_intent.after = {foundation::stable_id("battlefield.navigate")};
     move_intent.callback = [](simulation::SystemContext&) {
         // InfantrySimulation::fixedUpdate has already emitted the command
         // buffer in Navigate; this phase is the typed hand-off boundary.
@@ -359,7 +420,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_commands.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_commands.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_commands.cadence = every_tick;
-    physics_commands.main_thread_only = true;
+    physics_commands.main_thread_only = false;
+    physics_commands.after = {foundation::stable_id("battlefield.move-intent")};
     physics_commands.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty() && infantry_) {
             infantry_->applyPhysicsCommands();
@@ -380,7 +442,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_step.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_step.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_step.cadence = every_tick;
-    physics_step.main_thread_only = true;
+    physics_step.main_thread_only = false;
+    physics_step.after = {foundation::stable_id("battlefield.physics-commands")};
     physics_step.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty() && infantry_) {
             // The runtime is the sole owner of this world step. Infantry only
@@ -404,7 +467,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     combat.access.resource_reads = {foundation::stable_id("battlefield.intent")};
     combat.access.resource_writes = {foundation::stable_id("battlefield.projectiles")};
     combat.cadence = every_tick;
-    combat.main_thread_only = true;
+    combat.main_thread_only = false;
+    combat.after = {foundation::stable_id("battlefield.physics-step")};
     combat.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
             queueFire(static_cast<float>(context.fixed_dt));
@@ -426,7 +490,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     damage.access.resource_reads = {foundation::stable_id("battlefield.projectiles")};
     damage.access.resource_writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
-    damage.main_thread_only = true;
+    damage.main_thread_only = false;
+    damage.after = {foundation::stable_id("battlefield.combat-ballistics")};
     damage.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             applyImpactDamage();
@@ -447,11 +512,12 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                                     foundation::stable_id("battlefield.health")};
     commit.access.resource_writes = {foundation::stable_id("battlefield.snapshot")};
     commit.cadence = every_tick;
-    commit.main_thread_only = true;
-    commit.callback = [this](simulation::SystemContext&) {
-        if (snapshot_.error.empty()) {
-            commitSnapshot();
-        }
+    commit.main_thread_only = false;
+    commit.after = {foundation::stable_id("battlefield.damage-destruction")};
+    commit.callback = [](simulation::SystemContext&) {
+        // Authoritative ECS writes are applied by CommandCommitter after the
+        // execution plan drains. Snapshot publication therefore happens only
+        // after that deterministic commit boundary in fixedUpdate().
     };
     if (!add_system(std::move(commit))) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -468,12 +534,11 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     presentation.access.resource_writes = {
         foundation::stable_id("battlefield.presentation")};
     presentation.cadence = every_tick;
-    presentation.main_thread_only = true;
-    presentation.callback = [this](simulation::SystemContext&) {
-        if (snapshot_.error.empty() && infantry_) {
-            infantry_->syncPhysicsState();
-            infantry_->extractPresentation();
-        }
+    presentation.main_thread_only = false;
+    presentation.after = {foundation::stable_id("battlefield.commit")};
+    presentation.callback = [](simulation::SystemContext&) {
+        // Presentation extraction is deliberately delayed until after the
+        // authoritative command commit in fixedUpdate().
     };
     if (!add_system(std::move(presentation))) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -484,6 +549,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     if (!compiled) {
         return foundation::Result<void, foundation::Error>::failure(compiled.error());
     }
+    execution_plan_ = graph_.executionPlan();
     return foundation::Result<void, foundation::Error>::success();
 }
 
@@ -524,7 +590,13 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
     const foundation::SimulationTick last_good_tick = simulation_tick_;
     simulation_tick_ = context.tick;
     snapshot_.tick = context.tick.value;
-    const auto result = graph_.run(simulation_tick_, context.fixed_dt_seconds, nullptr, nullptr);
+    applyApiCommands();
+    const auto result = execution_plan_.run(
+        simulation_tick_, context.fixed_dt_seconds,
+        execution_mode_ == BattlefieldExecutionMode::Parallel
+            ? jobs_
+            : &jobs::processSerialScheduler(),
+        &command_buffers_);
     if (!result || !snapshot_.error.empty()) {
         const std::string error = result ? snapshot_.error : std::string{result.error().message};
         snapshot_ = last_good_snapshot;
@@ -534,8 +606,68 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
         simulation_tick_ = last_good_tick;
         return;
     }
+    simulation::CommandCommitter committer;
+    const auto committed = committer.commit(entities_.ecs(), command_buffers_.buffers());
+    if (!committed) {
+        snapshot_ = last_good_snapshot;
+        snapshot_.error = committed.error().message;
+        snapshot_.complete = true;
+        state_ = BattlefieldRuntimeState::Failed;
+        simulation_tick_ = last_good_tick;
+        return;
+    }
+    // Publish consumer-shaped state only after all worker command buffers have
+    // been applied to the authoritative ECS.
+    commitSnapshot();
+    if (infantry_ != nullptr && snapshot_.error.empty()) {
+        infantry_->syncPhysicsState();
+        infantry_->extractPresentation();
+        publishPresentationSnapshot();
+    }
     if (snapshot_.complete) {
         state_ = BattlefieldRuntimeState::Completed;
+    }
+}
+
+void BattlefieldRuntime::applyApiCommands() noexcept {
+    const auto commands = api_commands_.take(simulation_tick_);
+    for (const api::CommandEnvelope& command : commands) {
+        if (command.module != foundation::stable_id("module.infantry") ||
+            command.verb != foundation::stable_id("units.issue") ||
+            command.payload.type != api::ValueType::Bytes ||
+            command.payload.bytes.empty() ||
+            infantry_ == nullptr) {
+            continue;
+        }
+        const auto decoded = simulation::decodeEntityOrder(command.payload.bytes);
+        if (!decoded) continue;
+        simulation::EntityOrder order = *decoded;
+        order.source = command.source;
+        order.priority = command.priority;
+        order.issued_tick = simulation_tick_.value;
+        order.expires_tick = std::max(order.expires_tick, simulation_tick_.value);
+        (void)infantry_->setOrder(order);
+    }
+}
+
+void BattlefieldRuntime::publishPresentationSnapshot() noexcept {
+    BattlefieldPresentationSnapshot candidate{};
+    candidate.metadata.tick = simulation_tick_.value;
+    candidate.metadata.scene_epoch = scene_epoch_;
+    candidate.metadata.revision = simulation_tick_.value;
+    if (infantry_ == nullptr) {
+        candidate.states.clear();
+        return;
+    }
+    candidate.states = infantry_->renderStates();
+    if (auto write = presentation_snapshot_exchange_.acquireWrite(); write) {
+        write.value().snapshot() = candidate;
+        if (const auto published = presentation_snapshot_exchange_.publish(
+                std::move(write.value())); published) {
+            presentation_snapshot_ = std::move(candidate);
+            presentation_snapshot_.metadata.generation =
+                presentation_snapshot_exchange_.publishedSerial();
+        }
     }
 }
 
@@ -551,6 +683,64 @@ void BattlefieldRuntime::commitSnapshot() noexcept {
         }
     });
     snapshot_.complete = snapshot_.deaths > 0U || simulation_tick_.value >= config_.max_ticks;
+
+    // Publish only consumer-shaped immutable state. The authoritative ECS
+    // remains private to the runtime, and a saturated exchange may skip this
+    // presentation snapshot without invalidating the committed tick.
+    if (auto write = simulation_snapshot_exchange_.acquireWrite(); write) {
+        auto& published = write.value().snapshot();
+        published.metadata.tick = simulation_tick_.value;
+        published.metadata.scene_epoch = scene_epoch_;
+        published.metadata.revision = simulation_tick_.value;
+        published.semantic_hash = foundation::stableHashU64(simulation_tick_.value);
+        published.entities.reserve(entities_.ecs().entityCount());
+        entities_.forEachLive([this, &published](simulation::EntityId entity) {
+            const auto* position = entities_.position(entity);
+            const auto* velocity = entities_.velocity(entity);
+            const auto* heading = entities_.heading(entity);
+            const auto* flags = entities_.flags(entity);
+            if (position == nullptr || velocity == nullptr || heading == nullptr ||
+                flags == nullptr) {
+                return;
+            }
+            published.entities.push_back({entity, *position, *velocity, *heading, *flags});
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, entity.packed());
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(position->x));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(position->y));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(position->z));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(velocity->x));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(velocity->y));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(velocity->z));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashFloat(*heading));
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, *flags);
+        });
+        if (const auto published_result = simulation_snapshot_exchange_.publish(
+                std::move(write.value())); published_result) {
+            simulation_snapshot_ = published;
+            simulation_snapshot_.metadata.generation =
+                simulation_snapshot_exchange_.publishedSerial();
+            std::vector<api::SnapshotEntity> wire;
+            wire.reserve(simulation_snapshot_.entities.size());
+            for (const auto& entity : simulation_snapshot_.entities) {
+                wire.push_back({entity.entity.packed(), entity.position.x, entity.position.y,
+                                entity.position.z, entity.velocity.x, entity.velocity.y,
+                                entity.velocity.z, entity.heading_radians, entity.flags});
+            }
+            api_snapshot_bytes_ = api::encodeSnapshot(
+                foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+                simulation_snapshot_.metadata.scene_epoch,
+                simulation_snapshot_.semantic_hash, wire);
+        }
+    }
 }
 
 void BattlefieldRuntime::runPerception() noexcept {
@@ -660,6 +850,38 @@ void BattlefieldRuntime::runDecision() noexcept {
     }
     intents_ = std::move(evaluated.value());
     snapshot_.intents += intents_.size();
+    for (const combat::AIIntent& intent : intents_) {
+        if (!intent.self.isValid()) continue;
+        simulation::EntityOrder order{};
+        order.entity = intent.self;
+        order.target = intent.target.value_or(simulation::EntityId{});
+        order.kind = intent.target.has_value()
+            ? simulation::EntityOrderKind::MoveTo
+            : simulation::EntityOrderKind::Hold;
+        if (intent.target.has_value()) {
+            if (const foundation::Vec3* target_position =
+                    entities_.position(intent.target.value());
+                target_position != nullptr) {
+                order.destination = *target_position;
+            } else {
+                order.kind = simulation::EntityOrderKind::Hold;
+                order.target = {};
+            }
+        } else if (intent.aim_target.has_value()) {
+            order.destination = *intent.aim_target;
+        } else if (const foundation::Vec3* self_position = entities_.position(intent.self);
+                   self_position != nullptr) {
+            order.destination = *self_position;
+        }
+        order.action = intent.readiness > 0.01F || intent.trigger
+            ? foundation::stable_id("infantry.action.weapon-ready")
+            : foundation::stable_id("infantry.action.advance");
+        order.source = foundation::stable_id("ai.tactical");
+        order.issued_tick = simulation_tick_.value;
+        order.expires_tick = simulation_tick_.value;
+        order.priority = 200U;
+        if (infantry_ != nullptr) (void)infantry_->setOrder(order);
+    }
     for (std::size_t index = 0; index < ai_entities_.size(); ++index) {
         ai_state_by_entity_[ai_entities_[index].id.packed()] = ai_states_[index];
     }

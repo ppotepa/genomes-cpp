@@ -1,5 +1,6 @@
 #include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/FaceAnatomy.hpp>
+#include <genomes/geometry/GeometryConstants.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -54,7 +55,9 @@ struct WindingReport final {
                i2 < mesh.vertices.size());
         const Vec3 normal = triangleNormal(mesh, i0, i1, i2);
         const float area2 = dot(normal, normal);
-        if (!(area2 > 1.0e-12F) || !std::isfinite(area2)) {
+        if (!(area2 > genomes::geometry::kTriangleAreaEpsilon *
+                         genomes::geometry::kTriangleAreaEpsilon) ||
+            !std::isfinite(area2)) {
             ++report.degenerate;
         }
         const Vec3 average{

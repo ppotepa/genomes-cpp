@@ -1,6 +1,11 @@
 LT v1.0 - RAPORT ODBIORU
 ========================
 
+HISTORICAL SNAPSHOT: its test counts and failure list below predate the policy
+change in docs/infantry-js-parity.md. Exact JS fixture parity is now diagnostic,
+not an acceptance gate; do not carry the former parity failure into current
+acceptance status. This note does not change any of the other recorded results.
+
 Source baseline: 54588271b6d38330f3d1e8774e699a57e8abbf93
 Tested SHA: NOT RUN
 Working tree: external/DiligentEngine had pre-existing local changes; preserved
@@ -25,9 +30,10 @@ fallback is used when the menu has no resolved camera.
 Interactive camera fix: orbit revision is preserved across scene extraction;
 left drag rotates, right/middle drag pans, wheel zooms, `R` resets, and RmlUi
 pointer capture is limited to actual panels instead of the full viewport.
-Agent CTest: 88/92 passed; four existing execution regressions remain
-(runtime.unit_lab_smoke, render.full_presentation,
-infantry.reference_parity, infantry.appearance_topology). User Release
+Agent CTest at that historical revision: 88/92 passed; the recorded execution
+regressions were runtime.unit_lab_smoke, render.full_presentation,
+infantry.reference_parity, infantry.appearance_topology. The former parity test
+is no longer a release gate. User Release
 build/CTest at a published SHA: NOT RUN
 Source slices: dec980a (math), 470a55b (mesh streams), b012a5e (builder),
 995f873 (typed box), e99293d (mesh operations), d073a47 (optimizer),

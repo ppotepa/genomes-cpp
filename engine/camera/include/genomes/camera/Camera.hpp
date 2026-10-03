@@ -26,8 +26,21 @@ struct RtsCameraSettings final {
     math::Vec2 target_max{1000.0F, 1000.0F};
     float min_pitch{0.436332313F};
     float max_pitch{1.22173048F};
-    float min_distance{45.0F};
-    float max_distance{650.0F};
+    // Keep the battlefield close enough for a useful tactical inspection.
+    // Scenes may raise this when they want a wider minimum framing distance.
+    float min_distance{12.0F};
+    // The default battlefield map is large enough that the old 650 m limit
+    // could not frame the whole engagement. Callers may tune this per scene.
+    float max_distance{6400.0F};
+    // RTS input tuning is part of the camera request so a scene can provide
+    // a complete control profile without changing the runtime controller.
+    float orbit_sensitivity{4.0F};
+    float pan_sensitivity{1.0F};
+    float zoom_sensitivity{0.12F};
+    float move_speed_factor{0.65F};
+    float min_move_speed{18.0F};
+    float max_move_speed{220.0F};
+    float pan_distance_factor{2.0F};
     float edge_scroll_pixels{12.0F};
     bool edge_scroll{true};
 };

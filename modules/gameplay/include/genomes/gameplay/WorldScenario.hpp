@@ -7,6 +7,7 @@
 #include <genomes/destruction/DestructionInvalidation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/terrain/HeightField.hpp>
 #include <genomes/terrain/TerrainMesh.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
@@ -87,8 +88,10 @@ class WorldScenario final {
 public:
     explicit WorldScenario(jobs::JobSystem& jobs,
                            std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
-                           std::shared_ptr<proc::ArtifactCache> cache = {}) noexcept
-        : jobs_(jobs), generation_service_(jobs, std::move(cache)),
+                           std::shared_ptr<proc::ArtifactCache> cache = {},
+                           proc::GeneratorRegistry registry = {}) noexcept
+        : jobs_(jobs), generation_service_(jobs, std::move(cache), std::move(registry)),
+          procedural_runtime_(generation_service_.registry(), jobs),
           building_profile_(std::move(building_profile)) {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> requestNew(
@@ -123,9 +126,16 @@ public:
 
 private:
     [[nodiscard]] static bool validCandidate(const world::WorldPlan& plan) noexcept;
+    [[nodiscard]] static foundation::Result<ResolvedWorldArtifacts, foundation::Error>
+    compileArtifactImpl(world::WorldPlan plan,
+                        const world::WorldGenerationRequest& request,
+                        const buildings::FrozenBuildingProfile& building_profile,
+                        proc::ProceduralRuntime* procedural_runtime);
 
     jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;
+    proc::ProceduralRuntime procedural_runtime_;
+    proc::GenerationChannel generation_channel_;
     std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile_;
     std::unique_ptr<world::WorldStreamer> streamer_;
     std::vector<world::StreamedRegion> streamed_regions_;

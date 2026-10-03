@@ -249,8 +249,18 @@ foreach(product_scene_source IN ITEMS
 endforeach()
 
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp" scene_director_source)
-if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene|scene\\.|settings\\.|application\\.")
+if(scene_director_source MATCHES "MainMenuScene|BattlefieldScene|BuildingLabScene|UnitLabScene|WorldLabScene|settings\\.|application\\.")
     message(FATAL_ERROR "Neutral SceneDirector still includes a product scene")
+endif()
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/Scene.hpp"
+     scene_context_header)
+if(scene_context_header MATCHES "jobs::JobSystem[ \\t\\r\\n\\*]+jobs([ \\t;=]|$)")
+    message(FATAL_ERROR
+            "SceneContext must expose the central scheduler as scheduler, not legacy jobs")
+endif()
+if(NOT scene_context_header MATCHES "jobs::JobSystem[ \\t\\r\\n\\*]+scheduler")
+    message(FATAL_ERROR
+            "SceneContext is missing the central scheduler handle")
 endif()
 foreach(product_consumer IN ITEMS
         "${GENOMES_SOURCE_DIR}/apps/game/CMakeLists.txt"
@@ -307,6 +317,22 @@ foreach(removed_runtime_bridge IN ITEMS
     endif()
 endforeach()
 
+# PARALEL1 procedural boundary: generators receive scoped execution context,
+# never ownership or a raw reference to the central scheduler.
+file(READ "${GENOMES_SOURCE_DIR}/engine/proc/include/genomes/proc/GenerationContext.hpp"
+     generation_context_source)
+if(generation_context_source MATCHES "JobSystem[&*]")
+    message(FATAL_ERROR
+            "GenerationContext must not expose a raw JobSystem reference/pointer")
+endif()
+foreach(required_generation_context IN ITEMS "JobContext" "CancelToken"
+        "ScratchContext" "ArtifactReader")
+    if(NOT generation_context_source MATCHES "${required_generation_context}")
+        message(FATAL_ERROR
+                "GenerationContext is missing scoped ${required_generation_context} support")
+    endif()
+endforeach()
+
 # The production scene has one authoritative pipeline.  BattlefieldRuntime
 # owns the ECS, physics and combat tick; a failed start is terminal for the
 # scene and must not revive the removed scene-local graph/physics fallback.
@@ -328,13 +354,80 @@ foreach(removed_battlefield_fallback IN ITEMS
                 "BattlefieldScene still contains removed legacy fallback: ${removed_battlefield_fallback}")
     endif()
 endforeach()
-if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->fixedUpdate")
+if(battlefield_scene_source MATCHES "serial_scheduler|std::optional<jobs::JobSystem>")
     message(FATAL_ERROR
-            "BattlefieldScene does not dispatch its authoritative BattlefieldRuntime")
+            "BattlefieldScene must not construct a scene-local scheduler")
 endif()
-if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->renderStates\(\)")
+
+# Headless composition is another client of the production world pipeline. It
+# must share the process scheduler rather than creating a second worker pool.
+file(READ "${GENOMES_SOURCE_DIR}/apps/headless/main.cpp" headless_main_source)
+if(headless_main_source MATCHES "JobSystem[ \t]+world_jobs|JobSystem[ \t]+world_scheduler")
     message(FATAL_ERROR
-            "BattlefieldScene presentation must consume BattlefieldRuntime render states")
+            "headless world path must use the central process scheduler")
+endif()
+if(NOT headless_main_source MATCHES "processScheduler\(\)")
+    message(FATAL_ERROR
+            "headless world path is missing central process scheduler usage")
+endif()
+
+foreach(single_scheduler_client IN ITEMS
+        "${GENOMES_SOURCE_DIR}/apps/game/GameApplication.cpp"
+        "${GENOMES_SOURCE_DIR}/apps/proc_viewer/ProcViewerApp.cpp")
+    file(READ "${single_scheduler_client}" single_scheduler_client_source)
+    if(single_scheduler_client_source MATCHES "JobSystem[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*\\(")
+        message(FATAL_ERROR
+                "production client constructs a private JobSystem: ${single_scheduler_client}")
+    endif()
+    if(NOT single_scheduler_client_source MATCHES "processScheduler\(\)")
+        message(FATAL_ERROR
+                "production client is missing central process scheduler usage: ${single_scheduler_client}")
+    endif()
+endforeach()
+
+# Scene and domain code request work from JobSystem; raw thread/future
+# ownership belongs to the scheduler implementation and platform backends.
+file(GLOB_RECURSE scheduler_owned_sources LIST_DIRECTORIES FALSE
+     "${GENOMES_SOURCE_DIR}/engine/*.cpp"
+     "${GENOMES_SOURCE_DIR}/engine/*.hpp"
+     "${GENOMES_SOURCE_DIR}/modules/*.cpp"
+     "${GENOMES_SOURCE_DIR}/modules/*.hpp"
+     "${GENOMES_SOURCE_DIR}/apps/*.cpp"
+     "${GENOMES_SOURCE_DIR}/apps/*.hpp")
+foreach(scheduler_source IN LISTS scheduler_owned_sources)
+    if(scheduler_source MATCHES "[\\/]external[\\/]|[\\/]build[\\/]|[\\/]jobs[\\/]")
+        continue()
+    endif()
+    file(READ "${scheduler_source}" scheduler_source_text)
+    if(scheduler_source_text MATCHES "std::thread[ \t]+[A-Za-z_]" OR
+       scheduler_source_text MATCHES "std::async[ \t]*\\(")
+        message(FATAL_ERROR
+                "raw asynchronous ownership escaped central scheduler: ${scheduler_source}")
+    endif()
+endforeach()
+if(NOT battlefield_scene_source MATCHES "jobs_ = context.scheduler")
+    message(FATAL_ERROR
+            "BattlefieldScene must use the application-owned scheduler")
+endif()
+if(NOT battlefield_scene_source MATCHES "engine_services->simulation->advance")
+    message(FATAL_ERROR
+            "BattlefieldScene does not dispatch its authoritative simulation facade")
+endif()
+if(battlefield_scene_source MATCHES "battlefield_runtime_->renderStates\(\)")
+    message(FATAL_ERROR
+            "BattlefieldScene must consume BattlefieldRuntime presentation snapshots")
+endif()
+if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->presentationSnapshot\(\)")
+    message(FATAL_ERROR
+            "BattlefieldScene must consume the BattlefieldRuntime presentation snapshot")
+endif()
+if(battlefield_scene_source MATCHES "mass_battle_runtime_->renderStates\(\)")
+    message(FATAL_ERROR
+            "BattlefieldScene must consume Mass Battle presentation snapshots")
+endif()
+if(NOT battlefield_scene_source MATCHES "mass_battle_runtime_->presentationSnapshot\(\)")
+    message(FATAL_ERROR
+            "BattlefieldScene must consume the Mass Battle presentation snapshot")
 endif()
 if(battlefield_scene_source MATCHES "WeaponHandlingSystem|weapon_handling_\\.step")
     message(FATAL_ERROR

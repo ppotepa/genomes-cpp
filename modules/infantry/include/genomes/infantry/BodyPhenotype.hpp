@@ -41,11 +41,16 @@ struct BodyPhenotype final {
     // Runtime/GPU consumers continue to use hip_y at the artifact boundary.
     double reference_hip_y{0.54};
     double reference_shoulder_width_scale{1.0};
+    double reference_hip_width_scale{1.0};
     double reference_chest_width_scale{1.0};
     double reference_chest_depth_scale{1.0};
     double reference_waist_width_scale{1.0};
     double reference_waist_depth_scale{1.0};
     double reference_head_scale{1.0};
+    double reference_neck_scale{1.0};
+    double reference_arm_length_scale{1.0};
+    double reference_hand_scale{1.0};
+    double reference_leg_thickness_scale{1.0};
     std::uint32_t skin_color_hex{0};
     float shoulder_width{0.46};
     float chest_depth{0.24};

@@ -64,18 +64,24 @@ public:
                           button_ == 3 && input.mouse_right_down;
         if (!held) button_ = 0;
         if (request_.mode == camera::CameraMode::RTS && button_ == 3) {
-            pending_.orbit_x += input.mouse_delta_x / height * 4.0F;
-            pending_.orbit_y += input.mouse_delta_y / height * 4.0F;
+            pending_.orbit_x += input.mouse_delta_x / height * request_.rts.orbit_sensitivity;
+            pending_.orbit_y += input.mouse_delta_y / height * request_.rts.orbit_sensitivity;
         } else if (request_.mode == camera::CameraMode::Orbit && button_ == 1) {
             pending_.orbit_x += input.mouse_delta_x / height * 4.0F;
             pending_.orbit_y += input.mouse_delta_y / height * 4.0F;
         } else if ((request_.mode == camera::CameraMode::RTS && button_ == 2) ||
                    (request_.mode == camera::CameraMode::Orbit && button_ != 0)) {
             // Both axes use viewport height: equal pixel drags have equal scale.
-            pending_.pan_x += input.mouse_delta_x / height;
-            pending_.pan_y += input.mouse_delta_y / height;
+            const float pan_scale = request_.mode == camera::CameraMode::RTS
+                ? request_.rts.pan_sensitivity : 1.0F;
+            pending_.pan_x += input.mouse_delta_x / height * pan_scale;
+            pending_.pan_y += input.mouse_delta_y / height * pan_scale;
         }
-        if (inside(input.mouse_x, input.mouse_y)) pending_.zoom -= input.mouse_wheel_y * .12F;
+        if (inside(input.mouse_x, input.mouse_y)) {
+            const float zoom_scale = request_.mode == camera::CameraMode::RTS
+                ? request_.rts.zoom_sensitivity : .12F;
+            pending_.zoom -= input.mouse_wheel_y * zoom_scale;
+        }
         pending_.reset |= input.reset_pressed;
         for (const auto& event : input.events) {
             if (event.type != input::EventType::KeyDown && event.type != input::EventType::KeyUp) continue;
@@ -96,6 +102,13 @@ public:
                           static_cast<float>(keys_[0] || keys_[4]);
         pending_.move_z = static_cast<float>(keys_[3] || keys_[7]) -
                           static_cast<float>(keys_[2] || keys_[6]);
+        // The compact pressed flags are edge-like input, unlike the held
+        // state tracked from KeyDown/KeyUp events. Apply them to this frame's
+        // pending movement only so a single UI/input pulse cannot drift.
+        pending_.move_x += static_cast<float>(input.right_pressed) -
+                           static_cast<float>(input.left_pressed);
+        pending_.move_z += static_cast<float>(input.up_pressed) -
+                           static_cast<float>(input.down_pressed);
         if (request_.mode == camera::CameraMode::RTS && request_.rts.edge_scroll &&
             !input.pointer_over_ui && inside(input.mouse_x,input.mouse_y)) {
             const float edge=request_.rts.edge_scroll_pixels;

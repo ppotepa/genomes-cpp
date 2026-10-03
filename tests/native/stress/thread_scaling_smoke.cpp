@@ -1,5 +1,7 @@
 #include "tools/benchmark/thread_scaling_gate.hpp"
 
+#include <genomes/jobs/JobSystem.hpp>
+
 #include <cassert>
 #include <cstdint>
 #include <fstream>
@@ -24,8 +26,8 @@ constexpr std::uint64_t kSemanticHash = 0xC0FFEE1234567890ULL;
 RunResult fixtureRun(const std::vector<std::uint32_t> workers,
                      const std::size_t repetitions = 5) {
     RunConfig config;
-    config.workload = "deterministic_job_batch";
-    config.machine = MachineFingerprint{"reference", "portable", "native"};
+    config.workload = JobSystemWorkload;
+    config.machine = MachineFingerprint{"synthetic-gate-fixture", "portable", "native"};
     config.worker_counts = workers;
     config.repetitions = repetitions;
     config.warmup_repetitions = 0;
@@ -90,9 +92,8 @@ int main() {
     assert(evaluateGate(baseline, correctness_run).status == GateStatus::CorrectnessFailure);
 
     const auto noisy_run = runDeterministic(
-        regression_config, [](const std::uint32_t worker_count, const std::uint64_t seed) {
-            static_cast<void>(worker_count);
-            return WorkloadResult{(seed & 1U) == 0U ? 1.0 : 10.0,
+        regression_config, [sample = 0U](const std::uint32_t, const std::uint64_t) mutable {
+            return WorkloadResult{(++sample & 1U) == 0U ? 1.0 : 10.0,
                                   kSemanticHash,
                                   {}};
         });
@@ -106,9 +107,50 @@ int main() {
         });
     assert(evaluateGate(baseline, unknown_machine_run).status == GateStatus::NoBaseline);
 
+    // A bad intermediate sample must not be erased by a good final sample,
+    // including when the anomaly happens during warmup.
+    for (const std::size_t bad_sample : {1U, 2U}) {
+        auto config = pass_run.config;
+        config.warmup_repetitions = 2;
+        const auto inconsistent = runDeterministic(config,
+            [sample = std::size_t{0}, bad_sample, seed = config.seed]
+            (std::uint32_t, std::uint64_t actual_seed) mutable {
+                assert(actual_seed == seed);
+                return WorkloadResult{10.0, kSemanticHash + (sample++ == bad_sample ? 1U : 0U), {}};
+            });
+        assert(!inconsistent.semantic_hash_consistent);
+        assert(evaluateGate(baseline, inconsistent).status == GateStatus::CorrectnessFailure);
+        auto unrelated = baseline;
+        unrelated.machine.machine_class = "different-machine";
+        assert(evaluateGate(unrelated, inconsistent).status == GateStatus::CorrectnessFailure);
+    }
+
+    // Exercise the same workload as the CLI against a serial scheduler oracle.
+    genomes::jobs::JobSystem serial(genomes::jobs::SchedulerConfig{
+        .mode = genomes::jobs::SchedulerMode::Serial, .enable_io_worker = false});
+    const auto reference = runJobSystemWorkload(serial, 17);
+    assert(reference.elapsed_ms > 0.0);
+    assert(runJobSystemWorkload(serial, 18).semantic_hash != reference.semantic_hash);
+    for (const std::uint32_t workers : {1U, 2U, 4U}) {
+        genomes::jobs::JobSystem scheduler(genomes::jobs::SchedulerConfig{
+            .worker_count = workers, .enable_io_worker = false});
+        auto config = pass_run.config;
+        config.worker_counts = {workers};
+        config.warmup_repetitions = 1;
+        config.repetitions = 2;
+        const auto measured = runDeterministic(config,
+            [&](std::uint32_t, std::uint64_t seed) { return runJobSystemWorkload(scheduler, seed); });
+        assert(measured.error.empty());
+        assert(measured.semantic_hash_consistent);
+        assert(measured.semantic_hash == reference.semantic_hash);
+        assert(scheduler.telemetry().completed > 0);
+    }
+
     const auto text_report = renderReport(pass_run, &pass);
     assert(text_report.find("gate=pass") != std::string::npos);
     const auto json_report = renderJsonReport(pass_run, &pass);
     assert(json_report.find("genomes.thread_scaling_report.v1") != std::string::npos);
+    assert(json_report.find("\"elapsed_ms\"") != std::string::npos);
+    assert(json_report.find("\"semantic_hash_consistent\": true") != std::string::npos);
     return 0;
 }

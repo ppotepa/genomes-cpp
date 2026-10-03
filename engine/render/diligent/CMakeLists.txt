@@ -23,7 +23,8 @@ add_library(genomes_render_diligent STATIC
     DiligentCapture.cpp DiligentSceneRenderer.cpp)
 target_link_libraries(genomes_render_diligent PUBLIC genomes::render genomes::camera PRIVATE
     Diligent-TextureLoader
-    Diligent-GraphicsEngineD3D12-static)
+    Diligent-GraphicsEngineD3D12-static
+    d3d12)
 target_include_directories(genomes_render_diligent PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(genomes_render_diligent PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(genomes_render_diligent SYSTEM PRIVATE
@@ -32,6 +33,11 @@ target_include_directories(genomes_render_diligent SYSTEM PRIVATE
     "${GENOMES_DILIGENT_SOURCE_DIR}/DiligentCore/Primitives/interface")
 target_compile_features(genomes_render_diligent PRIVATE cxx_std_20)
 genomes_set_project_warnings(genomes_render_diligent)
+# Diligent's Windows COM interfaces use __uuidof via IID_PPV_ARGS. Clang's
+# GNU-style driver diagnoses this required MSVC extension under -Wpedantic.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(genomes_render_diligent PRIVATE -Wno-language-extension-token)
+endif()
 find_package(Git QUIET)
 set(_capture_sha "unknown")
 if(GIT_FOUND)

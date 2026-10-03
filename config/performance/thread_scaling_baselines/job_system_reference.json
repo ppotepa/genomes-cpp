@@ -1,8 +1,8 @@
 {
   "schema": "genomes.thread_scaling_baseline.v1",
-  "workload": "deterministic_job_batch",
+  "workload": "deterministic_job_batch_v1",
   "machine": {
-    "class": "reference",
+    "class": "synthetic-gate-fixture",
     "compiler": "portable",
     "dependency_profile": "native"
   },

@@ -48,7 +48,10 @@ int main() {
     const auto tilted_screen=project(tilted_resolved.value(),tilted.target);
     assert(tilted_screen);
     const auto tilted_world=unproject(tilted_resolved.value(),tilted_screen.value());
-    assert(tilted_world && genomes::math::length(tilted_world.value()-tilted.target)<1.0e-3F);
+    // The projected depth is carried through a Float32 D3D depth value.  At
+    // ~54 m with a 0.05..1000 m frustum, its quantization bounds the absolute
+    // world-space round-trip error to the centimetre range.
+    assert(tilted_world && genomes::math::length(tilted_world.value()-tilted.target)<1.0e-2F);
     const auto center_ray=screenRay(tilted_resolved.value(),tilted_screen.value().x,
                                     tilted_screen.value().y);
     assert(center_ray);

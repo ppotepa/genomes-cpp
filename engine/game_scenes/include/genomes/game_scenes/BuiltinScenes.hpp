@@ -2,10 +2,12 @@
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/buildings/BuildingProfile.hpp>
+#include <genomes/camera/Camera.hpp>
 #include <genomes/game_scenes/WorldConfig.hpp>
 #include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <functional>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <span>
@@ -33,6 +35,8 @@ struct BuiltinSceneConfig final {
     std::optional<combat::TacticalAIProfile> tactical_ai_profile;
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog;
 #endif
+    std::size_t live_animation_budget{96U};
+    camera::RtsCameraSettings rts_controls{};
 };
 
 using BuiltinSceneFactory = std::function<std::unique_ptr<runtime::Scene>()>;

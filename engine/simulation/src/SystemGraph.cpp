@@ -189,18 +189,14 @@ foundation::Result<void, foundation::Error> SystemGraph::compile() {
         for (std::size_t right = left + 1; right < systems_.size(); ++right) {
             const auto& left_descriptor = systems_[left];
             const auto& right_descriptor = systems_[right];
-            const auto left_phase = static_cast<std::uint8_t>(left_descriptor.phase);
-            const auto right_phase = static_cast<std::uint8_t>(right_descriptor.phase);
-
-            // Phase order is a coarse deterministic barrier. Inside one phase
-            // only declared hazards impose an edge; independent systems run
-            // concurrently.
-            if (left_phase < right_phase) {
-                addEdge(left, right);
-            } else if (right_phase < left_phase) {
-                addEdge(right, left);
-            } else if (hasHazard(left_descriptor, right_descriptor)) {
-                if (left_descriptor.id < right_descriptor.id) {
+            // Phases are semantic labels, not implicit frontier barriers.
+            // Only declared dependencies and read/write hazards impose an
+            // edge; independent systems from different phases may overlap.
+            if (hasHazard(left_descriptor, right_descriptor)) {
+                const auto left_phase = static_cast<std::uint8_t>(left_descriptor.phase);
+                const auto right_phase = static_cast<std::uint8_t>(right_descriptor.phase);
+                if (left_phase < right_phase ||
+                    (left_phase == right_phase && left_descriptor.id < right_descriptor.id)) {
                     addEdge(left, right);
                 } else {
                     addEdge(right, left);
@@ -275,9 +271,10 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
     std::size_t completed = 0;
     while (completed < graph_.size()) {
         struct BatchFailure final {
-            void record(foundation::Error value) {
+            void record(std::uint64_t key, foundation::Error value) {
                 std::lock_guard lock(mutex);
-                if (!error.has_value()) {
+                if (!error.has_value() || key < failure_key) {
+                    failure_key = key;
                     error = std::move(value);
                 }
             }
@@ -293,6 +290,7 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
             }
 
             mutable std::mutex mutex;
+            std::uint64_t failure_key{std::numeric_limits<std::uint64_t>::max()};
             std::optional<foundation::Error> error;
         } batch_failure;
 
@@ -314,8 +312,14 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
         });
         ++result.parallel_batches;
 
+        std::optional<jobs::JobGroup> group;
+        if (jobs != nullptr) {
+            group.emplace(*jobs);
+        }
         std::vector<jobs::JobHandle> handles;
         handles.reserve(ready.size());
+        std::vector<bool> executed;
+        executed.reserve(ready.size());
         for (const std::size_t index : ready) {
             if (batch_failure.hasError()) {
                 break;
@@ -326,8 +330,10 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
                                                   node.descriptor.id,
                                                   tick);
             if (!decision.due) {
+                executed.push_back(false);
                 continue;
             }
+            executed.push_back(true);
             const auto& descriptor = node.descriptor;
             CommandBuffer* commands = command_buffers == nullptr
                                           ? nullptr
@@ -340,34 +346,46 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
                                   jobs,
                                   commands};
             if (jobs != nullptr && !descriptor.main_thread_only) {
-                jobs::JobHandle handle = jobs->submit(
-                    [callback = descriptor.callback, context, &batch_failure](jobs::JobContext&) mutable {
+                jobs::JobHandle handle = group->submit(
+                    [callback = descriptor.callback, context, &batch_failure](
+                        jobs::JobContext& job) mutable {
                         try {
                             callback(context);
                         } catch (...) {
-                            batch_failure.record(graphError("simulation system callback failed"));
+                            batch_failure.record(
+                                job.jobId(), graphError("simulation system callback failed"));
                             throw;
                         }
                     });
                 if (handle.wasCanceled()) {
-                    batch_failure.record({foundation::ErrorCode::Internal,
-                                          "simulation system job was canceled during submission"});
+                    batch_failure.record(
+                        handle.id(),
+                        {foundation::ErrorCode::Internal,
+                         "simulation system job was canceled during submission"});
                 }
                 handles.push_back(std::move(handle));
             } else {
                 try {
                     descriptor.callback(context);
                 } catch (...) {
-                    batch_failure.record(graphError("simulation system callback failed"));
+                    batch_failure.record(
+                        descriptor.id, graphError("simulation system callback failed"));
                 }
             }
         }
-        for (const jobs::JobHandle& handle : handles) {
-            if (jobs != nullptr) {
-                jobs->wait(handle);
+        if (group.has_value()) {
+            group->wait();
+            if (group->failed()) {
+                batch_failure.record(
+                    group->firstFailureId(),
+                    {foundation::ErrorCode::Internal, "simulation system job failed"});
             }
-            if (handle.failed() || handle.wasCanceled()) {
-                batch_failure.record({foundation::ErrorCode::Internal, "simulation system job failed"});
+        }
+        for (const jobs::JobHandle& handle : handles) {
+            if (handle.wasCanceled()) {
+                batch_failure.record(
+                    handle.id(),
+                    {foundation::ErrorCode::Internal, "simulation system job failed"});
             }
         }
         if (const auto error = batch_failure.take(); error.has_value()) {
@@ -380,9 +398,12 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
                 std::move(*error));
         }
 
-        for (const std::size_t index : ready) {
+        for (std::size_t ready_index = 0U; ready_index < ready.size(); ++ready_index) {
+            const std::size_t index = ready[ready_index];
             ++completed;
-            ++result.systems_run;
+            if (ready_index < executed.size() && executed[ready_index]) {
+                ++result.systems_run;
+            }
             for (const std::size_t successor : graph_[index].successors) {
                 if (indegrees[successor] != std::numeric_limits<std::size_t>::max()) {
                     --indegrees[successor];

@@ -15,6 +15,8 @@ namespace genomes::render {
 struct PresentationSnapshot final {
     std::uint64_t frame_number{0};
     std::uint64_t scene_epoch{0};
+    std::uint64_t snapshot_generation{0};
+    std::uint64_t revision{0};
     std::uint64_t simulation_tick{0};
     std::uint64_t previous_simulation_tick{0};
     double interpolation_alpha{0.0};
@@ -55,6 +57,8 @@ struct PresentationSnapshot final {
     void clear() {
         frame_number = 0;
         scene_epoch = 0;
+        snapshot_generation = 0;
+        revision = 0;
         simulation_tick = 0;
         previous_simulation_tick = 0;
         interpolation_alpha = 0.0;

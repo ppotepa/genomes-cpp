@@ -24,9 +24,18 @@ namespace {
 
 WorldStreamer::WorldStreamer(WorldId world_id, WorldGenerationRequest request,
                              WorldCoordinateConfig coordinates, jobs::JobSystem& jobs,
-                             WorldStreamerConfig config)
+                             WorldStreamerConfig config,
+                             proc::GeneratorRegistry registry)
     : world_id_(world_id), request_(request), coordinates_(coordinates), config_(config),
-      cache_(std::make_shared<proc::ArtifactCache>()), generation_service_(jobs, cache_) {}
+      cache_(std::make_shared<proc::ArtifactCache>()),
+      generation_service_(jobs, cache_, std::move(registry)) {}
+
+WorldStreamer::~WorldStreamer() noexcept {
+    for (auto& [id, pending] : pending_) {
+        (void)id;
+        pending.task.cancel();
+    }
+}
 
 bool WorldStreamer::validMask(ResidencyMask mask) noexcept {
     constexpr ResidencyMask all = residency(ResidencyAxis::Semantic) |
@@ -53,6 +62,13 @@ foundation::Result<void, foundation::Error> WorldStreamer::setDesired(
     state.desired = request.desired;
     state.pin_count = request.pin_count;
     state.last_access = request.tick;
+    if (!has(request.desired, ResidencyAxis::Semantic) && state.pending) {
+        if (const auto pending = pending_.find(request.id.value()); pending != pending_.end()) {
+            pending->second.task.cancel();
+            pending_.erase(pending);
+        }
+        state.pending = false;
+    }
     if (has(state.current, ResidencyAxis::Semantic)) {
         state.current |= request.desired & ~residency(ResidencyAxis::Semantic);
     }
@@ -129,7 +145,15 @@ foundation::Result<std::uint32_t, foundation::Error> WorldStreamer::poll(
         const bool wanted = state != nullptr && state->pending &&
                            state->generation == pending.generation &&
                            has(state->desired, ResidencyAxis::Semantic);
-        if (wanted && !pending.task.failed()) {
+        if (wanted && pending.task.failed()) {
+            const foundation::Error failure = pending.task.error();
+            state->pending = false;
+            (void)pending.task.take_result();
+            iterator = pending_.erase(iterator);
+            last_error_ = failure;
+            return foundation::Result<std::uint32_t, foundation::Error>::failure(failure);
+        }
+        if (wanted) {
             if (auto plan = pending.task.take_result()) {
                 translatePlan(*plan, pending.origin);
                 state->pending = false;

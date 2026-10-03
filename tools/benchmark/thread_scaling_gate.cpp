@@ -1,5 +1,7 @@
 #include "tools/benchmark/thread_scaling_gate.hpp"
 
+#include <genomes/jobs/ParallelFor.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -38,22 +40,6 @@ constexpr double kEpsilon = 1.0e-12;
     value = (value ^ (value >> 30U)) * 0xBF58476D1CE4E5B9ULL;
     value = (value ^ (value >> 27U)) * 0x94D049BB133111EBULL;
     return value ^ (value >> 31U);
-}
-
-[[nodiscard]] std::uint64_t sampleSeed(const RunConfig& config,
-                                       const std::uint32_t worker_count,
-                                       const std::size_t repetition,
-                                       const bool warmup) noexcept {
-    // The logical workload seed is shared by worker counts.  This is what
-    // makes semantic hashes comparable; worker_count remains an execution
-    // parameter and must not alter the input dataset.
-    static_cast<void>(worker_count);
-    auto value = config.seed;
-    value ^= static_cast<std::uint64_t>(repetition) * 0xA0761D6478BD642FULL;
-    if (warmup) {
-        value ^= 0xE7037ED1A0B428DBULL;
-    }
-    return mixSeed(value);
 }
 
 [[nodiscard]] bool validDuration(const double value) noexcept {
@@ -463,6 +449,33 @@ private:
 
 } // namespace
 
+WorkloadResult runJobSystemWorkload(jobs::JobSystem& system, const std::uint64_t seed) {
+    constexpr std::size_t item_count = 131'072;
+    constexpr std::size_t grain = 2048;
+    const auto input_seed = mixSeed(seed);
+    std::vector<std::uint64_t> partial(item_count / grain, 0);
+    const auto before = system.telemetry();
+    const auto start = std::chrono::steady_clock::now();
+    const bool completed = jobs::parallelForAndWait(
+        system, 0, item_count, grain, [&](const jobs::BatchRange range) {
+            std::uint64_t hash = 0;
+            for (std::size_t index = range.begin; index < range.end; ++index) {
+                auto value = input_seed + static_cast<std::uint64_t>(index);
+                for (unsigned round = 0; round < 64; ++round) value = mixSeed(value);
+                hash ^= value;
+            }
+            partial[range.batch_index] = hash;
+        });
+    if (!completed) throw std::runtime_error("JobSystem workload failed or was canceled");
+    std::uint64_t semantic_hash = 0;
+    for (const auto value : partial) semantic_hash ^= value;
+    const auto elapsed = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - start).count();
+    SchedulerTelemetry telemetry;
+    telemetry.steals = system.telemetry().stolen - before.stolen;
+    return {elapsed, semantic_hash, telemetry};
+}
+
 bool MachineFingerprint::operator==(const MachineFingerprint& other) const noexcept {
     return machine_class == other.machine_class && compiler == other.compiler &&
            dependency_profile == other.dependency_profile;
@@ -526,16 +539,16 @@ RunResult runDeterministic(const RunConfig& input_config,
 
     std::uint64_t first_hash = 0;
     bool have_hash = false;
+    result.semantic_hash_consistent = true;
     std::map<std::uint32_t, std::vector<double>> timings;
     std::map<std::uint32_t, SchedulerTelemetry> telemetry;
     std::map<std::uint32_t, std::uint64_t> worker_hashes;
     for (const std::uint32_t worker_count : result.config.worker_counts) {
-        auto invoke = [&](const std::size_t repetition, const bool warmup) -> bool {
+        auto invoke = [&](const bool warmup) -> bool {
             const auto start = std::chrono::steady_clock::now();
             WorkloadResult measurement;
             try {
-                measurement = workload(worker_count,
-                                       sampleSeed(result.config, worker_count, repetition, warmup));
+                measurement = workload(worker_count, result.config.seed);
             } catch (const std::exception& exception) {
                 result.error = std::string("workload threw: ") + exception.what();
                 return false;
@@ -576,26 +589,18 @@ RunResult runDeterministic(const RunConfig& input_config,
         };
         for (std::size_t repetition = 0; repetition < result.config.warmup_repetitions;
              ++repetition) {
-            if (!invoke(repetition, true)) {
+            if (!invoke(true)) {
                 return result;
             }
         }
         for (std::size_t repetition = 0; repetition < result.config.repetitions; ++repetition) {
-            if (!invoke(repetition, false)) {
+            if (!invoke(false)) {
                 return result;
             }
         }
     }
 
     result.semantic_hash = first_hash;
-    result.semantic_hash_consistent = true;
-    for (const auto& [worker_count, hash] : worker_hashes) {
-        static_cast<void>(worker_count);
-        if (hash != first_hash) {
-            result.semantic_hash_consistent = false;
-            break;
-        }
-    }
     for (const auto& [worker_count, values] : timings) {
         auto aggregate = telemetry[worker_count];
         const double divisor = static_cast<double>(values.size());
@@ -732,6 +737,11 @@ GateResult evaluateGate(const Baseline& baseline, const RunResult& run) {
         result.reason = run.error.empty() ? "run has no samples" : run.error;
         return result;
     }
+    if (!run.semantic_hash_consistent) {
+        result.status = GateStatus::CorrectnessFailure;
+        result.reason = "semantic hash differs across warmups, repetitions or worker counts";
+        return result;
+    }
     if (run.config.workload != baseline.workload || run.config.machine != baseline.machine) {
         result.status = GateStatus::NoBaseline;
         result.reason = "workload or machine fingerprint does not match baseline";
@@ -806,6 +816,7 @@ std::string renderReport(const RunResult& run, const GateResult* gate) {
     std::ostringstream output;
     output << "thread_scaling_gate\n";
     output << "workload=" << run.config.workload << "\n";
+    output << "seed=" << run.config.seed << "\n";
     output << "machine=" << run.config.machine.machine_class << " compiler="
            << run.config.machine.compiler << " dependencies="
            << run.config.machine.dependency_profile << "\n";
@@ -821,7 +832,8 @@ std::string renderReport(const RunResult& run, const GateResult* gate) {
                << formatNumber(worker.timing.p95_ms) << " p99_ms="
                << formatNumber(worker.timing.p99_ms) << " cv="
                << formatNumber(worker.timing.coefficient_of_variation) << " samples="
-               << worker.timing.sample_count << "\n";
+               << worker.timing.sample_count << " semantic_hash=" << worker.semantic_hash
+               << " steals=" << worker.telemetry.steals << "\n";
     }
     if (gate != nullptr) {
         output << "gate=" << statusName(gate->status)
@@ -839,6 +851,7 @@ std::string renderJsonReport(const RunResult& run, const GateResult* gate) {
     std::ostringstream output;
     output << "{\n  \"schema\": \"genomes.thread_scaling_report.v1\",\n";
     output << "  \"workload\": " << quote(run.config.workload) << ",\n";
+    output << "  \"seed\": " << run.config.seed << ",\n";
     output << "  \"machine\": {\"class\": " << quote(run.config.machine.machine_class)
            << ", \"compiler\": " << quote(run.config.machine.compiler)
            << ", \"dependency_profile\": " << quote(run.config.machine.dependency_profile)
@@ -846,10 +859,13 @@ std::string renderJsonReport(const RunResult& run, const GateResult* gate) {
     output << "  \"semantic_hash\": " << run.semantic_hash << ",\n";
     output << "  \"semantic_hash_consistent\": "
            << (run.semantic_hash_consistent ? "true" : "false") << ",\n";
+    output << "  \"error\": " << quote(run.error) << ",\n";
     output << "  \"workers\": [\n";
     for (std::size_t index = 0; index < run.workers.size(); ++index) {
         const auto& worker = run.workers[index];
         output << "    {\"worker_count\": " << worker.worker_count
+               << ", \"semantic_hash\": " << worker.semantic_hash
+               << ", \"steals\": " << worker.telemetry.steals
                << ", \"samples\": " << worker.timing.sample_count
                << ", \"median_ms\": " << worker.timing.median_ms
                << ", \"p95_ms\": " << worker.timing.p95_ms
@@ -857,6 +873,14 @@ std::string renderJsonReport(const RunResult& run, const GateResult* gate) {
                << ", \"coefficient_of_variation\": "
                << worker.timing.coefficient_of_variation << "}";
         output << (index + 1 == run.workers.size() ? "\n" : ",\n");
+    }
+    output << "  ],\n  \"samples\": [\n";
+    for (std::size_t index = 0; index < run.samples.size(); ++index) {
+        const auto& sample = run.samples[index];
+        output << "    {\"worker_count\": " << sample.worker_count
+               << ", \"elapsed_ms\": " << sample.elapsed_ms
+               << ", \"semantic_hash\": " << sample.semantic_hash << "}";
+        output << (index + 1 == run.samples.size() ? "\n" : ",\n");
     }
     output << "  ]";
     if (gate != nullptr) {

@@ -77,7 +77,10 @@ foundation::Result<BatchFlightOutput, foundation::Error> BallisticsBatch::integr
                                                                            projectiles.size(),
                                                                            *jobs)
                                                : grain_size;
-        jobs::parallelForAndWait(*jobs, 0, projectiles.size(), selected_grain, process);
+        if (!jobs::parallelForAndWait(*jobs, 0, projectiles.size(), selected_grain, process)) {
+            return foundation::Result<BatchFlightOutput, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal, "ballistics batch worker failed"});
+        }
     }
     return foundation::Result<BatchFlightOutput, foundation::Error>::success(std::move(output));
 }

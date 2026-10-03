@@ -17,6 +17,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -98,6 +99,15 @@ struct AnimationSnapshot final {
     std::vector<AnimationPose> poses;
 };
 
+// Immutable presentation input assembled from the latest simulation state.
+// The worker owns the vector while an evaluation is active; callers may keep
+// producing newer work sets without mutating the in-flight one.
+struct AnimationWorkSet final {
+    std::vector<AnimationEntity> entities;
+    std::uint64_t simulation_tick{0};
+    float fixed_dt_seconds{1.0F / 60.0F};
+};
+
 struct AnimationEvaluationStats final {
     std::uint64_t simulation_tick{0};
     std::uint32_t entity_count{0};
@@ -105,6 +115,30 @@ struct AnimationEvaluationStats final {
     std::uint32_t evaluated_count{0};
     std::uint32_t chunk_count{0};
     std::uint64_t pose_revision{0};
+};
+
+struct PresentationBudget final {
+    std::size_t max_entities{static_cast<std::size_t>(-1)};
+};
+
+class AnimationEvaluationHandle final {
+public:
+    AnimationEvaluationHandle() = default;
+
+    [[nodiscard]] bool valid() const noexcept { return completion_.valid(); }
+    [[nodiscard]] bool isComplete() const noexcept { return completion_.isComplete(); }
+    [[nodiscard]] bool failed() const noexcept;
+    void cancel() noexcept { completion_.cancel(); }
+    void wait() const noexcept { completion_.wait(); }
+
+private:
+    friend class AnimationSystem;
+    AnimationEvaluationHandle(jobs::JobCompletion completion,
+                              std::shared_ptr<std::optional<foundation::Error>> error) noexcept
+        : completion_(std::move(completion)), error_(std::move(error)) {}
+
+    jobs::JobCompletion completion_;
+    std::shared_ptr<std::optional<foundation::Error>> error_;
 };
 
 class AnimationSystem final {
@@ -116,7 +150,21 @@ public:
         std::span<AnimationEntity> entities,
         std::uint64_t simulation_tick,
         float fixed_dt_seconds,
-        jobs::JobSystem* jobs = nullptr);
+        jobs::JobSystem* jobs = nullptr,
+        jobs::CancelToken cancellation = {});
+
+    [[nodiscard]] foundation::Result<void, foundation::Error> evaluate(
+        AnimationWorkSet work, jobs::JobSystem* jobs = nullptr,
+        jobs::CancelToken cancellation = {}) {
+        return evaluate(std::span<AnimationEntity>(work.entities), work.simulation_tick,
+                        work.fixed_dt_seconds, jobs, cancellation);
+    }
+
+    [[nodiscard]] AnimationEvaluationHandle evaluateAsync(
+        AnimationWorkSet work,
+        jobs::JobSystem& jobs,
+        jobs::CancelToken cancellation = {},
+        PresentationBudget budget = {});
 
     [[nodiscard]] const AnimationSnapshot& previousSnapshot() const noexcept {
         return previous_;

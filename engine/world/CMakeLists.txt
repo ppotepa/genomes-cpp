@@ -6,6 +6,7 @@ add_library(genomes_world_core STATIC
 target_include_directories(genomes_world_core PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(genomes_world_core PUBLIC
+    genomes::api
     genomes::foundation
     genomes::proc
     genomes::io)

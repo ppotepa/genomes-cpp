@@ -19,5 +19,19 @@ int main() {
         });
     assert(result.steps_executed == contexts);
     assert(clock.currentTick().value == 1U);
+
+    clock.resetAll();
+    const auto plan = clock.planBy(std::chrono::seconds(1),
+        simulation::TickSchedulingMode::DeterministicCapture);
+    assert(plan.tick_count == 8U);
+    assert(plan.advance.steps_executed == 8U);
+    assert(plan.advance.dropped_time > foundation::Nanoseconds::zero());
+    assert(plan.requiresCompletionBeforePublish());
+    for (std::uint32_t index = 0; index < plan.tick_count; ++index) {
+        assert(plan.ticks[index].tick.value == index + 1U);
+    }
+    simulation::SessionSimulationClock bounded({64U, std::chrono::milliseconds(250)});
+    const auto bounded_plan = bounded.planBy(std::chrono::seconds(1));
+    assert(bounded_plan.tick_count == 8U);
     return 0;
 }

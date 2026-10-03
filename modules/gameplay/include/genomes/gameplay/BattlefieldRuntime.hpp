@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/ballistics/BallisticsWorld.hpp>
+#include <genomes/api/Api.hpp>
 #include <genomes/combat/AIJobPipeline.hpp>
 #include <genomes/combat/CombatSystem.hpp>
 #include <genomes/combat/LineOfSight.hpp>
@@ -11,16 +12,20 @@
 #include <genomes/destruction/MaterialAssembly.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
+#include <genomes/foundation/PublishedSnapshotExchange.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/gameplay/BattlefieldTypes.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/simulation/SessionSimulationClock.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantrySimulation.hpp>
 #endif
 #include <genomes/physics/PhysicsWorld.hpp>
 #include <genomes/simulation/EntityStore.hpp>
+#include <genomes/simulation/EntityController.hpp>
+#include <genomes/simulation/SimulationSnapshot.hpp>
 #include <genomes/simulation/SystemGraph.hpp>
 #include <genomes/spatial/SpatialGrid.hpp>
 #include <genomes/world_core/WorldQuerySnapshot.hpp>
@@ -28,7 +33,9 @@
 #include <genomes/weapons/WeaponCatalog.hpp>
 #include <genomes/weapons/WeaponHandlingSystem.hpp>
 
+#include <algorithm>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -37,10 +44,18 @@
 
 namespace genomes::gameplay {
 
+struct BattlefieldPresentationSnapshot final {
+    foundation::SnapshotMetadata metadata{};
+    std::vector<infantry::InfantryRenderState> states;
+};
+
+using BattlefieldPresentationSnapshotExchange =
+    foundation::PublishedSnapshotExchange<BattlefieldPresentationSnapshot>;
+
 // Authoritative battlefield owner.  It owns the ECS, infantry, physics,
 // navigation, combat/ballistics pipeline and graph for a complete session.
 // BattlefieldScenario is only a compatibility/fixture facade over this type.
-class BattlefieldRuntime final {
+class BattlefieldRuntime final : public api::SimulationFacade {
 public:
     BattlefieldRuntime(const BattlefieldRuntime&) = delete;
     BattlefieldRuntime& operator=(const BattlefieldRuntime&) = delete;
@@ -48,10 +63,39 @@ public:
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldRuntime>,
                                              foundation::Error>
     start(const BattlefieldScenarioConfig& config = {}, jobs::JobSystem* jobs = nullptr,
-          BattlefieldExecutionMode execution_mode = BattlefieldExecutionMode::Parallel);
+          BattlefieldExecutionMode execution_mode = BattlefieldExecutionMode::Parallel,
+          proc::ProceduralRuntime* procedural_runtime = nullptr);
 
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept;
     void fixedUpdate(const simulation::TickContext& context) noexcept;
+    [[nodiscard]] bool advance(const simulation::TickContext& context) noexcept override {
+        fixedUpdate(context);
+        return snapshot_.error.empty();
+    }
+
+    [[nodiscard]] api::CommandReceipt submit(api::CommandEnvelope command) override;
+    [[nodiscard]] api::SnapshotView snapshotView() const noexcept override;
+    [[nodiscard]] api::SnapshotView query(api::ApiId query,
+                                          const api::EncodedValue& arguments) const override;
+
+    void setSceneEpoch(std::uint64_t epoch) noexcept {
+        // Scene epochs identify a runtime lifetime and therefore only move
+        // forward. Ignore stale lifecycle notifications rather than allowing
+        // old snapshots to be tagged with a newer scene's predecessor.
+        const std::uint64_t next_epoch = std::max(scene_epoch_, epoch);
+        scene_epoch_ = next_epoch;
+        simulation_snapshot_exchange_.rejectBeforeSceneEpoch(next_epoch);
+        presentation_snapshot_exchange_.rejectBeforeSceneEpoch(next_epoch);
+        if (presentation_snapshot_.metadata.tick != 0U &&
+            presentation_snapshot_.metadata.scene_epoch < next_epoch) {
+            presentation_snapshot_ = {};
+        }
+        if (simulation_snapshot_.metadata.tick != 0U &&
+            simulation_snapshot_.metadata.scene_epoch < next_epoch) {
+            simulation_snapshot_ = {};
+            api_snapshot_bytes_.clear();
+        }
+    }
 
     // Bind the authoritative resolved-world revision to the collision and
     // navigation consumers owned by this runtime. A runtime may be bound
@@ -66,6 +110,19 @@ public:
     [[nodiscard]] const BattlefieldScenarioSnapshot& snapshot() const noexcept {
         return snapshot_;
     }
+    [[nodiscard]] const simulation::SimulationSnapshot& simulationSnapshot() const noexcept {
+        return simulation_snapshot_;
+    }
+    [[nodiscard]] simulation::SimulationSnapshotExchange& simulationSnapshotExchange() noexcept {
+        return simulation_snapshot_exchange_;
+    }
+    [[nodiscard]] const BattlefieldPresentationSnapshot& presentationSnapshot() const noexcept {
+        return presentation_snapshot_;
+    }
+    [[nodiscard]] BattlefieldPresentationSnapshotExchange& presentationSnapshotExchange() noexcept {
+        return presentation_snapshot_exchange_;
+    }
+    [[nodiscard]] std::uint64_t sceneEpoch() const noexcept { return scene_epoch_; }
     [[nodiscard]] bool complete() const noexcept { return snapshot_.complete; }
     [[nodiscard]] BattlefieldRuntimeState state() const noexcept { return state_; }
     [[nodiscard]] const simulation::WorldEcs& ecs() const noexcept { return entities_.ecs(); }
@@ -73,7 +130,7 @@ public:
         return tactical_ai_.profile();
     }
     [[nodiscard]] const std::vector<infantry::InfantryRenderState>& renderStates() const noexcept {
-        return infantry_->renderStates();
+        return presentation_snapshot_.states;
     }
     [[nodiscard]] const weapons::WeaponPoseTasks* weaponPoseTasks(
         simulation::EntityId entity) const noexcept;
@@ -87,7 +144,8 @@ private:
     };
 
     BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem* jobs,
-                       BattlefieldExecutionMode execution_mode);
+                       BattlefieldExecutionMode execution_mode,
+                       proc::ProceduralRuntime* procedural_runtime);
 
     [[nodiscard]] foundation::Result<void, foundation::Error> initialize();
     [[nodiscard]] foundation::Result<void, foundation::Error> configureWorldQuery();
@@ -99,6 +157,8 @@ private:
     void advanceBallistics() noexcept;
     void applyImpactDamage() noexcept;
     void commitSnapshot() noexcept;
+    void publishPresentationSnapshot() noexcept;
+    void applyApiCommands() noexcept;
     [[nodiscard]] TargetRuntime* target(simulation::EntityId entity) noexcept;
     [[nodiscard]] const TargetRuntime* target(simulation::EntityId entity) const noexcept;
     [[nodiscard]] static bool provideContact(void*, const world_core::QuerySegmentHit&,
@@ -106,8 +166,8 @@ private:
 
     BattlefieldScenarioConfig config_{};
     BattlefieldExecutionMode execution_mode_{BattlefieldExecutionMode::Parallel};
-    std::unique_ptr<jobs::JobSystem> owned_jobs_;
     jobs::JobSystem* jobs_{nullptr};
+    proc::ProceduralRuntime* procedural_runtime_{nullptr};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_{};
     std::unique_ptr<navigation::GridNavigationWorld> navigation_;
@@ -115,6 +175,8 @@ private:
     combat::CombatSystem combat_;
     combat::CombatCommandFlow combat_flow_;
     simulation::SystemGraph graph_;
+    simulation::SystemExecutionPlan execution_plan_;
+    simulation::CommandBufferSet command_buffers_{};
     foundation::SimulationTick simulation_tick_{};
 
     spatial::UniformGrid perception_grid_{16.0F};
@@ -129,7 +191,9 @@ private:
     std::vector<combat::AIIntent> intents_;
     std::unordered_map<std::uint64_t, std::uint32_t> teams_;
     std::unordered_map<std::uint64_t, combat::AIState> ai_state_by_entity_;
-    std::unordered_map<std::uint64_t, weapons::WeaponRuntimeState> weapon_runtime_states_;
+    // Fire requests are consumed in key order so the authoritative ballistic
+    // command stream is independent of unordered-container bucket layout.
+    std::map<std::uint64_t, weapons::WeaponRuntimeState> weapon_runtime_states_;
     std::unordered_map<std::uint64_t, weapons::WeaponPoseTasks> weapon_pose_tasks_;
     weapons::WeaponHandlingSystem weapon_handling_{};
     const weapons::WeaponDefinition* weapon_definition_{nullptr};
@@ -147,6 +211,13 @@ private:
     world::WorldArtifactRevision world_artifact_revision_{0U};
 
     BattlefieldScenarioSnapshot snapshot_{};
+    simulation::SimulationSnapshot simulation_snapshot_{};
+    simulation::SimulationSnapshotExchange simulation_snapshot_exchange_{};
+    BattlefieldPresentationSnapshot presentation_snapshot_{};
+    BattlefieldPresentationSnapshotExchange presentation_snapshot_exchange_{};
+    std::vector<std::uint8_t> api_snapshot_bytes_;
+    std::uint64_t scene_epoch_{0U};
+    api::CommandQueue api_commands_{};
     BattlefieldRuntimeState state_{BattlefieldRuntimeState::Running};
 };
 

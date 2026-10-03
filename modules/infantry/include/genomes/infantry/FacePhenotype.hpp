@@ -12,6 +12,67 @@ struct FaceSection final {
     float center_z{0.0};
 };
 
+// Binary64 authoring values used by the pinned JavaScript-parity surface path.
+// Runtime and GPU consumers continue to use the legacy fields in FacePhenotype;
+// the explicit Float32 mesh boundary remains in ReferenceSurfaceBuilder.
+struct ReferenceFaceParameters final {
+    double head_width_scale{1.0};
+    double head_depth_scale{1.0};
+    double head_length_scale{1.0};
+    double forehead_width_scale{1.0};
+    double forehead_slope{0.0};
+    double temple_width_scale{1.0};
+    double brow_ridge{0.0};
+    double jaw_width_scale{1.0};
+    double jaw_length_scale{1.0};
+    double jaw_angle{1.0};
+    double chin_width_scale{1.0};
+    double chin_height{0.0};
+    double chin_projection{0.0};
+    double cheekbone_scale{1.0};
+    double cheekbone_y{0.0};
+    double cheek_fullness{0.0};
+    double midface_projection{0.0};
+    double eye_spacing{0.02};
+    double eye_width_scale{1.0};
+    double eye_height_scale{1.0};
+    double eye_roundness{1.0};
+    double eye_depth{0.0};
+    double eye_tilt{0.0};
+    double eye_y{0.94};
+    double brow_y{0.95};
+    double brow_thickness{0.0008};
+    double brow_tilt{0.0};
+    double brow_spacing{0.0};
+    double nose_width_scale{1.0};
+    double nose_length_scale{1.0};
+    double nose_projection_scale{1.0};
+    double nose_bridge_scale{1.0};
+    double nose_tip_width_scale{1.0};
+    double nose_tip_rotation{0.0};
+    double nostril_width_scale{1.0};
+    double mouth_width{0.022};
+    double upper_lip{0.002};
+    double lower_lip{0.002};
+    double mouth_y{0.90};
+    double ear_scale{1.0};
+    double ear_angle{0.0};
+    double hair_density{1.0};
+    double hair_thickness{0.004};
+    double hair_volume{0.008};
+    double hairline{0.95};
+    double temple_recession{0.0};
+    double widow_peak{0.0};
+    double neutral_mouth{0.0};
+    double eye_asymmetry{0.0};
+    double brow_asymmetry{0.0};
+    double mouth_asymmetry{0.0};
+    double ear_asymmetry{0.0};
+    std::uint32_t eye_color_hex{0};
+    std::uint32_t hair_color_hex{0};
+    std::uint8_t hair_style{1};
+};
+
 struct FacePhenotype final {
     std::uint32_t version{1};
     float head_width_scale{1.0};
@@ -96,6 +157,7 @@ struct FacePhenotype final {
     float blink_interval{4.0};
     float blink_duration{0.14};
     float gaze_restlessness{1.0};
+    ReferenceFaceParameters reference{};
 
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] FaceSection section(float y) const noexcept;

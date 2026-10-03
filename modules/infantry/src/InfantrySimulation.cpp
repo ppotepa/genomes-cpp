@@ -1,6 +1,7 @@
 #include <genomes/infantry/InfantrySimulation.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -17,16 +18,6 @@ constexpr std::uint64_t kContactMemoryTicks = 180;
     const float y = left.y - right.y;
     const float z = left.z - right.z;
     return x * x + y * y + z * z;
-}
-
-[[nodiscard]] foundation::Vec3 subtract(foundation::Vec3 left,
-                                        foundation::Vec3 right) noexcept {
-    return {left.x - right.x, left.y - right.y, left.z - right.z};
-}
-
-[[nodiscard]] foundation::Vec3 normalize_horizontal(foundation::Vec3 value) noexcept {
-    const float length = std::sqrt(std::max(0.000001F, value.x * value.x + value.z * value.z));
-    return {value.x / length, 0.0F, value.z / length};
 }
 
 [[nodiscard]] Team opposite(Team team) noexcept {
@@ -209,6 +200,58 @@ bool InfantrySimulation::readWeaponHandlingView(
     return output.valid();
 }
 
+bool InfantrySimulation::setOrder(const simulation::EntityOrder& order) noexcept {
+    Agent* record = agent(order.entity);
+    if (record == nullptr || order.kind == simulation::EntityOrderKind::None ||
+        !std::isfinite(order.destination.x) || !std::isfinite(order.destination.y) ||
+        !std::isfinite(order.destination.z) || order.expires_tick < order.issued_tick) {
+        return false;
+    }
+    if (record->external_order.has_value() &&
+        record->external_order->activeAt(order.entity, order.issued_tick)) {
+        const std::array<simulation::EntityOrder, 2U> candidates{
+            *record->external_order, order};
+        const auto selected = simulation::resolveEntityOrder(
+            order.entity, candidates, order.issued_tick);
+        if (!selected || selected->source != order.source ||
+            selected->issued_tick != order.issued_tick ||
+            selected->priority != order.priority ||
+            (record->external_order->source == order.source &&
+             record->external_order->issued_tick == order.issued_tick &&
+             record->external_order->priority == order.priority)) {
+            return false;
+        }
+    }
+    constexpr float kRouteGoalChangeDistanceSquared = 0.25F;
+    const bool target_changed = record->target != order.target;
+    const bool order_kind_changed = record->external_order.has_value() &&
+        record->external_order->kind != order.kind;
+    const bool point_goal_changed = !order.target.isValid() &&
+        distance_squared(record->last_known_target_position, order.destination) >
+            kRouteGoalChangeDistanceSquared;
+    if (target_changed || order_kind_changed || point_goal_changed) {
+        record->route.clear();
+        record->route_cursor = 0U;
+    }
+    record->external_order = order;
+    record->action = order.action;
+    if (order.kind == simulation::EntityOrderKind::Hold) {
+        record->target = {};
+        record->has_contact_memory = false;
+        record->route.clear();
+        record->route_cursor = 0U;
+        record->state = AgentState::Idle;
+        return true;
+    }
+    record->target = order.target;
+    record->last_known_target_position = order.destination;
+    record->last_contact_tick = foundation::SimulationTick{order.issued_tick};
+    record->has_contact_memory = true;
+    record->state = order.kind == simulation::EntityOrderKind::Engage
+        ? AgentState::Engage : AgentState::Advance;
+    return true;
+}
+
 void InfantrySimulation::perceive(foundation::SimulationTick tick) noexcept {
     std::vector<simulation::EntityId> observers;
     observers.reserve(entities_.size());
@@ -224,13 +267,12 @@ void InfantrySimulation::perceive(foundation::SimulationTick tick) noexcept {
 
     const std::size_t grain = jobs::chooseParallelGrain(
         0, observers.size(), *jobs_, jobs::ParallelForPolicy{8, 1, 0, 4});
-    const auto handles = jobs::parallelFor(
-        *jobs_, 0, observers.size(), grain,
-        [this, &observers, tick](jobs::BatchRange range) {
-            perceiveRange(observers, range.begin, range.end, tick);
-        });
-    for (const jobs::JobHandle& handle : handles) {
-        jobs_->wait(handle);
+    if (!jobs::parallelForAndWait(
+            *jobs_, 0, observers.size(), grain,
+            [this, &observers, tick](const jobs::BatchRange& range) {
+                perceiveRange(observers, range.begin, range.end, tick);
+            })) {
+        return;
     }
     publishSquadContacts(tick);
 }
@@ -286,11 +328,59 @@ void InfantrySimulation::perceiveRange(const std::vector<simulation::EntityId>& 
                                                        ? simulation::CadenceTier::Combat
                                                        : simulation::CadenceTier::Active;
         simulation::setCadenceTier(observer->perception_cadence, relevance, tick);
-        if (!simulation::evaluateCadence(perception_policy,
-                                         observer->perception_cadence,
-                                         static_cast<foundation::StableId>(observer_id.packed()),
-                                         tick)
-                 .due) {
+        const bool perception_due = simulation::evaluateCadence(
+            perception_policy, observer->perception_cadence,
+            static_cast<foundation::StableId>(observer_id.packed()), tick).due;
+        const bool order_active = observer->external_order.has_value() &&
+            observer->external_order->activeAt(observer_id, tick.value);
+        if (order_active) {
+            const simulation::EntityOrder& order = *observer->external_order;
+            if (order.kind == simulation::EntityOrderKind::Hold) {
+                observer->target = {};
+                observer->has_contact_memory = false;
+                observer->route.clear();
+                observer->route_cursor = 0U;
+                observer->state = AgentState::Idle;
+                continue;
+            }
+            foundation::Vec3 path_target = order.destination;
+            if (order.target.isValid()) {
+                simulation::EntityReadView target_state{};
+                if (entities_.read(order.target, target_state)) {
+                    observer->target = order.target;
+                    observer->last_known_target_position = target_state.position;
+                    path_target = target_state.position;
+                } else {
+                    observer->target = {};
+                }
+            } else {
+                observer->target = {};
+            }
+            observer->last_contact_tick = tick;
+            observer->has_contact_memory = true;
+            observer->state = order.kind == simulation::EntityOrderKind::Engage
+                ? AgentState::Engage : AgentState::Advance;
+            if (perception_due && navigation_ != nullptr &&
+                simulation::evaluateCadence(
+                    path_policy, observer->path_cadence,
+                    static_cast<foundation::StableId>(observer_id.packed()), tick).due) {
+                simulation::EntityReadView observer_state{};
+                if (entities_.read(observer_id, observer_state)) {
+                    auto path = navigation_->findPath(
+                        {observer_state.position, path_target, 2048});
+                    if (path && path.value().succeeded()) {
+                        observer->route = std::move(path.value().points);
+                        observer->route_cursor = observer->route.size() > 1U ? 1U : 0U;
+                    } else {
+                        observer->route.clear();
+                        observer->route_cursor = 0U;
+                    }
+                }
+            }
+            continue;
+        }
+        observer->external_order.reset();
+        if (!perception_due) {
             continue;
         }
         simulation::EntityReadView observer_state{};
@@ -359,11 +449,16 @@ void InfantrySimulation::perceiveRange(const std::vector<simulation::EntityId>& 
                 }
             }
         }
+        // A perceived target is enough to advance toward it, but engagement is
+        // gated by the current target range.  Keeping this distinction here
+        // prevents a distant contact from entering the fire/combat pipeline.
         observer->state = observer->target.isValid() ||
                                   contactMemoryFresh(*observer, tick)
                               ? AgentState::Advance
                               : AgentState::Idle;
-        if (observer->target.isValid()) {
+        const float attack_range_squared = observer->genome.attack_range *
+                                           observer->genome.attack_range;
+        if (observer->target.isValid() && best_distance <= attack_range_squared) {
             observer->state = AgentState::Engage;
         }
         if (!has_path_target && contactMemoryFresh(*observer, tick)) {
@@ -401,6 +496,8 @@ void InfantrySimulation::rebuildSpatialIndex() noexcept {
 void InfantrySimulation::steer(double dt,
                                foundation::SimulationTick tick,
                                physics::PhysicsCommandBuffer* physics_commands) noexcept {
+    const simulation::TickContext tick_context{
+        tick, dt, simulation::SessionSimulationTickRateHz};
     entities_.forEachLive([&](simulation::EntityId entity) {
         Agent* record = agent(entity);
         foundation::Vec3* position = entities_.position(entity);
@@ -409,6 +506,40 @@ void InfantrySimulation::steer(double dt,
         if (record == nullptr || position == nullptr || velocity == nullptr || heading == nullptr) {
             return;
         }
+        const auto apply_control = [&](simulation::EntityOrderKind kind,
+                                       foundation::Vec3 destination,
+                                       float requested_speed,
+                                       foundation::StableId action) {
+            simulation::EntityReadView read{};
+            if (!entities_.read(entity, read)) return;
+            simulation::EntityControlRequest request{};
+            request.state = read;
+            const bool active_order = record->external_order.has_value() &&
+                record->external_order->activeAt(entity, tick.value);
+            if (active_order && record->external_order->action != 0U) {
+                action = record->external_order->action;
+            }
+            request.order = {entity, kind, record->target, destination, action,
+                             foundation::stable_id("infantry-simulation"),
+                             tick.value, tick.value, 100U};
+            request.requested_speed_mps = requested_speed;
+            request.maximum_speed_mps = record->genome.move_speed;
+            request.acceleration_mps2 = 8.0F;
+            request.turn_rate_radians_per_second = 3.8F;
+            simulation::EntityControlCommand command{};
+            const auto controlled = unit_controller_.updateBatch(
+                std::span<const simulation::EntityControlRequest>(&request, 1U),
+                std::span<simulation::EntityControlCommand>(&command, 1U), tick_context);
+            if (!controlled || command.entity != entity) return;
+            if (command.action != 0U) record->action = command.action;
+            *velocity = command.velocity;
+            *heading = command.heading_radians;
+            if (physics_commands != nullptr && record->body.isValid()) {
+                physics_commands->setLinearVelocity(record->body, *velocity);
+            } else {
+                *position = command.position;
+            }
+        };
         const foundation::Vec3* target_position =
             record->target.isValid() ? entities_.position(record->target) : nullptr;
         const bool live_target = target_position != nullptr;
@@ -419,10 +550,8 @@ void InfantrySimulation::steer(double dt,
         if (!live_target && !has_memory) {
             record->has_contact_memory = false;
             record->state = AgentState::Idle;
-            *velocity = {};
-            if (physics_commands != nullptr && record->body.isValid()) {
-                physics_commands->setLinearVelocity(record->body, {});
-            }
+            apply_control(simulation::EntityOrderKind::Hold, *position, 0.0F,
+                          foundation::stable_id("infantry.action.idle"));
             return;
         }
         foundation::Vec3 steering_target = live_target ? *target_position
@@ -440,17 +569,13 @@ void InfantrySimulation::steer(double dt,
                 steering_target = record->route[record->route_cursor];
             }
         }
-        const foundation::Vec3 direction =
-            normalize_horizontal(subtract(steering_target, *position));
         const float distance = std::sqrt(distance_squared(*position, steering_target));
         // Route waypoints direct movement only. Engagement range is always
         // evaluated against the current live target, never the next waypoint.
         if (live_target && target_distance <= record->genome.attack_range) {
-            *velocity = {};
             record->state = AgentState::Engage;
-            if (physics_commands != nullptr && record->body.isValid()) {
-                physics_commands->setLinearVelocity(record->body, {});
-            }
+            apply_control(simulation::EntityOrderKind::Engage, *target_position, 0.0F,
+                          foundation::stable_id("infantry.action.engage"));
             return;
         }
         if (!live_target && distance <= 1.5F) {
@@ -458,22 +583,14 @@ void InfantrySimulation::steer(double dt,
             record->has_contact_memory = false;
             record->route.clear();
             record->route_cursor = 0;
-            *velocity = {};
-            if (physics_commands != nullptr && record->body.isValid()) {
-                physics_commands->setLinearVelocity(record->body, {});
-            }
+            apply_control(simulation::EntityOrderKind::Hold, steering_target, 0.0F,
+                          foundation::stable_id("infantry.action.idle"));
             return;
         }
         record->state = AgentState::Advance;
-        *velocity = {direction.x * record->genome.move_speed, 0.0F,
-                     direction.z * record->genome.move_speed};
-        if (physics_commands != nullptr && record->body.isValid()) {
-            physics_commands->setLinearVelocity(record->body, *velocity);
-        } else {
-            position->x += velocity->x * static_cast<float>(dt);
-            position->z += velocity->z * static_cast<float>(dt);
-        }
-        *heading = std::atan2(direction.x, direction.z);
+        apply_control(simulation::EntityOrderKind::MoveTo, steering_target,
+                      record->genome.move_speed,
+                      foundation::stable_id("infantry.action.walk"));
     });
 }
 
@@ -509,7 +626,8 @@ void InfantrySimulation::buildRenderStates() noexcept {
             return;
         }
         render_states_.push_back(
-            {entity, record->team, state.position, state.heading, record->genome.height, record->state});
+            {entity, record->team, state.position, state.heading, record->genome.height,
+             record->state, record->action});
     });
 }
 

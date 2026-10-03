@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/foundation/Types.hpp>
+#include <genomes/api/Api.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/input/InputFrame.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
@@ -13,6 +14,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace genomes::runtime {
 
@@ -65,7 +67,13 @@ struct SceneContext {
     SceneCommandQueue& commands;
     ui::UiRuntime& ui;
     render::PresentationSnapshot& presentation;
-    jobs::JobSystem* jobs{nullptr};
+    // Central scheduler handle resolved by SceneDirector. Scenes may submit
+    // work through it, but never construct or select worker pools themselves.
+    jobs::JobSystem* scheduler{nullptr};
+    // Compatibility callers that omit a scheduler receive the process-wide
+    // fallback, but may retain legacy inline behavior where required.
+    bool scheduler_explicit{false};
+    jobs::SchedulerTelemetry scheduler_telemetry{};
     render::RenderCapabilities render_capabilities{};
     // Previous completed renderer frame. This is diagnostic/presentation data,
     // never a simulation input.
@@ -78,6 +86,32 @@ struct SceneContext {
     double ui_scale{1.0};
     camera::CameraRequest* camera_request{nullptr};
     bool* camera_request_published{nullptr};
+    // Monotonic session epoch used to reject late simulation/presentation
+    // products from a scene that has already been replaced.
+    std::uint64_t scene_epoch{0U};
+    // API-first services. Legacy fields above remain during migration.
+    api::EngineServices* engine_services{nullptr};
+
+    [[nodiscard]] api::CommandReceipt submitCommand(api::CommandEnvelope command) const {
+        if (engine_services == nullptr || engine_services->simulation == nullptr) {
+            return {};
+        }
+        if (engine_services->modules != nullptr) {
+            const auto* descriptor = engine_services->modules->registry().findCommand(
+                command.module, command.verb);
+            if (descriptor == nullptr ||
+                command.schema_version.major != descriptor->schema_version.major) {
+                return {};
+            }
+        }
+        return engine_services->simulation->submit(std::move(command));
+    }
+
+    void requestPresentationSnapshot(api::SnapshotView snapshot) const noexcept {
+        if (engine_services != nullptr && engine_services->presentation != nullptr) {
+            engine_services->presentation->requestSnapshot(snapshot);
+        }
+    }
 
     void publishCameraRequest(const camera::CameraRequest& request) noexcept {
         if (camera_request != nullptr && camera_request_published != nullptr) {

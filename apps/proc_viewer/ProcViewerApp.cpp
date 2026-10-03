@@ -1,7 +1,10 @@
 #include "ProcViewerApp.hpp"
 
+#include <genomes/gameplay/ProductionGenerators.hpp>
+
 #include <algorithm>
 #include <array>
+#include <utility>
 
 namespace genomes::proc_viewer {
 
@@ -12,12 +15,18 @@ constexpr std::array<ViewerMode, 7> kModes{
     ViewerMode::Vegetation, ViewerMode::DestructionBallistics,
     ViewerMode::InfantryAnimation, ViewerMode::WorldDiagnostics};
 
+[[nodiscard]] proc::GeneratorRegistry production_registry() {
+    auto registry = gameplay::makeProductionGeneratorRegistry();
+    return registry ? std::move(registry.value()) : proc::GeneratorRegistry{};
+}
+
 } // namespace
 
 ProcViewerApp::ProcViewerApp(
     std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
-    std::uint32_t workers)
-    : jobs_(workers), scenario_(jobs_, std::move(building_profile)) {}
+    std::uint32_t /*workers*/)
+    : jobs_(jobs::processScheduler()),
+      scenario_(jobs_, std::move(building_profile), {}, production_registry()) {}
 
 std::span<const ViewerMode> ProcViewerApp::modes() noexcept { return kModes; }
 

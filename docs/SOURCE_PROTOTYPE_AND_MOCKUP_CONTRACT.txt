@@ -18,21 +18,24 @@ manual out of SOURCE.
 1. AUTHORITY ORDER
 ======================================================================
 
-When SOURCE code, old SOURCE documentation and a visual mockup disagree, use:
+The JavaScript mockup is consulted to understand product concepts, feature intent,
+illustrative interaction, and broad visual direction. Its implementation details
+and generated numeric output are not requirements for the C++ implementation.
+There is no default JS-to-C++ parity acceptance gate.
 
-    1. executing JS/runtime/prototype code at the pinned commit;
-    2. automated tests and clean machine-readable capture metadata;
-    3. clean commit-pinned images/manual acceptance cases;
-    4. interactive prototype behavior;
-    5. research text and historical documentation.
+When reference material disagrees, use this interpretation order:
 
-Old SOURCE prose never overrides current executable behavior. It may still
-define an aspirational product goal, but only after that goal is classified and
-accepted explicitly; it is not silently promoted to parity truth.
+    1. TARGET native contracts and tests define shipping C++ behavior;
+    2. pinned JS/runtime code and fixtures provide explanatory examples and
+       historical context for the concepts being implemented;
+    3. images and interactive mockup behavior provide visual/design context;
+    4. research text and historical documentation provide background only.
 
-TARGET::docs/TARGET_IMPLEMENTATION_CONTRACT.txt and the owning implementation
-chapters are the native design authority. This audit records fixtures and design
-evidence only; it cannot add compatibility modes or dictate C++ architecture.
+An explicit product requirement may adopt a particular observable behavior from
+the mockup, but it must be stated as a native contract and tested in C++. That
+does not require reproducing the JS algorithm or its intermediate/final buffers.
+This audit records evidence and provenance; it cannot add compatibility modes or
+dictate C++ architecture.
 
 ======================================================================
 2. EVIDENCE CLASSES
@@ -40,11 +43,13 @@ evidence only; it cannot add compatibility modes or dictate C++ architecture.
 
 CURRENT_IMPLEMENTED
     Behavior present in current executable SOURCE code and supported by tests
-    or reproducible inspection. Eligible for compatibility/parity fixtures.
+    or reproducible inspection. It may illustrate a capability; it becomes a
+    native requirement only when adopted by an owning TARGET contract.
 
 REFERENCE_PROTOTYPE
-    Executable standalone prototype whose semantic algorithms/invariants are
-    inputs to TARGET, but which is not the shipping SOURCE world path.
+    Executable standalone mockup/prototype used to explore product concepts,
+    interaction, and visual direction. Its algorithms and outputs are not
+    automatically inputs to TARGET implementation or acceptance.
 
 HISTORICAL_BASELINE
     A valid older capture used for regression history. Never presented as the

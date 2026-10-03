@@ -1,7 +1,8 @@
 add_library(genomes_terrain STATIC
     src/HeightField.cpp
     src/TerrainGenerator.cpp
-    src/TerrainMesh.cpp)
+    src/TerrainMesh.cpp
+    src/TerrainProcedural.cpp)
 
 target_include_directories(genomes_terrain PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")

@@ -53,7 +53,44 @@ foundation::Result<math::Vec3, foundation::Error> unproject(const ResolvedCamera
         return foundation::Result<math::Vec3, foundation::Error>::failure(
             error(foundation::ErrorCode::InvalidArgument, "screen point is not finite"));
     if(camera.viewport.width<=0||camera.viewport.height<=0) return foundation::Result<math::Vec3, foundation::Error>::failure(error(foundation::ErrorCode::InvalidArgument,"viewport is empty"));
-    const math::Vec4 world=camera.inverse_view_projection*math::Vec4{(screen.x-camera.viewport.x)*2.0F/camera.viewport.width-1,1-(screen.y-camera.viewport.y)*2.0F/camera.viewport.height,screen.z,1};
+    const double ndc_x=(static_cast<double>(screen.x)-camera.viewport.x)*2.0/
+                       camera.viewport.width-1.0;
+    const double ndc_y=1.0-(static_cast<double>(screen.y)-camera.viewport.y)*2.0/
+                       camera.viewport.height;
+    // Resolve the D3D perspective divide analytically.  The inverse matrix is
+    // retained for compatibility, but its Float32 Gauss-Jordan result loses
+    // several millimetres at long distances when used for picking.
+    const double m22=camera.projection(2,2);
+    const double m23=camera.projection(2,3);
+    const double denominator=static_cast<double>(screen.z)+m22;
+    const double m00=camera.projection(0,0);
+    const double m11=camera.projection(1,1);
+    if(std::isfinite(denominator) && std::fabs(denominator)>1e-12 &&
+       std::isfinite(m23) && std::fabs(m00)>1e-12 && std::fabs(m11)>1e-12) {
+        const double view_z=-m23/denominator;
+        const double view_x=-view_z*(ndc_x+camera.projection(0,2))/m00;
+        const double view_y=-view_z*(ndc_y+camera.projection(1,2))/m11;
+        const auto& view=camera.inverse_view;
+        const double world_x=static_cast<double>(view(0,0))*view_x+
+                             static_cast<double>(view(0,1))*view_y+
+                             static_cast<double>(view(0,2))*view_z+
+                             static_cast<double>(view(0,3));
+        const double world_y=static_cast<double>(view(1,0))*view_x+
+                             static_cast<double>(view(1,1))*view_y+
+                             static_cast<double>(view(1,2))*view_z+
+                             static_cast<double>(view(1,3));
+        const double world_z=static_cast<double>(view(2,0))*view_x+
+                             static_cast<double>(view(2,1))*view_y+
+                             static_cast<double>(view(2,2))*view_z+
+                             static_cast<double>(view(2,3));
+        if(std::isfinite(world_x) && std::isfinite(world_y) && std::isfinite(world_z)) {
+            return foundation::Result<math::Vec3, foundation::Error>::success(
+                {static_cast<float>(world_x),static_cast<float>(world_y),
+                 static_cast<float>(world_z)});
+        }
+    }
+    const math::Vec4 world=camera.inverse_view_projection*
+        math::Vec4{static_cast<float>(ndc_x),static_cast<float>(ndc_y),screen.z,1.0F};
     if(std::fabs(world.w)<1e-8F) return foundation::Result<math::Vec3, foundation::Error>::failure(error(foundation::ErrorCode::InvalidState,"point cannot be unprojected"));
     return foundation::Result<math::Vec3, foundation::Error>::success({world.x/world.w,world.y/world.w,world.z/world.w});
 }

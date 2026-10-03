@@ -3,6 +3,7 @@ add_library(genomes_simulation STATIC
     src/EntityStore.cpp
     src/CadenceScheduler.cpp
     src/SystemGraph.cpp
+    src/SystemExecutionPlan.cpp
     src/ChunkStorage.cpp
     src/Archetype.cpp
     src/WorldEcs.cpp

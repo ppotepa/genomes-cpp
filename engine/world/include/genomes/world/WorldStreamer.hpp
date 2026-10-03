@@ -89,7 +89,12 @@ class WorldStreamer final {
 public:
     WorldStreamer(WorldId world_id, WorldGenerationRequest request,
                    WorldCoordinateConfig coordinates, jobs::JobSystem& jobs,
-                   WorldStreamerConfig config = {});
+                   WorldStreamerConfig config = {},
+                   proc::GeneratorRegistry registry = {});
+    ~WorldStreamer() noexcept;
+
+    WorldStreamer(const WorldStreamer&) = delete;
+    WorldStreamer& operator=(const WorldStreamer&) = delete;
 
     [[nodiscard]] foundation::Result<void, foundation::Error> setDesired(
         const ResidencyRequest& request);
@@ -102,6 +107,7 @@ public:
     [[nodiscard]] std::size_t pendingCount() const noexcept { return pending_.size(); }
     [[nodiscard]] std::size_t residentCount() const noexcept;
     [[nodiscard]] std::size_t residentBytes(ResidencyAxis axis) const noexcept;
+    [[nodiscard]] foundation::Error lastError() const noexcept { return last_error_; }
 
 private:
     struct Pending final {
@@ -126,6 +132,7 @@ private:
     std::map<std::uint64_t, ResidencyState> states_;
     std::map<std::uint64_t, Pending> pending_;
     std::vector<StreamedRegion> ready_;
+    foundation::Error last_error_{};
 };
 
 } // namespace genomes::world

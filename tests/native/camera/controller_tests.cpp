@@ -40,7 +40,9 @@ int main() {
     assert(rts.target.x>0.0F && rts.target.z<0.0F);
     assert(genomes::math::length(rts.target)<29.0F);
     rts_controller.update(rts,{.orbit_y=10.0F,.zoom=-10.0F},0.0F);
-    assert(genomes::math::length(rts.position-rts.target)<=650.001F);
+    const float close_distance = genomes::math::length(rts.position-rts.target);
+    assert(close_distance >= rts.rts.min_distance-0.001F);
+    assert(close_distance <= rts.rts.max_distance+0.001F);
     assert(rts.position.y>rts.target.y);
     rts_controller.updateHome({.mode=CameraMode::RTS,.position={4,40,30},.target={4,0,3}});
     rts_controller.update(rts,{.reset=true},0.0F);

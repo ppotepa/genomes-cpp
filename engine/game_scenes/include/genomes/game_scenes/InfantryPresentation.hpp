@@ -16,6 +16,10 @@
 #include <span>
 #include <vector>
 
+namespace genomes::proc {
+class ProceduralRuntime;
+}
+
 namespace genomes::game_scenes::infantry_presentation {
 
 #if GENOMES_HAS_INFANTRY
@@ -25,12 +29,19 @@ enum class PrototypePreparation {
     OptimizeDrawOrder,
 };
 
+enum class WeaponPoseAttachment {
+    Stowed,
+    RightHand,
+};
+
 // The domain artifact is never changed. ReferenceOrder keeps the unprepared
 // presentation index stream for differential tests/captures. The default uses
 // the optional CPU index optimizer once per cached prototype, never per pose.
 [[nodiscard]] std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model,
-    PrototypePreparation preparation = PrototypePreparation::OptimizeDrawOrder);
+    PrototypePreparation preparation = PrototypePreparation::OptimizeDrawOrder,
+    proc::ProceduralRuntime* procedural_runtime = nullptr,
+    WeaponPoseAttachment weapon_attachment = WeaponPoseAttachment::Stowed);
 
 // Presentation-only material variants retain geometry, indices, skeleton and
 // morph buffers from the immutable prototype and receive a distinct revision.

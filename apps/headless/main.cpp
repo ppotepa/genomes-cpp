@@ -117,8 +117,11 @@ int main(int argc, char** argv) {
         auto building_profile =
             std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
                 std::move(loaded_building_profile.value()));
-        genomes::jobs::JobSystem world_jobs(2U);
-        genomes::gameplay::WorldScenario world(world_jobs, std::move(building_profile));
+        // Headless composition uses the same process-wide scheduler as the
+        // interactive runtime; world generation must not create a private
+        // worker pool that bypasses scheduler telemetry and cancellation.
+        auto& scheduler = genomes::jobs::processScheduler();
+        genomes::gameplay::WorldScenario world(scheduler, std::move(building_profile));
         const genomes::world::WorldGenerationRequest request =
             loaded_world_profile.value().makeDefaultRequest();
         if (!world.startNew(request)) {

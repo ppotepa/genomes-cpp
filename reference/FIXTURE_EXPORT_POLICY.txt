@@ -67,5 +67,9 @@ EXPORT WORKFLOW
 4. Remove non-semantic timestamps/paths.
 5. Write fixture to TARGET::reference/fixtures/<domain>/.
 6. Write provenance metadata.
-7. Add native parity test using fixture.
-8. Never regenerate a fixture silently after a native regression.
+7. Add a native behavior/contract test when the fixture captures a requirement.
+   A fixture used only as a concept or provenance example does not require a
+   byte-for-byte or numeric comparison test.
+8. Keep reference comparisons opt-in and diagnostic unless an owning native
+   contract explicitly adopts the compared behavior.
+9. Never regenerate a fixture silently after changing the reference source.

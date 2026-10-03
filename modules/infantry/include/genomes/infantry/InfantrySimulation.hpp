@@ -2,6 +2,7 @@
 
 #include <genomes/combat/CombatSystem.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
+#include <genomes/infantry/InfantryUnitController.hpp>
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Time.hpp>
@@ -59,6 +60,7 @@ struct InfantryRenderState final {
     float heading{0.0F};
     float height{1.75F};
     AgentState state{AgentState::Idle};
+    foundation::StableId action{0U};
 };
 
 // Authoritative read-only state needed by production presentation bridges.
@@ -112,6 +114,7 @@ public:
 
     [[nodiscard]] bool readWeaponHandlingView(
         simulation::EntityId, InfantryWeaponHandlingView&) const noexcept;
+    [[nodiscard]] bool setOrder(const simulation::EntityOrder&) noexcept;
 
     [[nodiscard]] const std::vector<InfantryRenderState>& renderStates() const noexcept {
         return render_states_;
@@ -130,6 +133,7 @@ private:
         weapons::WeaponSpec weapon{};
         weapons::WeaponState weapon_state{};
         AgentState state{AgentState::Idle};
+        foundation::StableId action{0U};
         bool active{false};
         std::vector<foundation::Vec3> route;
         std::size_t route_cursor{0};
@@ -141,6 +145,7 @@ private:
         foundation::SimulationTick last_contact_tick{};
         bool has_contact_memory{false};
         std::optional<SquadKey> squad;
+        std::optional<simulation::EntityOrder> external_order;
     };
 
     struct SquadContact final {
@@ -169,6 +174,7 @@ private:
     [[nodiscard]] const Agent* agent(simulation::EntityId) const noexcept;
 
     simulation::EntityStore& entities_;
+    InfantryUnitController unit_controller_{};
     navigation::NavigationWorld* navigation_{nullptr};
     physics::PhysicsWorld* physics_{nullptr};
     bool external_physics_step_{false};

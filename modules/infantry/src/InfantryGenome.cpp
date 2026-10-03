@@ -70,8 +70,8 @@ private:
     return std::clamp(0.5 + 0.5 * (signed_value < 0.0 ? -magnitude : magnitude), 0.0, 1.0);
 }
 
-[[nodiscard]] float centred(ReferenceRandom& random) noexcept {
-    return static_cast<float>((random.uniform01() + random.uniform01()) * 0.5);
+[[nodiscard]] double centred(ReferenceRandom& random) noexcept {
+    return (random.uniform01() + random.uniform01()) * 0.5;
 }
 
 void hashOptional(std::uint64_t& hash, const std::optional<double>& value) noexcept {
@@ -89,7 +89,7 @@ constexpr std::array<double BodyGenes::*, 17> kBodyGeneMembers{
     &BodyGenes::head_scale, &BodyGenes::hand_scale, &BodyGenes::foot_scale, &BodyGenes::skin_tone,
 };
 
-constexpr std::array<float FaceGenes::*, 65> kFaceGeneMembers{
+constexpr std::array<double FaceGenes::*, 65> kFaceGeneMembers{
     &FaceGenes::head_width, &FaceGenes::head_depth, &FaceGenes::head_length,
     &FaceGenes::forehead_width, &FaceGenes::forehead_slope, &FaceGenes::temple_width,
     &FaceGenes::brow_ridge, &FaceGenes::jaw_width, &FaceGenes::jaw_length,
@@ -161,7 +161,7 @@ bool BodyGenes::valid() const noexcept {
 }
 
 bool FaceGenes::valid() const noexcept {
-    const float values[] = {head_width, head_depth, head_length, forehead_width, forehead_slope,
+    const double values[] = {head_width, head_depth, head_length, forehead_width, forehead_slope,
                             temple_width, brow_ridge, jaw_width, jaw_length, jaw_angle,
                             chin_width, chin_height, chin_projection, cheekbone_width,
                             cheekbone_height, cheek_fullness, midface_projection, eye_spacing,
@@ -176,7 +176,7 @@ bool FaceGenes::valid() const noexcept {
                             brow_height_asymmetry, mouth_corner_asymmetry, ear_asymmetry,
                             blink_rate, blink_speed, gaze_restlessness, expression_scale,
                             eye_expression, mouth_expression, brow_expression};
-    for (const float value : values) {
+    for (const double value : values) {
         if (!finite(value) || value < 0.0F || value > 1.0F) {
             return false;
         }
@@ -554,7 +554,7 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
                                  body.torso_leg_ratio, body.arm_length, body.leg_length,
                                  body.waist_width, body.limb_thickness, body.neck_thickness,
                                  body.head_scale, body.hand_scale, body.foot_scale, body.skin_tone};
-    const float face_values[] = {face.head_width, face.head_depth, face.head_length,
+    const double face_values[] = {face.head_width, face.head_depth, face.head_length,
                                  face.forehead_width, face.forehead_slope, face.temple_width,
                                  face.brow_ridge, face.jaw_width, face.jaw_length, face.jaw_angle,
                                  face.chin_width, face.chin_height, face.chin_projection,
@@ -578,8 +578,11 @@ foundation::StableId InfantryGenome::identityHash() const noexcept {
     for (const double value : body_values) {
         result = foundation::stableHashCombine(result, foundation::stableHashDouble(value));
     }
-    for (const float value : face_values) {
-        result = foundation::stableHashCombine(result, foundation::stableHashFloat(value));
+    for (const double value : face_values) {
+        // The persisted identity contract predates the reference Number path;
+        // retain its Float32 hash representation.
+        result = foundation::stableHashCombine(
+            result, foundation::stableHashFloat(static_cast<float>(value)));
     }
     return result == 0 ? 1 : result;
 }

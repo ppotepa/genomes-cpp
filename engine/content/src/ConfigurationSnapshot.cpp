@@ -234,11 +234,21 @@ ConfigurationResolver::resolve(const ConfigurationSchema& schema) && {
     FrozenConfigurationSnapshot snapshot{};
     for (auto& entry : merged) snapshot.fields.push_back(std::move(entry.second));
     std::vector<foundation::CanonicalConfigField> canonical;
+    std::vector<foundation::CanonicalConfigField> simulation_canonical;
     canonical.reserve(snapshot.fields.size());
+    simulation_canonical.reserve(snapshot.fields.size());
     for (const auto& field : snapshot.fields) {
-        canonical.push_back({field.name, valueHash(field.value)});
+        const foundation::CanonicalConfigField canonical_field{field.name, valueHash(field.value)};
+        canonical.push_back(canonical_field);
+        // Display labels are presentation data. They remain part of the
+        // frozen snapshot and presentation hash, but must not perturb
+        // deterministic simulation identity.
+        if (field.name != "display_name") {
+            simulation_canonical.push_back(canonical_field);
+        }
     }
-    snapshot.simulation_hash = foundation::makeSimConfigHash("resolved", canonical);
+    snapshot.simulation_hash =
+        foundation::makeSimConfigHash("resolved", simulation_canonical);
     snapshot.presentation_hash = foundation::makePresentationConfigHash("resolved", canonical);
     snapshot.execution_hash = foundation::makeExecutionProfileHash("resolved", canonical);
     return foundation::Result<FrozenConfigurationSnapshot, foundation::Error>::success(

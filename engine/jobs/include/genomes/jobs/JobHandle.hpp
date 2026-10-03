@@ -1,6 +1,9 @@
 #pragma once
 
+#include <genomes/jobs/SchedulerTypes.hpp>
+
 #include <condition_variable>
+#include <cstdint>
 #include <exception>
 #include <memory>
 #include <mutex>
@@ -69,13 +72,28 @@ public:
         state_->condition.wait(lock, [this] { return state_->complete; });
     }
 
+    [[nodiscard]] JobId id() const noexcept { return id_; }
+    [[nodiscard]] ExecutionLane lane() const noexcept { return lane_; }
+
+    [[nodiscard]] std::exception_ptr failure() const noexcept {
+        if (!state_) {
+            return {};
+        }
+        std::lock_guard lock(state_->mutex);
+        return state_->failure;
+    }
+
 private:
     friend class JobSystem;
 
-    explicit JobHandle(std::shared_ptr<detail::JobState> state) noexcept
-        : state_(std::move(state)) {}
+    explicit JobHandle(std::shared_ptr<detail::JobState> state,
+                       JobId id = 0,
+                       ExecutionLane lane = ExecutionLane::Worker) noexcept
+        : state_(std::move(state)), id_(id), lane_(lane) {}
 
     std::shared_ptr<detail::JobState> state_;
+    JobId id_{0};
+    ExecutionLane lane_{ExecutionLane::Worker};
 };
 
 } // namespace genomes::jobs

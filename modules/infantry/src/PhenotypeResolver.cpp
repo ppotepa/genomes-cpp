@@ -237,23 +237,33 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     body.waist_depth_scale = clampResolved(
         0.82F + ((requested.body.adiposity + requested.body.mass) * 0.5F) * 0.36F,
         0.78F, 1.24F);
+    const auto mix_reference=[](double a,double b,double t){return a+(b-a)*t;};
     body.reference_shoulder_width_scale=std::clamp(
-        (0.82+static_cast<double>(requested.body.shoulder_width)*0.40)*
-        (0.96+static_cast<double>(requested.body.frame)*0.10)*
-        (0.96+static_cast<double>(requested.body.musculature)*0.11),0.78,1.28);
+        mix_reference(.82,1.22,requested.body.shoulder_width)*
+        mix_reference(.96,1.06,requested.body.frame)*
+        mix_reference(.96,1.07,requested.body.musculature),.78,1.28);
+    body.reference_hip_width_scale=std::clamp(
+        mix_reference(.86,1.17,requested.body.hip_width)*
+        mix_reference(.97,1.05,requested.body.frame)*
+        mix_reference(.97,1.05,requested.body.adiposity),.82,1.23);
     body.reference_chest_width_scale=std::clamp(
-        0.86+(static_cast<double>(requested.body.mass)+static_cast<double>(requested.body.musculature)+
-              static_cast<double>(requested.body.shoulder_width))/3.0*0.32,0.82,1.24);
+        mix_reference(.86,1.18,(requested.body.mass+requested.body.musculature+
+              requested.body.shoulder_width)/3.0),.82,1.24);
     body.reference_chest_depth_scale=std::clamp(
-        (0.82+static_cast<double>(requested.body.chest_depth)*0.40)*
-        (0.96+static_cast<double>(requested.body.mass)*0.12),0.80,1.28);
+        mix_reference(.82,1.22,requested.body.chest_depth)*
+        mix_reference(.96,1.08,requested.body.mass),.80,1.28);
     body.reference_waist_width_scale=std::clamp(
-        (0.78+static_cast<double>(requested.body.waist_width)*0.44)*
-        (0.93+static_cast<double>(requested.body.adiposity)*0.19),0.74,1.30);
+        mix_reference(.78,1.22,requested.body.waist_width)*
+        mix_reference(.93,1.12,requested.body.adiposity),.74,1.30);
     body.reference_waist_depth_scale=std::clamp(
-        0.82+(static_cast<double>(requested.body.adiposity)+static_cast<double>(requested.body.mass))*0.5*0.36,
-        0.78,1.24);
-    body.reference_head_scale=.93+(1.07-.93)*static_cast<double>(requested.body.head_scale);
+        mix_reference(.82,1.18,(requested.body.adiposity+requested.body.mass)*.5),.78,1.24);
+    body.reference_head_scale=mix_reference(.93,1.07,requested.body.head_scale);
+    body.reference_arm_length_scale=mix_reference(.93,1.09,requested.body.arm_length);
+    body.reference_hand_scale=mix_reference(.88,1.13,requested.body.hand_scale);
+    const double reference_limb_base=mix_reference(.76,1.25,requested.body.limb_thickness);
+    body.reference_leg_thickness_scale=std::clamp(
+        reference_limb_base*(.94+(1.12-.94)*requested.body.musculature)*
+        (.97+(1.06-.97)*requested.body.mass),.72,1.36);
     const float limb_base = 0.76F + requested.body.limb_thickness * 0.49F;
     body.arm_thickness_scale = clampResolved(
         limb_base * (0.92F + requested.body.musculature * 0.20F) *
@@ -264,9 +274,12 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     body.neck_scale = clampResolved(
         (0.79F + requested.body.neck_thickness * 0.46F) *
             (0.96F + requested.body.frame * 0.12F), 0.76F, 1.32F);
+    body.reference_neck_scale = std::clamp(
+        (.79 + (1.25 - .79) * requested.body.neck_thickness) *
+            (.96 + (1.08 - .96) * requested.body.frame),
+        .76, 1.32);
     body.leg_length_scale = 0.94F + requested.body.leg_length * 0.13F;
     body.arm_length_scale = 0.93F + requested.body.arm_length * 0.16F;
-    const auto mix_reference=[](double a,double b,double t){return a+(b-a)*t;};
     const double reference_leg_length_scale=mix_reference(.94,1.07,
         static_cast<double>(requested.body.leg_length));
     const double reference_torso_leg_bias=mix_reference(-1.0,1.0,
@@ -345,8 +358,8 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     const float head_width_fit = std::clamp((face.head_width_scale - 0.86F) / 0.30F,
                                             0.0F, 1.0F);
     face.jaw_width_scale = std::clamp(
-        (0.74F + requested.face.jaw_width * 0.55F) *
-            (0.92F + head_width_fit * 0.16F), 0.70F, 1.34F);
+        (0.74 + requested.face.jaw_width * 0.55) *
+            (0.92 + static_cast<double>(head_width_fit) * 0.16), 0.70, 1.34);
     const float jaw_width_fit = std::clamp((face.jaw_width_scale - 0.70F) / 0.64F,
                                            0.0F, 1.0F);
     face.eye_spacing_ratio = (0.0164F + requested.face.eye_spacing * 0.0086F) *
@@ -404,8 +417,8 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     face.jaw_length_scale = 0.89F + requested.face.jaw_length * 0.23F;
     face.jaw_angle = 0.80F + requested.face.jaw_angle * 0.38F;
     face.chin_width_scale = std::clamp(
-        (0.68F + requested.face.chin_width * 0.66F) *
-            (0.91F + jaw_width_fit * 0.18F), 0.64F, 1.39F);
+        (0.68 + requested.face.chin_width * 0.66) *
+            (0.91 + static_cast<double>(jaw_width_fit) * 0.18), 0.64, 1.39);
     face.chin_height = -0.005F + requested.face.chin_height * 0.011F;
     face.chin_projection = -0.006F + requested.face.chin_projection * 0.015F;
     face.cheekbone_scale = 0.82F + requested.face.cheekbone_width * 0.38F;
@@ -414,15 +427,15 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     face.midface_projection = -0.004F + requested.face.midface_projection * 0.0105F;
     face.eye_roundness = 0.72F + requested.face.eye_roundness * 0.56F;
     face.hair_density = 0.76F + requested.face.hair_density * 0.42F;
-    face.hair_style = static_cast<std::uint8_t>(std::min(6.0F, requested.face.hair_style * 7.0F));
+    face.hair_style = static_cast<std::uint8_t>(std::min(6.0, requested.face.hair_style * 7.0));
     face.hair_thickness = 0.0025F + requested.face.hair_thickness * 0.0045F;
     face.hair_volume = 0.003F + requested.face.hair_volume * 0.013F;
     face.hair_brightness = 0.82F + requested.face.hair_brightness * 0.36F;
     face.temple_recession = requested.face.temple_recession * 0.012F;
     face.widow_peak = requested.face.widow_peak * 0.009F;
-    face.hair_color = {0.07F + requested.face.hair_color * 0.60F,
-                       0.05F + requested.face.hair_color * 0.50F,
-                       0.03F + requested.face.hair_color * 0.36F, 1.0F};
+    face.hair_color = {static_cast<float>(0.07 + requested.face.hair_color * 0.60),
+                       static_cast<float>(0.05 + requested.face.hair_color * 0.50),
+                       static_cast<float>(0.03 + requested.face.hair_color * 0.36), 1.0F};
     const auto hair_base = paletteHex(requested.face.hair_color,
         std::array<std::uint32_t, 9U>{0x11100FU, 0x1A1512U, 0x2C1C14U, 0x452A1AU,
                                       0x684125U, 0x8E663BU, 0xB58F58U, 0xD1B578U,
@@ -452,6 +465,96 @@ foundation::Result<PhenotypeArtifact, foundation::Error> PhenotypeResolver::reso
     face.eye_expression_scale = 0.84F + requested.face.eye_expression * 0.34F;
     face.mouth_expression_scale = 0.82F + requested.face.mouth_expression * 0.38F;
     face.brow_expression_scale = 0.84F + requested.face.brow_expression * 0.34F;
+
+    auto& reference_face = face.reference;
+    reference_face.head_width_scale =
+        mix_reference(.86, 1.16, requested.face.head_width) *
+        mix_reference(.97, 1.03, requested.body.head_scale);
+    const double reference_head_width_fit = std::clamp(
+        (reference_face.head_width_scale - .86) / .30, 0.0, 1.0);
+    reference_face.head_depth_scale = mix_reference(.88, 1.14, requested.face.head_depth);
+    reference_face.head_length_scale = mix_reference(.92, 1.10, requested.face.head_length);
+    reference_face.forehead_width_scale =
+        mix_reference(.84, 1.16, requested.face.forehead_width);
+    reference_face.forehead_slope = mix_reference(-.006, .007, requested.face.forehead_slope);
+    reference_face.temple_width_scale = mix_reference(.86, 1.15, requested.face.temple_width);
+    reference_face.brow_ridge = mix_reference(-.002, .0045, requested.face.brow_ridge);
+    reference_face.jaw_width_scale = std::clamp(
+        mix_reference(.74, 1.29, requested.face.jaw_width) *
+            mix_reference(.92, 1.08, reference_head_width_fit),
+        .70, 1.34);
+    const double reference_jaw_width_fit = std::clamp(
+        (reference_face.jaw_width_scale - .70) / .64, 0.0, 1.0);
+    reference_face.jaw_length_scale = mix_reference(.89, 1.12, requested.face.jaw_length);
+    reference_face.jaw_angle = mix_reference(.80, 1.18, requested.face.jaw_angle);
+    reference_face.chin_width_scale = std::clamp(
+        mix_reference(.68, 1.34, requested.face.chin_width) *
+            mix_reference(.91, 1.09, reference_jaw_width_fit),
+        .64, 1.39);
+    reference_face.chin_height = mix_reference(-.005, .006, requested.face.chin_height);
+    reference_face.chin_projection =
+        mix_reference(-.006, .009, requested.face.chin_projection);
+    reference_face.cheekbone_scale =
+        mix_reference(.82, 1.20, requested.face.cheekbone_width);
+    reference_face.cheekbone_y =
+        mix_reference(-.006, .006, requested.face.cheekbone_height);
+    reference_face.cheek_fullness =
+        mix_reference(-.004, .006, requested.face.cheek_fullness);
+    reference_face.midface_projection =
+        mix_reference(-.004, .0065, requested.face.midface_projection);
+    reference_face.eye_spacing =
+        mix_reference(.0164, .0250, requested.face.eye_spacing) *
+        mix_reference(.91, 1.09, reference_head_width_fit);
+    reference_face.eye_width_scale = mix_reference(.78, 1.24, requested.face.eye_width);
+    reference_face.eye_height_scale = mix_reference(.73, 1.28, requested.face.eye_height);
+    reference_face.eye_roundness = mix_reference(.72, 1.28, requested.face.eye_roundness);
+    reference_face.eye_depth = mix_reference(-.0025, .0030, requested.face.eye_depth);
+    reference_face.eye_tilt = mix_reference(-.12, .12, requested.face.eye_tilt);
+    reference_face.eye_y = mix_reference(.935, .945, requested.face.eye_vertical);
+    reference_face.brow_y = reference_face.eye_y + .0034 * reference_face.eye_height_scale +
+                            .008 + mix_reference(-.0005, .0015, requested.face.brow_height);
+    reference_face.brow_thickness =
+        mix_reference(.00055, .00128, requested.face.brow_thickness);
+    reference_face.brow_tilt = mix_reference(-.15, .16, requested.face.brow_tilt);
+    reference_face.brow_spacing = mix_reference(-.003, .0035, requested.face.brow_spacing);
+    reference_face.nose_width_scale =
+        mix_reference(.72, 1.30, requested.face.nose_width) *
+        mix_reference(.91, 1.09, reference_head_width_fit);
+    reference_face.nose_length_scale = mix_reference(.80, 1.22, requested.face.nose_length);
+    reference_face.nose_projection_scale =
+        mix_reference(.76, 1.29, requested.face.nose_projection);
+    reference_face.nose_bridge_scale = mix_reference(.70, 1.30, requested.face.nose_bridge);
+    reference_face.nose_tip_width_scale =
+        mix_reference(.72, 1.31, requested.face.nose_tip_width);
+    reference_face.nose_tip_rotation =
+        mix_reference(-.14, .16, requested.face.nose_tip_rotation);
+    reference_face.nostril_width_scale =
+        mix_reference(.76, 1.28, requested.face.nostril_width);
+    reference_face.mouth_width =
+        mix_reference(.017, .030, requested.face.mouth_width) *
+        mix_reference(.92, 1.08, reference_jaw_width_fit);
+    reference_face.upper_lip = mix_reference(.0012, .0031, requested.face.upper_lip);
+    reference_face.lower_lip = mix_reference(.0013, .0034, requested.face.lower_lip);
+    reference_face.mouth_y =
+        mix_reference(.899, .904, requested.face.mouth_height) +
+        reference_face.chin_height * .30;
+    reference_face.ear_scale = mix_reference(.78, 1.24, requested.face.ear_size);
+    reference_face.ear_angle = mix_reference(-.18, .24, requested.face.ear_angle);
+    reference_face.hair_density = mix_reference(.76, 1.18, requested.face.hair_density);
+    reference_face.hair_thickness =
+        mix_reference(.0025, .0070, requested.face.hair_thickness);
+    reference_face.hair_volume = mix_reference(.003, .016, requested.face.hair_volume);
+    reference_face.hairline = mix_reference(.943, .961, requested.face.hairline);
+    reference_face.temple_recession = mix_reference(0.0, .012, requested.face.temple_recession);
+    reference_face.widow_peak = mix_reference(0.0, .009, requested.face.widow_peak);
+    reference_face.neutral_mouth = mix_reference(-.12, .10, requested.face.resting_mouth);
+    reference_face.eye_asymmetry = (requested.face.eye_height_asymmetry - .5) * .0036;
+    reference_face.brow_asymmetry = (requested.face.brow_height_asymmetry - .5) * .0040;
+    reference_face.mouth_asymmetry = (requested.face.mouth_corner_asymmetry - .5) * .0032;
+    reference_face.ear_asymmetry = (requested.face.ear_asymmetry - .5) * .0038;
+    reference_face.eye_color_hex = face.eye_color_hex;
+    reference_face.hair_color_hex = face.hair_color_hex;
+    reference_face.hair_style = face.hair_style;
     face.hairline_y = std::max(
         face.hairline_y, face.brow_y + body.height * 0.006F);
     const float maximum_eye_spacing = face.jaw_width * 0.42F;

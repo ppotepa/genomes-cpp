@@ -84,6 +84,19 @@ void WorldRegionStreamer::update(WorldPosition observer) {
                      return resident_.find(region.id.value()) == resident_.end();
                  }),
                  ready_.end());
+
+    // A region that left the desired set must not consume worker time until
+    // completion.  Its ticket state is independent of this map entry, so it
+    // is safe to cancel and release the entry; a later re-entry schedules a
+    // fresh request with the same deterministic seed path.
+    for (auto it = pending_.begin(); it != pending_.end();) {
+        if (it->second.wanted) {
+            ++it;
+            continue;
+        }
+        it->second.task.cancel();
+        it = pending_.erase(it);
+    }
 }
 
 void WorldRegionStreamer::poll() {
@@ -102,7 +115,9 @@ void WorldRegionStreamer::poll() {
                                   std::move(*plan)});
             }
         } else {
-            if (pending.task.failed()) {
+            // A no-longer-wanted region is canceled deliberately by update();
+            // that is normal streaming backpressure, not a generation error.
+            if (pending.wanted && pending.task.failed()) {
                 failed_ = true;
                 error_ = pending.task.error();
             }

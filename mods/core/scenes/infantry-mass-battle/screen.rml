@@ -27,6 +27,13 @@
             <button data-action="mass-battle.profile-stress">Stress</button>
           </div>
           <p class="orientation">{{ orientation }}</p>
+          <p class="profile-label">Live animation: {{ live_animation_budget }} / {{ live_animation_limit }}</p>
+          <div class="profile-buttons">
+            <button data-action="mass-battle.animation-decrease">-32</button>
+            <button data-action="mass-battle.animation-increase">+32</button>
+            <button data-action="mass-battle.animation-maximum">Maximum</button>
+          </div>
+          <p class="orientation">{{ live_animation_note }}</p>
         </div>
         <div class="hud-meta">
           <span>{{ seed }}</span>

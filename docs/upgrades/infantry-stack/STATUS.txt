@@ -62,7 +62,10 @@ HISTORYCZNY OPIS UPG-02 (NIEAKTYWNY)
   ścieżki GL; te nazwy i skrypty nie obowiązują bieżącego checkoutu.
 - Bieżący checkout nie zawiera providera threepp ani renderera GL; nie używa się
   starego profilu hybrydowego ani jego zależności.
-- Domena infantry, JS fixture'y, ECS, jobs, genome i numeracja wierzcholkow bez zmian.
+- Domena infantry pozostaje w swoim module; JS fixture'y zachowujemy jako
+  referencje koncepcyjne i artefakty z proweniencja. Nie wymagamy zgodnosci
+  liczbowej ani zgodnosci numeracji JS. Kontrakty i testy C++ definiuja natywne
+  schematy artefaktow, ECS, jobs i genome.
 
 TELEMETRIA: DWA ROZNE KOSZTY
 ---------------------------

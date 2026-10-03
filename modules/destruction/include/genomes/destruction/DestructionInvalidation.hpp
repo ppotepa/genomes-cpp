@@ -41,7 +41,15 @@ public:
     // the queue is unbound (the legacy standalone behavior). Once bound, every
     // emitted event must carry the same semantic revision.
     void bindWorldRevision(std::uint64_t revision) noexcept { world_revision_ = revision; }
-    void clearWorldRevision() noexcept { world_revision_ = 0U; }
+    // Unbinding a world revision invalidates queued work from that revision;
+    // retaining it would allow a later world to consume stale destruction
+    // invalidations.
+    void clearWorldRevision() noexcept {
+        world_revision_ = 0U;
+        for (auto& queue : queues_) {
+            queue.clear();
+        }
+    }
     [[nodiscard]] std::uint64_t worldRevision() const noexcept { return world_revision_; }
 
     // Emits one semantic change and partitions it into all overlapping world regions.

@@ -23,145 +23,6 @@ namespace {
 
 } // namespace
 
-SnapshotExchange::WriteLease::WriteLease(WriteLease&& other) noexcept
-    : owner_{other.owner_}, index_{other.index_} {
-    other.owner_ = nullptr;
-}
-
-SnapshotExchange::WriteLease& SnapshotExchange::WriteLease::operator=(
-    WriteLease&& other) noexcept {
-    if (this != &other) {
-        if (owner_ != nullptr) {
-            owner_->abandonWrite(index_);
-        }
-        owner_ = other.owner_;
-        index_ = other.index_;
-        other.owner_ = nullptr;
-    }
-    return *this;
-}
-
-SnapshotExchange::WriteLease::~WriteLease() {
-    if (owner_ != nullptr) {
-        owner_->abandonWrite(index_);
-    }
-}
-
-PresentationSnapshot& SnapshotExchange::WriteLease::snapshot() noexcept {
-    return owner_->slots_[index_].snapshot;
-}
-
-const PresentationSnapshot& SnapshotExchange::WriteLease::snapshot() const noexcept {
-    return owner_->slots_[index_].snapshot;
-}
-
-SnapshotExchange::ReadLease::ReadLease(ReadLease&& other) noexcept
-    : owner_{other.owner_}, index_{other.index_} {
-    other.owner_ = nullptr;
-}
-
-SnapshotExchange::ReadLease& SnapshotExchange::ReadLease::operator=(ReadLease&& other) noexcept {
-    if (this != &other) {
-        if (owner_ != nullptr) {
-            owner_->releaseRead(index_);
-        }
-        owner_ = other.owner_;
-        index_ = other.index_;
-        other.owner_ = nullptr;
-    }
-    return *this;
-}
-
-SnapshotExchange::ReadLease::~ReadLease() {
-    if (owner_ != nullptr) {
-        owner_->releaseRead(index_);
-    }
-}
-
-const PresentationSnapshot& SnapshotExchange::ReadLease::snapshot() const noexcept {
-    return owner_->slots_[index_].snapshot;
-}
-
-SnapshotExchange::SnapshotExchange(std::uint32_t slot_count) {
-    slot_count = std::clamp<std::uint32_t>(slot_count, 2, 3);
-    slots_.resize(slot_count);
-}
-
-foundation::Result<SnapshotExchange::WriteLease, foundation::Error>
-SnapshotExchange::acquireWrite() noexcept {
-    std::lock_guard lock{mutex_};
-    for (std::size_t offset = 0; offset < slots_.size(); ++offset) {
-        const std::size_t index = (write_cursor_ + offset) % slots_.size();
-        if (slots_[index].state != SnapshotSlotState::Free) {
-            continue;
-        }
-        slots_[index].state = SnapshotSlotState::Writing;
-        write_cursor_ = (index + 1) % slots_.size();
-        slots_[index].snapshot.clear();
-        return foundation::Result<WriteLease, foundation::Error>::success(
-            WriteLease{this, index});
-    }
-    return foundation::Result<WriteLease, foundation::Error>::failure(
-        {foundation::ErrorCode::InvalidState, "presentation snapshot exchange has no free slot"});
-}
-
-foundation::Result<SnapshotExchange::ReadLease, foundation::Error>
-SnapshotExchange::acquireLatestRead() noexcept {
-    std::lock_guard lock{mutex_};
-    if (latest_published_ == InvalidSlot ||
-        slots_[latest_published_].state != SnapshotSlotState::Published) {
-        return foundation::Result<ReadLease, foundation::Error>::failure(
-            {foundation::ErrorCode::NotFound, "presentation snapshot has no readable version"});
-    }
-    slots_[latest_published_].state = SnapshotSlotState::Reading;
-    return foundation::Result<ReadLease, foundation::Error>::success(
-        ReadLease{this, latest_published_});
-}
-
-foundation::Result<void, foundation::Error> SnapshotExchange::publish(WriteLease&& lease) noexcept {
-    std::lock_guard lock{mutex_};
-    if (lease.owner_ != this || lease.index_ >= slots_.size() ||
-        slots_[lease.index_].state != SnapshotSlotState::Writing) {
-        return foundation::Result<void, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidState, "invalid presentation write lease"});
-    }
-    if (latest_published_ != InvalidSlot && latest_published_ != lease.index_ &&
-        slots_[latest_published_].state == SnapshotSlotState::Published) {
-        slots_[latest_published_].state = SnapshotSlotState::Free;
-    }
-    slots_[lease.index_].state = SnapshotSlotState::Published;
-    latest_published_ = lease.index_;
-    ++published_serial_;
-    lease.owner_ = nullptr;
-    return foundation::Result<void, foundation::Error>::success();
-}
-
-std::uint64_t SnapshotExchange::publishedSerial() const noexcept {
-    std::lock_guard lock{mutex_};
-    return published_serial_;
-}
-
-SnapshotSlotState SnapshotExchange::state(std::size_t index) const noexcept {
-    std::lock_guard lock{mutex_};
-    return index < slots_.size() ? slots_[index].state : SnapshotSlotState::Free;
-}
-
-void SnapshotExchange::abandonWrite(std::size_t index) noexcept {
-    std::lock_guard lock{mutex_};
-    if (index < slots_.size() && slots_[index].state == SnapshotSlotState::Writing) {
-        slots_[index].state = SnapshotSlotState::Free;
-    }
-}
-
-void SnapshotExchange::releaseRead(std::size_t index) const noexcept {
-    std::lock_guard lock{mutex_};
-    if (index >= slots_.size() || slots_[index].state != SnapshotSlotState::Reading) {
-        return;
-    }
-    slots_[index].state = latest_published_ == index ? SnapshotSlotState::Published
-                                                      : SnapshotSlotState::Free;
-}
-
 foundation::Result<RenderExtraction, foundation::Error> RenderExtractor::extract(
     const PresentationSnapshot& snapshot) {
     std::unordered_set<foundation::StableId> seen;
@@ -205,14 +66,22 @@ foundation::Result<RenderExtraction, foundation::Error> RenderExtractor::extract
         entry.last_seen = serial;
     }
 
-    for (auto iterator = previous_.begin(); iterator != previous_.end();) {
-        if (iterator->second.last_seen == serial) {
-            ++iterator;
+    std::vector<foundation::StableId> removed;
+    removed.reserve(previous_.size());
+    for (const auto& [id, entry] : previous_) {
+        if (entry.last_seen != serial) {
+            removed.push_back(id);
+        }
+    }
+    std::sort(removed.begin(), removed.end());
+    for (const foundation::StableId id : removed) {
+        const auto iterator = previous_.find(id);
+        if (iterator == previous_.end()) {
             continue;
         }
-        extraction.changes.push_back({RenderChangeKind::Removed, iterator->first,
+        extraction.changes.push_back({RenderChangeKind::Removed, id,
                                       iterator->second.instance});
-        iterator = previous_.erase(iterator);
+        previous_.erase(iterator);
     }
     return foundation::Result<RenderExtraction, foundation::Error>::success(
         std::move(extraction));

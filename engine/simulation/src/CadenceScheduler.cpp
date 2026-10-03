@@ -11,6 +11,12 @@ namespace {
     return std::max<std::uint32_t>(1, period);
 }
 
+[[nodiscard]] constexpr std::uint64_t saturatingAdd(std::uint64_t value,
+                                                    std::uint64_t increment) noexcept {
+    constexpr auto max_value = std::numeric_limits<std::uint64_t>::max();
+    return value > max_value - increment ? max_value : value + increment;
+}
+
 [[nodiscard]] constexpr std::size_t tierIndex(CadenceTier tier) noexcept {
     return static_cast<std::size_t>(tier);
 }
@@ -92,7 +98,8 @@ CadenceDecision evaluateCadence(const CadencePolicy& policy,
         const std::uint32_t remainder =
             static_cast<std::uint32_t>(tick.value % static_cast<std::uint64_t>(period));
         const std::uint32_t offset = (phase + period - remainder) % period;
-        state.next_due_tick = foundation::SimulationTick{tick.value + offset};
+        state.next_due_tick =
+            foundation::SimulationTick{saturatingAdd(tick.value, offset)};
         state.initialized = true;
     }
 
@@ -103,7 +110,8 @@ CadenceDecision evaluateCadence(const CadencePolicy& policy,
     const std::uint64_t elapsed = state.has_run ? tick.value - state.last_run_tick.value : 0;
     state.last_run_tick = tick;
     state.has_run = true;
-    state.next_due_tick = foundation::SimulationTick{tick.value + period};
+    state.next_due_tick =
+        foundation::SimulationTick{saturatingAdd(tick.value, period)};
     return {true, elapsed};
 }
 

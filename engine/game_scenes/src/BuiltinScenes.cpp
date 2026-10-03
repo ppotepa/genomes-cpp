@@ -274,16 +274,24 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
 #if GENOMES_HAS_INFANTRY
         const auto tactical_ai_profile =
             config.tactical_ai_profile.value_or(combat::TacticalAIProfile{});
+        const auto rts_controls = config.rts_controls;
         entries_.push_back({battlefield_id, [active_world_config, tactical_ai_profile,
-                                             building_profile] {
+                                             building_profile, rts_controls] {
             return std::make_unique<game_scenes::BattlefieldScene>(*active_world_config,
                                                       building_profile,
-                                                      tactical_ai_profile);
+                                                      tactical_ai_profile,
+                                                      game_scenes::BattlefieldSceneMode::Tactical,
+                                                      96U, rts_controls);
         }});
 #else
-        entries_.push_back({battlefield_id, [active_world_config, building_profile] {
+        const auto rts_controls = config.rts_controls;
+        entries_.push_back({battlefield_id, [active_world_config, building_profile,
+                                             rts_controls] {
             return std::make_unique<game_scenes::BattlefieldScene>(*active_world_config,
-                                                               building_profile);
+                                                               building_profile,
+                                                               {},
+                                                               game_scenes::BattlefieldSceneMode::Tactical,
+                                                               96U, rts_controls);
         }});
 #endif
     } else {
@@ -293,10 +301,13 @@ BuiltinSceneCatalog::BuiltinSceneCatalog(BuiltinSceneConfig config) {
         }});
     }
     if (config.real_battlefield) {
-        entries_.push_back({mass_battle_id, [active_world_config, building_profile] {
+        entries_.push_back({mass_battle_id, [active_world_config, building_profile,
+                                            live_animation_budget = config.live_animation_budget,
+                                            rts_controls = config.rts_controls] {
             return std::make_unique<game_scenes::BattlefieldScene>(
                 *active_world_config, building_profile, combat::TacticalAIProfile{},
-                game_scenes::BattlefieldSceneMode::InfantryMassBattle);
+                game_scenes::BattlefieldSceneMode::InfantryMassBattle, live_animation_budget,
+                rts_controls);
         }});
     } else {
         entries_.push_back({mass_battle_id, [mass_battle_id] {

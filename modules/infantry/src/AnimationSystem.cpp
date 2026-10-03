@@ -1,4 +1,5 @@
 #include <genomes/infantry/AnimationSystem.hpp>
+#include <genomes/jobs/JobGraph.hpp>
 #include <genomes/infantry/EquipmentFit.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/infantry/TwoBoneIK.hpp>
@@ -13,6 +14,10 @@
 #include <utility>
 
 namespace genomes::infantry {
+
+bool AnimationEvaluationHandle::failed() const noexcept {
+    return completion_.failed() || (error_ != nullptr && error_->has_value());
+}
 
 namespace {
 
@@ -241,6 +246,26 @@ void sampleBipedTargets(AnimationPose& pose, const LocomotionController& control
     }
 }
 
+void constrainBipedHips(std::array<RigTransform,kRigBoneCount>& bones,
+                        const std::array<foundation::Vec3,2U>& foot_targets,
+                        const BodyPhenotype& body) noexcept {
+    auto& hips=bones[boneIndex(BoneId::Hips)];
+    float normalized_y=hips.translation.y/body.height;
+    const float normalized_x=hips.translation.x/body.height;
+    const float normalized_z=hips.translation.z/body.height;
+    for(std::size_t index=0U;index<2U;++index){
+        const float sign=index==0U?1.0F:-1.0F;
+        const auto hip_offset=rotate({sign*.052F*body.hip_width_scale,-.015F,0.0F},hips.rotation);
+        const float dx=foot_targets[index].x-normalized_x-hip_offset.x;
+        const float dz=foot_targets[index].z-normalized_z-hip_offset.z;
+        const float reach=body.anatomy_leg_length/body.height*.992F;
+        const float max_y=foot_targets[index].y+
+            std::sqrt(std::max(.0001F,reach*reach-dx*dx-dz*dz))-hip_offset.y;
+        normalized_y=std::min(normalized_y,max_y);
+    }
+    hips.translation.y=normalized_y*body.height;
+}
+
 void applyReferenceBipedPose(AnimationPose& pose,const LocomotionController& controller,
                              const LocomotionState& state,float time) noexcept {
     constexpr float tau=6.28318530717958647692F;
@@ -391,7 +416,7 @@ void applyProneArmIK(AnimationPose& pose,const LocomotionController& controller,
         auto target=scale(pose.hand_targets[index],height);
         const auto pole=scale(pose.elbow_targets[index],height);
         solveFullFrameChain(pose,skeleton,upper,lower,hand,target,pole,
-                            foundation::Vec3{0,-1,0});
+                            foundation::Vec3{0.0F,-1.0F,0.0F});
         const auto model=modelPose(pose.bones);
         const auto rest_direction=normalized(sub(rest[boneIndex(hand)].world_bind.translation,
             rest[boneIndex(lower)].world_bind.translation),{0,-1,0});
@@ -414,8 +439,14 @@ void applyProneArmIK(AnimationPose& pose,const LocomotionController& controller,
     std::vector<std::uint32_t> selected;
     const std::string_view boot_tag=tag_name=="sole.L"?"boot.L":"boot.R";
     for(const auto& tag:surface->tags)
-        if(tag.name==tag_name||tag.name==boot_tag||tag.name=="bootLeather")
+        if(tag.name==tag_name)
             selected.insert(selected.end(),tag.vertices.begin(),tag.vertices.end());
+    for(const auto& tag:surface->tags){
+        if(tag.name!=boot_tag)continue;
+        const std::size_t step=std::max<std::size_t>(1U,tag.vertices.size()/64U);
+        for(std::size_t index=0U;index<tag.vertices.size();index+=step)
+            selected.push_back(tag.vertices[index]);
+    }
     if(selected.empty())return {0.0F,-height*.045F,0.0F};
     foundation::Vec3 best{};float minimum=std::numeric_limits<float>::infinity();
     for(const auto vertex_index:selected){
@@ -427,6 +458,46 @@ void applyProneArmIK(AnimationPose& pose,const LocomotionController& controller,
     }
     if(std::isfinite(minimum))return rotate(best,foot_model);
     return foundation::Vec3{0.0F,-height*.045F,0.0F};
+}
+
+[[nodiscard]] RigQuaternion proneHandModelRotation(const SkeletonData& skeleton,
+                                                    std::size_t side) noexcept {
+    const BoneId lower = side == 0U ? BoneId::ForeArmL : BoneId::ForeArmR;
+    const BoneId hand = side == 0U ? BoneId::HandL : BoneId::HandR;
+    const auto bones = skeleton.bones();
+    const auto direction = normalized(sub(bones[boneIndex(hand)].world_bind.translation,
+                                          bones[boneIndex(lower)].world_bind.translation),
+                                      {0.0F, -1.0F, 0.0F});
+    const foundation::Vec3 bind_z{0.0F, 0.0F, 1.0F};
+    const auto bind_x = normalized(cross(direction, bind_z), {1.0F, 0.0F, 0.0F});
+    const auto bind_frame = basisQuaternion(bind_x, direction, bind_z);
+    const auto ground_frame = basisQuaternion({1.0F, 0.0F, 0.0F},
+                                               {0.0F, 0.0F, 1.0F},
+                                               {0.0F, -1.0F, 0.0F});
+    return multiply(ground_frame, inverse(bind_frame));
+}
+
+[[nodiscard]] foundation::Vec3 proneHandSupportOffset(const AppearanceMesh* surface,
+                                                       std::string_view tag_name,
+                                                       foundation::Vec3 bone_point,
+                                                       RigQuaternion hand_model) noexcept {
+    if (surface == nullptr) return {0.0F, -0.01F, 0.0F};
+    foundation::Vec3 best{};
+    float minimum = std::numeric_limits<float>::infinity();
+    for (const auto& tag : surface->tags) {
+        if (tag.name != tag_name) continue;
+        for (const std::uint32_t vertex_index : tag.vertices) {
+            if (vertex_index >= surface->vertices.size()) continue;
+            const auto local = sub(surface->vertices[vertex_index].position, bone_point);
+            const auto rotated = rotate(local, hand_model);
+            if (rotated.y < minimum) {
+                minimum = rotated.y;
+                best = local;
+            }
+        }
+    }
+    return std::isfinite(minimum) ? rotate(best, hand_model)
+                                  : foundation::Vec3{0.0F, -0.01F, 0.0F};
 }
 
 void appendClearanceSupport(std::array<foundation::Vec3, 4U>& supports,
@@ -558,6 +629,58 @@ void applyBipedLegIK(AnimationPose& pose,const LocomotionController& controller,
     }
 }
 
+void applyBipedBootClearanceIK(AnimationPose& pose,const AnimationEntity& entity,
+                               const LocomotionController& controller) noexcept {
+    if (!entity.ground_surface.valid() || entity.surface == nullptr) return;
+    const auto& skeleton = *entity.skeleton;
+    const auto& surface = *entity.surface;
+    const float height = controller.body().height;
+    for (std::size_t side = 0U; side < 2U; ++side) {
+        const BoneId thigh = side == 0U ? BoneId::ThighL : BoneId::ThighR;
+        const BoneId shin = side == 0U ? BoneId::ShinL : BoneId::ShinR;
+        const BoneId foot = side == 0U ? BoneId::FootL : BoneId::FootR;
+        const std::string_view sole_name = side == 0U ? "sole.L" : "sole.R";
+        const std::string_view boot_name = side == 0U ? "boot.L" : "boot.R";
+        std::vector<std::uint32_t> supports;
+        for (const auto& tag : surface.tags) {
+            if (tag.name == sole_name) {
+                supports.insert(supports.end(), tag.vertices.begin(), tag.vertices.end());
+            } else if (tag.name == boot_name) {
+                const std::size_t step = std::max<std::size_t>(1U,
+                    tag.vertices.size() / 64U);
+                for (std::size_t index = 0U; index < tag.vertices.size(); index += step)
+                    supports.push_back(tag.vertices[index]);
+            }
+        }
+        for (std::size_t pass = 0U; pass < 2U; ++pass) {
+            const auto model = modelPose(pose.bones);
+            float minimum_clearance = std::numeric_limits<float>::infinity();
+            for (const std::uint32_t vertex_index : supports) {
+                if (vertex_index >= surface.vertices.size()) continue;
+                const auto local = skinnedPoint(surface.vertices[vertex_index], skeleton, model);
+                const auto world = add(entity.root_position, local);
+                GroundSample sample{};
+                if (!entity.ground_surface.sample(entity.ground_surface.context, world, sample) ||
+                    !std::isfinite(sample.height) || !finite(sample.normal) ||
+                    sample.normal.y <= 0.0F) continue;
+                minimum_clearance = std::min(minimum_clearance, world.y - sample.height);
+            }
+            if (!std::isfinite(minimum_clearance) || minimum_clearance >= 0.0006F) break;
+            const float correction = std::min(0.045F * height, 0.001F - minimum_clearance);
+            pose.foot_goals[side].y += correction;
+            solveFullFrameChain(pose, skeleton, thigh, shin, foot,
+                pose.foot_goals[side], scale(pose.knee_targets[side], height));
+            const auto corrected = modelPose(pose.bones);
+            const auto lower = corrected.rotations[boneIndex(shin)];
+            const auto ground = eulerXYZ(pose.foot_pitch[side], pose.foot_yaw[side], 0.0F);
+            const auto shin_relative = multiply(lower,
+                eulerXYZ(pose.ankle_pitch[side], pose.ankle_yaw[side], 0.0F));
+            const auto foot_model = slerp(ground, shin_relative, pose.foot_relative[side]);
+            pose.bones[boneIndex(foot)].rotation = multiply(inverse(lower), foot_model);
+        }
+    }
+}
+
 [[nodiscard]] bool applyProneGroundContact(AnimationPose& pose,
                                             const AnimationEntity& entity,
                                             const LocomotionController& controller,
@@ -613,7 +736,11 @@ void applyBipedLegIK(AnimationPose& pose,const LocomotionController& controller,
                                                     contacts_enabled, max_drift,
                                                     foot_phase, stance);
         }
-        pose.foot_targets[index] = scale(sub(target, entity.root_position), 1.0F / height);
+        // A treadmill suppresses planted-contact reanchoring but preserves the
+        // authored ankle trajectory; the surface still supplies its normal.
+        if (!state.treadmill) {
+            pose.foot_targets[index] = scale(sub(target, entity.root_position), 1.0F / height);
+        }
         // Align the sole with the sampled terrain normal while preserving the
         // authored toe/foot progression from PostureProfile.
         const auto& normal = output.feet[index].normal;
@@ -830,15 +957,6 @@ struct ProneTerrainSample final {
     const bool contacts_enabled = !state.treadmill && !state.turning &&
                                   std::abs(state.turn_rate) < 0.32F;
     constexpr float max_drift = 0.60F;
-    float highest_contact = entity.root_position.y;
-    for (const auto& sample : samples)
-        highest_contact = std::max(highest_contact, sample.target.y);
-    const float body_floor = entity.root_position.y +
-                             pose.bones[boneIndex(BoneId::Hips)].translation.y -
-                             height * 0.055F;
-    pose.bones[boneIndex(BoneId::Hips)].translation.y +=
-        std::clamp(highest_contact - body_floor, 0.0F, 0.20F);
-
     for (std::size_t index = 0U; index < 2U; ++index) {
         foundation::Vec3 foot_target = samples[index].target;
         if (entity.ground_runtime != nullptr) {
@@ -872,13 +990,22 @@ struct ProneTerrainSample final {
                                                               contacts_enabled, max_drift,
                                                               phase, stance);
         }
+        const BoneId hand = index == 0U ? BoneId::HandL : BoneId::HandR;
+        const auto hand_offset = proneHandSupportOffset(
+            entity.surface, index == 0U ? "hand.L" : "hand.R",
+            entity.skeleton->bones()[boneIndex(hand)].world_bind.translation,
+            proneHandModelRotation(*entity.skeleton, index));
+        hand_target.y += 0.002F - height * 0.001F - hand_offset.y +
+                         pose.hand_lift[index] * height;
         pose.hand_targets[index] = scale(sub(hand_target, entity.root_position),
                                          1.0F / height);
     }
+
     return true;
 }
 
-void applyProneContactIK(AnimationPose& pose, const LocomotionController& controller,
+void applyProneContactIK(AnimationPose& pose, const AnimationEntity& entity,
+                         const LocomotionController& controller,
                          const SkeletonData& skeleton) noexcept {
     const float height = controller.body().height;
     for (std::size_t index = 0U; index < 2U; ++index) {
@@ -890,6 +1017,99 @@ void applyProneContactIK(AnimationPose& pose, const LocomotionController& contro
                             scale(pose.knee_targets[index], height));
     }
     applyProneArmIK(pose, controller, skeleton);
+    if (entity.surface == nullptr || !entity.ground_surface.valid()) return;
+    for (std::size_t side = 0U; side < 2U; ++side) {
+        const std::string_view tag_name = side == 0U ? "sleeve.L" : "sleeve.R";
+        for (std::size_t pass = 0U; pass < 2U; ++pass) {
+            const ModelPose posed = modelPose(pose.bones);
+            float minimum_clearance = std::numeric_limits<float>::infinity();
+            for (const auto& tag : entity.surface->tags) {
+                if (tag.name != tag_name) continue;
+                const std::size_t step = std::max<std::size_t>(
+                    1U, tag.vertices.size() / 60U);
+                for (std::size_t index = 0U; index < tag.vertices.size(); index += step) {
+                    const std::uint32_t vertex_index = tag.vertices[index];
+                    if (vertex_index >= entity.surface->vertices.size()) continue;
+                    const auto point = add(entity.root_position, skinnedPoint(
+                        entity.surface->vertices[vertex_index], skeleton, posed));
+                    GroundSample ground{};
+                    if (entity.ground_surface.sample(entity.ground_surface.context, point,
+                                                     ground) && std::isfinite(ground.height)) {
+                        minimum_clearance = std::min(minimum_clearance,
+                                                     point.y - ground.height);
+                    }
+                }
+            }
+            if (!std::isfinite(minimum_clearance) || minimum_clearance >= 0.001F) break;
+            const float correction = std::min(0.080F * height,
+                                               3.2F * (0.002F - minimum_clearance));
+            pose.elbow_targets[side].y += correction / height;
+            applyProneArmIK(pose, controller, skeleton);
+        }
+    }
+}
+
+void applyProneBodyClearance(AnimationPose& pose, const AnimationEntity& entity,
+                             const LocomotionController& controller,
+                             const SkeletonData& skeleton) noexcept {
+    if (entity.surface == nullptr || !entity.ground_surface.valid()) return;
+    constexpr std::array<std::pair<std::string_view, std::size_t>, 7U> body_supports{{
+        {"jacket", 38U}, {"head", 38U}, {"neck", 38U}, {"leg.L", 28U},
+        {"sleeve.L", 60U}, {"leg.R", 28U}, {"sleeve.R", 60U}}};
+    const ModelPose posed = modelPose(pose.bones);
+    float minimum_clearance = std::numeric_limits<float>::infinity();
+    for (const auto& [name, sample_count] : body_supports) {
+        for (const auto& tag : entity.surface->tags) {
+            if (tag.name != name) continue;
+            const std::size_t step = std::max<std::size_t>(1U,
+                                                           tag.vertices.size() / sample_count);
+            for (std::size_t index = 0U; index < tag.vertices.size(); index += step) {
+                const std::uint32_t vertex_index = tag.vertices[index];
+                if (vertex_index >= entity.surface->vertices.size()) continue;
+                const auto point = add(entity.root_position, skinnedPoint(
+                    entity.surface->vertices[vertex_index], skeleton, posed));
+                GroundSample ground{};
+                if (entity.ground_surface.sample(entity.ground_surface.context, point, ground) &&
+                    std::isfinite(ground.height)) {
+                    minimum_clearance = std::min(minimum_clearance,
+                                                  point.y - ground.height);
+                }
+            }
+        }
+    }
+    if (entity.gear != nullptr) {
+        const float fit_height = std::isfinite(entity.gear->fit.height) &&
+                                 entity.gear->fit.height > 0.0F
+            ? entity.gear->fit.height : 1.0F;
+        const auto bones = skeleton.bones();
+        for (const auto& piece : entity.gear->pieces) {
+            const std::size_t bone = boneIndex(piece.bone);
+            if (bone >= bones.size() || !finite(piece.center) || !finite(piece.dimensions) ||
+                piece.dimensions.y <= 0.0F) continue;
+            const auto center = scale(piece.center, fit_height);
+            const auto half = scale(piece.dimensions, fit_height * 0.5F);
+            for (const float x : {-half.x, half.x}) {
+                for (const float z : {-half.z, half.z}) {
+                    const auto local = poseBindPoint(
+                        {center.x + x, center.y - half.y, center.z + z}, piece.bone,
+                        skeleton, posed);
+                    const auto point = add(entity.root_position, local);
+                    GroundSample ground{};
+                    if (entity.ground_surface.sample(entity.ground_surface.context, point,
+                                                     ground) && std::isfinite(ground.height)) {
+                        minimum_clearance = std::min(minimum_clearance,
+                                                     point.y - ground.height);
+                    }
+                }
+            }
+        }
+    }
+    if (!std::isfinite(minimum_clearance)) return;
+    const float body_lift = std::clamp(0.001F - minimum_clearance,
+                                       0.0F, controller.body().height * 0.085F);
+    if (!(body_lift > 0.0F)) return;
+    pose.bones[boneIndex(BoneId::Hips)].translation.y += body_lift;
+    applyProneContactIK(pose, entity, controller, skeleton);
 }
 
 [[nodiscard]] bool proneState(AnimationState state) noexcept;
@@ -929,12 +1149,16 @@ void dampBody(AnimationBodyPose& current, const AnimationBodyPose& target, float
     current.foot_targets = target.foot_targets; current.knee_targets = target.knee_targets;
     current.hand_targets = target.hand_targets; current.elbow_targets = target.elbow_targets;
     for (std::size_t side = 0U; side < 2U; ++side) {
-#define DAMP_CHANNEL(name) current.name[side] = mix(current.name[side], target.name[side], scalar_alpha)
-        DAMP_CHANNEL(foot_plant); DAMP_CHANNEL(foot_support); DAMP_CHANNEL(foot_pitch);
-        DAMP_CHANNEL(toe_pitch); DAMP_CHANNEL(foot_yaw); DAMP_CHANNEL(hand_plant);
-        DAMP_CHANNEL(hand_lift); DAMP_CHANNEL(foot_relative); DAMP_CHANNEL(ankle_pitch);
-        DAMP_CHANNEL(ankle_yaw);
-#undef DAMP_CHANNEL
+        current.foot_plant[side] = target.foot_plant[side];
+        current.foot_support[side] = target.foot_support[side];
+        current.foot_pitch[side] = target.foot_pitch[side];
+        current.toe_pitch[side] = target.toe_pitch[side];
+        current.foot_yaw[side] = target.foot_yaw[side];
+        current.hand_plant[side] = target.hand_plant[side];
+        current.hand_lift[side] = target.hand_lift[side];
+        current.foot_relative[side] = target.foot_relative[side];
+        current.ankle_pitch[side] = target.ankle_pitch[side];
+        current.ankle_yaw[side] = target.ankle_yaw[side];
     }
     current.hand_curl = mix(current.hand_curl, target.hand_curl, scalar_alpha);
     current.prone_weight = mix(current.prone_weight, target.prone_weight, scalar_alpha);
@@ -995,12 +1219,27 @@ void updateRuntime(AnimationEntity& entity, float time, float dt) noexcept {
         runtime.reset(); runtime.initialized = true; runtime.profile = state.transition_request_profile;
         runtime.requested_state = state.requested_state; runtime.settled_state = state.requested_state;
         runtime.handled_request_revision = state.animation_request_revision;
-        runtime.current = sample(AnimationTransitionStage::Target, state.requested_state);
+        // setState(immediate) in the reference samples the current pose before
+        // the first update, whose motion speed has not yet been supplied.
+        LocomotionState initial_state = state;
+        initial_state.phase = 0.0;
+        initial_state.actual_speed_mps = 0.0F;
+        initial_state.amplitude = 0.0F;
+        initial_state.settling = false;
+        AnimationEntity initial_entity = entity;
+        initial_entity.locomotion_state = &initial_state;
+        runtime.current = sampleBody(initial_entity, AnimationTransitionStage::Target,
+                                     state.requested_state, std::max(0.0F, time - dt));
         runtime.stage_from = runtime.stage_target = runtime.current;
         state.active_state = state.requested_state; state.transition_active = false;
         state.transition_stage = AnimationTransitionStage::None;
         state.transition_progress = state.transition_stage_progress = 1.0F;
         state.animation_snap_requested = false;
+        dampBody(runtime.current, sampleSettledBody(entity, state.requested_state, time), dt);
+        if (state.family == LocomotionFamily::Biped) {
+            constrainBipedHips(runtime.current.bones, runtime.current.foot_targets,
+                               entity.locomotion->body());
+        }
         return;
     }
     if (runtime.handled_request_revision != state.animation_request_revision) {
@@ -1065,6 +1304,10 @@ void updateRuntime(AnimationEntity& entity, float time, float dt) noexcept {
             ? std::clamp(runtime.stage_elapsed / step.duration, 0.0F, 1.0F) : 1.0F;
         dampBody(runtime.current, blendBody(runtime.stage_from, runtime.stage_target,
                                             smooth5(local)), dt);
+    }
+    if (state.family == LocomotionFamily::Biped) {
+        constrainBipedHips(runtime.current.bones, runtime.current.foot_targets,
+                           entity.locomotion->body());
     }
     state.transition_active = runtime.active;
     state.transition_stage = runtime.active ? runtime.schedule[runtime.stage_index].stage
@@ -1244,7 +1487,7 @@ void applyPostLookHeadClearance(AnimationPose& pose, const AnimationEntity& enti
     if (!(lift > 0.0F)) return;
     pose.bones[boneIndex(BoneId::Hips)].translation.y += lift;
     if (proneState(pose.active_state))
-        applyProneContactIK(pose, controller, skeleton);
+        applyProneContactIK(pose, entity, controller, skeleton);
     else if (pose.active_state == AnimationState::IDLE ||
              pose.active_state == AnimationState::WALK ||
              pose.active_state == AnimationState::RUN ||
@@ -1420,11 +1663,48 @@ foundation::Result<AnimationSystem, foundation::Error> AnimationSystem::create(
         AnimationSystem(chunk_size));
 }
 
+AnimationEvaluationHandle AnimationSystem::evaluateAsync(
+    AnimationWorkSet work,
+    jobs::JobSystem& jobs,
+    jobs::CancelToken cancellation,
+    PresentationBudget budget) {
+    if (work.entities.size() > budget.max_entities) {
+        work.entities.resize(budget.max_entities);
+    }
+    auto error = std::make_shared<std::optional<foundation::Error>>();
+    auto group = std::make_shared<jobs::JobGroup>(jobs);
+    jobs::JobOptions options;
+    // Animation::evaluate retains its compatibility synchronous wrapper, but
+    // the asynchronous presentation entry point is scheduled on the owner
+    // lane. Its chunk barrier therefore cannot consume a worker while waiting
+    // for child work; the same central scheduler still executes the chunks.
+    options.lane = jobs::ExecutionLane::Main;
+    options.work_class = jobs::WorkClass::Presentation;
+    options.cancellation = cancellation;
+    jobs::JobSystem* scheduler = &jobs;
+    (void)group->submit(
+        [this, work = std::move(work), error, group, scheduler, cancellation](
+            jobs::JobContext&) mutable {
+            (void)group;
+            // The evaluator's chunk work is submitted to the same central
+            // scheduler. JobGroup::wait is cooperative on a worker, so this
+            // preserves parallel chunk evaluation without creating a private
+            // pool or blocking an available worker thread.
+            const auto result = evaluate(std::move(work), scheduler, cancellation);
+            if (!result) {
+                *error = result.error();
+            }
+        },
+        options);
+    return AnimationEvaluationHandle(group->completion(), std::move(error));
+}
+
 foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
     std::span<AnimationEntity> entities,
     std::uint64_t simulation_tick,
     float fixed_dt_seconds,
-    jobs::JobSystem* jobs) {
+    jobs::JobSystem* jobs,
+    jobs::CancelToken cancellation) {
     if (!finite(fixed_dt_seconds) || fixed_dt_seconds <= 0.0F || fixed_dt_seconds > 0.25F) {
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument, "invalid animation fixed interval"});
@@ -1470,20 +1750,29 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
     }
 
     const std::size_t chunk_count =
-        entities.empty() ? 0U : (entities.size() + chunk_size_ - 1U) / chunk_size_;
+        entities.empty() ? 0U : entities.size() / chunk_size_ +
+            (entities.size() % chunk_size_ != 0U ? 1U : 0U);
     std::atomic<bool> failed{false};
     std::mutex error_mutex;
+    std::size_t first_error_index = std::numeric_limits<std::size_t>::max();
     foundation::Error first_error{};
+    const auto recordError = [&](std::size_t index, foundation::Error error) noexcept {
+        std::lock_guard lock(error_mutex);
+        failed.store(true, std::memory_order_release);
+        if (index < first_error_index) {
+            first_error_index = index;
+            first_error = std::move(error);
+        }
+    };
 
     const auto processRange = [&](std::size_t begin, std::size_t end) noexcept {
         for (std::size_t index = begin; index < end; ++index) {
-            if (failed.load(std::memory_order_acquire)) {
-                continue;
-            }
             AnimationEntity& entity = entities[index];
             const float animation_time =
                 static_cast<float>(simulation_tick + 1U) * fixed_dt_seconds;
-            updateRuntime(entity, animation_time, fixed_dt_seconds);
+            const float transition_dt = fixed_dt_seconds * static_cast<float>(
+                std::min<std::uint64_t>(work[index].elapsed_ticks, 1024U));
+            updateRuntime(entity, animation_time, transition_dt);
             if (!work[index].due) continue;
             AnimationPose& pose = current_.poses[index];
             const PostureSample posture = entity.locomotion->posture(*entity.locomotion_state);
@@ -1504,11 +1793,8 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
             pose.evaluated = true;
             const auto bones = entity.skeleton->bones();
             if (bones.size() != kRigBoneCount) {
-                std::lock_guard lock(error_mutex);
-                if (!failed.exchange(true, std::memory_order_acq_rel)) {
-                    first_error = {foundation::ErrorCode::InvalidState,
-                                   "animation skeleton does not match rig schema"};
-                }
+                recordError(index, {foundation::ErrorCode::InvalidState,
+                                    "animation skeleton does not match rig schema"});
                 continue;
             }
             copyBody(pose, entity.transition_runtime->current);
@@ -1524,13 +1810,17 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
                                     entity.transition_runtime->stage_target, smooth5(local));
             }
             pose.target_bones = desired.bones;
+            pose.target_hand_curl = desired.hand_curl;
             if (pose.transition_stage != AnimationTransitionStage::Support) {
                 const bool ground_applied = applyGroundContact(
                     pose, entity, *entity.locomotion, *entity.locomotion_state);
                 if (!proneState(pose.active_state)) {
                     applyBipedLegIK(pose, *entity.locomotion, *entity.skeleton, entity.surface);
+                    applyBipedBootClearanceIK(pose, entity, *entity.locomotion);
                 } else if (ground_applied) {
-                    applyProneContactIK(pose, *entity.locomotion, *entity.skeleton);
+                    applyProneContactIK(pose, entity, *entity.locomotion, *entity.skeleton);
+                    applyProneBodyClearance(pose, entity, *entity.locomotion,
+                                            *entity.skeleton);
                 }
             }
             applyWeaponOverlay(pose, entity, *entity.locomotion, *entity.skeleton);
@@ -1539,11 +1829,8 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
             const AnimationLODSpec spec = entity.lod.spec();
             if (entity.face != nullptr && spec.evaluate_face) {
                 if (!entity.face->setLookTarget(entity.look_target, entity.root_position)) {
-                    std::lock_guard lock(error_mutex);
-                    if (!failed.exchange(true, std::memory_order_acq_rel)) {
-                        first_error = {foundation::ErrorCode::InvalidState,
-                                       "face look target rejected by animation stage"};
-                    }
+                    recordError(index, {foundation::ErrorCode::InvalidState,
+                                        "face look target rejected by animation stage"});
                     continue;
                 }
                 float remaining = fixed_dt_seconds *
@@ -1552,11 +1839,8 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
                 while (remaining > 0.0F) {
                     const float step = std::min(remaining, 0.25F);
                     if (!entity.face->step(step)) {
-                        std::lock_guard lock(error_mutex);
-                        if (!failed.exchange(true, std::memory_order_acq_rel)) {
-                            first_error = {foundation::ErrorCode::InvalidState,
-                                           "face animation stage rejected fixed interval"};
-                        }
+                        recordError(index, {foundation::ErrorCode::InvalidState,
+                                            "face animation stage rejected fixed interval"});
                         break;
                     }
                     remaining -= step;
@@ -1574,20 +1858,22 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
     };
 
     if (jobs != nullptr && chunk_count > 1U) {
-        std::vector<jobs::JobHandle> handles;
-        handles.reserve(chunk_count);
+        jobs::JobGraphBuilder graph;
+        std::vector<jobs::JobGraphNode> chunks;
+        chunks.reserve(chunk_count);
         for (std::size_t chunk = 0U; chunk < chunk_count; ++chunk) {
             const std::size_t begin = chunk * chunk_size_;
-            const std::size_t end = std::min(begin + chunk_size_, entities.size());
-            handles.push_back(jobs->submit([&, begin, end](jobs::JobContext&) {
-                processRange(begin, end);
-            }));
+            const std::size_t end = begin + std::min(entities.size() - begin, chunk_size_);
+            jobs::JobOptions options;
+            options.work_class = jobs::WorkClass::Presentation;
+            options.cancellation = cancellation;
+            chunks.push_back(graph.add(
+                [&, begin, end](jobs::JobContext&) { processRange(begin, end); }, options));
         }
-        for (const jobs::JobHandle& handle : handles) {
-            jobs->wait(handle);
-            if (handle.failed()) {
-                failed.store(true, std::memory_order_release);
-            }
+        auto completion = std::move(graph).build().run(*jobs);
+        completion.wait();
+        if (completion.failed()) {
+            failed.store(true, std::memory_order_release);
         }
     } else {
         processRange(0U, entities.size());

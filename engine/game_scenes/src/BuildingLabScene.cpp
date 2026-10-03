@@ -1,5 +1,7 @@
 #include <genomes/game_scenes/BuildingLabScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
+#include <genomes/buildings/BuildingProcedural.hpp>
+#include <genomes/gameplay/ProductionGenerators.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -66,6 +68,12 @@ foundation::SceneId BuildingLabScene::id() const noexcept {
 }
 
 void BuildingLabScene::on_enter(SceneContext& context) {
+    if (generation_ticket_.valid()) {
+        generation_ticket_.cancel();
+        generation_ticket_.wait();
+        generation_ticket_ = {};
+    }
+    generation_channel_ = proc::GenerationChannel{};
     elapsed_seconds_ = 0.0;
     selected_part_ = 0;
     error_.clear();
@@ -78,11 +86,53 @@ void BuildingLabScene::on_enter(SceneContext& context) {
         return;
     }
     const buildings::BuildingSpec spec = building_profile_->labPreview().instantiate(seed_);
-    const auto generated = buildings::BuildingGenerator::generate(spec);
+    if (context.scheduler != nullptr) {
+        auto registry = gameplay::makeProductionGeneratorRegistry();
+        if (registry) {
+            procedural_registry_ = std::move(registry.value());
+            procedural_runtime_ = std::make_unique<proc::ProceduralRuntime>(
+                procedural_registry_, *context.scheduler);
+        }
+    }
+    if (procedural_runtime_ != nullptr && !context.deterministic_capture) {
+        proc::GenerationRequest<buildings::BuildingSpec, buildings::BuildingPlan> request;
+        request.generator = proc::generatorId("buildings.plan");
+        request.input = std::make_shared<const buildings::BuildingSpec>(spec);
+        request.seed_path = proc::SeedPath(spec.seed);
+        request.options.input_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
+        request.options.retained_bytes = sizeof(buildings::BuildingPlan);
+        generation_ticket_ = procedural_runtime_->request(std::move(request), &generation_channel_);
+        context.ui.clear();
+        return;
+    }
+
+    foundation::Result<std::shared_ptr<const buildings::BuildingPlan>, foundation::Error> generated =
+        foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
+                           foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "procedural runtime is unavailable"});
+    if (procedural_runtime_ != nullptr) {
+        proc::GenerationRequest<buildings::BuildingSpec, buildings::BuildingPlan> request;
+        request.generator = proc::generatorId("buildings.plan");
+        request.input = std::make_shared<const buildings::BuildingSpec>(spec);
+        request.seed_path = proc::SeedPath(spec.seed);
+        request.options.input_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
+        request.options.retained_bytes = sizeof(buildings::BuildingPlan);
+        generated = procedural_runtime_->generateInline(request);
+    } else {
+        auto legacy = buildings::BuildingGenerator::generate(spec);
+        if (legacy) {
+            generated = foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
+                                           foundation::Error>::success(
+                std::make_shared<const buildings::BuildingPlan>(std::move(legacy.value())));
+        } else {
+            generated = foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
+                                           foundation::Error>::failure(legacy.error());
+        }
+    }
     if (!generated) {
         error_ = generated.error().message;
     } else {
-        plan_ = generated.value();
+        plan_ = *generated.value();
         runtime_ = std::make_unique<buildings::BuildingRuntime>(plan_);
         rebuild_mesh();
     }
@@ -90,6 +140,12 @@ void BuildingLabScene::on_enter(SceneContext& context) {
 }
 
 void BuildingLabScene::on_exit(SceneContext&) {
+    if (generation_ticket_.valid()) {
+        generation_ticket_.wait();
+        generation_ticket_ = {};
+    }
+    procedural_runtime_.reset();
+    procedural_registry_ = {};
     runtime_.reset();
     render_mesh_.reset();
     plan_ = {};
@@ -119,6 +175,18 @@ void BuildingLabScene::fixed_update(SceneContext&, double dt) {
 }
 
 void BuildingLabScene::frame_update(SceneContext& context, double) {
+    if (generation_ticket_.valid() && generation_ticket_.complete()) {
+        if (generation_ticket_.status() == proc::GenerationStatus::Completed) {
+            if (const auto generated = generation_ticket_.artifact(); generated) {
+                plan_ = *generated;
+                runtime_ = std::make_unique<buildings::BuildingRuntime>(plan_);
+                rebuild_mesh();
+            }
+        } else {
+            error_ = std::string(generation_ticket_.error().message);
+        }
+        generation_ticket_ = {};
+    }
     context.ui.clear();
     auto& model = context.ui.model();
     (void)model.set("title", std::string{"Procedural building plan and damage runtime"});
