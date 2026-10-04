@@ -5,6 +5,7 @@
 #include <genomes/terrain/TerrainProcedural.hpp>
 #include <genomes/world/CityPlan.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
+#include <genomes/foundation/StableHash.hpp>
 
 #include <memory>
 
@@ -49,6 +50,15 @@ makeProductionGeneratorRegistry() {
                 return foundation::Result<std::shared_ptr<const roads::RoadGraph>,
                                           foundation::Error>::success(
                     std::make_shared<const roads::RoadGraph>(generated.value().road_graph));
+            },
+            [](const world::CityGenerationRequest& request) {
+                std::uint64_t hash = foundation::stableHashU64(request.seed);
+                hash = foundation::stableHashCombine(hash, request.map_size_m);
+                hash = foundation::stableHashCombine(
+                    hash, foundation::stableHashFloat(request.buildings));
+                hash = foundation::stableHashCombine(
+                    hash, foundation::stableHashFloat(request.fenced_parcels));
+                return hash;
             }));
         !result) {
         return foundation::Result<proc::GeneratorRegistry, foundation::Error>::failure(
