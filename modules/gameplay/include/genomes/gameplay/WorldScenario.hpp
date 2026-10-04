@@ -6,6 +6,7 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/destruction/DestructionInvalidation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/terrain/HeightField.hpp>
@@ -111,8 +112,12 @@ public:
                            std::shared_ptr<proc::ArtifactCache> cache = {},
                            proc::GeneratorRegistry registry = {},
                            proc::ProceduralRuntime* shared_runtime = nullptr) noexcept
-        : jobs_(jobs), generation_service_(jobs, std::move(cache), std::move(registry),
-                                            shared_runtime),
+        : generation_service_(jobs, std::move(cache), std::move(registry), shared_runtime),
+          building_profile_(std::move(building_profile)) {}
+
+    WorldScenario(proc::GenerationClient generation,
+                  std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile) noexcept
+        : generation_service_(generation),
           building_profile_(std::move(building_profile)) {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> requestNew(
@@ -137,7 +142,7 @@ public:
     [[nodiscard]] WorldSemanticSnapshot semanticSnapshot() const noexcept;
     [[nodiscard]] const WorldScenarioStatus& status() const noexcept { return status_; }
     [[nodiscard]] proc::ProceduralRuntimeTelemetry proceduralTelemetry() const noexcept {
-        return generation_service_.runtime()->telemetry();
+        return generation_service_.generation().telemetry();
     }
 
     // Compile a generated plan into the same immutable, revision-bound handoff
@@ -154,10 +159,9 @@ private:
     compileArtifactImpl(world::WorldPlan plan,
                         const world::WorldGenerationRequest& request,
                         const buildings::FrozenBuildingProfile& building_profile,
-                        proc::ProceduralRuntime* procedural_runtime,
+                        proc::GenerationClient* generation,
                         proc::GenerationContext* generation_context);
 
-    jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;
     proc::GenerationChannel generation_channel_;
     std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile_;

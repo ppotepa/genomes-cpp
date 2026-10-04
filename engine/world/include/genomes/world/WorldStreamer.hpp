@@ -4,6 +4,7 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
 #include <genomes/world/WorldPosition.hpp>
@@ -91,6 +92,9 @@ public:
                    WorldCoordinateConfig coordinates, jobs::JobSystem& jobs,
                    WorldStreamerConfig config = {},
                    proc::GeneratorRegistry registry = {});
+    WorldStreamer(WorldId world_id, WorldGenerationRequest request,
+                  WorldCoordinateConfig coordinates, proc::GenerationClient generation,
+                  WorldStreamerConfig config = {});
     ~WorldStreamer() noexcept;
 
     WorldStreamer(const WorldStreamer&) = delete;

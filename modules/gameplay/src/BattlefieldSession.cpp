@@ -8,10 +8,10 @@
 namespace genomes::gameplay {
 
 foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
+BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs::SchedulerClient jobs,
                                   BattlefieldExecutionMode execution_mode,
-                                  proc::ProceduralRuntime* procedural_runtime) {
-    auto runtime = BattlefieldRuntime::start(config, jobs, execution_mode, procedural_runtime);
+                                  proc::GenerationClient generation) {
+    auto runtime = BattlefieldRuntime::start(config, jobs, execution_mode, generation);
     if (!runtime) {
         return foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>::failure(
             runtime.error());
@@ -24,9 +24,9 @@ BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs:
 }
 
 foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
-                                    proc::ProceduralRuntime* procedural_runtime) {
-    auto runtime = InfantryMassBattleRuntime::start(config, jobs, procedural_runtime);
+BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config, jobs::SchedulerClient jobs,
+                                    proc::GenerationClient generation) {
+    auto runtime = InfantryMassBattleRuntime::start(config, jobs, generation);
     if (!runtime) {
         return foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>::failure(
             runtime.error());
@@ -36,6 +36,24 @@ BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config, jobs
     session->refreshPresentationSnapshot();
     return foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>::success(
         std::move(session));
+}
+
+
+foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
+BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config,
+                                  jobs::JobSystem& jobs,
+                                  BattlefieldExecutionMode execution_mode,
+                                  proc::ProceduralRuntime* procedural_runtime) {
+    return startTactical(config, jobs::SchedulerClient(jobs), execution_mode,
+                         proc::GenerationClient(procedural_runtime));
+}
+
+foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
+BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config,
+                                    jobs::JobSystem& jobs,
+                                    proc::ProceduralRuntime* procedural_runtime) {
+    return startMassBattle(config, jobs::SchedulerClient(jobs),
+                           proc::GenerationClient(procedural_runtime));
 }
 
 bool BattlefieldSession::advance(const simulation::TickContext& context) noexcept {

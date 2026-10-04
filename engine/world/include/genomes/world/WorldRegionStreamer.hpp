@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
 #include <genomes/world/WorldPlan.hpp>
@@ -27,6 +28,11 @@ public:
                         WorldGenerationRequest request,
                         WorldCoordinateConfig coordinates,
                         jobs::JobSystem& jobs,
+                        std::uint32_t load_radius = 1);
+    WorldRegionStreamer(WorldId world_id,
+                        WorldGenerationRequest request,
+                        WorldCoordinateConfig coordinates,
+                        proc::GenerationClient generation,
                         std::uint32_t load_radius = 1);
 
     WorldRegionStreamer(const WorldRegionStreamer&) = delete;

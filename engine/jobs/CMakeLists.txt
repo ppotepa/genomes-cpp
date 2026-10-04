@@ -1,5 +1,6 @@
 add_library(genomes_jobs STATIC
-    src/JobSystem.cpp)
+    src/JobSystem.cpp
+    src/SchedulerClient.cpp)
 
 target_include_directories(genomes_jobs PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")

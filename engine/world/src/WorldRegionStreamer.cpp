@@ -46,6 +46,17 @@ WorldRegionStreamer::WorldRegionStreamer(WorldId world_id,
       generation_service_{jobs, cache_},
       load_radius_{std::min(load_radius, 4U)} {}
 
+WorldRegionStreamer::WorldRegionStreamer(WorldId world_id,
+                                         WorldGenerationRequest request,
+                                         WorldCoordinateConfig coordinates,
+                                         proc::GenerationClient generation,
+                                         std::uint32_t load_radius)
+    : world_id_{world_id},
+      request_{request},
+      coordinates_{coordinates},
+      generation_service_{generation},
+      load_radius_{std::min(load_radius, 4U)} {}
+
 void WorldRegionStreamer::update(WorldPosition observer) {
     if (!world_id_.isValid() || !coordinates_.valid() || !request_.valid()) {
         return;

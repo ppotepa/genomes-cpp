@@ -51,16 +51,12 @@ bool SystemExecutionPlan::valid() const noexcept {
 
 jobs::JobCompletion SystemExecutionPlan::start(foundation::SimulationTick tick,
                                                double fixed_dt,
-                                               jobs::JobSystem* jobs,
+                                               jobs::SchedulerClient& scheduler,
                                                CommandBufferSet* command_buffers,
                                                std::function<void()> deterministic_commit) const {
-    if (!valid()) {
+    if (!valid() || !scheduler.valid()) {
         return {};
     }
-    if (jobs == nullptr) {
-        return {};
-    }
-    jobs::JobSystem* scheduler = jobs;
     if (command_buffers != nullptr) {
         command_buffers->reset(graph_->graph_.size());
     }
@@ -121,24 +117,35 @@ jobs::JobCompletion SystemExecutionPlan::start(foundation::SimulationTick tick,
         }
     }
     auto job_graph = std::move(builder).build();
-    return job_graph.start(*scheduler);
+    return scheduler.start(job_graph);
+}
+
+jobs::JobCompletion SystemExecutionPlan::start(
+    foundation::SimulationTick tick,
+    double fixed_dt,
+    jobs::JobSystem* jobs,
+    CommandBufferSet* command_buffers,
+    std::function<void()> deterministic_commit) const {
+    if (jobs == nullptr) return {};
+    jobs::SchedulerClient scheduler(*jobs);
+    return start(tick, fixed_dt, scheduler, command_buffers,
+                 std::move(deterministic_commit));
 }
 
 foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan::run(
     foundation::SimulationTick tick,
     double fixed_dt,
-    jobs::JobSystem* jobs,
+    jobs::SchedulerClient& scheduler,
     CommandBufferSet* command_buffers) const {
     if (!valid()) {
         return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
             executionError("simulation execution plan is not valid"));
     }
 
-    if (jobs == nullptr) {
+    if (!scheduler.valid()) {
         return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-            executionError("simulation execution requires the composition-root scheduler"));
+            executionError("simulation execution requires a scheduler capability"));
     }
-    jobs::JobSystem* scheduler = jobs;
 
     if (command_buffers != nullptr) {
         command_buffers->reset(graph_->graph_.size());
@@ -197,15 +204,15 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan:
     }
 
     auto job_graph = std::move(builder).build();
-    auto group = job_graph.run(*scheduler);
-    group.wait();
+    auto completion = scheduler.start(job_graph);
+    completion.wait();
     if (const auto error = failure->take(); error) {
         if (command_buffers != nullptr) {
             command_buffers->reset(0);
         }
         return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(*error);
     }
-    if (group.failed()) {
+    if (completion.failed()) {
         if (command_buffers != nullptr) {
             command_buffers->reset(0);
         }
@@ -219,6 +226,19 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan:
         // neither count, while each due system contributes to both the
         // planned and executed totals.
         SystemGraphRunResult{due_systems, due_systems});
+}
+
+foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan::run(
+    foundation::SimulationTick tick,
+    double fixed_dt,
+    jobs::JobSystem* jobs,
+    CommandBufferSet* command_buffers) const {
+    if (jobs == nullptr) {
+        return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
+            executionError("simulation execution requires the composition-root scheduler"));
+    }
+    jobs::SchedulerClient scheduler(*jobs);
+    return run(tick, fixed_dt, scheduler, command_buffers);
 }
 
 } // namespace genomes::simulation

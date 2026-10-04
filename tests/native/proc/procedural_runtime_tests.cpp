@@ -1,4 +1,5 @@
 #include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 
 #include <atomic>
@@ -105,6 +106,10 @@ int main() {
     jobs::JobSystem jobs(2);
     proc::ArtifactCache cache;
     proc::ProceduralRuntime runtime(frozen.value(), jobs, &cache);
+    proc::GenerationClient generation(runtime);
+    assert(generation.valid());
+    assert(generation.hasGenerator(proc::generatorId("test.integer")));
+    assert(!generation.hasGenerator(proc::generatorId("test.missing")));
     proc::GenerationOptions stage_options{};
     auto unknown_stage = runtime.requestStage<int>(
         proc::generatorId("test.unregistered-stage"), proc::SeedPath(91), stage_options,

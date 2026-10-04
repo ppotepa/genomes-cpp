@@ -8,6 +8,7 @@
 namespace genomes::jobs {
 
 class JobSystem;
+class SchedulerClient;
 class ScratchContext;
 
 class JobContext final {
@@ -24,9 +25,7 @@ public:
     [[nodiscard]] CancelToken cancellation() const noexcept { return cancellation_; }
     [[nodiscard]] ScratchContext& scratch() const noexcept { return scratch_; }
 
-    [[nodiscard]] JobSystem& system() const noexcept {
-        return system_;
-    }
+    [[nodiscard]] SchedulerClient scheduler() const noexcept;
 
 private:
     friend class JobSystem;

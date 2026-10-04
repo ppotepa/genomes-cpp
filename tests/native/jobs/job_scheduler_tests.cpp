@@ -2,6 +2,7 @@
 #include <genomes/jobs/ParallelFor.hpp>
 #include <genomes/jobs/ScratchContext.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -66,6 +67,21 @@ void explicitParallelSchedulerExecutesWork() {
     });
     handle.wait();
     assert(ran.load(std::memory_order_acquire));
+}
+
+void schedulerClientCannotOwnSchedulerLifecycle() {
+    genomes::jobs::JobSystem owner(2U);
+    genomes::jobs::SchedulerClient client(owner);
+    assert(client.valid());
+    assert(client.workerCount() == owner.workerCount());
+    std::atomic_bool ran{false};
+    const auto handle = client.submit([&](genomes::jobs::JobContext& context) {
+        assert(context.scheduler().valid());
+        ran.store(true, std::memory_order_release);
+    });
+    client.wait(handle);
+    assert(ran.load(std::memory_order_acquire));
+    assert(client.telemetry().completed >= 1U);
 }
 
 void explicitSerialExecutorHasNoWorkers() {
@@ -449,6 +465,7 @@ int main() {
     serialExecutorAndScratchAreStable();
     topologyPolicyReservesApplicationSlots();
     explicitParallelSchedulerExecutesWork();
+    schedulerClientCannotOwnSchedulerLifecycle();
     explicitSerialExecutorHasNoWorkers();
     ioLaneUsesCentralScheduler();
     ioLaneFallsBackToWorkerWhenDedicatedIoIsDisabled();

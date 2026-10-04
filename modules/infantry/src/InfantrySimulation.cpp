@@ -29,10 +29,20 @@ constexpr std::uint64_t kContactMemoryTicks = 180;
 InfantrySimulation::InfantrySimulation(simulation::EntityStore& entities,
                                        navigation::NavigationWorld* navigation,
                                        physics::PhysicsWorld* physics,
-                                       jobs::JobSystem* jobs,
+                                       jobs::SchedulerClient jobs,
                                        bool external_physics_step) noexcept
     : entities_{entities}, navigation_{navigation}, physics_{physics},
       external_physics_step_{external_physics_step}, jobs_{jobs} {}
+
+InfantrySimulation::InfantrySimulation(simulation::EntityStore& entities,
+                                       navigation::NavigationWorld* navigation,
+                                       physics::PhysicsWorld* physics,
+                                       jobs::JobSystem* jobs,
+                                       bool external_physics_step) noexcept
+    : InfantrySimulation(entities, navigation, physics,
+                         jobs != nullptr ? jobs::SchedulerClient(*jobs)
+                                         : jobs::SchedulerClient{},
+                         external_physics_step) {}
 
 bool InfantrySimulation::contactMemoryFresh(const Agent& record,
                                              foundation::SimulationTick tick) noexcept {
@@ -259,16 +269,16 @@ void InfantrySimulation::perceive(foundation::SimulationTick tick) noexcept {
         observers.push_back(observer_id);
     });
 
-    if (jobs_ == nullptr || jobs_->workerCount() == 0 || observers.size() < 8) {
+    if (!jobs_.valid() || jobs_.workerCount() == 0 || observers.size() < 8) {
         perceiveRange(observers, 0, observers.size(), tick);
         publishSquadContacts(tick);
         return;
     }
 
     const std::size_t grain = jobs::chooseParallelGrain(
-        0, observers.size(), *jobs_, jobs::ParallelForPolicy{8, 1, 0, 4});
+        0, observers.size(), jobs_, jobs::ParallelForPolicy{8, 1, 0, 4});
     if (!jobs::parallelForAndWait(
-            *jobs_, 0, observers.size(), grain,
+            jobs_, 0, observers.size(), grain,
             [this, &observers, tick](const jobs::BatchRange& range) {
                 perceiveRange(observers, range.begin, range.end, tick);
             })) {

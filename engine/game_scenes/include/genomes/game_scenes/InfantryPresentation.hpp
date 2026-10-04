@@ -18,7 +18,7 @@
 #include <vector>
 
 namespace genomes::proc {
-class ProceduralRuntime;
+class GenerationClient;
 }
 
 namespace genomes::game_scenes::infantry_presentation {
@@ -41,7 +41,7 @@ enum class WeaponPoseAttachment {
 [[nodiscard]] std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model,
     PrototypePreparation preparation = PrototypePreparation::OptimizeDrawOrder,
-    proc::ProceduralRuntime* procedural_runtime = nullptr,
+    proc::GenerationClient* generation = nullptr,
     WeaponPoseAttachment weapon_attachment = WeaponPoseAttachment::Stowed,
     const weapons::WeaponArtifact* weapon_artifact = nullptr);
 

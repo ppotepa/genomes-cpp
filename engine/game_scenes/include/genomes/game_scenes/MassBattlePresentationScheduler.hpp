@@ -2,6 +2,7 @@
 
 #include <genomes/gameplay/BattlefieldSession.hpp>
 #include <genomes/jobs/JobGraph.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/terrain/HeightField.hpp>
 #include <genomes/infantry/PresentationAnimation.hpp>
@@ -32,7 +33,7 @@ public:
     MassBattlePresentationScheduler(const MassBattlePresentationScheduler&) = delete;
     MassBattlePresentationScheduler& operator=(const MassBattlePresentationScheduler&) = delete;
 
-    void bind(jobs::JobSystem& jobs) noexcept { jobs_ = &jobs; }
+    void bind(jobs::SchedulerClient jobs) noexcept { jobs_ = jobs; }
 
     void cancel() noexcept;
     [[nodiscard]] bool active() const noexcept { return completion_.valid(); }
@@ -66,7 +67,7 @@ public:
     [[nodiscard]] std::shared_ptr<const PoseAtlas> takeAtlas() noexcept;
 
 private:
-    jobs::JobSystem* jobs_{nullptr};
+    jobs::SchedulerClient jobs_{};
     jobs::JobCompletion completion_;
     std::shared_ptr<MassBattlePresentationBatch> pending_;
     std::shared_ptr<const MassBattlePresentationBatch> ready_;

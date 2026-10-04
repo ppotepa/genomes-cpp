@@ -27,8 +27,9 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
                              jobs::JobSystem& jobs,
                              proc::ProceduralRuntime* procedural_runtime)
     : renderer_(renderer), ui_(ui), presentation_(presentation),
-      jobs_{jobs}, procedural_runtime_{procedural_runtime},
-      generation_service_(scene_cancellation_, scene_epoch_) {
+      jobs_{jobs}, execution_client_{jobs}, procedural_runtime_{procedural_runtime},
+      generation_client_{procedural_runtime},
+      scene_lifetime_(scene_cancellation_, scene_epoch_) {
     const auto core_module = modules_.registerModule(
         {.id = foundation::stable_id("core"),
          .version = {},
@@ -55,15 +56,14 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
                 foundation::stable_id("core"), foundation::stable_id("core.session_time"));
         });
     (void)core_module;
-    engine_services_.scheduler = &jobs_;
-    engine_services_.procedural_runtime = procedural_runtime_;
-    engine_services_.generation = &generation_service_;
+    engine_services_.execution = &execution_client_;
+    engine_services_.generation =
+        procedural_runtime_ != nullptr ? &generation_client_ : nullptr;
+    engine_services_.lifetime = &scene_lifetime_;
     engine_services_.presentation = &presentation_api_;
     engine_services_.core = this;
     engine_services_.modules = &modules_;
     engine_services_.telemetry = &telemetry_;
-    engine_services_.cancellation = scene_cancellation_.token();
-    engine_services_.scene_epoch = scene_epoch_;
 }
 
 SceneContext SceneDirector::make_context() noexcept {
@@ -179,8 +179,6 @@ bool SceneDirector::change_to(foundation::SceneId id) {
     // No scene may observe or publish the previous runtime after the epoch
     // changes. The incoming scene must explicitly bind its own facade.
     engine_services_.simulation = nullptr;
-    engine_services_.scene_epoch = scene_epoch_;
-    engine_services_.cancellation = scene_cancellation_.token();
     presentation_exchange_.rejectBeforeSceneEpoch(scene_epoch_);
     presentation_api_.reset(scene_epoch_);
     viewport_controller_.clear();

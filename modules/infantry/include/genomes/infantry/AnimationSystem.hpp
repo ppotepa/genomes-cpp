@@ -14,13 +14,16 @@
 #include <genomes/infantry/RigSchema.hpp>
 #include <genomes/infantry/SkeletonData.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace genomes::infantry {
@@ -152,21 +155,45 @@ public:
         std::span<AnimationEntity> entities,
         std::uint64_t simulation_tick,
         float fixed_dt_seconds,
-        jobs::JobSystem* jobs = nullptr,
+        jobs::SchedulerClient* jobs = nullptr,
         jobs::CancelToken cancellation = {});
 
     [[nodiscard]] foundation::Result<void, foundation::Error> evaluate(
-        AnimationWorkSet work, jobs::JobSystem* jobs = nullptr,
+        AnimationWorkSet work, jobs::SchedulerClient* jobs = nullptr,
         jobs::CancelToken cancellation = {}) {
         return evaluate(std::span<AnimationEntity>(work.entities), work.simulation_tick,
                         work.fixed_dt_seconds, jobs, cancellation);
     }
 
+    template <class Scheduler>
+        requires std::same_as<Scheduler, jobs::JobSystem>
+    [[nodiscard]] foundation::Result<void, foundation::Error> evaluate(
+        std::span<AnimationEntity> entities,
+        std::uint64_t simulation_tick,
+        float fixed_dt_seconds,
+        Scheduler* jobs,
+        jobs::CancelToken cancellation = {}) {
+        if (jobs == nullptr) {
+            return evaluate(entities, simulation_tick, fixed_dt_seconds,
+                            static_cast<jobs::SchedulerClient*>(nullptr), cancellation);
+        }
+        jobs::SchedulerClient client(*jobs);
+        return evaluate(entities, simulation_tick, fixed_dt_seconds, &client, cancellation);
+    }
+
+    [[nodiscard]] AnimationEvaluationHandle evaluateAsync(
+        AnimationWorkSet work,
+        jobs::SchedulerClient& jobs,
+        jobs::CancelToken cancellation = {},
+        PresentationBudget budget = {});
     [[nodiscard]] AnimationEvaluationHandle evaluateAsync(
         AnimationWorkSet work,
         jobs::JobSystem& jobs,
         jobs::CancelToken cancellation = {},
-        PresentationBudget budget = {});
+        PresentationBudget budget = {}) {
+        jobs::SchedulerClient client(jobs);
+        return evaluateAsync(std::move(work), client, cancellation, budget);
+    }
 
     [[nodiscard]] const AnimationSnapshot& previousSnapshot() const noexcept {
         return previous_;

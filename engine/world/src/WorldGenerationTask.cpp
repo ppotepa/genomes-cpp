@@ -183,13 +183,16 @@ WorldGenerationService::WorldGenerationService(
                                                ? std::move(registry)
                                                : makeRegistry()) {
     if (shared_runtime != nullptr) {
-        runtime_ = shared_runtime;
+        generation_ = proc::GenerationClient(*shared_runtime);
     } else {
         owned_runtime_ = std::make_unique<proc::ProceduralRuntime>(
             registry_, jobs, cache_.get());
-        runtime_ = owned_runtime_.get();
+        generation_ = proc::GenerationClient(*owned_runtime_);
     }
 }
+
+WorldGenerationService::WorldGenerationService(proc::GenerationClient generation)
+    : generation_(generation) {}
 
 WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest& request,
                                                    proc::GenerationChannel* channel) {
@@ -202,7 +205,7 @@ WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest&
     // ProceduralRuntime owns an internal cache when no shared cache was
     // supplied, so world generation remains cacheable in both configurations.
     generation.options.use_cache = true;
-    return WorldGenerationTask(runtime_->request(std::move(generation), channel));
+    return WorldGenerationTask(generation_.request(std::move(generation), channel));
 }
 
 } // namespace genomes::world

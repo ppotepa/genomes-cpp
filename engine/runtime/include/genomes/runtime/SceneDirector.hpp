@@ -9,6 +9,9 @@
 #include <genomes/camera/Camera.hpp>
 #include <genomes/runtime/ViewportController.hpp>
 #include <genomes/api/Api.hpp>
+#include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 
 #include <functional>
 #include <memory>
@@ -42,10 +45,10 @@ public:
         std::uint64_t rejected_stale_{0U};
     };
 
-    class GenerationServiceAdapter final : public api::GenerationService {
+    class SceneLifetimeAdapter final : public api::SceneLifetime {
     public:
-        GenerationServiceAdapter(jobs::CancelSource& cancellation,
-                                 const std::uint64_t& epoch) noexcept
+        SceneLifetimeAdapter(jobs::CancelSource& cancellation,
+                             const std::uint64_t& epoch) noexcept
             : cancellation_(cancellation), epoch_(epoch) {}
         [[nodiscard]] jobs::CancelToken cancellation() const noexcept override {
             return cancellation_.token();
@@ -158,7 +161,9 @@ private:
     bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
     jobs::JobSystem& jobs_;
+    jobs::SchedulerClient execution_client_;
     proc::ProceduralRuntime* procedural_runtime_{nullptr};
+    proc::GenerationClient generation_client_;
     bool quit_requested_{false};
     foundation::Error last_error_{};
     bool deterministic_capture_{false};
@@ -178,7 +183,7 @@ private:
     render::SnapshotExchange presentation_exchange_{3};
     api::ModuleHost modules_{};
     jobs::CancelSource scene_cancellation_{};
-    GenerationServiceAdapter generation_service_;
+    SceneLifetimeAdapter scene_lifetime_;
     PresentationBridge presentation_api_{};
     api::EngineTelemetry telemetry_{};
     api::EngineServices engine_services_{};

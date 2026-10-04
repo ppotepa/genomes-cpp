@@ -390,11 +390,13 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     // deterministic capture as well; capture waits for its groups instead of
     // creating a scene-local serial pool.
     engine_services_ = context.engine_services;
-    if (engine_services_ != nullptr && engine_services_->scheduler != nullptr) {
-        mass_battle_presentation_scheduler_.bind(*engine_services_->scheduler);
+    if (engine_services_ != nullptr && engine_services_->execution != nullptr) {
+        mass_battle_presentation_scheduler_.bind(*engine_services_->execution);
     }
-    cancellation_ = context.engine_services != nullptr
-                        ? context.engine_services->cancellation : jobs::CancelToken{};
+    cancellation_ = context.engine_services != nullptr &&
+                    context.engine_services->lifetime != nullptr
+                        ? context.engine_services->lifetime->cancellation()
+                        : jobs::CancelToken{};
     generation_error_.clear();
     simulation_failed_ = false;
     plan_.reset();
@@ -404,8 +406,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     battlefield_runtime_.reset();
     mass_battle_session_.reset();
     simulation_facade_ = nullptr;
-    shared_procedural_runtime_ = context.engine_services != nullptr
-        ? context.engine_services->procedural_runtime : nullptr;
+    generation_ = context.engine_services != nullptr
+        ? context.engine_services->generation : nullptr;
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle) {
         mass_battle_load_stage_ = MassBattleLoadStage::Starting;
     } else {
@@ -441,8 +443,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         infantry::InfantryModelRequest model_request{};
         model_request.seed = config_.seed;
         model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
-        if (active_procedural_runtime() != nullptr &&
-            active_procedural_runtime()->registry().find(proc::generatorId("infantry.model")) != nullptr) {
+        if (active_generation() != nullptr &&
+            active_generation()->hasGenerator(proc::generatorId("infantry.model"))) {
             proc::GenerationRequest<infantry::InfantryModelRequest,
                                     infantry::InfantryModelCompileResult> request;
             request.generator = proc::generatorId("infantry.model");
@@ -452,7 +454,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
                 model_request);
             request.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
             request.options.cancellation = cancellation_;
-            tactical_model_ticket_ = active_procedural_runtime()->request(std::move(request));
+            tactical_model_ticket_ = active_generation()->request(std::move(request));
         } else {
             generation_error_ = "shared infantry procedural runtime unavailable";
             simulation_failed_ = true;
@@ -496,15 +498,9 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         camera_request_.rts.target_max = {map_size * 0.5F - 16.0F,
                                           map_size * 0.5F - 16.0F};
     }
-    if (context.engine_services != nullptr && context.engine_services->scheduler != nullptr) {
-#if GENOMES_HAS_INFANTRY
-        proc::GeneratorRegistry generation_registry{};
-#else
-        proc::GeneratorRegistry generation_registry{};
-#endif
+    if (active_generation() != nullptr) {
         scenario_ = std::make_unique<gameplay::WorldScenario>(
-            *context.engine_services->scheduler, building_profile_, std::shared_ptr<proc::ArtifactCache>{},
-            std::move(generation_registry), active_procedural_runtime());
+            *active_generation(), building_profile_);
         if (context.deterministic_capture) {
             const auto started = scenario_->startNew(config_);
             if (!started) {
@@ -519,7 +515,7 @@ void BattlefieldScene::on_enter(SceneContext& context) {
             }
         }
     } else {
-        generation_error_ = "world generation requires the composition-root services";
+        generation_error_ = "world generation capability is unavailable";
     }
     context.ui.clear();
 }
@@ -573,7 +569,7 @@ void BattlefieldScene::on_exit(SceneContext& context) {
     battlefield_runtime_.reset();
     mass_battle_session_.reset();
     simulation_facade_ = nullptr;
-    shared_procedural_runtime_ = nullptr;
+    generation_ = nullptr;
     mass_battle_load_stage_ = MassBattleLoadStage::Inactive;
 #endif
     engine_services_ = nullptr;
@@ -596,7 +592,8 @@ void BattlefieldScene::advance_mass_battle_loading() {
         auto mass = gameplay::BattlefieldSession::startMassBattle(
             {.seed = config_.seed, .map_size_m = config_.map_size_m,
              .units_per_team = MassBattleUnitsPerTeam, .fixed_step_seconds = 1.0F / 60.0F},
-            *engine_services_->scheduler, active_procedural_runtime());
+            *engine_services_->execution,
+            active_generation() != nullptr ? *active_generation() : proc::GenerationClient{});
         if (!mass) {
             generation_error_ = std::string(mass.error().message);
             simulation_failed_ = true;
@@ -623,7 +620,7 @@ void BattlefieldScene::advance_mass_battle_loading() {
         model_request.seed = config_.seed;
         model_request.loadout_id = infantry::EquipmentCatalog::loadoutId("RIFLEMAN");
         if (!mass_battle_model_ticket_.valid()) {
-            if (active_procedural_runtime() == nullptr) {
+            if (active_generation() == nullptr) {
                 generation_error_ = "infantry procedural runtime unavailable";
                 simulation_failed_ = true;
                 mass_battle_load_stage_ = MassBattleLoadStage::Failed;
@@ -638,7 +635,7 @@ void BattlefieldScene::advance_mass_battle_loading() {
                 model_request);
             request.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
             request.options.cancellation = cancellation_;
-            mass_battle_model_ticket_ = active_procedural_runtime()->request(std::move(request));
+            mass_battle_model_ticket_ = active_generation()->request(std::move(request));
             return;
         }
         if (!mass_battle_model_ticket_.complete()) return;
@@ -703,8 +700,8 @@ void BattlefieldScene::initialize_infantry_animation() {
         return;
     }
         animation_system_ = std::move(animation.value());
-        if (engine_services_ != nullptr && engine_services_->scheduler != nullptr) {
-            animation_system_->bindScheduler(*engine_services_->scheduler);
+        if (engine_services_ != nullptr && engine_services_->execution != nullptr) {
+            animation_system_->bindScheduler(*engine_services_->execution);
         }
     const std::size_t expected_count = battlefield_runtime_ != nullptr
         ? battlefield_runtime_->presentationSnapshot().states.size()
@@ -1062,7 +1059,7 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
         }
         return;
     }
-    if (engine_services_ != nullptr && engine_services_->scheduler != nullptr) {
+    if (engine_services_ != nullptr && engine_services_->execution != nullptr) {
         infantry::AnimationWorkSet work{std::move(entities), context.tick.value,
                                         static_cast<float>(context.fixed_dt_seconds)};
         animation_job_ = animation_system_->evaluateAsync(
@@ -1186,7 +1183,7 @@ void BattlefieldScene::request_mass_battle_pose_atlas() {
         }
     }
 
-    if (engine_services_ != nullptr && engine_services_->scheduler != nullptr) {
+    if (engine_services_ != nullptr && engine_services_->execution != nullptr) {
         mass_battle_presentation_scheduler_.scheduleAtlas(
             infantry_skinned_prototype_, infantry_model_artifact_, samples);
     }
@@ -1205,7 +1202,7 @@ void BattlefieldScene::schedule_mass_battle_presentation() {
     const foundation::StableId mesh_id = infantry_skinned_prototype_->mesh_id;
     const foundation::StableId blue_material = foundation::stable_id("material.infantry.blue");
     const foundation::StableId red_material = foundation::stable_id("material.infantry.red");
-    if (engine_services_ == nullptr || engine_services_->scheduler == nullptr) {
+    if (engine_services_ == nullptr || engine_services_->execution == nullptr) {
         return;
     }
     mass_battle_presentation_scheduler_.schedule(
@@ -1446,7 +1443,7 @@ void BattlefieldScene::fixed_update(SceneContext& scene_context,
     if (mode_ != BattlefieldSceneMode::InfantryMassBattle &&
         battlefield_runtime_ == nullptr) {
         if (scene_context.engine_services == nullptr ||
-            scene_context.engine_services->scheduler == nullptr) {
+            scene_context.engine_services->execution == nullptr) {
             generation_error_ = "battlefield requires composition-root services";
             simulation_failed_ = true;
             return;
@@ -1455,10 +1452,10 @@ void BattlefieldScene::fixed_update(SceneContext& scene_context,
             {.seed = config_.seed,
              .map_size_m = 25U, .fixed_step_seconds = 1.0F / 60.0F,
              .max_ticks = 240U, .tactical_ai_profile = tactical_ai_profile_},
-            *scene_context.engine_services->scheduler,
+            *scene_context.engine_services->execution,
             scene_context.deterministic_capture ? gameplay::BattlefieldExecutionMode::Inline
                                                  : gameplay::BattlefieldExecutionMode::Parallel,
-            active_procedural_runtime());
+            active_generation() != nullptr ? *active_generation() : proc::GenerationClient{});
         if (!viability) {
             generation_error_ = std::string(viability.error().message);
             simulation_failed_ = true;
@@ -2098,7 +2095,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 infantry_skinned_prototype_ = infantry_presentation::makePrototype(
                     *infantry_model_artifact_,
                     infantry_presentation::PrototypePreparation::OptimizeDrawOrder,
-                    active_procedural_runtime(),
+                    active_generation(),
                     infantry_presentation::WeaponPoseAttachment::RightHand,
                     battlefield_runtime_ != nullptr ? battlefield_runtime_->weaponArtifact()
                         : mass_battle_session_ != nullptr ? mass_battle_session_->weaponArtifact()
@@ -2144,7 +2141,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                         ++pose_stall_frames_;
                     }
                 }
-                if (engine_services_ != nullptr && engine_services_->scheduler != nullptr &&
+                if (engine_services_ != nullptr && engine_services_->execution != nullptr &&
                     mass_battle_atlas_requested &&
                     !mass_battle_pose_atlas_ready_ &&
                     !mass_battle_pose_atlas_failed_ && !poses.empty()) {

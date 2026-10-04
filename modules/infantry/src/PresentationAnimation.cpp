@@ -15,13 +15,13 @@ PresentationAnimation::create(std::size_t chunk_size) {
 
 foundation::Result<void, foundation::Error> PresentationAnimation::evaluate(
     std::span<AnimationEntity> entities, std::uint64_t simulation_tick,
-    float fixed_dt_seconds, jobs::JobSystem* jobs, jobs::CancelToken cancellation) {
+    float fixed_dt_seconds, jobs::SchedulerClient* jobs, jobs::CancelToken cancellation) {
     return implementation_.evaluate(entities, simulation_tick, fixed_dt_seconds,
                                     jobs, cancellation);
 }
 
 AnimationEvaluationHandle PresentationAnimation::evaluateAsync(
-    AnimationWorkSet work, jobs::JobSystem& jobs, jobs::CancelToken cancellation,
+    AnimationWorkSet work, jobs::SchedulerClient& jobs, jobs::CancelToken cancellation,
     PresentationBudget budget) {
     return implementation_.evaluateAsync(std::move(work), jobs, cancellation, budget);
 }

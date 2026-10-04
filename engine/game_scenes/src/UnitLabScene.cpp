@@ -549,8 +549,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
-    if (context != nullptr && context->engine_services != nullptr &&
-        context->engine_services->scheduler != nullptr && !context->deterministic_capture) {
+    if (context != nullptr && generation_ != nullptr && !context->deterministic_capture) {
         startModelRequest(*context, std::move(request));
         return;
     }
@@ -571,7 +570,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
 void UnitLabScene::startModelRequest(SceneContext& context,
                                      infantry::InfantryModelRequest request) {
     (void)context;
-    if (shared_procedural_runtime_ == nullptr) {
+    if (generation_ == nullptr) {
         publishModelResult(compileModel(request));
         return;
     }
@@ -583,11 +582,11 @@ void UnitLabScene::startModelRequest(SceneContext& context,
     generation.options.input_hash = infantry::InfantryModelCompiler::canonicalRequestKey(
         *generation.input);
     generation.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
-    if (context.engine_services != nullptr && context.engine_services->generation != nullptr) {
+    if (context.engine_services != nullptr && context.engine_services->lifetime != nullptr) {
         generation.options.cancellation =
-            context.engine_services->generation->cancellation();
+            context.engine_services->lifetime->cancellation();
     }
-    model_ticket_ = shared_procedural_runtime_->request(std::move(generation), &model_channel_);
+    model_ticket_ = generation_->request(std::move(generation), &model_channel_);
     markDirty(UnitLabDirtyFlag::Ui);
 }
 
@@ -607,8 +606,8 @@ void UnitLabScene::on_enter(SceneContext& context) {
     dirty_.markAll();
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
-    shared_procedural_runtime_ = context.engine_services != nullptr
-        ? context.engine_services->procedural_runtime : nullptr;
+    generation_ = context.engine_services != nullptr
+        ? context.engine_services->generation : nullptr;
     rebuildModel(&context);
     dirty_.clear(UnitLabDirtyFlag::Geometry);
     dirty_.clear(UnitLabDirtyFlag::Material);
@@ -621,7 +620,7 @@ void UnitLabScene::on_exit(SceneContext&) {
         model_ticket_.cancel();
         model_ticket_ = {};
     }
-    shared_procedural_runtime_ = nullptr;
+    generation_ = nullptr;
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
@@ -1262,7 +1261,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
             const auto base_prototype = infantry_presentation::makePrototype(
                 *model_artifact_, infantry_presentation::PrototypePreparation::OptimizeDrawOrder,
-                shared_procedural_runtime_);
+                generation_);
             if (!base_prototype) return;
             skinned_prototype_ = appearance_preset_ == 0U
                 ? base_prototype

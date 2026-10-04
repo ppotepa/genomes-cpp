@@ -30,6 +30,13 @@ WorldStreamer::WorldStreamer(WorldId world_id, WorldGenerationRequest request,
       cache_(std::make_shared<proc::ArtifactCache>()),
       generation_service_(jobs, cache_, std::move(registry)) {}
 
+WorldStreamer::WorldStreamer(WorldId world_id, WorldGenerationRequest request,
+                             WorldCoordinateConfig coordinates,
+                             proc::GenerationClient generation,
+                             WorldStreamerConfig config)
+    : world_id_(world_id), request_(request), coordinates_(coordinates), config_(config),
+      generation_service_(generation) {}
+
 WorldStreamer::~WorldStreamer() noexcept {
     for (auto& [id, pending] : pending_) {
         (void)id;

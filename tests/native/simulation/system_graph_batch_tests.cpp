@@ -117,7 +117,8 @@ void directDependencyReleasesWithoutFrontierBarrier() {
     prerequisite.phase = SystemPhase::Decide;
     assert(graph.add(std::move(prerequisite)));
     SystemDescriptor direct = descriptor(300, false, [&](genomes::simulation::SystemContext& context) {
-        assert(context.jobs == &jobs);
+        assert(context.scheduler.valid());
+        assert(context.scheduler.workerCount() == jobs.workerCount());
         direct_successor_ran.store(true, std::memory_order_release);
         release_slow.count_down();
     });

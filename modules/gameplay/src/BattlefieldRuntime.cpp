@@ -43,25 +43,25 @@ constexpr float kTargetHalfExtent = 0.5F;
 } // namespace
 
 BattlefieldRuntime::BattlefieldRuntime(BattlefieldScenarioConfig config,
-                                         jobs::JobSystem& jobs,
+                                         jobs::SchedulerClient jobs,
                                          BattlefieldExecutionMode execution_mode,
-                                         proc::ProceduralRuntime* procedural_runtime)
-    : config_{config}, execution_mode_{execution_mode}, jobs_{&jobs},
-      procedural_runtime_{procedural_runtime}, combat_{entities_},
+                                         proc::GenerationClient generation)
+    : config_{config}, execution_mode_{execution_mode}, jobs_{jobs},
+      generation_{generation}, combat_{entities_},
       tactical_ai_{config.tactical_ai_profile} {}
 
 foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>
 BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
-                           jobs::JobSystem& jobs,
+                           jobs::SchedulerClient jobs,
                            BattlefieldExecutionMode execution_mode,
-                           proc::ProceduralRuntime* procedural_runtime) {
+                           proc::GenerationClient generation) {
     if (!config.valid()) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
             scenarioError(foundation::ErrorCode::InvalidArgument,
                           "invalid 25x25 battlefield scenario configuration"));
     }
     auto scenario = std::unique_ptr<BattlefieldRuntime>(
-        new BattlefieldRuntime(config, jobs, execution_mode, procedural_runtime));
+        new BattlefieldRuntime(config, jobs, execution_mode, generation));
     const auto initialized = scenario->initialize();
     if (!initialized) {
         return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::failure(
@@ -69,6 +69,17 @@ BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
     }
     return foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>::success(
         std::move(scenario));
+}
+
+
+foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>
+BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
+                          jobs::JobSystem& jobs,
+                          BattlefieldExecutionMode execution_mode,
+                          proc::ProceduralRuntime* procedural_runtime) {
+    jobs::SchedulerClient execution(jobs);
+    proc::GenerationClient generation(procedural_runtime);
+    return start(config, execution, execution_mode, generation);
 }
 
 api::CommandReceipt BattlefieldRuntime::submit(api::CommandEnvelope command) {
@@ -116,7 +127,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     }
     infantry_ = std::make_unique<infantry::InfantrySimulation>(
         entities_, navigation_.get(), &physics_,
-        execution_mode_ == BattlefieldExecutionMode::Parallel ? jobs_ : nullptr,
+        execution_mode_ == BattlefieldExecutionMode::Parallel ? jobs_ : jobs::SchedulerClient{},
         true);
     const infantry::InfantryGenome genome{1.75F, 1.75, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
     const auto blue = infantry_->spawn({infantry::Team::Blue, {0.0F, 0.0F, -kSpawnOffset},
@@ -161,8 +172,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     foundation::Result<weapons::WeaponArtifact, foundation::Error> artifact =
         foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "weapon generator unavailable"});
-    if (procedural_runtime_ != nullptr &&
-        procedural_runtime_->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
+    if (generation_.valid() &&
+        generation_.hasGenerator(proc::generatorId("weapons.artifact"))) {
         proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
             generation;
         generation.generator = proc::generatorId("weapons.artifact");
@@ -170,7 +181,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
             weapons::WeaponGenerationRequest{*weapon, weapon_variant});
         generation.seed_path = proc::SeedPath(weapon_variant.seed);
         generation.options.retained_bytes = sizeof(weapons::WeaponArtifact);
-        const auto generated = procedural_runtime_->generateInline(generation);
+        const auto generated = generation_.generateInline(generation);
         if (generated && generated.value()) {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
                 *generated.value());
@@ -649,10 +660,13 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
     simulation_tick_ = context.tick;
     snapshot_.tick = context.tick.value;
     applyApiCommands();
-    const auto result = execution_plan_.run(
-        simulation_tick_, context.fixed_dt_seconds,
-        jobs_,
-        &command_buffers_);
+    const auto result = jobs_.valid()
+        ? execution_plan_.run(simulation_tick_, context.fixed_dt_seconds,
+                              jobs_, &command_buffers_)
+        : foundation::Result<simulation::SystemGraphRunResult,
+                             foundation::Error>::failure(
+              {foundation::ErrorCode::InvalidState,
+               "battlefield execution capability is unavailable"});
     if (!result || !snapshot_.error.empty()) {
         const std::string error = result ? snapshot_.error : std::string{result.error().message};
         snapshot_ = last_good_snapshot;
@@ -929,7 +943,7 @@ void BattlefieldRuntime::runDecision() noexcept {
     }
     const combat::AIJobPipelineConfig config{
         2U, execution_mode_ == BattlefieldExecutionMode::Parallel, {}, {}, {}};
-    const auto evaluated = ai_pipeline_.evaluate(*jobs_, tactical_ai_, ai_entities_,
+    const auto evaluated = ai_pipeline_.evaluate(jobs_, tactical_ai_, ai_entities_,
                                                  simulation_tick_, config);
     if (!evaluated) {
         snapshot_.error = evaluated.error().message;

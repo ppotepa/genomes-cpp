@@ -6,6 +6,7 @@
 #include <genomes/foundation/Time.hpp>
 #include <genomes/execution/SystemSpec.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 #include <genomes/simulation/Cadence.hpp>
 #include <genomes/simulation/SimulationCommand.hpp>
 #include <genomes/simulation/SystemId.hpp>
@@ -45,7 +46,7 @@ struct SystemContext final {
     std::uint64_t cadence_elapsed_ticks{0};
     SystemId system{0};
     SystemPhase phase{SystemPhase::Commit};
-    jobs::JobSystem* jobs{nullptr};
+    jobs::SchedulerClient scheduler{};
     CommandBuffer* commands{nullptr};
 };
 
@@ -133,13 +134,24 @@ public:
     [[nodiscard]] jobs::JobCompletion start(
         foundation::SimulationTick tick,
         double fixed_dt,
-        jobs::JobSystem* jobs = nullptr,
+        jobs::SchedulerClient& scheduler,
+        CommandBufferSet* command_buffers = nullptr,
+        std::function<void()> deterministic_commit = {}) const;
+    [[nodiscard]] jobs::JobCompletion start(
+        foundation::SimulationTick tick,
+        double fixed_dt,
+        jobs::JobSystem* jobs,
         CommandBufferSet* command_buffers = nullptr,
         std::function<void()> deterministic_commit = {}) const;
     [[nodiscard]] foundation::Result<SystemGraphRunResult, foundation::Error> run(
         foundation::SimulationTick tick,
         double fixed_dt,
-        jobs::JobSystem* jobs = nullptr,
+        jobs::SchedulerClient& scheduler,
+        CommandBufferSet* command_buffers = nullptr) const;
+    [[nodiscard]] foundation::Result<SystemGraphRunResult, foundation::Error> run(
+        foundation::SimulationTick tick,
+        double fixed_dt,
+        jobs::JobSystem* jobs,
         CommandBufferSet* command_buffers = nullptr) const;
 
 private:

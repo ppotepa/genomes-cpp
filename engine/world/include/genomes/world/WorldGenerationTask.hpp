@@ -3,6 +3,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/world/WorldPlan.hpp>
 
@@ -49,13 +50,15 @@ public:
                            std::shared_ptr<proc::ArtifactCache> cache,
                            proc::GeneratorRegistry registry,
                            proc::ProceduralRuntime* shared_runtime = nullptr);
+    explicit WorldGenerationService(proc::GenerationClient generation);
 
     [[nodiscard]] WorldGenerationTask submit(
         const WorldGenerationRequest& request,
         proc::GenerationChannel* channel = nullptr);
-    [[nodiscard]] const proc::GeneratorRegistry& registry() const noexcept { return registry_; }
-    [[nodiscard]] proc::ProceduralRuntime* runtime() noexcept { return runtime_; }
-    [[nodiscard]] const proc::ProceduralRuntime* runtime() const noexcept { return runtime_; }
+    [[nodiscard]] const proc::GeneratorRegistry& registry() const noexcept {
+        return generation_.registry();
+    }
+    [[nodiscard]] proc::GenerationClient generation() const noexcept { return generation_; }
     [[nodiscard]] bool ownsRuntime() const noexcept { return owned_runtime_ != nullptr; }
 
 private:
@@ -64,7 +67,7 @@ private:
     std::shared_ptr<proc::ArtifactCache> cache_;
     proc::GeneratorRegistry registry_;
     std::unique_ptr<proc::ProceduralRuntime> owned_runtime_;
-    proc::ProceduralRuntime* runtime_{nullptr};
+    proc::GenerationClient generation_{};
 };
 
 } // namespace genomes::world

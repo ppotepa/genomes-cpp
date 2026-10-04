@@ -118,3 +118,40 @@ foreach(REQUIRED_BRIDGE_TEXT IN ITEMS
             "ModuleSystemBridge lost canonical registry bridge: ${REQUIRED_BRIDGE_TEXT}")
     endif()
 endforeach()
+
+
+# Capability surface: product/domain code gets non-owning clients, never the
+# scheduler/procedural owners. This makes shutdown/configuration/cache lifetime
+# inaccessible outside the composition root.
+set(API_SERVICES_HEADER
+    "${GENOMES_SOURCE_DIR}/engine/api/include/genomes/api/Api.hpp")
+set(JOB_CONTEXT_HEADER
+    "${GENOMES_SOURCE_DIR}/engine/jobs/include/genomes/jobs/JobContext.hpp")
+file(READ "${API_SERVICES_HEADER}" API_SERVICES_TEXT)
+file(READ "${JOB_CONTEXT_HEADER}" JOB_CONTEXT_TEXT)
+foreach(REQUIRED_CAPABILITY IN ITEMS
+        "jobs::SchedulerClient* execution"
+        "proc::GenerationClient* generation"
+        "SceneLifetime* lifetime")
+    string(FIND "${API_SERVICES_TEXT}" "${REQUIRED_CAPABILITY}" CAPABILITY_POSITION)
+    if(CAPABILITY_POSITION EQUAL -1)
+        message(FATAL_ERROR "EngineServices lost narrow capability: ${REQUIRED_CAPABILITY}")
+    endif()
+endforeach()
+foreach(FORBIDDEN_OWNER IN ITEMS
+        "jobs::JobSystem* scheduler"
+        "proc::ProceduralRuntime* procedural_runtime"
+        "GenerationService* generation")
+    string(FIND "${API_SERVICES_TEXT}" "${FORBIDDEN_OWNER}" OWNER_POSITION)
+    if(NOT OWNER_POSITION EQUAL -1)
+        message(FATAL_ERROR "EngineServices exposes execution owner: ${FORBIDDEN_OWNER}")
+    endif()
+endforeach()
+string(FIND "${JOB_CONTEXT_TEXT}" "JobSystem& system()" RAW_JOB_CONTEXT)
+if(NOT RAW_JOB_CONTEXT EQUAL -1)
+    message(FATAL_ERROR "JobContext must not expose raw JobSystem")
+endif()
+string(FIND "${JOB_CONTEXT_TEXT}" "SchedulerClient scheduler()" CLIENT_JOB_CONTEXT)
+if(CLIENT_JOB_CONTEXT EQUAL -1)
+    message(FATAL_ERROR "JobContext must expose SchedulerClient capability")
+endif()

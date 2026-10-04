@@ -4,11 +4,13 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 
 #include <atomic>
 #include <cstddef>
 #include <functional>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace genomes::combat {
@@ -38,9 +40,16 @@ struct AIJobPipelineStats final {
 class AIJobPipeline final {
 public:
     [[nodiscard]] foundation::Result<std::vector<AIIntent>, foundation::Error> evaluate(
-        jobs::JobSystem& jobs, TacticalAISystem& model, std::span<TacticalAIEntity> entities,
+        jobs::SchedulerClient& jobs, TacticalAISystem& model, std::span<TacticalAIEntity> entities,
         foundation::SimulationTick tick, AIJobPipelineConfig config = {},
         std::atomic_bool* cancel = nullptr);
+    [[nodiscard]] foundation::Result<std::vector<AIIntent>, foundation::Error> evaluate(
+        jobs::JobSystem& jobs, TacticalAISystem& model, std::span<TacticalAIEntity> entities,
+        foundation::SimulationTick tick, AIJobPipelineConfig config = {},
+        std::atomic_bool* cancel = nullptr) {
+        jobs::SchedulerClient client(jobs);
+        return evaluate(client, model, entities, tick, std::move(config), cancel);
+    }
 
     [[nodiscard]] const AIJobPipelineStats& stats() const noexcept { return stats_; }
 

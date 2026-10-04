@@ -6,7 +6,7 @@
 #include <genomes/infantry/LocomotionController.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/PresentationAnimation.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/runtime/Scene.hpp>
 
 #include <memory>
@@ -207,7 +207,7 @@ private:
     std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
-    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
+    proc::GenerationClient* generation_{nullptr};
     std::shared_ptr<const infantry::InfantryModelArtifact> model_artifact_;
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog_;
     std::optional<infantry::LocomotionController> locomotion_;

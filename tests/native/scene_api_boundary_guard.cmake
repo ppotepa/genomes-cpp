@@ -33,7 +33,10 @@ set(FORBIDDEN_SCENE_TOKENS
     "processScheduler"
     "UnitLabModelRequestGate"
     "genomes/jobs/JobSystem.hpp"
-    "genomes/proc/ArtifactCache.hpp")
+    "genomes/proc/ArtifactCache.hpp"
+    "engine_services->scheduler"
+    "engine_services_->scheduler"
+    "procedural_runtime")
 foreach(FILE_PATH IN LISTS SCENE_FILES)
     file(READ "${FILE_PATH}" CONTENT)
     foreach(TOKEN IN LISTS FORBIDDEN_SCENE_TOKENS)

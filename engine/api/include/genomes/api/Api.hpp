@@ -7,7 +7,7 @@
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/execution/SystemSpec.hpp>
 #include <genomes/jobs/Cancellation.hpp>
-#include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerTypes.hpp>
 
 #include <algorithm>
 #include <bit>
@@ -27,7 +27,12 @@ namespace genomes::simulation {
 struct TickContext;
 }
 
+namespace genomes::jobs {
+class SchedulerClient;
+}
+
 namespace genomes::proc {
+class GenerationClient;
 class ProceduralRuntime;
 }
 
@@ -513,24 +518,22 @@ public:
     virtual void requestQuit() noexcept = 0;
 };
 
-class GenerationService {
+class SceneLifetime {
 public:
-    virtual ~GenerationService() = default;
+    virtual ~SceneLifetime() = default;
     [[nodiscard]] virtual jobs::CancelToken cancellation() const noexcept = 0;
     [[nodiscard]] virtual std::uint64_t sceneEpoch() const noexcept = 0;
 };
 
 struct EngineServices final {
-    jobs::JobSystem* scheduler{nullptr};
-    proc::ProceduralRuntime* procedural_runtime{nullptr};
-    GenerationService* generation{nullptr};
+    jobs::SchedulerClient* execution{nullptr};
+    proc::GenerationClient* generation{nullptr};
+    SceneLifetime* lifetime{nullptr};
     SimulationFacade* simulation{nullptr};
     PresentationFacade* presentation{nullptr};
     CoreControlApi* core{nullptr};
     ModuleHost* modules{nullptr};
     EngineTelemetry* telemetry{nullptr};
-    jobs::CancelToken cancellation{};
-    std::uint64_t scene_epoch{0};
 };
 
 } // namespace genomes::api

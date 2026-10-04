@@ -16,7 +16,7 @@
 #include <genomes/infantry/LocomotionController.hpp>
 #endif
 #include <genomes/game_scenes/MassBattlePresentationScheduler.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/render/PoseSnapshot.hpp>
 #include <genomes/render/SkinnedDeformer.hpp>
@@ -152,8 +152,8 @@ private:
     void schedule_mass_battle_presentation();
     void consume_mass_battle_presentation();
     void set_mass_battle_profile(MassBattlePresentationProfile profile) noexcept;
-    [[nodiscard]] proc::ProceduralRuntime* active_procedural_runtime() const noexcept {
-        return shared_procedural_runtime_;
+    [[nodiscard]] proc::GenerationClient* active_generation() const noexcept {
+        return generation_;
     }
 #endif
 
@@ -201,7 +201,7 @@ private:
 #if GENOMES_HAS_INFANTRY
     std::unique_ptr<gameplay::BattlefieldRuntime> battlefield_runtime_;
     std::unique_ptr<gameplay::BattlefieldSession> mass_battle_session_;
-    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
+    proc::GenerationClient* generation_{nullptr};
     std::shared_ptr<const infantry::InfantryModelArtifact> infantry_model_artifact_;
     struct InfantryAnimationAgent final {
         simulation::EntityId entity{};

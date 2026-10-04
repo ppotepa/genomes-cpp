@@ -10,13 +10,13 @@ namespace genomes::combat {
 
 namespace {
 
-[[nodiscard]] bool canceled(jobs::JobSystem& jobs, std::atomic_bool* token) noexcept {
+[[nodiscard]] bool canceled(jobs::SchedulerClient& jobs, std::atomic_bool* token) noexcept {
     return jobs.isCancellationRequested() ||
            (token != nullptr && token->load(std::memory_order_acquire));
 }
 
 foundation::Result<void, foundation::Error> runStage(
-    jobs::JobSystem& jobs, std::span<TacticalAIEntity> entities, foundation::SimulationTick tick,
+    jobs::SchedulerClient& jobs, std::span<TacticalAIEntity> entities, foundation::SimulationTick tick,
     std::size_t batch_size, bool parallel, const AIBatchStage& stage, std::atomic_bool* cancel,
     const char* failure_message) {
     if (!stage) {
@@ -67,7 +67,7 @@ foundation::Result<void, foundation::Error> runStage(
 } // namespace
 
 foundation::Result<std::vector<AIIntent>, foundation::Error> AIJobPipeline::evaluate(
-    jobs::JobSystem& jobs, TacticalAISystem& model, std::span<TacticalAIEntity> entities,
+    jobs::SchedulerClient& jobs, TacticalAISystem& model, std::span<TacticalAIEntity> entities,
     foundation::SimulationTick tick, AIJobPipelineConfig config, std::atomic_bool* cancel) {
     stats_ = {};
     stats_.entity_count = entities.size();

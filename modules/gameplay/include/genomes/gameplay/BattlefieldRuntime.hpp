@@ -16,8 +16,9 @@
 #include <genomes/foundation/Time.hpp>
 #include <genomes/gameplay/BattlefieldTypes.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/simulation/SessionSimulationClock.hpp>
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantrySimulation.hpp>
@@ -63,6 +64,11 @@ public:
     BattlefieldRuntime(const BattlefieldRuntime&) = delete;
     BattlefieldRuntime& operator=(const BattlefieldRuntime&) = delete;
 
+    [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldRuntime>,
+                                             foundation::Error>
+    start(const BattlefieldScenarioConfig& config, jobs::SchedulerClient jobs,
+          BattlefieldExecutionMode execution_mode = BattlefieldExecutionMode::Parallel,
+          proc::GenerationClient generation = {});
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldRuntime>,
                                              foundation::Error>
     start(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
@@ -162,9 +168,9 @@ private:
         destruction::DamageField damage_field{};
     };
 
-    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem& jobs,
+    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::SchedulerClient jobs,
                        BattlefieldExecutionMode execution_mode,
-                       proc::ProceduralRuntime* procedural_runtime);
+                       proc::GenerationClient generation);
 
     [[nodiscard]] foundation::Result<void, foundation::Error> initialize();
     [[nodiscard]] foundation::Result<void, foundation::Error> configureWorldQuery();
@@ -185,8 +191,8 @@ private:
 
     BattlefieldScenarioConfig config_{};
     BattlefieldExecutionMode execution_mode_{BattlefieldExecutionMode::Parallel};
-    jobs::JobSystem* jobs_{nullptr};
-    proc::ProceduralRuntime* procedural_runtime_{nullptr};
+    jobs::SchedulerClient jobs_{};
+    proc::GenerationClient generation_{};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_{};
     std::unique_ptr<navigation::GridNavigationWorld> navigation_;

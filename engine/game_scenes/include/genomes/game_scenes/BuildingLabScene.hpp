@@ -4,7 +4,7 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/runtime/Scene.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -41,7 +41,7 @@ private:
     buildings::BuildingPlan plan_{};
     std::unique_ptr<buildings::BuildingRuntime> runtime_;
     std::shared_ptr<render::RenderMesh> render_mesh_;
-    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
+    proc::GenerationClient* generation_{nullptr};
     proc::GenerationChannel generation_channel_;
     proc::GenerationTicket<buildings::BuildingPlan> generation_ticket_;
     std::size_t selected_part_{0};

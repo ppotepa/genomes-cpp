@@ -8,6 +8,7 @@
 #include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 #include <genomes/jobs/ParallelFor.hpp>
 #include <genomes/navigation/NavigationWorld.hpp>
 #include <genomes/physics/PhysicsWorld.hpp>
@@ -85,8 +86,13 @@ public:
     explicit InfantrySimulation(simulation::EntityStore& entities,
                                 navigation::NavigationWorld* navigation = nullptr,
                                 physics::PhysicsWorld* physics = nullptr,
-                                jobs::JobSystem* jobs = nullptr,
+                                jobs::SchedulerClient jobs = {},
                                 bool external_physics_step = false) noexcept;
+    InfantrySimulation(simulation::EntityStore& entities,
+                       navigation::NavigationWorld* navigation,
+                       physics::PhysicsWorld* physics,
+                       jobs::JobSystem* jobs,
+                       bool external_physics_step = false) noexcept;
 
     [[nodiscard]] foundation::Result<simulation::EntityId, foundation::Error> spawn(
         const InfantrySpawn&);
@@ -180,7 +186,7 @@ private:
     bool external_physics_step_{false};
     physics::PhysicsCommandBuffer physics_commands_{};
     spatial::UniformGrid spatial_index_{16.0F};
-    jobs::JobSystem* jobs_{nullptr};
+    jobs::SchedulerClient jobs_{};
     std::vector<Agent> agents_;
     std::map<SquadKey, SquadContact> squad_contacts_;
     std::vector<InfantryRenderState> render_states_;

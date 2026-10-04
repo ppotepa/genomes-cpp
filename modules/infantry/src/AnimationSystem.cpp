@@ -1666,7 +1666,7 @@ foundation::Result<AnimationSystem, foundation::Error> AnimationSystem::create(
 
 AnimationEvaluationHandle AnimationSystem::evaluateAsync(
     AnimationWorkSet work,
-    jobs::JobSystem& jobs,
+    jobs::SchedulerClient& jobs,
     jobs::CancelToken cancellation,
     PresentationBudget budget) {
     if (work.entities.size() > budget.max_entities) {
@@ -1704,7 +1704,7 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
     std::span<AnimationEntity> entities,
     std::uint64_t simulation_tick,
     float fixed_dt_seconds,
-    jobs::JobSystem* jobs,
+    jobs::SchedulerClient* jobs,
     jobs::CancelToken cancellation) {
     if (!finite(fixed_dt_seconds) || fixed_dt_seconds <= 0.0F || fixed_dt_seconds > 0.25F) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -1875,7 +1875,7 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
             chunks.push_back(graph.add(
                 [&, begin, end](jobs::JobContext&) { processRange(begin, end); }, options));
         }
-        auto completion = std::move(graph).build().run(*jobs);
+        auto completion = jobs->start(std::move(graph).build());
         completion.wait();
         if (completion.failed()) {
             failed.store(true, std::memory_order_release);

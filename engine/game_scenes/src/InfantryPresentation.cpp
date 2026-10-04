@@ -5,7 +5,7 @@
 #include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/foundation/StableHash.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/render/SkinnedMeshOptimizer.hpp>
 #include <genomes/weapons/WeaponProcedural.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
@@ -164,12 +164,12 @@ void buildMaterialGroups(render::SkinnedMeshPrototype& mesh) {
 
 void appendWeapon(render::SkinnedMeshPrototype&,
                   const infantry::InfantryModelArtifact&,
-                  proc::ProceduralRuntime*, WeaponPoseAttachment,
+                  proc::GenerationClient*, WeaponPoseAttachment,
                   const weapons::WeaponArtifact*);
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model, PrototypePreparation preparation,
-    proc::ProceduralRuntime* procedural_runtime, WeaponPoseAttachment weapon_attachment,
+    proc::GenerationClient* generation, WeaponPoseAttachment weapon_attachment,
     const weapons::WeaponArtifact* weapon_artifact) {
     const std::uint64_t optimizer_fingerprint =
         preparation == PrototypePreparation::OptimizeDrawOrder
@@ -240,7 +240,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
         append(gear_surface.value());
     }
-    appendWeapon(*mesh, model, procedural_runtime, weapon_attachment, weapon_artifact);
+    appendWeapon(*mesh, model, generation, weapon_attachment, weapon_artifact);
 
     mesh->morph_target_count = static_cast<std::uint32_t>(
         std::min<std::size_t>(model.appearance.morphs.size(), mesh->morphs.size()));
@@ -281,7 +281,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
             // Do not cache a rejected preparation under the optimized identity.
             std::clog << "Infantry index optimization skipped for model " << model.cache_key
                       << ": " << optimized.error().message << '\n';
-            return makePrototype(model, PrototypePreparation::ReferenceOrder, procedural_runtime);
+            return makePrototype(model, PrototypePreparation::ReferenceOrder, generation);
         }
     }
     {
@@ -360,7 +360,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
 
 void appendWeapon(render::SkinnedMeshPrototype& mesh,
                   const infantry::InfantryModelArtifact& model,
-                  proc::ProceduralRuntime* procedural_runtime,
+                  proc::GenerationClient* generation,
                   WeaponPoseAttachment attachment,
                   const weapons::WeaponArtifact* weapon_artifact) {
     const auto* equipment = model.gear.equipment.item(infantry::EquipmentSlot::PrimaryWeapon);
@@ -377,7 +377,7 @@ void appendWeapon(render::SkinnedMeshPrototype& mesh,
     // was prepared by the owning runtime.  Never hide a blocking procedural
     // generation call in RenderLane.  The direct path remains available for
     // deterministic headless tools/tests, which pass no runtime.
-    if (procedural_runtime != nullptr && weapon_artifact == nullptr) return;
+    if (generation != nullptr && weapon_artifact == nullptr) return;
     foundation::Result<weapons::WeaponArtifact, foundation::Error> built =
         weapon_artifact != nullptr
             ? foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(

@@ -8,12 +8,13 @@
 #include <genomes/infantry/InfantrySimulation.hpp>
 #include <genomes/infantry/InfantryUnitController.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 #include <genomes/simulation/SessionSimulationClock.hpp>
 #include <genomes/simulation/EntityStore.hpp>
 #include <genomes/simulation/EntityController.hpp>
 #include <genomes/simulation/SimulationSnapshot.hpp>
 #include <genomes/world/WorldArtifactRevision.hpp>
-#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/proc/GenerationClient.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <algorithm>
@@ -80,6 +81,10 @@ public:
     InfantryMassBattleRuntime(const InfantryMassBattleRuntime&) = delete;
     InfantryMassBattleRuntime& operator=(const InfantryMassBattleRuntime&) = delete;
 
+    [[nodiscard]] static foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
+                                             foundation::Error>
+    start(const InfantryMassBattleConfig& config, jobs::SchedulerClient jobs,
+          proc::GenerationClient generation = {});
     [[nodiscard]] static foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
                                              foundation::Error>
     start(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
@@ -201,9 +206,9 @@ private:
     };
 
     explicit InfantryMassBattleRuntime(InfantryMassBattleConfig config,
-                                       jobs::JobSystem& scheduler,
-                                       proc::ProceduralRuntime* procedural_runtime) noexcept
-        : config_{config}, jobs_{scheduler}, procedural_runtime_{procedural_runtime} {}
+                                       jobs::SchedulerClient scheduler,
+                                       proc::GenerationClient generation) noexcept
+        : config_{config}, jobs_{scheduler}, generation_{generation} {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> initialize();
     [[nodiscard]] UnitUpdate updateUnit(const Unit&,
@@ -237,9 +242,9 @@ private:
     std::map<std::string, std::vector<std::uint8_t>, std::less<>> api_world_values_;
     std::shared_ptr<const std::map<std::string, std::vector<std::uint8_t>, std::less<>>>
         api_world_snapshot_values_;
-    jobs::JobSystem& jobs_;
+    jobs::SchedulerClient jobs_{};
     std::shared_ptr<const ResolvedWorldArtifacts> world_artifact_;
-    proc::ProceduralRuntime* procedural_runtime_{nullptr};
+    proc::GenerationClient generation_{};
     std::shared_ptr<const weapons::WeaponArtifact> weapon_artifact_;
 };
 

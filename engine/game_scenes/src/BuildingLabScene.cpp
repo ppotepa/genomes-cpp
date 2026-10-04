@@ -84,19 +84,19 @@ void BuildingLabScene::on_enter(SceneContext& context) {
         return;
     }
     const buildings::BuildingSpec spec = building_profile_->labPreview().instantiate(seed_);
-    shared_procedural_runtime_ = context.engine_services != nullptr
-        ? context.engine_services->procedural_runtime : nullptr;
-    if (shared_procedural_runtime_ != nullptr) {
+    generation_ = context.engine_services != nullptr
+        ? context.engine_services->generation : nullptr;
+    if (generation_ != nullptr) {
         proc::GenerationRequest<buildings::BuildingSpec, buildings::BuildingPlan> request;
         request.generator = proc::generatorId("buildings.plan");
         request.input = std::make_shared<const buildings::BuildingSpec>(spec);
         request.seed_path = proc::SeedPath(spec.seed);
         request.options.input_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
         request.options.retained_bytes = sizeof(buildings::BuildingPlan);
-        if (context.engine_services != nullptr && context.engine_services->generation != nullptr) {
-            request.options.cancellation = context.engine_services->generation->cancellation();
+        if (context.engine_services != nullptr && context.engine_services->lifetime != nullptr) {
+            request.options.cancellation = context.engine_services->lifetime->cancellation();
         }
-        generation_ticket_ = shared_procedural_runtime_->request(
+        generation_ticket_ = generation_->request(
             std::move(request), &generation_channel_);
         context.ui.clear();
         return;
@@ -110,7 +110,7 @@ void BuildingLabScene::on_exit(SceneContext&) {
         generation_ticket_.cancel();
         generation_ticket_ = {};
     }
-    shared_procedural_runtime_ = nullptr;
+    generation_ = nullptr;
     runtime_.reset();
     render_mesh_.reset();
     plan_ = {};

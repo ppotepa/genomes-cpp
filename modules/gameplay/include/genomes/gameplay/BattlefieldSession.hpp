@@ -1,6 +1,7 @@
 #pragma once
 
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
 
 #include <memory>
@@ -39,9 +40,16 @@ struct BattlefieldSessionPresentationSnapshot final {
 class BattlefieldSession final : public api::SimulationFacade {
 public:
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
+    startTactical(const BattlefieldScenarioConfig& config, jobs::SchedulerClient jobs,
+                  BattlefieldExecutionMode execution_mode,
+                  proc::GenerationClient generation = {});
+    [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
     startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
                   BattlefieldExecutionMode execution_mode,
-                  proc::ProceduralRuntime* procedural_runtime);
+                  proc::ProceduralRuntime* procedural_runtime = nullptr);
+    [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
+    startMassBattle(const InfantryMassBattleConfig& config, jobs::SchedulerClient jobs,
+                    proc::GenerationClient generation = {});
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
     startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
                     proc::ProceduralRuntime* procedural_runtime = nullptr);

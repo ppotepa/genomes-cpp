@@ -10,6 +10,7 @@ target_link_libraries(genomes_runtime_core PUBLIC
     genomes::foundation
     genomes::api
     genomes::jobs
+    genomes::proc
     genomes::simulation
     genomes::camera
     genomes::render

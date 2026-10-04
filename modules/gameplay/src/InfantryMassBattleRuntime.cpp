@@ -28,15 +28,15 @@ constexpr float kHalfTau = 3.14159265358979323846F;
 } // namespace
 
 foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>, foundation::Error>
-InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
-                                 proc::ProceduralRuntime* procedural_runtime) {
+InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config, jobs::SchedulerClient jobs,
+                                 proc::GenerationClient generation) {
     if (!config.valid()) {
         return foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
                                   foundation::Error>::failure(
             invalidMassBattleError("invalid infantry mass battle configuration"));
     }
     auto runtime = std::unique_ptr<InfantryMassBattleRuntime>(
-        new InfantryMassBattleRuntime(config, jobs, procedural_runtime));
+        new InfantryMassBattleRuntime(config, jobs, generation));
     const auto initialized = runtime->initialize();
     if (!initialized) {
         return foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
@@ -44,6 +44,15 @@ InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config, jobs::J
     }
     return foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
                               foundation::Error>::success(std::move(runtime));
+}
+
+
+foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>, foundation::Error>
+InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config,
+                                 jobs::JobSystem& jobs,
+                                 proc::ProceduralRuntime* procedural_runtime) {
+    return start(config, jobs::SchedulerClient(jobs),
+                 proc::GenerationClient(procedural_runtime));
 }
 
 foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initialize() {
@@ -64,8 +73,8 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
     foundation::Result<weapons::WeaponArtifact, foundation::Error> artifact =
         foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "weapon generator unavailable"});
-    if (procedural_runtime_ != nullptr &&
-        procedural_runtime_->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
+    if (generation_.valid() &&
+        generation_.hasGenerator(proc::generatorId("weapons.artifact"))) {
         proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
             generation;
         generation.generator = proc::generatorId("weapons.artifact");
@@ -73,7 +82,7 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
             weapons::WeaponGenerationRequest{*weapon, variant});
         generation.seed_path = proc::SeedPath(variant.seed);
         generation.options.retained_bytes = sizeof(weapons::WeaponArtifact);
-        const auto generated = procedural_runtime_->generateInline(generation);
+        const auto generated = generation_.generateInline(generation);
         if (generated && generated.value()) {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
                 *generated.value());
@@ -289,7 +298,7 @@ bool InfantryMassBattleRuntime::fixedUpdate(const simulation::TickContext& conte
                 },
                 options);
         }
-        auto update_group = std::move(builder).build().run(jobs_);
+        auto update_group = jobs_.start(std::move(builder).build());
         update_group.wait();
         if (update_group.failed() ||
             controller_failed.load(std::memory_order_acquire)) {
@@ -514,7 +523,7 @@ bool InfantryMassBattleRuntime::rebuildRenderStates(std::uint64_t tick) noexcept
                 },
                 options);
         }
-        auto extraction_group = std::move(builder).build().run(jobs_);
+        auto extraction_group = jobs_.start(std::move(builder).build());
         extraction_group.wait();
         if (extraction_group.failed()) return false;
     } catch (...) {

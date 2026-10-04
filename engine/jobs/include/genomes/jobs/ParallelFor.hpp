@@ -2,6 +2,7 @@
 
 #include <genomes/jobs/BatchRange.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/jobs/SchedulerClient.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -26,7 +27,7 @@ struct ParallelForPolicy final {
 
 [[nodiscard]] inline std::size_t chooseParallelGrain(std::size_t begin,
                                                      std::size_t end,
-                                                     const JobSystem& system,
+                                                     const auto& system,
                                                      ParallelForPolicy policy = {}) noexcept {
     if (end <= begin || !policy.valid()) {
         return 1;
@@ -52,31 +53,49 @@ struct ParallelForPolicy final {
 // Partitions [begin,end) into stable, non-overlapping ranges.  Completion order
 // is intentionally not part of the contract; batch_index is the deterministic
 // identity callers must use for stable merge/reduction.
+template <class Scheduler, class Function>
+[[nodiscard]] std::vector<JobHandle> parallelForScheduler(Scheduler& system,
+                                                           std::size_t begin,
+                                                           std::size_t end,
+                                                           std::size_t grain_size,
+                                                           Function&& function) {
+    std::vector<JobHandle> handles;
+    if (end <= begin || grain_size == 0) return handles;
+    const std::size_t count = end - begin;
+    const std::size_t batch_count =
+        count / grain_size + (count % grain_size != 0U ? 1U : 0U);
+    handles.reserve(batch_count);
+    using Callback = std::decay_t<Function>;
+    Callback callback = std::forward<Function>(function);
+    for (std::size_t batch = 0; batch < batch_count; ++batch) {
+        const std::size_t range_begin = begin + batch * grain_size;
+        const std::size_t range_end =
+            range_begin + std::min(end - range_begin, grain_size);
+        handles.push_back(system.submit(
+            [range = BatchRange{range_begin, range_end, batch}, callback](
+                JobContext&) mutable { callback(range); }));
+    }
+    return handles;
+}
+
 template <class Function>
 [[nodiscard]] std::vector<JobHandle> parallelFor(JobSystem& system,
                                                   std::size_t begin,
                                                   std::size_t end,
                                                   std::size_t grain_size,
                                                   Function&& function) {
-    std::vector<JobHandle> handles;
-    if (end <= begin || grain_size == 0) {
-        return handles;
-    }
-    const std::size_t count = end - begin;
-    const std::size_t batch_count = count / grain_size + (count % grain_size != 0U ? 1U : 0U);
-    handles.reserve(batch_count);
-    using Callback = std::decay_t<Function>;
-    Callback callback = std::forward<Function>(function);
-    for (std::size_t batch = 0; batch < batch_count; ++batch) {
-        const std::size_t range_begin = begin + batch * grain_size;
-        const std::size_t range_end = range_begin + std::min(end - range_begin, grain_size);
-        handles.push_back(system.submit(
-            [range = BatchRange{range_begin, range_end, batch},
-             callback](JobContext&) mutable {
-                callback(range);
-            }));
-    }
-    return handles;
+    return parallelForScheduler(system, begin, end, grain_size,
+                                std::forward<Function>(function));
+}
+
+template <class Function>
+[[nodiscard]] std::vector<JobHandle> parallelFor(SchedulerClient& system,
+                                                  std::size_t begin,
+                                                  std::size_t end,
+                                                  std::size_t grain_size,
+                                                  Function&& function) {
+    return parallelForScheduler(system, begin, end, grain_size,
+                                std::forward<Function>(function));
 }
 
 template <class Function>
@@ -107,8 +126,8 @@ template <class Function>
     return handles;
 }
 
-template <class Function>
-[[nodiscard]] bool parallelForAndWait(JobSystem& system,
+template <class Scheduler, class Function>
+[[nodiscard]] bool parallelForAndWait(Scheduler& system,
                                       std::size_t begin,
                                       std::size_t end,
                                       std::size_t grain_size,
@@ -116,18 +135,13 @@ template <class Function>
     if (end <= begin || grain_size == 0) {
         return true;
     }
-    // JobGroup::wait uses the scheduler's worker-helping path when
-    // invoked from a worker. This keeps nested bounded bulk work live even
-    // with a single worker while still using the shared scheduler queues.
-    JobGroup group(system);
-    const auto handles = parallelFor(group, begin, end, grain_size,
-                                     std::forward<Function>(function));
-    group.wait();
-    if (group.failed()) {
-        return false;
+    auto handles = parallelFor(system, begin, end, grain_size,
+                               std::forward<Function>(function));
+    for (const JobHandle& handle : handles) {
+        handle.wait();
     }
     return std::all_of(handles.begin(), handles.end(), [](const JobHandle& handle) {
-        return !handle.wasCanceled();
+        return !handle.wasCanceled() && !handle.failed();
     });
 }
 

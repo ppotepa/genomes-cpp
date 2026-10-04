@@ -33,7 +33,7 @@ void MassBattlePresentationScheduler::schedule(
     std::shared_ptr<const terrain::HeightField> terrain, float model_height,
     foundation::StableId mesh_id, foundation::StableId blue_material,
     foundation::StableId red_material, std::uint64_t tick) {
-    if (!states || states->empty() || completion_.valid() || jobs_ == nullptr) return;
+    if (!states || states->empty() || completion_.valid() || !jobs_.valid()) return;
 
     auto batch = std::make_shared<MassBattlePresentationBatch>();
     batch->states = *states;
@@ -90,7 +90,7 @@ void MassBattlePresentationScheduler::schedule(
     for (const auto node : range_nodes) builder.precedes(node, merge);
 
     pending_ = std::move(batch);
-    completion_ = std::move(builder).build().start(*jobs_);
+    completion_ = jobs_.start(std::move(builder).build());
 }
 
 std::shared_ptr<const MassBattlePresentationBatch>
@@ -108,7 +108,7 @@ void MassBattlePresentationScheduler::scheduleAtlas(
     std::shared_ptr<const render::SkinnedMeshPrototype> prototype,
     std::shared_ptr<const infantry::InfantryModelArtifact> artifact,
     std::shared_ptr<const std::array<std::optional<infantry::AnimationPose>, 44U>> samples) {
-    if (atlas_completion_.valid() || !prototype || !artifact || !samples || jobs_ == nullptr) return;
+    if (atlas_completion_.valid() || !prototype || !artifact || !samples || !jobs_.valid()) return;
     auto baked = std::make_shared<PoseAtlas>();
     pending_atlas_ = baked;
     jobs::JobGraphBuilder builder;
@@ -142,7 +142,7 @@ void MassBattlePresentationScheduler::scheduleAtlas(
             },
             options);
     }
-    atlas_completion_ = std::move(builder).build().start(*jobs_);
+    atlas_completion_ = jobs_.start(std::move(builder).build());
 }
 
 std::shared_ptr<const MassBattlePresentationScheduler::PoseAtlas>
