@@ -130,6 +130,9 @@ foundation::Result<void, foundation::Error> registerWorldGenerator(
             return foundation::Result<std::shared_ptr<const WorldPlan>,
                                       foundation::Error>::success(
                 std::make_shared<const WorldPlan>(std::move(generated.value())));
+        },
+        [](const WorldGenerationRequest& request) {
+            return requestHash(request);
         });
     if (!added) {
         return added;
