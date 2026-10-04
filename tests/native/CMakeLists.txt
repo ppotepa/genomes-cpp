@@ -588,11 +588,14 @@ add_test(NAME jobs.worker_affinity_wait_violation
     COMMAND genomes_test_job_system_worker_violation --affinity-wait)
 add_test(NAME jobs.worker_affinity_group_wait_violation
     COMMAND genomes_test_job_system_worker_violation --affinity-group-wait)
+add_test(NAME jobs.worker_dynamic_affinity_completion_wait_violation
+    COMMAND genomes_test_job_system_worker_violation --dynamic-affinity-completion-wait)
 set_tests_properties(
     jobs.worker_shutdown_violation
     jobs.worker_destructor_violation
     jobs.worker_affinity_wait_violation
     jobs.worker_affinity_group_wait_violation
+    jobs.worker_dynamic_affinity_completion_wait_violation
     PROPERTIES
         LABELS "cpu;jobs"
         TIMEOUT 5
