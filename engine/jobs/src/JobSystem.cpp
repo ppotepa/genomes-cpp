@@ -24,12 +24,18 @@ namespace detail {
 struct JobGroupState final {
     explicit JobGroupState(JobSystem& owner) noexcept : system(&owner) {}
 
-    void add(std::size_t count = 1) noexcept {
+    void add(std::size_t count = 1,
+             ExecutionLane lane = ExecutionLane::Worker) noexcept {
         std::lock_guard lock(mutex);
         pending += count;
+        if (lane == ExecutionLane::Main || lane == ExecutionLane::Render) {
+            owner_affinity_pending += count;
+        }
     }
 
-    void finish(JobId id, std::exception_ptr failure) noexcept {
+    void finish(JobId id,
+                std::exception_ptr failure,
+                ExecutionLane lane = ExecutionLane::Worker) noexcept {
         bool notify = false;
         std::vector<std::function<void()>> continuations;
         {
@@ -40,6 +46,10 @@ struct JobGroupState final {
             }
             if (pending > 0) {
                 --pending;
+            }
+            if ((lane == ExecutionLane::Main || lane == ExecutionLane::Render) &&
+                owner_affinity_pending > 0) {
+                --owner_affinity_pending;
             }
             notify = pending == 0;
             if (notify) {
@@ -74,6 +84,7 @@ struct JobGroupState final {
     mutable std::mutex mutex;
     mutable std::condition_variable condition;
     std::size_t pending{0};
+    std::size_t owner_affinity_pending{0};
     std::vector<std::function<void()>> on_complete;
     JobId first_failure_id{std::numeric_limits<JobId>::max()};
     std::exception_ptr first_failure;
@@ -219,11 +230,20 @@ struct JobSystem::Impl final {
                                    bool register_group = false,
                                    std::function<void()> continuation = {},
                                    std::optional<JobId> forced_id = std::nullopt) {
+        // Disabling the dedicated IO worker must not create an unconsumable
+        // queue. In parallel mode, explicitly fall blocking IO back to the
+        // shared worker pool; telemetry still retains WorkClass::BlockingIO.
+        if (config.mode == SchedulerMode::Parallel &&
+            options.lane == ExecutionLane::IO &&
+            !config.enable_io_worker) {
+            options.lane = ExecutionLane::Worker;
+        }
+
         const JobId id = forced_id.value_or(reserveIds(1));
         auto job_state = std::make_shared<detail::JobState>();
         JobHandle handle(job_state, id, options.lane);
         if (register_group && group) {
-            group->add();
+            group->add(1, options.lane);
         }
 
         JobNode node{std::move(function), options, std::move(job_state), std::move(group),
@@ -465,7 +485,7 @@ struct JobSystem::Impl final {
         // otherwise shutdown can observe a completed graph with a permanently
         // retained task count while its workers are being joined.
         if (node.group) {
-            node.group->finish(node.id, failure);
+            node.group->finish(node.id, failure, node.options.lane);
         }
         wake.notify_all();
     }
@@ -615,6 +635,10 @@ void JobSystem::wait(const JobHandle& handle) const noexcept {
         return;
     }
     if (Impl::tls_system == impl_.get() && Impl::tls_lane == ExecutionLane::Worker) {
+        if (handle.lane() == ExecutionLane::Main ||
+            handle.lane() == ExecutionLane::Render) {
+            terminateContract("worker cannot wait for owner-affinity job");
+        }
         while (!handle.isComplete()) {
             if (!impl_->executeOne(Impl::tls_worker_index)) {
                 std::this_thread::yield();
@@ -648,6 +672,12 @@ void JobSystem::wait(const JobCompletion& completion) const noexcept {
         return;
     }
     if (Impl::tls_system == impl_.get() && Impl::tls_lane == ExecutionLane::Worker) {
+        {
+            std::lock_guard lock(completion.state_->mutex);
+            if (completion.state_->owner_affinity_pending != 0U) {
+                terminateContract("worker cannot wait for owner-affinity job group");
+            }
+        }
         while (!completion.isComplete()) {
             if (!impl_->executeOne(Impl::tls_worker_index)) {
                 std::this_thread::yield();
@@ -863,6 +893,12 @@ void JobGroup::wait() const noexcept {
         }
         if (JobSystem::Impl::tls_system == system_->impl_.get() &&
             JobSystem::Impl::tls_lane == ExecutionLane::Worker) {
+            {
+                std::lock_guard lock(state_->mutex);
+                if (state_->owner_affinity_pending != 0U) {
+                    terminateContract("worker cannot wait for owner-affinity job group");
+                }
+            }
             if (!system_->impl_->executeOne(JobSystem::Impl::tls_worker_index)) {
                 std::this_thread::yield();
             }
