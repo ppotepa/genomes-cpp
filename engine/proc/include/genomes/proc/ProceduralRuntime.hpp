@@ -296,6 +296,34 @@ public:
             failed_.fetch_add(1, std::memory_order_relaxed);
             return ticket;
         }
+        if (entry->canonical_input_hash) {
+            const foundation::StableId canonical_hash =
+                entry->canonical_input_hash(request.input.get());
+            if (canonical_hash == 0U) {
+                const foundation::Error error{
+                    foundation::ErrorCode::InvalidArgument,
+                    "procedural generator produced an invalid canonical input hash"};
+                state->transition(GenerationStatus::Failed, {}, error);
+                diagnostics_.record({state->request_id, request.generator, error});
+                failed_.fetch_add(1, std::memory_order_relaxed);
+                return ticket;
+            }
+            // Generator-owned identity is authoritative. Callers may still
+            // populate input_hash for older generators, but cannot accidentally
+            // weaken the cache key for a generator that declares its own hash.
+            request.options.input_hash = canonical_hash;
+        }
+        if (request.options.use_cache &&
+            entry->descriptor.cache == GeneratorCachePolicy::Artifact &&
+            request.options.input_hash == 0U) {
+            const foundation::Error error{
+                foundation::ErrorCode::InvalidArgument,
+                "cacheable procedural request has no canonical input hash"};
+            state->transition(GenerationStatus::Failed, {}, error);
+            diagnostics_.record({state->request_id, request.generator, error});
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return ticket;
+        }
 
         std::shared_ptr<detail::GenerationChannelState> channel_state;
         jobs::CancelToken superseded;
