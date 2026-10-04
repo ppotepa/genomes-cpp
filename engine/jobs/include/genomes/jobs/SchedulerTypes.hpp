@@ -75,6 +75,7 @@ struct SchedulerTelemetry final {
     std::array<std::uint64_t, 6> running_by_class{};
     std::array<std::uint64_t, 6> completed_by_class{};
     std::array<std::uint64_t, 6> canceled_by_class{};
+    std::array<std::uint64_t, 4> queued_by_lane{};
 };
 
 } // namespace genomes::jobs
