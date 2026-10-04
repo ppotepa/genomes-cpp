@@ -409,6 +409,22 @@ file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp" _b
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/MassBattlePresentationScheduler.cpp"
      _mass_battle_presentation_scheduler)
 string(APPEND _battlefield_scene "\n" "${_mass_battle_presentation_scheduler}")
+string(FIND "${_mass_battle_presentation_scheduler}" "jobs::ExecutionLane::Render"
+       _mass_atlas_render_lane)
+if(NOT _mass_atlas_render_lane LESS 0)
+    message(FATAL_ERROR
+        "Mass Battle CPU presentation/atlas work must not run on the Render lane")
+endif()
+foreach(_mass_worker_contract IN ITEMS "jobs::ExecutionLane::Worker"
+                                       "jobs::WorkClass::Presentation"
+                                       "jobs::JobPriority::Background")
+    string(FIND "${_mass_battle_presentation_scheduler}" "${_mass_worker_contract}"
+           _mass_worker_contract_found)
+    if(_mass_worker_contract_found LESS 0)
+        message(FATAL_ERROR
+            "Mass Battle presentation scheduler misses worker/background contract: ${_mass_worker_contract}")
+    endif()
+endforeach()
 string(FIND "${_battlefield_scene}" "if (config.seed == 0U) config.seed = 0x1F4A77U"
        _mass_battle_seed_resolution)
 if(_mass_battle_seed_resolution LESS 0)
