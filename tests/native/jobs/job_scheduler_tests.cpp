@@ -309,18 +309,23 @@ void parallelForReportsWorkerFailure() {
     assert(!completed);
 }
 
-void parallelForRejectsWorkerBarrier() {
-    genomes::jobs::JobSystem jobs(2);
-    std::atomic_bool rejected{false};
+void parallelForWorkerBarrierHelpsWithoutDeadlock() {
+    // One worker is the important case: the parent occupies that worker while
+    // waiting, so completion proves JobGroup::wait helps execute its children.
+    genomes::jobs::JobSystem jobs(1);
+    std::atomic_uint32_t completed{0U};
     const auto handle = jobs.submit([&](genomes::jobs::JobContext&) {
         assert(jobs.isWorkerThread());
-        rejected.store(!genomes::jobs::parallelForAndWait(
-                           jobs, 0U, 8U, 2U,
-                           [](const genomes::jobs::BatchRange&) {}),
-                       std::memory_order_release);
+        const bool result = genomes::jobs::parallelForAndWait(
+            jobs, 0U, 8U, 2U,
+            [&completed](const genomes::jobs::BatchRange& range) {
+                completed.fetch_add(
+                    static_cast<std::uint32_t>(range.size()), std::memory_order_relaxed);
+            });
+        assert(result);
     });
     handle.wait();
-    assert(rejected.load(std::memory_order_acquire));
+    assert(completed.load(std::memory_order_acquire) == 8U);
 }
 
 void parallelForPreservesStableBatchRangesAcrossModes() {
@@ -395,7 +400,7 @@ int main() {
     ownerPumpsAffinityLanesWithWeightedFairness();
     schedulerCompletesOneHundredThousandJobs();
     parallelForReportsWorkerFailure();
-    parallelForRejectsWorkerBarrier();
+    parallelForWorkerBarrierHelpsWithoutDeadlock();
     parallelForPreservesStableBatchRangesAcrossModes();
     return 0;
 }
