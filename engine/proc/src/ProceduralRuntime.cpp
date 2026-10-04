@@ -42,6 +42,10 @@ ProceduralRuntime::ProceduralRuntime(const GeneratorRegistry& registry,
       jobs_(jobs), group_(jobs) {}
 
 ProceduralRuntime::~ProceduralRuntime() {
+    // Runtime teardown is a cancellation boundary. Long-running generators
+    // receive the group's cooperative token before we join them, so scene/app
+    // shutdown cannot wait indefinitely for work that is no longer needed.
+    group_.cancel();
     group_.wait();
 }
 
