@@ -4,7 +4,7 @@ endif()
 
 set(game_header "${GENOMES_SOURCE_DIR}/apps/game/GameApplication.hpp")
 set(game_source "${GENOMES_SOURCE_DIR}/apps/game/GameApplication.cpp")
-set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp")
+set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneLifecycle.cpp")
 set(director_header "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/SceneDirector.hpp")
 set(director_source "${GENOMES_SOURCE_DIR}/engine/runtime/src/SceneDirector.cpp")
 set(clock_header "${GENOMES_SOURCE_DIR}/engine/simulation/include/genomes/simulation/SessionSimulationClock.hpp")

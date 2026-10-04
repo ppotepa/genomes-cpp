@@ -83,7 +83,9 @@ foreach(_canonical_product_header IN ITEMS
 endforeach()
 
 foreach(_product_source IN ITEMS
-        BattlefieldScene.cpp BuildingLabScene.cpp InfantryPresentation.cpp
+        BattlefieldSceneLifecycle.cpp BattlefieldSceneAnimation.cpp
+        BattlefieldSceneUi.cpp BattlefieldScenePresentation.cpp
+        BuildingLabScene.cpp InfantryPresentation.cpp
         MainMenuScene.cpp UnitLabScene.cpp WorldConfigScene.cpp WorldLabScene.cpp)
     file(READ "${_game_scenes_dir}/src/${_product_source}" _product_source_text)
     if(_product_source_text MATCHES "namespace genomes::runtime")
@@ -105,7 +107,10 @@ foreach(_product_header IN ITEMS
 endforeach()
 
 foreach(_source
-        BattlefieldScene.cpp
+        BattlefieldSceneLifecycle.cpp
+        BattlefieldSceneAnimation.cpp
+        BattlefieldSceneUi.cpp
+        BattlefieldScenePresentation.cpp
         BuildingLabScene.cpp
         BuiltinScenes.cpp
         MainMenuScene.cpp

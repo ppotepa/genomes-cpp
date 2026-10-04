@@ -2,7 +2,10 @@
 # Their public headers live under the application-scene surface; only the
 # neutral lifecycle headers remain under runtime/include.
 add_library(genomes_game_scenes STATIC
-    src/BattlefieldScene.cpp
+    src/BattlefieldSceneLifecycle.cpp
+    src/BattlefieldSceneAnimation.cpp
+    src/BattlefieldSceneUi.cpp
+    src/BattlefieldScenePresentation.cpp
     src/BuildingLabScene.cpp
     src/MassBattlePresentationScheduler.cpp
     src/MainMenuScene.cpp

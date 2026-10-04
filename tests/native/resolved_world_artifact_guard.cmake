@@ -5,7 +5,7 @@ endif()
 set(runtime_header
     "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldRuntime.hpp")
 set(runtime_source "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldRuntime.cpp")
-set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp")
+set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneLifecycle.cpp")
 set(artifact_header
     "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/WorldScenario.hpp")
 set(mesh_source "${GENOMES_SOURCE_DIR}/modules/world_render/src/WorldMeshCompiler.cpp")

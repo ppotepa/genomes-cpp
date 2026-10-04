@@ -405,7 +405,19 @@ foreach(_loading_contract IN ITEMS "SceneLoadingPhase" "Starting" "InProgress"
         message(FATAL_ERROR "Scene loading contract misses ${_loading_contract}")
     endif()
 endforeach()
-file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp" _battlefield_scene)
+set(_battlefield_scene "")
+foreach(_battlefield_part IN ITEMS
+        BattlefieldSceneLifecycle.cpp BattlefieldSceneAnimation.cpp
+        BattlefieldSceneUi.cpp BattlefieldScenePresentation.cpp)
+    file(READ
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/${_battlefield_part}"
+        _battlefield_part_text)
+    string(APPEND _battlefield_scene "\n" "${_battlefield_part_text}")
+endforeach()
+file(READ
+    "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneDetail.hpp"
+    _battlefield_detail_text)
+string(APPEND _battlefield_scene "\n" "${_battlefield_detail_text}")
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/MassBattlePresentationScheduler.cpp"
      _mass_battle_presentation_scheduler)
 string(APPEND _battlefield_scene "\n" "${_mass_battle_presentation_scheduler}")

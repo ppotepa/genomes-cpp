@@ -236,8 +236,13 @@ foreach(required_application_scene_text IN ITEMS
         message(FATAL_ERROR "Application scene composition target lost ${required_application_scene_text}")
     endif()
 endforeach()
+if(EXISTS "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp")
+    message(FATAL_ERROR "BattlefieldScene megapile must remain split by responsibility")
+endif()
 foreach(product_scene_source IN ITEMS
-        BattlefieldScene.cpp BuildingLabScene.cpp BuiltinScenes.cpp
+        BattlefieldSceneLifecycle.cpp BattlefieldSceneAnimation.cpp
+        BattlefieldSceneUi.cpp BattlefieldScenePresentation.cpp
+        BuildingLabScene.cpp BuiltinScenes.cpp
         InfantryPresentation.cpp MainMenuScene.cpp UnitLabScene.cpp
         WorldConfigScene.cpp WorldLabScene.cpp)
     if(NOT EXISTS "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/${product_scene_source}")
@@ -336,8 +341,19 @@ endforeach()
 # The production scene has one authoritative pipeline.  BattlefieldRuntime
 # owns the ECS, physics and combat tick; a failed start is terminal for the
 # scene and must not revive the removed scene-local graph/physics fallback.
-file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
-     battlefield_scene_source)
+set(battlefield_scene_source "")
+foreach(battlefield_scene_part IN ITEMS
+        BattlefieldSceneLifecycle.cpp BattlefieldSceneAnimation.cpp
+        BattlefieldSceneUi.cpp BattlefieldScenePresentation.cpp)
+    file(READ
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/${battlefield_scene_part}"
+        battlefield_scene_part_text)
+    string(APPEND battlefield_scene_source "\n" "${battlefield_scene_part_text}")
+endforeach()
+file(READ
+    "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneDetail.hpp"
+    battlefield_scene_detail_text)
+string(APPEND battlefield_scene_source "\n" "${battlefield_scene_detail_text}")
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/BattlefieldScene.hpp"
      battlefield_scene_header)
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/SceneDirector.hpp"
@@ -461,7 +477,10 @@ endif()
 # ImpactEvent/DamageCommand. Keep the named adapter itself in combat for tests.
 foreach(production_weapon_consumer IN ITEMS
         "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/BattlefieldScene.hpp"
-        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneLifecycle.cpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneAnimation.cpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldSceneUi.cpp"
+        "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScenePresentation.cpp"
         "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldRuntime.hpp"
         "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/BattlefieldScenario.hpp"
         "${GENOMES_SOURCE_DIR}/modules/gameplay/src/BattlefieldRuntime.cpp"

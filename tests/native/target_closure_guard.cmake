@@ -92,7 +92,9 @@ foreach(_forbidden IN ITEMS
         "genomes::gameplay" "genomes::infantry" "genomes::buildings"
         "genomes::world_render" "genomes::combat" "genomes::physics"
         "genomes::world_generation" "genomes::game_scenes"
-        "src/BattlefieldScene.cpp" "src/BuiltinScenes.cpp" "src/UnitLabScene.cpp")
+        "src/BattlefieldSceneLifecycle.cpp" "src/BattlefieldSceneAnimation.cpp"
+        "src/BattlefieldSceneUi.cpp" "src/BattlefieldScenePresentation.cpp"
+        "src/BuiltinScenes.cpp" "src/UnitLabScene.cpp")
     _forbid_text(_runtime "${_forbidden}"
                  "Neutral runtime target leaks product closure")
 endforeach()
