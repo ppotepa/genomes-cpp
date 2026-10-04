@@ -47,6 +47,21 @@ void waitForOwnerAffinityGroupFromWorker() {
     jobs.wait(worker);
 }
 
+void waitForDynamicallyReleasedAffinityCompletionFromWorker() {
+    genomes::jobs::JobSystem jobs(1);
+    const auto worker = jobs.submit([&](genomes::jobs::JobContext&) {
+        genomes::jobs::JobGraphBuilder builder;
+        const auto root = builder.add([](genomes::jobs::JobContext&) {});
+        const auto owner = builder.add(
+            [](genomes::jobs::JobContext&) {},
+            {.lane = genomes::jobs::ExecutionLane::Main});
+        builder.precedes(root, owner);
+        auto completion = std::move(builder).build().start(jobs);
+        completion.wait();
+    });
+    jobs.wait(worker);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -67,6 +82,10 @@ int main(int argc, char** argv) {
     }
     if (std::string_view(argv[1]) == "--affinity-group-wait") {
         waitForOwnerAffinityGroupFromWorker();
+        return 3;
+    }
+    if (std::string_view(argv[1]) == "--dynamic-affinity-completion-wait") {
+        waitForDynamicallyReleasedAffinityCompletionFromWorker();
         return 3;
     }
     return 2;
