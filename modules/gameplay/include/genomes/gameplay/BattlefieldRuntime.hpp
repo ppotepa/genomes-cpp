@@ -186,8 +186,6 @@ private:
     BattlefieldScenarioConfig config_{};
     BattlefieldExecutionMode execution_mode_{BattlefieldExecutionMode::Parallel};
     jobs::JobSystem* jobs_{nullptr};
-    jobs::JobSystem serial_executor_{jobs::SchedulerConfig{
-        jobs::SchedulerMode::Serial, 0U, 0U, false, 64U * 1024U}};
     proc::ProceduralRuntime* procedural_runtime_{nullptr};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_{};
