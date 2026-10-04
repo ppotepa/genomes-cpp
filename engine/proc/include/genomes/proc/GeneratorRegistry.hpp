@@ -20,6 +20,8 @@ using GeneratorFunction =
 using ErasedGeneratorFunction = std::function<
     foundation::Result<std::shared_ptr<const void>, foundation::Error>(
         const void*, GenerationContext&)>;
+using ErasedInputHashFunction =
+    std::function<foundation::StableId(const void*)>;
 
 struct GeneratorEntry final {
     GeneratorDescriptor descriptor;
@@ -27,6 +29,7 @@ struct GeneratorEntry final {
     std::type_index input_cpp_type{typeid(void)};
     std::type_index output_cpp_type{typeid(void)};
     ErasedGeneratorFunction generate_typed;
+    ErasedInputHashFunction canonical_input_hash;
 };
 
 class GeneratorRegistry final {
@@ -39,7 +42,8 @@ public:
         foundation::Result<void, foundation::Error> addTyped(
             GeneratorDescriptor descriptor,
             std::function<foundation::Result<std::shared_ptr<const Output>, foundation::Error>(
-                const Input&, GenerationContext&)> generate) {
+                const Input&, GenerationContext&)> generate,
+            std::function<foundation::StableId(const Input&)> canonical_input_hash = {}) {
             if (!generate) {
                 return foundation::Result<void, foundation::Error>::failure(
                     {foundation::ErrorCode::InvalidArgument, "invalid typed generator"});
@@ -62,8 +66,19 @@ public:
                                               foundation::Error>::success(
                         std::static_pointer_cast<const void>(result.value()));
                 };
+            ErasedInputHashFunction erased_hash;
+            if (canonical_input_hash) {
+                erased_hash =
+                    [canonical_input_hash = std::move(canonical_input_hash)](
+                        const void* input) -> foundation::StableId {
+                        return input == nullptr
+                                   ? foundation::StableId{0}
+                                   : canonical_input_hash(*static_cast<const Input*>(input));
+                    };
+            }
             return addTypedErased(std::move(descriptor), std::type_index(typeid(Input)),
-                                  std::type_index(typeid(Output)), std::move(erased));
+                                  std::type_index(typeid(Output)), std::move(erased),
+                                  std::move(erased_hash));
         }
         foundation::Result<GeneratorRegistry, foundation::Error> freeze() &&;
 
@@ -72,7 +87,8 @@ public:
             GeneratorDescriptor,
             std::type_index,
             std::type_index,
-            ErasedGeneratorFunction);
+            ErasedGeneratorFunction,
+            ErasedInputHashFunction);
         std::vector<GeneratorEntry> entries_;
     };
 
