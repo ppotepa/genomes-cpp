@@ -59,6 +59,9 @@ struct ResolvedWorldArtifacts final {
     world::WorldPlan plan{};
     std::shared_ptr<const terrain::HeightField> terrain;
     std::shared_ptr<const terrain::TerrainMesh> terrain_mesh;
+    // Renderer-independent water surface generated from the same final
+    // heightfield and hydrology revision as terrain_mesh.
+    std::shared_ptr<const terrain::TerrainMesh> water_mesh;
     std::shared_ptr<const std::vector<buildings::BuildingGenerationResult>> resolved_buildings;
     // Destruction invalidations are bound to this exact revision before any
     // consumer can publish derived collision/navigation/render state.
@@ -71,6 +74,7 @@ struct ResolvedWorldArtifacts final {
         return revision == world::artifactRevision(plan) && plan.content_hash != 0U &&
                !plan.features.empty() && terrain != nullptr &&
                terrain_mesh != nullptr && resolved_buildings != nullptr &&
+               water_mesh != nullptr &&
                destruction_invalidations != nullptr &&
                destruction_invalidations->worldRevision() == revision &&
                save_package != nullptr && terrain->width() >= 2U &&
@@ -105,9 +109,10 @@ public:
     explicit WorldScenario(jobs::JobSystem& jobs,
                            std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile,
                            std::shared_ptr<proc::ArtifactCache> cache = {},
-                           proc::GeneratorRegistry registry = {}) noexcept
-        : jobs_(jobs), generation_service_(jobs, std::move(cache), std::move(registry)),
-          procedural_runtime_(generation_service_.registry(), jobs),
+                           proc::GeneratorRegistry registry = {},
+                           proc::ProceduralRuntime* shared_runtime = nullptr) noexcept
+        : jobs_(jobs), generation_service_(jobs, std::move(cache), std::move(registry),
+                                            shared_runtime),
           building_profile_(std::move(building_profile)) {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> requestNew(
@@ -131,6 +136,9 @@ public:
     [[nodiscard]] const world::WorldGenerationRequest* activeRequest() const noexcept;
     [[nodiscard]] WorldSemanticSnapshot semanticSnapshot() const noexcept;
     [[nodiscard]] const WorldScenarioStatus& status() const noexcept { return status_; }
+    [[nodiscard]] proc::ProceduralRuntimeTelemetry proceduralTelemetry() const noexcept {
+        return generation_service_.runtime()->telemetry();
+    }
 
     // Compile a generated plan into the same immutable, revision-bound handoff
     // used by the asynchronous scenario.  Deterministic/headless callers use
@@ -150,7 +158,6 @@ private:
 
     jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;
-    proc::ProceduralRuntime procedural_runtime_;
     proc::GenerationChannel generation_channel_;
     std::shared_ptr<const buildings::FrozenBuildingProfile> building_profile_;
     std::unique_ptr<world::WorldStreamer> streamer_;
@@ -158,6 +165,8 @@ private:
     foundation::SimulationTick streaming_tick_{};
     std::optional<world::WorldGenerationTask> pending_;
     std::optional<world::WorldGenerationRequest> pending_request_;
+    proc::GenerationTicket<WorldScenarioArtifact> pending_artifact_ticket_;
+    std::optional<world::WorldGenerationRequest> pending_artifact_request_;
     std::optional<world::WorldGenerationRequest> active_request_;
     std::shared_ptr<const ResolvedWorldArtifacts> active_artifact_;
     WorldScenarioStatus status_{};

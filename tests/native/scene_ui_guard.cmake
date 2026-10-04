@@ -406,6 +406,9 @@ foreach(_loading_contract IN ITEMS "SceneLoadingPhase" "Starting" "InProgress"
     endif()
 endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp" _battlefield_scene)
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/MassBattlePresentationScheduler.cpp"
+     _mass_battle_presentation_scheduler)
+string(APPEND _battlefield_scene "\n" "${_mass_battle_presentation_scheduler}")
 string(FIND "${_battlefield_scene}" "if (config.seed == 0U) config.seed = 0x1F4A77U"
        _mass_battle_seed_resolution)
 if(_mass_battle_seed_resolution LESS 0)

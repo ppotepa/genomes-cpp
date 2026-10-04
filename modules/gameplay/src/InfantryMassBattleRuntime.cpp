@@ -5,6 +5,8 @@
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/jobs/ParallelFor.hpp>
+#include <genomes/weapons/WeaponCatalog.hpp>
+#include <genomes/weapons/WeaponProcedural.hpp>
 
 #include <algorithm>
 #include <array>
@@ -23,21 +25,18 @@ constexpr float kHalfTau = 3.14159265358979323846F;
     return {foundation::ErrorCode::InvalidArgument, message};
 }
 
-[[nodiscard]] jobs::JobSystem& fallbackMassBattleScheduler() {
-    return jobs::processScheduler();
-}
-
 } // namespace
 
 foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>, foundation::Error>
-InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config, jobs::JobSystem* jobs) {
+InfantryMassBattleRuntime::start(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
+                                 proc::ProceduralRuntime* procedural_runtime) {
     if (!config.valid()) {
         return foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
                                   foundation::Error>::failure(
             invalidMassBattleError("invalid infantry mass battle configuration"));
     }
     auto runtime = std::unique_ptr<InfantryMassBattleRuntime>(
-        new InfantryMassBattleRuntime(config, jobs));
+        new InfantryMassBattleRuntime(config, jobs, procedural_runtime));
     const auto initialized = runtime->initialize();
     if (!initialized) {
         return foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
@@ -54,9 +53,40 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
     input_states_.resize(total);
     unit_updates_.resize(total);
     simulation_snapshot_.entities.reserve(total);
-    if (jobs_ == nullptr) {
-        jobs_ = &fallbackMassBattleScheduler();
+    const weapons::WeaponDefinition* weapon = weapons::WeaponCatalog::find(
+        weapons::weapon_id("carbine"));
+    if (weapon == nullptr) {
+        return foundation::Result<void, foundation::Error>::failure(
+            invalidMassBattleError("carbine missing from weapon catalog"));
     }
+    const weapons::WeaponVariant variant{
+        proc::Seed(foundation::stableHashCombine(config_.seed, 0xB17U)), 1.0F, 0.0F, 0U};
+    foundation::Result<weapons::WeaponArtifact, foundation::Error> artifact =
+        weapons::WeaponGeometryGenerator::build(*weapon, variant);
+    if (procedural_runtime_ != nullptr &&
+        procedural_runtime_->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
+        proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact> request;
+        request.generator = proc::generatorId("weapons.artifact");
+        request.input = std::make_shared<const weapons::WeaponGenerationRequest>(
+            weapons::WeaponGenerationRequest{*weapon, variant});
+        request.seed_path = proc::SeedPath(variant.seed);
+        request.options.input_hash = foundation::stableHashCombine(
+            foundation::stable_id("weapon.carbine"), variant.seed);
+        request.options.retained_bytes = sizeof(weapons::WeaponArtifact);
+        auto ticket = procedural_runtime_->request(std::move(request));
+        ticket.wait();
+        if (const auto generated = ticket.artifact(); generated) {
+            artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
+                *generated);
+        } else {
+            artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
+                ticket.error());
+        }
+    }
+    if (!artifact) {
+        return foundation::Result<void, foundation::Error>::failure(artifact.error());
+    }
+    weapon_artifact_ = std::make_shared<const weapons::WeaponArtifact>(artifact.value());
 
     const std::uint32_t columns = static_cast<std::uint32_t>(std::ceil(
         std::sqrt(static_cast<float>(config_.units_per_team))));
@@ -149,7 +179,7 @@ bool InfantryMassBattleRuntime::fixedUpdate(const simulation::TickContext& conte
     }
     try {
         std::atomic<bool> controller_failed{false};
-        if (!jobs::parallelForAndWait(*jobs_, 0, units_.size(), 128,
+        if (!jobs::parallelForAndWait(jobs_, 0, units_.size(), 128,
                                  [this, &context, &controller_failed](
                                      const jobs::BatchRange& range) {
             for (std::size_t index = range.begin; index < range.end; ++index) {
@@ -274,6 +304,16 @@ api::CommandReceipt InfantryMassBattleRuntime::submit(api::CommandEnvelope comma
 void InfantryMassBattleRuntime::applyApiCommands(foundation::SimulationTick tick) noexcept {
     const auto commands = api_commands_.take(tick);
     for (const auto& command : commands) {
+        if (command.module == foundation::stable_id("module.infantry") &&
+            command.verb == foundation::stable_id("battlefield.restart")) {
+            restart_requested_ = true;
+            continue;
+        }
+        if (command.module == foundation::stable_id("module.world") &&
+            command.verb == foundation::stable_id("world.regenerate")) {
+            world_regenerate_requested_ = true;
+            continue;
+        }
         if (command.module == foundation::stable_id("module.world") &&
             command.verb == foundation::stable_id("world.set")) {
             const auto values = command.payload.asTuple();
@@ -407,7 +447,7 @@ bool InfantryMassBattleRuntime::rebuildRenderStates(std::uint64_t tick) noexcept
     const std::size_t range_count = units_.size() / extraction_grain +
                                     (units_.size() % extraction_grain != 0U ? 1U : 0U);
     std::vector<RangeOutput> ranges(range_count);
-    if (!jobs::parallelForAndWait(*jobs_, 0U, units_.size(), extraction_grain,
+    if (!jobs::parallelForAndWait(jobs_, 0U, units_.size(), extraction_grain,
                              [this, &ranges](const jobs::BatchRange& range) {
         RangeOutput& output = ranges[range.batch_index];
         output.states.reserve(range.end - range.begin);

@@ -74,6 +74,13 @@ inline foundation::Result<void, foundation::Error> registerModule(
             issue.deterministic = true;
             auto result = registry.declareCommand(identity.module_id, issue);
             if (!result) return result;
+            api::ApiOperationDescriptor restart{};
+            restart.id = foundation::stable_id("battlefield.restart");
+            restart.arguments = {api::ValueType::Bytes};
+            restart.lane = jobs::ExecutionLane::Main;
+            restart.deterministic = true;
+            result = registry.declareCommand(identity.module_id, std::move(restart));
+            if (!result) return result;
             api::ApiOperationDescriptor query{};
             query.id = foundation::stable_id("units.snapshot");
             query.arguments = {api::ValueType::Bytes};

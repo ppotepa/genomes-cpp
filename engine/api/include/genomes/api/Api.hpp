@@ -4,6 +4,7 @@
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
+#include <genomes/foundation/StableHash.hpp>
 #include <genomes/jobs/Cancellation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 
@@ -23,6 +24,10 @@
 
 namespace genomes::simulation {
 struct TickContext;
+}
+
+namespace genomes::proc {
+class ProceduralRuntime;
 }
 
 namespace genomes::api {
@@ -208,11 +213,23 @@ struct CommandEnvelope final {
     std::uint64_t sequence{0};
     std::uint8_t priority{0};
     EncodedValue payload{};
+    // Optional producer-assigned deterministic ordering key.  It is appended
+    // so existing aggregate initializers remain source-compatible.
+    std::uint64_t stable_order{0};
 
     [[nodiscard]] friend bool operator<(const CommandEnvelope& left,
                                         const CommandEnvelope& right) noexcept {
-        return std::tie(left.target_tick.value, left.priority, left.source, left.sequence) <
-               std::tie(right.target_tick.value, right.priority, right.source, right.sequence);
+        if (left.target_tick.value != right.target_tick.value) {
+            return left.target_tick.value < right.target_tick.value;
+        }
+        if (left.priority != right.priority) return left.priority < right.priority;
+        if (left.stable_order != 0U || right.stable_order != 0U) {
+            if (left.stable_order != right.stable_order) {
+                return left.stable_order < right.stable_order;
+            }
+        }
+        return std::tie(left.source, left.sequence) <
+               std::tie(right.source, right.sequence);
     }
 };
 
@@ -497,8 +514,17 @@ public:
     virtual void requestQuit() noexcept = 0;
 };
 
+class GenerationService {
+public:
+    virtual ~GenerationService() = default;
+    [[nodiscard]] virtual jobs::CancelToken cancellation() const noexcept = 0;
+    [[nodiscard]] virtual std::uint64_t sceneEpoch() const noexcept = 0;
+};
+
 struct EngineServices final {
     jobs::JobSystem* scheduler{nullptr};
+    proc::ProceduralRuntime* procedural_runtime{nullptr};
+    GenerationService* generation{nullptr};
     SimulationFacade* simulation{nullptr};
     PresentationFacade* presentation{nullptr};
     CoreControlApi* core{nullptr};

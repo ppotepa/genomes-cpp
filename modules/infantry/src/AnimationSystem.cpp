@@ -1859,7 +1859,10 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
         }
     };
 
-    if (jobs != nullptr && chunk_count > 1U) {
+    // evaluateAsync already runs this evaluator inside a scheduler job.  A
+    // worker must not create a child graph and wait for it, because that is
+    // the nested barrier prohibited by the central scheduler contract.
+    if (jobs != nullptr && chunk_count > 1U && !jobs->isWorkerThread()) {
         jobs::JobGraphBuilder graph;
         std::vector<jobs::JobGraphNode> chunks;
         chunks.reserve(chunk_count);

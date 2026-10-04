@@ -4,6 +4,7 @@
 add_library(genomes_game_scenes STATIC
     src/BattlefieldScene.cpp
     src/BuildingLabScene.cpp
+    src/MassBattlePresentationScheduler.cpp
     src/MainMenuScene.cpp
     src/WorldConfigScene.cpp
     src/WorldLabScene.cpp)

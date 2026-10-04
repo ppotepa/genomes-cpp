@@ -39,7 +39,7 @@ ProceduralRuntime::ProceduralRuntime(const GeneratorRegistry& registry,
                                      jobs::JobSystem& jobs,
                                      ArtifactCache* cache)
     : registry_(registry), cache_(cache == nullptr ? &owned_cache_ : cache),
-      group_(jobs) {}
+      jobs_(jobs), group_(jobs) {}
 
 ProceduralRuntime::~ProceduralRuntime() {
     group_.wait();
@@ -58,12 +58,20 @@ ArtifactKey ProceduralRuntime::makeKey(const GeneratorEntry& entry,
 }
 
 ProceduralRuntimeTelemetry ProceduralRuntime::telemetry() const noexcept {
-    return {requested_.load(std::memory_order_relaxed),
-            completed_.load(std::memory_order_relaxed),
-            failed_.load(std::memory_order_relaxed),
-            canceled_.load(std::memory_order_relaxed),
-            superseded_.load(std::memory_order_relaxed),
-            cache_hits_.load(std::memory_order_relaxed)};
+    const auto requested = requested_.load(std::memory_order_relaxed);
+    const auto completed = completed_.load(std::memory_order_relaxed);
+    const auto failed = failed_.load(std::memory_order_relaxed);
+    const auto canceled = canceled_.load(std::memory_order_relaxed);
+    const auto superseded = superseded_.load(std::memory_order_relaxed);
+    const auto terminal = completed + failed + canceled + superseded;
+    return {requested,
+            requested > terminal ? requested - terminal : 0U,
+            completed,
+            failed,
+            canceled,
+            superseded,
+            cache_hits_.load(std::memory_order_relaxed),
+            cache_misses_.load(std::memory_order_relaxed)};
 }
 
 } // namespace genomes::proc

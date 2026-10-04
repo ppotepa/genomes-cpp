@@ -16,6 +16,7 @@
 #include <genomes/world_render/WorldRenderModule.hpp>
 #include <genomes/render/RenderBackend.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
+#include <genomes/gameplay/ProductionGenerators.hpp>
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -52,6 +53,14 @@ struct RunOptions final {
     std::optional<game_scenes::SetAppearancePreset> unitlab_appearance;
 #endif
 };
+
+[[nodiscard]] std::unique_ptr<proc::GeneratorRegistry> makeProductionRegistry() {
+    const auto result = gameplay::makeProductionGeneratorRegistry();
+    if (!result) {
+        throw std::runtime_error(std::string{result.error().message});
+    }
+    return std::make_unique<proc::GeneratorRegistry>(std::move(result.value()));
+}
 bool parse_u64(std::string_view text,std::uint64_t& value) {
     if (text.empty()) return false;
     const auto result=std::from_chars(text.data(),text.data()+text.size(),value);
@@ -165,8 +174,11 @@ GameApplication::GameApplication(std::unique_ptr<platform::SdlPlatform> platform
 #endif
                                  )
     :platform_(std::move(platform)),backend_owner_(std::move(backend_owner)),
-     renderer_(std::move(renderer)),jobs_(jobs::processScheduler()),
-     director_(*renderer_,ui_,presentation_,&jobs_),
+     renderer_(std::move(renderer)),jobs_(jobs::SchedulerConfig{}),
+     procedural_registry_(makeProductionRegistry()),
+     procedural_runtime_(std::make_unique<proc::ProceduralRuntime>(
+         *procedural_registry_, jobs_)),
+     director_(*renderer_,ui_,presentation_,jobs_,procedural_runtime_.get()),
      frame_coordinator_(director_,clock_,jobs_) {
     application::BuiltinSceneConfig scene_config{};
     scene_config.real_battlefield = true;

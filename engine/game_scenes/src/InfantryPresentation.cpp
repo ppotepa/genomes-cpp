@@ -164,11 +164,13 @@ void buildMaterialGroups(render::SkinnedMeshPrototype& mesh) {
 
 void appendWeapon(render::SkinnedMeshPrototype&,
                   const infantry::InfantryModelArtifact&,
-                  proc::ProceduralRuntime*, WeaponPoseAttachment);
+                  proc::ProceduralRuntime*, WeaponPoseAttachment,
+                  const weapons::WeaponArtifact*);
 
 std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     const infantry::InfantryModelArtifact& model, PrototypePreparation preparation,
-    proc::ProceduralRuntime* procedural_runtime, WeaponPoseAttachment weapon_attachment) {
+    proc::ProceduralRuntime* procedural_runtime, WeaponPoseAttachment weapon_attachment,
+    const weapons::WeaponArtifact* weapon_artifact) {
     const std::uint64_t optimizer_fingerprint =
         preparation == PrototypePreparation::OptimizeDrawOrder
             ? geometry::indexOptimizerFingerprint() : 0U;
@@ -177,6 +179,12 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     if (weapon_attachment == WeaponPoseAttachment::RightHand) {
         cache_key = foundation::stableHashCombine(
             cache_key, foundation::stable_id("infantry.weapon-attachment.right-hand"));
+    }
+    if (weapon_artifact != nullptr) {
+        cache_key = foundation::stableHashCombine(
+            cache_key, static_cast<std::uint64_t>(weapon_artifact->mesh.vertices.size()));
+        cache_key = foundation::stableHashCombine(
+            cache_key, static_cast<std::uint64_t>(weapon_artifact->mesh.indices.size()));
     }
     {
         std::scoped_lock cache_lock(prototype_cache_mutex);
@@ -232,7 +240,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
         append(gear_surface.value());
     }
-    appendWeapon(*mesh, model, procedural_runtime, weapon_attachment);
+    appendWeapon(*mesh, model, procedural_runtime, weapon_attachment, weapon_artifact);
 
     mesh->morph_target_count = static_cast<std::uint32_t>(
         std::min<std::size_t>(model.appearance.morphs.size(), mesh->morphs.size()));
@@ -353,7 +361,8 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makeMaterialVariant(
 void appendWeapon(render::SkinnedMeshPrototype& mesh,
                   const infantry::InfantryModelArtifact& model,
                   proc::ProceduralRuntime* procedural_runtime,
-                  WeaponPoseAttachment attachment) {
+                  WeaponPoseAttachment attachment,
+                  const weapons::WeaponArtifact* weapon_artifact) {
     const auto* equipment = model.gear.equipment.item(infantry::EquipmentSlot::PrimaryWeapon);
     if (equipment == nullptr) return;
     const auto* item = infantry::EquipmentCatalog::findItem(equipment->definition_id);
@@ -364,28 +373,16 @@ void appendWeapon(render::SkinnedMeshPrototype& mesh,
                                          equipment->variant.size,
                                          model.gear.wear,
                                          static_cast<std::uint32_t>(model.gear.detail_level)};
+    // Production presentation may only consume an immutable artifact that
+    // was prepared by the owning runtime.  Never hide a blocking procedural
+    // generation call in RenderLane.  The direct path remains available for
+    // deterministic headless tools/tests, which pass no runtime.
+    if (procedural_runtime != nullptr && weapon_artifact == nullptr) return;
     foundation::Result<weapons::WeaponArtifact, foundation::Error> built =
-        weapons::WeaponGeometryGenerator::build(*definition, variant);
-    if (procedural_runtime != nullptr &&
-        procedural_runtime->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
-        proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
-            request;
-        request.generator = proc::generatorId("weapons.artifact");
-        request.input = std::make_shared<const weapons::WeaponGenerationRequest>(
-            weapons::WeaponGenerationRequest{*definition, variant});
-        request.seed_path = proc::SeedPath(variant.seed);
-        request.options.input_hash = foundation::stableHashCombine(
-            static_cast<std::uint64_t>(definition->id), variant.seed);
-        request.options.retained_bytes = sizeof(weapons::WeaponArtifact);
-        const auto generated = procedural_runtime->generateInline(request);
-        if (generated) {
-            built = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
-                *generated.value());
-        } else {
-            built = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
-                generated.error());
-        }
-    }
+        weapon_artifact != nullptr
+            ? foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
+                  *weapon_artifact)
+            : weapons::WeaponGeometryGenerator::build(*definition, variant);
     if (!built || built.value().mesh.vertices.empty() || built.value().mesh.indices.empty()) return;
     const bool held = attachment == WeaponPoseAttachment::RightHand;
     const auto& socket = model.gear.fit.socket(infantry::EquipmentSocketId::WeaponBack);

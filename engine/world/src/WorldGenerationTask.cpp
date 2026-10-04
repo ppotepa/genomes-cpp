@@ -131,7 +131,27 @@ foundation::Result<void, foundation::Error> registerWorldGenerator(
                                       foundation::Error>::success(
                 std::make_shared<const WorldPlan>(std::move(generated.value())));
         });
-    return added;
+    if (!added) {
+        return added;
+    }
+    const proc::GeneratorDescriptor resolved_descriptor{
+        proc::generatorId("world.resolved"),
+        "world.resolved",
+        {1, 0, 0},
+        foundation::stable_id("world.plan"),
+        foundation::stable_id("world.resolved-artifacts"),
+        true,
+        proc::GeneratorExecutionPolicy::Cpu,
+        proc::GeneratorCachePolicy::None};
+    return builder.add(
+        resolved_descriptor,
+        [](proc::GenerationContext& context) -> foundation::Result<void, foundation::Error> {
+            if (context.cancellationRequested()) {
+                return foundation::Result<void, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "resolved world stage canceled"});
+            }
+            return foundation::Result<void, foundation::Error>::success();
+        });
 }
 
 proc::GeneratorRegistry WorldGenerationService::makeRegistry() {
@@ -154,11 +174,19 @@ WorldGenerationService::WorldGenerationService(
 WorldGenerationService::WorldGenerationService(
     jobs::JobSystem& jobs,
     std::shared_ptr<proc::ArtifactCache> cache,
-    proc::GeneratorRegistry registry)
+    proc::GeneratorRegistry registry,
+    proc::ProceduralRuntime* shared_runtime)
     : cache_(std::move(cache)), registry_(registry.size() != 0U
                                                ? std::move(registry)
-                                               : makeRegistry()),
-      runtime_(registry_, jobs, cache_.get()) {}
+                                               : makeRegistry()) {
+    if (shared_runtime != nullptr) {
+        runtime_ = shared_runtime;
+    } else {
+        owned_runtime_ = std::make_unique<proc::ProceduralRuntime>(
+            registry_, jobs, cache_.get());
+        runtime_ = owned_runtime_.get();
+    }
+}
 
 WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest& request,
                                                    proc::GenerationChannel* channel) {
@@ -171,7 +199,7 @@ WorldGenerationTask WorldGenerationService::submit(const WorldGenerationRequest&
     // ProceduralRuntime owns an internal cache when no shared cache was
     // supplied, so world generation remains cacheable in both configurations.
     generation.options.use_cache = true;
-    return WorldGenerationTask(runtime_.request(std::move(generation), channel));
+    return WorldGenerationTask(runtime_->request(std::move(generation), channel));
 }
 
 } // namespace genomes::world

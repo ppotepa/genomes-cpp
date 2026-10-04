@@ -10,17 +10,21 @@ foundation::Result<void, foundation::Error> registerHydrologyGenerator(
     proc::GeneratorRegistry::Builder& builder) {
     const proc::GeneratorDescriptor descriptor{
         proc::generatorId("hydrology.artifact"), "hydrology.artifact", {HydrologyGeneratorVersion, 0, 0},
-        foundation::stable_id("hydrology.spec"), foundation::stable_id("hydrology.artifact"),
+        foundation::stable_id("hydrology.generation-input"), foundation::stable_id("hydrology.artifact"),
         true, proc::GeneratorExecutionPolicy::Cpu, proc::GeneratorCachePolicy::Artifact};
-    return builder.addTyped<HydrologySpec, HydrologyArtifact>(
+    return builder.addTyped<HydrologyGenerationInput, HydrologyArtifact>(
         descriptor,
-        [](const HydrologySpec& spec, proc::GenerationContext& context)
+        [](const HydrologyGenerationInput& input, proc::GenerationContext& context)
             -> foundation::Result<std::shared_ptr<const HydrologyArtifact>, foundation::Error> {
             if (context.cancellationRequested()) {
                 return foundation::Result<std::shared_ptr<const HydrologyArtifact>, foundation::Error>::failure(
                     {foundation::ErrorCode::InvalidState, "hydrology generation canceled"});
             }
-            auto generated = HydrologyGenerator::generate(spec);
+            if (!input.valid()) {
+                return foundation::Result<std::shared_ptr<const HydrologyArtifact>, foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidArgument, "invalid terrain-dependent hydrology input"});
+            }
+            auto generated = HydrologyGenerator::generate(input.spec, input.terrainView());
             if (!generated) {
                 return foundation::Result<std::shared_ptr<const HydrologyArtifact>, foundation::Error>::failure(
                     generated.error());

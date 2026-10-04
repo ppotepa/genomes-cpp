@@ -39,11 +39,12 @@ struct BattlefieldSessionPresentationSnapshot final {
 class BattlefieldSession final : public api::SimulationFacade {
 public:
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-    startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem* jobs,
+    startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
                   BattlefieldExecutionMode execution_mode,
                   proc::ProceduralRuntime* procedural_runtime);
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-    startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem* jobs);
+    startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
+                    proc::ProceduralRuntime* procedural_runtime = nullptr);
 
     [[nodiscard]] bool advance(const simulation::TickContext& context) noexcept override;
     [[nodiscard]] api::CommandReceipt submit(api::CommandEnvelope command) override;
@@ -56,6 +57,9 @@ public:
         std::shared_ptr<const ResolvedWorldArtifacts> artifact) noexcept;
     [[nodiscard]] world::WorldArtifactRevision worldArtifactRevision() const noexcept;
     [[nodiscard]] bool isMassBattle() const noexcept;
+    [[nodiscard]] const weapons::WeaponArtifact* weaponArtifact() const noexcept;
+    [[nodiscard]] bool consumeRestartRequest() noexcept;
+    [[nodiscard]] bool consumeWorldRegenerateRequest() noexcept;
     [[nodiscard]] std::optional<InfantryMassBattleSnapshot> massBattleSnapshot() const noexcept;
     [[nodiscard]] const BattlefieldSessionPresentationSnapshot& presentationSnapshot() const noexcept {
         return presentation_snapshot_;

@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstdint>
 #include <span>
+#include <memory>
+#include <vector>
 
 namespace genomes::hydrology {
 
@@ -74,6 +76,27 @@ struct HydrologySpec final {
                std::isfinite(meander_strength) && meander_strength >= 0.0F &&
                meander_strength <= 1.0F &&
                finite_range(valley_width_min_m, valley_width_max_m, 2.0F);
+    }
+};
+
+// Registry input for the terrain-dependent hydrology stage. The heightfield
+// is owned by the request so a worker never observes mutable terrain storage.
+struct HydrologyGenerationInput final {
+    HydrologySpec spec{};
+    std::uint32_t samples_x{0U};
+    std::uint32_t samples_z{0U};
+    float cell_size_m{1.0F};
+    float origin_x{0.0F};
+    float origin_z{0.0F};
+    std::shared_ptr<const std::vector<float>> heights;
+
+    [[nodiscard]] HydrologyTerrainView terrainView() const noexcept {
+        return {samples_x, samples_z, cell_size_m, origin_x, origin_z,
+                heights != nullptr ? std::span<const float>{*heights} : std::span<const float>{}};
+    }
+
+    [[nodiscard]] bool valid() const noexcept {
+        return spec.valid() && terrainView().valid();
     }
 };
 

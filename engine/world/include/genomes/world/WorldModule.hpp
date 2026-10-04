@@ -15,6 +15,13 @@ inline foundation::Result<void, foundation::Error> registerModule(api::ModuleHos
             set.arguments = {api::ValueType::String, api::ValueType::Bytes};
             auto result = registry.declareCommand(context.module(), std::move(set));
             if (!result) return result;
+            api::ApiOperationDescriptor regenerate{};
+            regenerate.id = foundation::stable_id("world.regenerate");
+            regenerate.arguments = {api::ValueType::Bytes};
+            regenerate.lane = jobs::ExecutionLane::Main;
+            regenerate.deterministic = true;
+            result = registry.declareCommand(context.module(), std::move(regenerate));
+            if (!result) return result;
             api::ApiOperationDescriptor query{};
             query.id = foundation::stable_id("world.query");
             query.arguments = {api::ValueType::String};

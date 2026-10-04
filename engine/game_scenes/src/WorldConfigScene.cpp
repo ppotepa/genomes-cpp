@@ -57,6 +57,7 @@ template <typename T>
     case world::TerrainPreset::RollingHills: return "rolling hills";
     case world::TerrainPreset::Highlands: return "highlands";
     case world::TerrainPreset::RiverValley: return "river valley";
+    case world::TerrainPreset::CombatMixed: return "combat mixed";
     }
     return "invalid";
 }
@@ -64,6 +65,7 @@ template <typename T>
 [[nodiscard]] std::string terrainPresetValue(world::TerrainPreset preset) {
     if (preset == world::TerrainPreset::RollingHills) return "rolling-hills";
     if (preset == world::TerrainPreset::RiverValley) return "river-valley";
+    if (preset == world::TerrainPreset::CombatMixed) return "combat-mixed";
     return terrainPresetLabel(preset);
 }
 
@@ -244,6 +246,8 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
             state_.config.terrain.preset = world::TerrainPreset::Highlands;
         else if (value == "river-valley")
             state_.config.terrain.preset = world::TerrainPreset::RiverValley;
+        else if (value == "combat-mixed")
+            state_.config.terrain.preset = world::TerrainPreset::CombatMixed;
         else return ui::UiActionResult::Rejected;
         return ui::UiActionResult::Handled;
     }

@@ -10,14 +10,12 @@
 #endif
 #include <genomes/gameplay/WorldScenario.hpp>
 #if GENOMES_HAS_INFANTRY
-#include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/PresentationAnimation.hpp>
 #include <genomes/infantry/InfantryProcedural.hpp>
 #include <genomes/infantry/FaceAnimation.hpp>
 #include <genomes/infantry/LocomotionController.hpp>
 #endif
-#include <genomes/jobs/JobSystem.hpp>
-#include <genomes/jobs/JobGraph.hpp>
+#include <genomes/game_scenes/MassBattlePresentationScheduler.hpp>
 #include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/render/PoseSnapshot.hpp>
@@ -154,6 +152,9 @@ private:
     void schedule_mass_battle_presentation();
     void consume_mass_battle_presentation();
     void set_mass_battle_profile(MassBattlePresentationProfile profile) noexcept;
+    [[nodiscard]] proc::ProceduralRuntime* active_procedural_runtime() const noexcept {
+        return shared_procedural_runtime_;
+    }
 #endif
 
     application::WorldGenerationConfig config_{};
@@ -165,6 +166,7 @@ private:
     std::shared_ptr<const terrain::TerrainMesh> terrain_mesh_;
     std::shared_ptr<const gameplay::WorldScenarioArtifact> world_artifacts_;
     std::shared_ptr<const render::RenderMesh> render_terrain_mesh_;
+    std::shared_ptr<const render::RenderMesh> render_water_mesh_;
     std::shared_ptr<const render::RenderMesh> render_world_mesh_;
     std::optional<world_render::WorldMeshArtifact> world_mesh_artifact_;
     std::shared_ptr<render::RenderMesh> render_infantry_mesh_;
@@ -177,22 +179,9 @@ private:
     static constexpr std::size_t MassBattlePoseAtlasSize = 44U;
     std::array<std::shared_ptr<render::RenderMesh>, MassBattlePoseAtlasSize>
         mass_battle_pose_meshes_{};
-    jobs::JobHandle mass_battle_atlas_job_;
-    std::shared_ptr<std::array<std::shared_ptr<render::RenderMesh>, MassBattlePoseAtlasSize>>
-        pending_mass_battle_pose_meshes_;
     bool mass_battle_pose_atlas_ready_{false};
     bool mass_battle_pose_atlas_failed_{false};
-    struct MassBattlePresentationBatch final {
-        std::vector<render::RenderInstance> instances;
-#if GENOMES_HAS_INFANTRY
-        std::vector<gameplay::BattlefieldUnitPresentation> states;
-#else
-        std::vector<std::byte> states;
-#endif
-        std::uint64_t tick{0};
-    };
-    std::unique_ptr<jobs::JobGroup> mass_battle_presentation_group_;
-    std::shared_ptr<MassBattlePresentationBatch> pending_mass_battle_presentation_;
+    MassBattlePresentationScheduler mass_battle_presentation_scheduler_;
     std::shared_ptr<const MassBattlePresentationBatch> ready_mass_battle_presentation_;
     std::size_t mass_battle_visible_units_{0U};
     std::size_t mass_battle_active_pose_slots_{0U};
@@ -212,9 +201,7 @@ private:
 #if GENOMES_HAS_INFANTRY
     std::unique_ptr<gameplay::BattlefieldRuntime> battlefield_runtime_;
     std::unique_ptr<gameplay::BattlefieldSession> mass_battle_session_;
-    infantry::InfantryModelCompiler infantry_model_compiler_;
-    proc::GeneratorRegistry procedural_registry_;
-    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
+    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
     std::shared_ptr<const infantry::InfantryModelArtifact> infantry_model_artifact_;
     struct InfantryAnimationAgent final {
         simulation::EntityId entity{};
@@ -245,6 +232,8 @@ private:
     std::uint64_t last_pose_revision_{0U};
     std::optional<simulation::TickContext> pending_animation_context_;
     std::shared_ptr<std::optional<foundation::Error>> pending_animation_error_;
+    proc::GenerationTicket<infantry::InfantryModelCompileResult> mass_battle_model_ticket_;
+    proc::GenerationTicket<infantry::InfantryModelCompileResult> tactical_model_ticket_;
     MassBattleLoadStage mass_battle_load_stage_{MassBattleLoadStage::Inactive};
 #endif
     BattlefieldSceneMode mode_{BattlefieldSceneMode::Tactical};
@@ -255,7 +244,9 @@ private:
     // their two legacy snapshot shapes are fully unified.
     api::SimulationFacade* simulation_facade_{nullptr};
     std::unique_ptr<world::WorldRegionStreamer> region_streamer_;
-    jobs::JobSystem* jobs_{nullptr};
+    // Services are owned by the composition root.  The scene retains only
+    // the service bundle, never a scheduler or private executor.
+    api::EngineServices* engine_services_{nullptr};
     jobs::CancelToken cancellation_{};
     std::string generation_error_;
     float terrain_min_height_{0.0F};

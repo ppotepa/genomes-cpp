@@ -1,4 +1,5 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/render/SkinnedDeformer.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
@@ -36,7 +37,9 @@ int main() {
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
-    genomes::runtime::SceneDirector director(renderer, ui, presentation);
+    genomes::jobs::JobSystem jobs{2U};
+    genomes::runtime::SceneDirector director(renderer, ui, presentation, jobs);
+    director.set_deterministic_capture(true);
     const auto unit_lab_id = genomes::foundation::scene_id("scene.unit-lab");
     director.register_scene(unit_lab_id, [] {
         return std::make_unique<genomes::game_scenes::UnitLabScene>();
@@ -222,6 +225,7 @@ int main() {
     genomes::render::PresentationSnapshot gpu_presentation;
     genomes::runtime::SceneContext gpu_context{gpu_commands, gpu_ui, gpu_presentation};
     gpu_context.render_capabilities.gpu_skinning = true;
+    gpu_context.deterministic_capture = true;
     gpu_context.camera_request = &gpu_presentation.camera_request;
     gpu_context.camera_request_published = &gpu_presentation.has_camera_request;
     genomes::game_scenes::UnitLabScene gpu_scene;
@@ -457,7 +461,7 @@ int main() {
     genomes::ui::UiRuntime async_ui;
     genomes::render::PresentationSnapshot async_presentation;
     genomes::runtime::SceneDirector async_director(async_renderer, async_ui,
-                                                    async_presentation, &async_jobs);
+                                                    async_presentation, async_jobs);
     async_director.register_scene(unit_lab_id, [] {
         return std::make_unique<genomes::game_scenes::UnitLabScene>();
     });

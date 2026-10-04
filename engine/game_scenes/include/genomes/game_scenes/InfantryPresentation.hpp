@@ -9,6 +9,7 @@
 #include <genomes/infantry/InfantryModelCompiler.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
 #include <genomes/weapons/WeaponPoseTasks.hpp>
+#include <genomes/weapons/WeaponCatalog.hpp>
 #endif
 
 #include <array>
@@ -41,7 +42,8 @@ enum class WeaponPoseAttachment {
     const infantry::InfantryModelArtifact& model,
     PrototypePreparation preparation = PrototypePreparation::OptimizeDrawOrder,
     proc::ProceduralRuntime* procedural_runtime = nullptr,
-    WeaponPoseAttachment weapon_attachment = WeaponPoseAttachment::Stowed);
+    WeaponPoseAttachment weapon_attachment = WeaponPoseAttachment::Stowed,
+    const weapons::WeaponArtifact* weapon_artifact = nullptr);
 
 // Presentation-only material variants retain geometry, indices, skeleton and
 // morph buffers from the immutable prototype and receive a distinct revision.

@@ -207,8 +207,7 @@ private:
     std::optional<ui::UiViewportMetrics> last_ui_viewport_metrics_;
     foundation::StableId skinned_prototype_model_key_{0};
     infantry::InfantryModelCompiler model_compiler_;
-    proc::GeneratorRegistry procedural_registry_;
-    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
+    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
     std::shared_ptr<const infantry::InfantryModelArtifact> model_artifact_;
     std::shared_ptr<const infantry::FrozenAppearanceCatalog> appearance_catalog_;
     std::optional<infantry::LocomotionController> locomotion_;

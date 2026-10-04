@@ -8,7 +8,7 @@ namespace genomes::gameplay {
 
 foundation::Result<std::unique_ptr<BattlefieldScenario>, foundation::Error>
 BattlefieldScenario::startBattlefieldScenario(const BattlefieldScenarioConfig& config,
-                                               jobs::JobSystem* jobs) {
+                                               jobs::JobSystem& jobs) {
     auto runtime = BattlefieldRuntime::start(config, jobs);
     if (!runtime) {
         return foundation::Result<std::unique_ptr<BattlefieldScenario>, foundation::Error>::failure(

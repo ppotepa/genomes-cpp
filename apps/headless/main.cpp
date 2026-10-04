@@ -35,6 +35,7 @@ struct DemoVelocity final {
 } // namespace
 
 int main(int argc, char** argv) {
+    genomes::jobs::JobSystem scheduler(genomes::jobs::SchedulerConfig{});
     const genomes::foundation::BuildInfo info = genomes::foundation::buildInfo();
     std::cout << info.projectName << " native " << info.nativeBootstrapVersion << '\n';
 
@@ -117,10 +118,8 @@ int main(int argc, char** argv) {
         auto building_profile =
             std::make_shared<const genomes::buildings::FrozenBuildingProfile>(
                 std::move(loaded_building_profile.value()));
-        // Headless composition uses the same process-wide scheduler as the
-        // interactive runtime; world generation must not create a private
-        // worker pool that bypasses scheduler telemetry and cancellation.
-        auto& scheduler = genomes::jobs::processScheduler();
+        // Headless composition owns the scheduler shared by all domains in
+        // this process; generation must not create a private worker pool.
         genomes::gameplay::WorldScenario world(scheduler, std::move(building_profile));
         const genomes::world::WorldGenerationRequest request =
             loaded_world_profile.value().makeDefaultRequest();
@@ -166,7 +165,7 @@ int main(int argc, char** argv) {
             {.seed = 0xC0FFEEU,
              .map_size_m = 25U,
              .fixed_step_seconds = 1.0F / 60.0F,
-             .max_ticks = 180U});
+             .max_ticks = 180U}, scheduler);
         if (!battlefield) {
             std::cerr << "battlefield scenario start failed: " << battlefield.error().message
                       << '\n';

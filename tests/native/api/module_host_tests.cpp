@@ -82,6 +82,16 @@ void commandOrderingAndEncodingAreValueOnly() {
     assert(commands[1].source == 7U);
     assert(queue.take({6}).empty());
 
+    genomes::api::CommandQueue stable_queue;
+    genomes::api::CommandEnvelope stable_late{1, 2, {}, {8}, 8, 90, 0, value, 20};
+    genomes::api::CommandEnvelope stable_early{1, 2, {}, {8}, 8, 10, 0, value, 10};
+    assert(stable_queue.enqueue(std::move(stable_late), {0}).accepted);
+    assert(stable_queue.enqueue(std::move(stable_early), {0}).accepted);
+    const auto stable_commands = stable_queue.take({8});
+    assert(stable_commands.size() == 2U);
+    assert(stable_commands[0].stable_order == 10U);
+    assert(stable_commands[1].stable_order == 20U);
+
     const auto wire = genomes::api::encodeSnapshot(
         {7U}, 3U, 11U,
         std::span<const genomes::api::SnapshotEntity>{

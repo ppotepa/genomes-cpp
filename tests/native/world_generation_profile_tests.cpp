@@ -44,7 +44,7 @@ int main() {
     assert(request.fenced_parcels == 0.48F);
     assert(request.hydrology_mode == hydrology::HydrologyMode::SeededOptional);
     assert(request.river_probability == 0.35F);
-    assert(request.terrain.preset == world::TerrainPreset::RollingHills);
+    assert(request.terrain.preset == world::TerrainPreset::CombatMixed);
     assert(request.terrain.sample_spacing_m == 8U);
     assert(request.hydrology.tributary_density == world::TributaryDensity::Low);
 
@@ -79,7 +79,7 @@ int main() {
         "stream_width_max_m":4.0,"stream_width_min_m":1.0,
         "tributary_density":"low","main_river_max":1,"main_river_min":0},
       "terrain":{"roughness":0.35,"landform_scale_m":600.0,"sample_spacing_m":8,
-        "elevation_range_m":70.0,"preset":"rolling-hills"},
+        "elevation_range_m":70.0,"preset":"combat-mixed"},
       "id":"world-generation-default","schema_version":3
     })json";
     const auto reordered_profile = world::loadWorldGenerationProfile(

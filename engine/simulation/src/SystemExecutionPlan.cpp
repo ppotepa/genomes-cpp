@@ -57,7 +57,10 @@ jobs::JobCompletion SystemExecutionPlan::start(foundation::SimulationTick tick,
     if (!valid()) {
         return {};
     }
-    jobs::JobSystem* scheduler = jobs != nullptr ? jobs : &jobs::processScheduler();
+    if (jobs == nullptr) {
+        return {};
+    }
+    jobs::JobSystem* scheduler = jobs;
     if (command_buffers != nullptr) {
         command_buffers->reset(graph_->graph_.size());
     }
@@ -132,11 +135,11 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan:
             executionError("simulation execution plan is not valid"));
     }
 
-    // A missing owner is a compatibility call-site, not permission to create
-    // a scheduler per tick. Keep all execution on the process-level central
-    // scheduler; deterministic ordering is enforced by the graph and commit
-    // phases rather than by selecting a private serial pool.
-    jobs::JobSystem* scheduler = jobs != nullptr ? jobs : &jobs::processScheduler();
+    if (jobs == nullptr) {
+        return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
+            executionError("simulation execution requires the composition-root scheduler"));
+    }
+    jobs::JobSystem* scheduler = jobs;
 
     if (command_buffers != nullptr) {
         command_buffers->reset(graph_->graph_.size());

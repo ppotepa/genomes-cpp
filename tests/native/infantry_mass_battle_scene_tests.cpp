@@ -65,10 +65,14 @@ int main() {
     ui::UiRuntime ui;
     render::PresentationSnapshot presentation;
     runtime::SceneContext context{commands, ui, presentation};
-    context.simulation_duration = std::chrono::microseconds{1500};
-    context.presentation_duration = std::chrono::microseconds{2250};
-    context.gpu_duration = std::chrono::microseconds{3750};
-    context.rejected_stale_snapshots = 7U;
+    api::EngineTelemetry telemetry{};
+    telemetry.simulation_duration = std::chrono::microseconds{1500};
+    telemetry.presentation_duration = std::chrono::microseconds{2250};
+    telemetry.gpu_duration = std::chrono::microseconds{3750};
+    telemetry.rejected_stale_snapshots = 7U;
+    api::EngineServices services{};
+    services.telemetry = &telemetry;
+    context.engine_services = &services;
     const auto decrease = foundation::stable_id("mass-battle.animation-decrease");
     const auto increase = foundation::stable_id("mass-battle.animation-increase");
     const auto maximum = foundation::stable_id("mass-battle.animation-maximum");

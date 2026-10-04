@@ -50,6 +50,7 @@ using Json = nlohmann::json;
     if (preset == "rolling-hills") return TerrainPreset::RollingHills;
     if (preset == "highlands") return TerrainPreset::Highlands;
     if (preset == "river-valley") return TerrainPreset::RiverValley;
+    if (preset == "combat-mixed") return TerrainPreset::CombatMixed;
     return std::nullopt;
 }
 

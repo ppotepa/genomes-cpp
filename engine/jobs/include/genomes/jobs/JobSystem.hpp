@@ -68,6 +68,10 @@ public:
         std::size_t maximum_jobs = static_cast<std::size_t>(-1));
 
     [[nodiscard]] std::uint32_t workerCount() const noexcept;
+    // Synchronous barriers are only valid on the owner/main lane or in
+    // explicit test executors. Worker callbacks must use JobGraph
+    // continuations instead of waiting for child work.
+    [[nodiscard]] bool isWorkerThread() const noexcept;
     [[nodiscard]] SchedulerMode mode() const noexcept;
     [[nodiscard]] JobSystemState state() const noexcept;
     [[nodiscard]] bool isCancellationRequested() const noexcept;
@@ -80,14 +84,5 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
-
-// Process-wide compatibility scheduler for legacy entry points that do not
-// receive the application-owned scheduler explicitly. New composition roots
-// should pass their scheduler through SceneContext/FrameCoordinator.
-[[nodiscard]] JobSystem& processScheduler() noexcept;
-
-// Process-wide serial executor used by deterministic/inline compatibility
-// modes. It owns no worker threads and is shared by all such call sites.
-[[nodiscard]] JobSystem& processSerialScheduler() noexcept;
 
 } // namespace genomes::jobs

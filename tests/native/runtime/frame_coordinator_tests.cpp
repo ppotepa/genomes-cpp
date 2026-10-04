@@ -31,7 +31,8 @@ public:
                       const genomes::simulation::TickContext& tick) override {
         *tick_ = tick.tick.value;
         *epoch_ = context.scene_epoch;
-        *scheduler_seen_ = context.scheduler != nullptr;
+        *scheduler_seen_ = context.engine_services != nullptr &&
+                           context.engine_services->scheduler != nullptr;
         assert(context.engine_services != nullptr);
         assert(context.engine_services->telemetry != nullptr);
         context.engine_services->telemetry->animation_duration = std::chrono::microseconds{17};
@@ -81,9 +82,7 @@ int main() {
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
     genomes::jobs::JobSystem jobs{2};
-    // The director receives no local scheduler; it must resolve the shared
-    // process scheduler fallback for the scene context.
-    genomes::runtime::SceneDirector director(renderer, ui, presentation);
+    genomes::runtime::SceneDirector director(renderer, ui, presentation, jobs);
     const auto scene_id = genomes::foundation::scene_id("test.frame-coordinator");
     auto updates = std::make_shared<std::uint32_t>(0U);
     auto tick = std::make_shared<std::uint64_t>(0U);
@@ -142,7 +141,7 @@ int main() {
     genomes::render::PresentationSnapshot unhealthy_presentation;
     genomes::jobs::JobSystem unhealthy_jobs{1};
     genomes::runtime::SceneDirector unhealthy_director(
-        unhealthy_renderer, unhealthy_ui, unhealthy_presentation, &unhealthy_jobs);
+        unhealthy_renderer, unhealthy_ui, unhealthy_presentation, unhealthy_jobs);
     genomes::runtime::RenderCoordinator render_coordinator(unhealthy_director);
     assert(!render_coordinator.present());
     assert(unhealthy_renderer.begin_calls == 0U);
@@ -158,7 +157,7 @@ int main() {
     genomes::render::PresentationSnapshot failing_presentation;
     genomes::jobs::JobSystem failing_jobs{2};
     genomes::runtime::SceneDirector failing_director(
-        failing_renderer, failing_ui, failing_presentation, &failing_jobs);
+        failing_renderer, failing_ui, failing_presentation, failing_jobs);
     const auto failing_id = genomes::foundation::scene_id("test.frame-coordinator-failure");
     assert(failing_director.register_scene(
         failing_id, [] { return std::make_unique<FailingTickScene>(); }));

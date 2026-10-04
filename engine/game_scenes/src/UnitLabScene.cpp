@@ -1,5 +1,4 @@
 #include <genomes/game_scenes/UnitLabScene.hpp>
-#include <genomes/gameplay/ProductionGenerators.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
 #include <genomes/game_scenes/UnitLabCommandParsing.hpp>
 #include <genomes/game_scenes/InfantryPresentation.hpp>
@@ -168,7 +167,7 @@ struct DebugBoneTransform final {
 
 UnitLabScene::~UnitLabScene() {
     if (model_ticket_.valid()) {
-        model_ticket_.wait();
+        model_ticket_.cancel();
     }
 }
 
@@ -525,23 +524,10 @@ void UnitLabScene::publishModelResult(
 
 foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>
 UnitLabScene::compileModel(const infantry::InfantryModelRequest& request) {
-    if (!procedural_runtime_) {
-        return model_compiler_.compile(request);
-    }
-    proc::GenerationRequest<infantry::InfantryModelRequest,
-                            infantry::InfantryModelCompileResult> generation;
-    generation.generator = proc::generatorId("infantry.model");
-    generation.input = std::make_shared<const infantry::InfantryModelRequest>(request);
-    generation.seed_path = proc::SeedPath(request.seed);
-    generation.options.input_hash = infantry::InfantryModelCompiler::canonicalRequestKey(request);
-    generation.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
-    const auto generated = procedural_runtime_->generateInline(generation);
-    if (!generated) {
-        return foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>::failure(
-            generated.error());
-    }
-    return foundation::Result<infantry::InfantryModelCompileResult, foundation::Error>::success(
-        *generated.value());
+    // This entry point is reserved for deterministic capture/tool use. The
+    // interactive scene always goes through startModelRequest(), which
+    // publishes its GenerationTicket asynchronously.
+    return model_compiler_.compile(request);
 }
 
 void UnitLabScene::rebuildModel(SceneContext* context) {
@@ -563,13 +549,20 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
         request.loadout_id = loadouts[loadout_index_ % loadouts.size()].id;
     }
     request.equipment_overrides = equipment_overrides_;
-    if (context != nullptr && context->scheduler != nullptr &&
-        context->scheduler_explicit && !context->deterministic_capture) {
+    if (context != nullptr && context->engine_services != nullptr &&
+        context->engine_services->scheduler != nullptr && !context->deterministic_capture) {
         startModelRequest(*context, std::move(request));
         return;
     }
     if (model_ticket_.valid() && !model_ticket_.complete()) {
         model_ticket_.cancel();
+    }
+    if (context != nullptr && !context->deterministic_capture) {
+        publishModelResult(foundation::Result<infantry::InfantryModelCompileResult,
+                                             foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState,
+             "unit lab requires the composition-root procedural scheduler"}));
+        return;
     }
     auto result = compileModel(request);
     publishModelResult(std::move(result));
@@ -578,7 +571,7 @@ void UnitLabScene::rebuildModel(SceneContext* context) {
 void UnitLabScene::startModelRequest(SceneContext& context,
                                      infantry::InfantryModelRequest request) {
     (void)context;
-    if (!procedural_runtime_) {
+    if (shared_procedural_runtime_ == nullptr) {
         publishModelResult(compileModel(request));
         return;
     }
@@ -590,7 +583,11 @@ void UnitLabScene::startModelRequest(SceneContext& context,
     generation.options.input_hash = infantry::InfantryModelCompiler::canonicalRequestKey(
         *generation.input);
     generation.options.retained_bytes = sizeof(infantry::InfantryModelCompileResult);
-    model_ticket_ = procedural_runtime_->request(std::move(generation), &model_channel_);
+    if (context.engine_services != nullptr && context.engine_services->generation != nullptr) {
+        generation.options.cancellation =
+            context.engine_services->generation->cancellation();
+    }
+    model_ticket_ = shared_procedural_runtime_->request(std::move(generation), &model_channel_);
     markDirty(UnitLabDirtyFlag::Ui);
 }
 
@@ -610,16 +607,8 @@ void UnitLabScene::on_enter(SceneContext& context) {
     dirty_.markAll();
     skinned_prototype_.reset();
     skinned_prototype_model_key_ = 0;
-    procedural_runtime_.reset();
-    procedural_registry_ = {};
-    if (context.scheduler != nullptr) {
-        auto registry = gameplay::makeProductionGeneratorRegistry();
-        if (registry) {
-            procedural_registry_ = std::move(registry.value());
-            procedural_runtime_ = std::make_unique<proc::ProceduralRuntime>(
-                procedural_registry_, *context.scheduler);
-        }
-    }
+    shared_procedural_runtime_ = context.engine_services != nullptr
+        ? context.engine_services->procedural_runtime : nullptr;
     rebuildModel(&context);
     dirty_.clear(UnitLabDirtyFlag::Geometry);
     dirty_.clear(UnitLabDirtyFlag::Material);
@@ -629,11 +618,10 @@ void UnitLabScene::on_enter(SceneContext& context) {
 
 void UnitLabScene::on_exit(SceneContext&) {
     if (model_ticket_.valid()) {
-        model_ticket_.wait();
+        model_ticket_.cancel();
         model_ticket_ = {};
     }
-    procedural_runtime_.reset();
-    procedural_registry_ = {};
+    shared_procedural_runtime_ = nullptr;
 }
 
 void UnitLabScene::handle_input(SceneContext& context, const input::InputFrame& input) {
@@ -1274,7 +1262,7 @@ void UnitLabScene::build_presentation(SceneContext& context) {
             skinned_prototype_model_key_ != model_artifact_->cache_key) {
             const auto base_prototype = infantry_presentation::makePrototype(
                 *model_artifact_, infantry_presentation::PrototypePreparation::OptimizeDrawOrder,
-                procedural_runtime_.get());
+                shared_procedural_runtime_);
             if (!base_prototype) return;
             skinned_prototype_ = appearance_preset_ == 0U
                 ? base_prototype

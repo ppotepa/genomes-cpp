@@ -21,7 +21,19 @@ set(FORBIDDEN_SCENE_TOKENS
     "mass_battle_runtime_->advance"
     "mass_battle_runtime_->fixedUpdate"
     "mass_battle_runtime_->submit"
-    "mass_battle_runtime_->query")
+    "mass_battle_runtime_->query"
+    "generateInline"
+    "TerrainGenerator::generate"
+    "HydrologyGenerator::generate"
+    "BuildingGenerator::generate"
+    "WorldGenerator::generate"
+    "std::async"
+    "fallbackScheduler"
+    "fallbackMassBattleScheduler"
+    "processScheduler"
+    "UnitLabModelRequestGate"
+    "genomes/jobs/JobSystem.hpp"
+    "genomes/proc/ArtifactCache.hpp")
 foreach(FILE_PATH IN LISTS SCENE_FILES)
     file(READ "${FILE_PATH}" CONTENT)
     foreach(TOKEN IN LISTS FORBIDDEN_SCENE_TOKENS)

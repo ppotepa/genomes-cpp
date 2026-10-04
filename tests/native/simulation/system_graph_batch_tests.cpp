@@ -132,6 +132,37 @@ void directDependencyReleasesWithoutFrontierBarrier() {
     assert(direct_successor_ran.load(std::memory_order_acquire));
 }
 
+void legacyRunUsesDirectDependencyScheduling() {
+    genomes::jobs::JobSystem jobs(3);
+    SystemGraph graph;
+    std::latch slow_started{1};
+    std::latch release_slow{1};
+    std::atomic_bool direct_successor_ran{false};
+
+    auto slow = descriptor(600, false, [&](genomes::simulation::SystemContext&) {
+        slow_started.count_down();
+        release_slow.wait();
+    });
+    assert(graph.add(std::move(slow)));
+
+    auto prerequisite = descriptor(601, false, [&](genomes::simulation::SystemContext&) {
+        slow_started.wait();
+    });
+    assert(graph.add(std::move(prerequisite)));
+
+    auto direct = descriptor(602, false, [&](genomes::simulation::SystemContext&) {
+        direct_successor_ran.store(true, std::memory_order_release);
+        release_slow.count_down();
+    });
+    direct.after = {601};
+    assert(graph.add(std::move(direct)));
+    assert(graph.compile());
+
+    const auto result = graph.run({}, 1.0 / 60.0, &jobs);
+    assert(result);
+    assert(direct_successor_ran.load(std::memory_order_acquire));
+}
+
 void executionPlanStartsWithoutWorkerBlocking() {
     genomes::jobs::JobSystem jobs(2);
     SystemGraph graph;
@@ -252,6 +283,7 @@ int main() {
     mainThreadFailureDrainsAcceptedWorkerAndClearsCommands();
     reverseCompletionFailureDrainsEveryAcceptedHandle();
     directDependencyReleasesWithoutFrontierBarrier();
+    legacyRunUsesDirectDependencyScheduling();
     executionPlanStartsWithoutWorkerBlocking();
     asynchronousExecutionPlanCommitsExactlyOnceAfterAllLeaves();
     cadenceNoOpReportsOnlyDueSystems();

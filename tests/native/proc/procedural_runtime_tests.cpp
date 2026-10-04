@@ -102,6 +102,48 @@ int main() {
     jobs::JobSystem jobs(2);
     proc::ArtifactCache cache;
     proc::ProceduralRuntime runtime(frozen.value(), jobs, &cache);
+    proc::GenerationOptions stage_options{};
+    auto unknown_stage = runtime.requestStage<int>(
+        proc::generatorId("test.unregistered-stage"), proc::SeedPath(91), stage_options,
+        [](proc::GenerationContext&) -> RuntimeResult {
+            return RuntimeResult::success(std::make_shared<const int>(1));
+        });
+    assert(unknown_stage.status() == proc::GenerationStatus::Failed);
+    assert(unknown_stage.error().code == foundation::ErrorCode::NotFound);
+
+    const proc::GeneratorDescriptor stage_descriptor{
+        proc::generatorId("test.stage"), "test.stage", {1, 0, 0},
+        foundation::stable_id("test.stage.input"), foundation::stable_id("test.stage.output"),
+        true, proc::GeneratorExecutionPolicy::Cpu, proc::GeneratorCachePolicy::None};
+    proc::GeneratorRegistry::Builder stage_builder;
+    assert(stage_builder.add(
+        stage_descriptor,
+        [](proc::GenerationContext&) {
+            return foundation::Result<void, foundation::Error>::success();
+        }));
+    auto stage_registry = std::move(stage_builder).freeze();
+    assert(stage_registry);
+    proc::ProceduralRuntime stage_runtime(stage_registry.value(), jobs);
+    auto stage_ticket = stage_runtime.requestStage<int>(
+        proc::generatorId("test.stage"), proc::SeedPath(92), stage_options,
+        [](proc::GenerationContext&) -> RuntimeResult {
+            return RuntimeResult::success(std::make_shared<const int>(42));
+        });
+    stage_ticket.wait();
+    assert(stage_ticket.status() == proc::GenerationStatus::Completed);
+    assert(stage_ticket.artifact() != nullptr && *stage_ticket.artifact() == 42);
+    jobs::CancelSource stage_cancel;
+    stage_cancel.cancel();
+    proc::GenerationOptions canceled_stage_options{};
+    canceled_stage_options.cancellation = stage_cancel.token();
+    auto canceled_stage = stage_runtime.requestStage<int>(
+        proc::generatorId("test.stage"), proc::SeedPath(93), canceled_stage_options,
+        [](proc::GenerationContext&) -> RuntimeResult {
+            return RuntimeResult::success(std::make_shared<const int>(99));
+        });
+    canceled_stage.wait();
+    assert(canceled_stage.status() == proc::GenerationStatus::Canceled);
+    assert(!canceled_stage.artifact());
     const auto make_request = [](int input, foundation::StableId hash) {
         proc::GenerationRequest<int, int> request;
         request.generator = proc::generatorId("test.integer");
@@ -179,6 +221,9 @@ int main() {
     while (canceled.status() == proc::GenerationStatus::Pending) {
         std::this_thread::yield();
     }
+    // A request that has entered execution must be visible as running until
+    // its terminal transition, even when cancellation is cooperative.
+    assert(runtime.telemetry().running >= 1U);
     canceled.cancel();
     canceled.wait();
     assert(canceled.status() == proc::GenerationStatus::Canceled);
@@ -199,6 +244,24 @@ int main() {
     assert(telemetry.failed >= 2);
     assert(telemetry.canceled >= 2);
     assert(telemetry.superseded == 1);
+    assert(telemetry.running == 0U);
     assert(telemetry.cache_hits >= 1);
+    assert(telemetry.cache_misses >= 1);
+
+    // A composed generator may synchronously consume a child ticket while it
+    // is itself running on the scheduler.  Ticket wait must use the owning
+    // scheduler's worker-helping path, otherwise a one-worker pool deadlocks.
+    jobs::JobSystem single_worker(1);
+    proc::ProceduralRuntime nested_runtime(frozen.value(), single_worker);
+    std::atomic_bool nested_completed{false};
+    const auto outer = single_worker.submit([&](jobs::JobContext&) {
+        auto nested = nested_runtime.request(
+            make_request(8, foundation::stable_id("nested.worker.ticket")));
+        nested.wait();
+        nested_completed.store(nested.status() == proc::GenerationStatus::Completed,
+                               std::memory_order_release);
+    });
+    single_worker.wait(outer);
+    assert(nested_completed.load(std::memory_order_acquire));
     return 0;
 }

@@ -2,7 +2,7 @@
 
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
-#include <genomes/jobs/JobGroup.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
 #include <genomes/proc/GeneratorRegistry.hpp>
 
@@ -70,6 +70,11 @@ struct GenerationTicketState final {
     foundation::Error error{};
     jobs::CancelSource cancellation;
     std::uint64_t request_id{0};
+    // The ticket keeps the scheduler that owns its job so a wait issued from
+    // a worker can help execute queued work instead of blocking the worker
+    // pool (important for composed world-generation stages).
+    jobs::JobSystem* scheduler{nullptr};
+    std::optional<jobs::JobHandle> job;
 };
 
 struct GenerationChannelState final {
@@ -100,6 +105,17 @@ public:
     }
     void wait() const noexcept {
         if (!state_) {
+            return;
+        }
+        jobs::JobSystem* scheduler = nullptr;
+        std::optional<jobs::JobHandle> job;
+        {
+            std::lock_guard lock(state_->mutex);
+            scheduler = state_->scheduler;
+            job = state_->job;
+        }
+        if (scheduler != nullptr && job.has_value()) {
+            scheduler->wait(*job);
             return;
         }
         std::unique_lock lock(state_->mutex);
@@ -186,11 +202,13 @@ private:
 
 struct ProceduralRuntimeTelemetry final {
     std::uint64_t requested{0};
+    std::uint64_t running{0};
     std::uint64_t completed{0};
     std::uint64_t failed{0};
     std::uint64_t canceled{0};
     std::uint64_t superseded{0};
     std::uint64_t cache_hits{0};
+    std::uint64_t cache_misses{0};
 };
 
 class GenerationPipeline final {
@@ -254,6 +272,7 @@ public:
         GenerationRequest<Input, Output> request,
         GenerationChannel* channel = nullptr) {
         auto state = std::make_shared<detail::GenerationTicketState<Output>>();
+        state->scheduler = &jobs_;
         state->request_id = next_request_.fetch_add(1, std::memory_order_relaxed);
         GenerationTicket<Output> ticket(state);
         requested_.fetch_add(1, std::memory_order_relaxed);
@@ -328,6 +347,7 @@ public:
                         }
                         return;
                     }
+                    cache_misses_.fetch_add(1, std::memory_order_relaxed);
                 }
 
                 ArtifactReader reader(*cache_);
@@ -393,6 +413,109 @@ public:
                 }
             },
             job_options);
+        {
+            std::lock_guard lock(state->mutex);
+            state->job = handle;
+        }
+        if (handle.wasCanceled()) {
+            state->transition(GenerationStatus::Canceled);
+            canceled_.fetch_add(1, std::memory_order_relaxed);
+        }
+        return ticket;
+    }
+
+    // Composition-owned stages that produce a resolved artifact from several
+    // registered generator outputs use the same ticket lifecycle as a single
+    // registered generator.  The stage remains identified and scheduled by
+    // this runtime; the callback is deliberately not exposed to scenes.
+    template <class Output>
+    [[nodiscard]] GenerationTicket<Output> requestStage(
+        GeneratorId stage,
+        SeedPath seed_path,
+        GenerationOptions options,
+        std::function<foundation::Result<std::shared_ptr<const Output>, foundation::Error>(
+            GenerationContext&)> execute,
+        GenerationChannel* channel = nullptr) {
+        const GeneratorEntry* entry = registry_.find(stage);
+        if (entry == nullptr || !entry->descriptor.valid()) {
+            auto state = std::make_shared<detail::GenerationTicketState<Output>>();
+            state->request_id = next_request_.fetch_add(1, std::memory_order_relaxed);
+            state->transition(GenerationStatus::Failed, {},
+                              {foundation::ErrorCode::NotFound,
+                               "procedural stage is not registered"});
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            requested_.fetch_add(1, std::memory_order_relaxed);
+            return GenerationTicket<Output>(std::move(state));
+        }
+        auto state = std::make_shared<detail::GenerationTicketState<Output>>();
+        state->scheduler = &jobs_;
+        state->request_id = next_request_.fetch_add(1, std::memory_order_relaxed);
+        GenerationTicket<Output> ticket(state);
+        requested_.fetch_add(1, std::memory_order_relaxed);
+        std::shared_ptr<detail::GenerationChannelState> channel_state;
+        jobs::CancelToken superseded;
+        std::optional<jobs::CancelSource> superseded_source;
+        if (channel != nullptr) {
+            superseded_source.emplace(channel->begin(state->request_id));
+            superseded = superseded_source->token();
+            channel_state = channel->state_;
+        }
+        auto handle = group_.submit(
+            [this, stage, seed_path, options, execute = std::move(execute), state,
+             channel_state, superseded,
+             superseded_source = std::move(superseded_source)](jobs::JobContext& job) mutable {
+                (void)superseded_source;
+                state->transition(GenerationStatus::Running);
+                const auto current = [&] {
+                    if (!channel_state) return true;
+                    std::lock_guard lock(channel_state->mutex);
+                    return channel_state->latest_request == state->request_id;
+                };
+                if (state->cancellation.isCancellationRequested() ||
+                    options.cancellation.isCancellationRequested() || !current()) {
+                    settleCancellation(state, current());
+                    return;
+                }
+                try {
+                    ArtifactReader reader(*cache_);
+                    GenerationContext context(seed_path, &job, state->cancellation.token(),
+                                              superseded, &reader, &diagnostics_);
+                    auto result = execute(context);
+                    if (context.cancellationRequested() || !current()) {
+                        settleCancellation(state, current());
+                        return;
+                    }
+                    if (!result || !result.value()) {
+                        const auto error = result ? foundation::Error{
+                                                          foundation::ErrorCode::Internal,
+                                                          "procedural stage returned null"}
+                                                  : result.error();
+                        state->transition(GenerationStatus::Failed, {}, error);
+                        diagnostics_.record({state->request_id, stage, error});
+                        failed_.fetch_add(1, std::memory_order_relaxed);
+                        return;
+                    }
+                    if (!current() || state->cancellation.isCancellationRequested() ||
+                        options.cancellation.isCancellationRequested()) {
+                        settleCancellation(state, current());
+                        return;
+                    }
+                    state->transition(GenerationStatus::Completed, std::move(result.value()));
+                    completed_.fetch_add(1, std::memory_order_relaxed);
+                } catch (...) {
+                    const foundation::Error error{foundation::ErrorCode::Internal,
+                                                  "procedural stage threw"};
+                    state->transition(GenerationStatus::Failed, {}, error);
+                    diagnostics_.record({state->request_id, stage, error});
+                    failed_.fetch_add(1, std::memory_order_relaxed);
+                }
+            },
+            jobs::JobOptions{jobs::ExecutionLane::Worker, jobs::WorkClass::Procedural,
+                             options.priority, options.cancellation});
+        {
+            std::lock_guard lock(state->mutex);
+            state->job = handle;
+        }
         if (handle.wasCanceled()) {
             state->transition(GenerationStatus::Canceled);
             canceled_.fetch_add(1, std::memory_order_relaxed);
@@ -429,6 +552,7 @@ public:
                                           foundation::Error>::success(std::move(cached));
             }
         }
+        cache_misses_.fetch_add(cacheable ? 1U : 0U, std::memory_order_relaxed);
         jobs::ScratchContext scratch;
         ArtifactReader reader(*cache_);
         GenerationContext context(request.seed_path, nullptr, request.options.cancellation,
@@ -506,6 +630,8 @@ private:
     std::atomic_uint64_t canceled_{0};
     std::atomic_uint64_t superseded_{0};
     std::atomic_uint64_t cache_hits_{0};
+    std::atomic_uint64_t cache_misses_{0};
+    jobs::JobSystem& jobs_;
     jobs::JobGroup group_;
 };
 

@@ -63,7 +63,7 @@ endif()
 if(NOT schema EQUAL 3 OR NOT id STREQUAL "world-generation-default" OR
    NOT seed EQUAL 1592598566 OR NOT map_size EQUAL 600 OR
    NOT hydrology STREQUAL "seeded-optional" OR
-   NOT terrain_preset STREQUAL "rolling-hills" OR NOT terrain_spacing EQUAL 8 OR
+   NOT terrain_preset STREQUAL "combat-mixed" OR NOT terrain_spacing EQUAL 8 OR
    NOT tributaries STREQUAL "low")
     message(FATAL_ERROR "world generation profile core identity/defaults changed")
 endif()

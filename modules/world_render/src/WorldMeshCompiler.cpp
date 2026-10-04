@@ -208,7 +208,8 @@ void append_river(render::RenderMesh& mesh,
 foundation::Result<WorldMeshArtifact, foundation::Error>
 WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightField& terrain,
                            std::span<const buildings::BuildingGenerationResult> resolved_buildings,
-                           world::WorldArtifactRevision source_revision) {
+                           world::WorldArtifactRevision source_revision,
+                           const terrain::TerrainMesh* source_water_mesh) {
     if (plan.map_size_m == 0 || plan.features.empty() || terrain.width() < 2 ||
         terrain.height() < 2 || !std::isfinite(terrain.cellSize()) || terrain.cellSize() <= 0.0F) {
         return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
@@ -323,11 +324,24 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         }
     }
 
+    // Water has its own material range. Prefer the immutable surface already
+    // resolved by the world transaction; the hydrology path remains a
+    // compatibility fallback for older callers of this presentation compiler.
+    if (source_water_mesh != nullptr) {
+        const foundation::Color water_color{0.035F, 0.72F, 0.98F, 1.0F};
+        water_mesh.vertices.reserve(source_water_mesh->vertices.size());
+        water_mesh.indices = source_water_mesh->indices;
+        for (const terrain::TerrainMeshVertex& vertex : source_water_mesh->vertices) {
+            water_mesh.vertices.push_back(
+                {vertex.position, vertex.normal, vertex.uv, water_color});
+        }
+    } else {
     // Water has its own material range. Appending it after every road,
     // crossing, building and vegetation triangle keeps future blended-water
     // passes isolated from the opaque semantic world geometry.
     for (const hydrology::RiverPath& river : plan.hydrology.rivers) {
         append_river(water_mesh, plan.hydrology, river, terrain);
+    }
     }
     const std::size_t opaque_index_count = mesh->indices.size();
     if (!water_mesh.vertices.empty() && !water_mesh.indices.empty()) {
@@ -380,8 +394,11 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
              static_cast<std::uint32_t>(water_index_count), 1U});
     }
     mesh->revision = source_revision;
+    auto resolved_water_mesh = std::make_shared<const render::RenderMesh>(
+        std::move(water_mesh));
     return foundation::Result<WorldMeshArtifact, foundation::Error>::success(
-        {source_revision, std::move(mesh), std::move(part_draw_ranges)});
+        {source_revision, std::move(mesh), std::move(resolved_water_mesh),
+         std::move(part_draw_ranges)});
 }
 
 } // namespace genomes::world_render

@@ -24,10 +24,11 @@ namespace {
 SceneDirector::SceneDirector(render::IRenderer& renderer,
                              ui::UiRuntime& ui,
                              render::PresentationSnapshot& presentation,
-                             jobs::JobSystem* jobs)
+                             jobs::JobSystem& jobs,
+                             proc::ProceduralRuntime* procedural_runtime)
     : renderer_(renderer), ui_(ui), presentation_(presentation),
-      jobs_{jobs != nullptr ? jobs : &jobs::processScheduler()},
-      scheduler_explicit_{jobs != nullptr} {
+      jobs_{jobs}, procedural_runtime_{procedural_runtime},
+      generation_service_(scene_cancellation_, scene_epoch_) {
     const auto core_module = modules_.registerModule(
         {.id = foundation::stable_id("core"),
          .version = {},
@@ -54,7 +55,9 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
                 foundation::stable_id("core"), foundation::stable_id("core.session_time"));
         });
     (void)core_module;
-    engine_services_.scheduler = jobs_;
+    engine_services_.scheduler = &jobs_;
+    engine_services_.procedural_runtime = procedural_runtime_;
+    engine_services_.generation = &generation_service_;
     engine_services_.presentation = &presentation_api_;
     engine_services_.core = this;
     engine_services_.modules = &modules_;
@@ -64,18 +67,18 @@ SceneDirector::SceneDirector(render::IRenderer& renderer,
 }
 
 SceneContext SceneDirector::make_context() noexcept {
-    return {commands_, ui_, presentation_, jobs_, scheduler_explicit_, jobs_->telemetry(),
-            renderer_.capabilities(),
-            renderer_.uploadTelemetry(),
-            telemetry_.simulation_duration,
-            telemetry_.presentation_duration,
-            telemetry_.gpu_duration,
-            telemetry_.rejected_stale_snapshots,
-            deterministic_capture_, framebuffer_width_, framebuffer_height_, session_ui_scale_,
-            &presentation_.camera_request,
-            &presentation_.has_camera_request,
-            scene_epoch_,
-            &engine_services_};
+    SceneContext context{commands_, ui_, presentation_};
+    context.render_capabilities = renderer_.capabilities();
+    context.render_telemetry = renderer_.uploadTelemetry();
+    context.deterministic_capture = deterministic_capture_;
+    context.framebuffer_width = framebuffer_width_;
+    context.framebuffer_height = framebuffer_height_;
+    context.ui_scale = session_ui_scale_;
+    context.camera_request = &presentation_.camera_request;
+    context.camera_request_published = &presentation_.has_camera_request;
+    context.scene_epoch = scene_epoch_;
+    context.engine_services = &engine_services_;
+    return context;
 }
 
 foundation::Result<void, foundation::Error>

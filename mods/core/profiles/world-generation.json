@@ -9,7 +9,7 @@
   "hydrology_mode": "seeded-optional",
   "river_probability": 0.35,
   "terrain": {
-    "preset": "rolling-hills",
+    "preset": "combat-mixed",
     "sample_spacing_m": 8,
     "elevation_range_m": 70.0,
     "landform_scale_m": 600.0,

@@ -42,6 +42,21 @@ public:
         std::uint64_t rejected_stale_{0U};
     };
 
+    class GenerationServiceAdapter final : public api::GenerationService {
+    public:
+        GenerationServiceAdapter(jobs::CancelSource& cancellation,
+                                 const std::uint64_t& epoch) noexcept
+            : cancellation_(cancellation), epoch_(epoch) {}
+        [[nodiscard]] jobs::CancelToken cancellation() const noexcept override {
+            return cancellation_.token();
+        }
+        [[nodiscard]] std::uint64_t sceneEpoch() const noexcept override { return epoch_; }
+
+    private:
+        jobs::CancelSource& cancellation_;
+        const std::uint64_t& epoch_;
+    };
+
     using Factory = std::function<std::unique_ptr<Scene>()>;
     using ApplicationActionRouter = std::function<ui::UiActionResult(
         ui::UiActionId, const ui::UiActionArguments&)>;
@@ -50,7 +65,8 @@ public:
     SceneDirector(render::IRenderer& renderer,
                   ui::UiRuntime& ui,
                   render::PresentationSnapshot& presentation,
-                  jobs::JobSystem* jobs = nullptr);
+                  jobs::JobSystem& jobs,
+                  proc::ProceduralRuntime* procedural_runtime = nullptr);
 
     void set_application_action_router(ApplicationActionRouter router) {
         application_action_router_ = std::move(router);
@@ -141,8 +157,8 @@ private:
     std::unordered_map<foundation::SceneId, foundation::Error> unavailable_scenes_;
     bool scene_registry_frozen_{false};
     std::unique_ptr<Scene> current_;
-    jobs::JobSystem* jobs_{nullptr};
-    bool scheduler_explicit_{false};
+    jobs::JobSystem& jobs_;
+    proc::ProceduralRuntime* procedural_runtime_{nullptr};
     bool quit_requested_{false};
     foundation::Error last_error_{};
     bool deterministic_capture_{false};
@@ -162,6 +178,7 @@ private:
     render::SnapshotExchange presentation_exchange_{3};
     api::ModuleHost modules_{};
     jobs::CancelSource scene_cancellation_{};
+    GenerationServiceAdapter generation_service_;
     PresentationBridge presentation_api_{};
     api::EngineTelemetry telemetry_{};
     api::EngineServices engine_services_{};

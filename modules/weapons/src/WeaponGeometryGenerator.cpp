@@ -212,37 +212,4 @@ bool WeaponArtifact::valid(const WeaponDefinition& definition) const noexcept {
            weapon_finite(support_grip.local_position) && weapon_finite(stow_anchor.local_position);
 }
 
-const WeaponArtifact* WeaponArtifactCache::find(foundation::StableId key) const noexcept {
-    for (const WeaponArtifact& artifact : artifacts_) {
-        if (artifact.cache_key == key) {
-            return &artifact;
-        }
-    }
-    return nullptr;
-}
-
-void WeaponArtifactCache::store(WeaponArtifact artifact) {
-    for (WeaponArtifact& existing : artifacts_) {
-        if (existing.cache_key == artifact.cache_key) {
-            existing = std::move(artifact);
-            return;
-        }
-    }
-    artifacts_.push_back(std::move(artifact));
-}
-
-const WeaponArtifact* WeaponArtifactCache::acquire(const WeaponDefinition& definition,
-                                                    const WeaponVariant& variant) {
-    const foundation::StableId key = WeaponGeometryGenerator::cacheKey(definition, variant);
-    if (const WeaponArtifact* existing = find(key); existing != nullptr) {
-        return existing;
-    }
-    const auto built = WeaponGeometryGenerator::build(definition, variant);
-    if (!built) {
-        return nullptr;
-    }
-    store(built.value());
-    return find(key);
-}
-
 } // namespace genomes::weapons

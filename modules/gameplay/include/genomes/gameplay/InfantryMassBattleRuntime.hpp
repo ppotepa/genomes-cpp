@@ -13,6 +13,8 @@
 #include <genomes/simulation/EntityController.hpp>
 #include <genomes/simulation/SimulationSnapshot.hpp>
 #include <genomes/world/WorldArtifactRevision.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
+#include <genomes/weapons/WeaponCatalog.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -80,13 +82,24 @@ public:
 
     [[nodiscard]] static foundation::Result<std::unique_ptr<InfantryMassBattleRuntime>,
                                              foundation::Error>
-    start(const InfantryMassBattleConfig& config = {}, jobs::JobSystem* jobs = nullptr);
+    start(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
+          proc::ProceduralRuntime* procedural_runtime = nullptr);
 
     [[nodiscard]] bool fixedUpdate(const simulation::TickContext& context) noexcept;
     [[nodiscard]] bool advance(const simulation::TickContext& context) noexcept override {
         return fixedUpdate(context);
     }
     [[nodiscard]] api::CommandReceipt submit(api::CommandEnvelope command) override;
+    [[nodiscard]] bool consumeRestartRequest() noexcept {
+        const bool requested = restart_requested_;
+        restart_requested_ = false;
+        return requested;
+    }
+    [[nodiscard]] bool consumeWorldRegenerateRequest() noexcept {
+        const bool requested = world_regenerate_requested_;
+        world_regenerate_requested_ = false;
+        return requested;
+    }
     [[nodiscard]] api::SnapshotView snapshotView() const noexcept override {
         return {foundation::SimulationTick{simulation_snapshot_.metadata.tick},
                 simulation_snapshot_.metadata.scene_epoch,
@@ -141,6 +154,9 @@ public:
     [[nodiscard]] const std::vector<InfantryMassBattleRenderState>& renderStates() const noexcept {
         return presentation_snapshot_.states;
     }
+    [[nodiscard]] const weapons::WeaponArtifact* weaponArtifact() const noexcept {
+        return weapon_artifact_.get();
+    }
     [[nodiscard]] const InfantryMassBattlePresentationSnapshot& presentationSnapshot() const noexcept {
         return presentation_snapshot_;
     }
@@ -185,8 +201,9 @@ private:
     };
 
     explicit InfantryMassBattleRuntime(InfantryMassBattleConfig config,
-                                       jobs::JobSystem* scheduler) noexcept
-        : config_{config}, jobs_{scheduler} {}
+                                       jobs::JobSystem& scheduler,
+                                       proc::ProceduralRuntime* procedural_runtime) noexcept
+        : config_{config}, jobs_{scheduler}, procedural_runtime_{procedural_runtime} {}
 
     [[nodiscard]] foundation::Result<void, foundation::Error> initialize();
     [[nodiscard]] UnitUpdate updateUnit(const Unit&,
@@ -213,13 +230,17 @@ private:
     InfantryMassBattleSnapshot snapshot_{};
     std::uint64_t scene_epoch_{0U};
     api::CommandQueue api_commands_{};
+    bool restart_requested_{false};
+    bool world_regenerate_requested_{false};
     // Opaque module-owned values accepted through world.set.  The map keeps
     // stable key order so the published semantic hash is worker-independent.
     std::map<std::string, std::vector<std::uint8_t>, std::less<>> api_world_values_;
     std::shared_ptr<const std::map<std::string, std::vector<std::uint8_t>, std::less<>>>
         api_world_snapshot_values_;
-    jobs::JobSystem* jobs_{nullptr};
+    jobs::JobSystem& jobs_;
     std::shared_ptr<const ResolvedWorldArtifacts> world_artifact_;
+    proc::ProceduralRuntime* procedural_runtime_{nullptr};
+    std::shared_ptr<const weapons::WeaponArtifact> weapon_artifact_;
 };
 
 } // namespace genomes::gameplay

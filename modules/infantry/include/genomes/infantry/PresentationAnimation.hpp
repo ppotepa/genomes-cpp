@@ -14,6 +14,8 @@ public:
     [[nodiscard]] static foundation::Result<PresentationAnimation, foundation::Error>
     create(std::size_t chunk_size = 64U);
 
+    void bindScheduler(jobs::JobSystem& jobs) noexcept { jobs_ = &jobs; }
+
     [[nodiscard]] foundation::Result<void, foundation::Error> evaluate(
         std::span<AnimationEntity> entities, std::uint64_t simulation_tick,
         float fixed_dt_seconds, jobs::JobSystem* jobs = nullptr,
@@ -30,6 +32,15 @@ public:
         AnimationWorkSet work, jobs::JobSystem& jobs,
         jobs::CancelToken cancellation = {}, PresentationBudget budget = {});
 
+    [[nodiscard]] AnimationEvaluationHandle evaluateAsync(
+        AnimationWorkSet work, jobs::CancelToken cancellation = {},
+        PresentationBudget budget = {}) {
+        return jobs_ == nullptr
+                   ? AnimationEvaluationHandle{}
+                   : implementation_.evaluateAsync(std::move(work), *jobs_, cancellation,
+                                                   budget);
+    }
+
     [[nodiscard]] const AnimationSnapshot& currentSnapshot() const noexcept {
         return implementation_.currentSnapshot();
     }
@@ -42,6 +53,7 @@ private:
         : implementation_(std::move(implementation)) {}
 
     AnimationSystem implementation_;
+    jobs::JobSystem* jobs_{nullptr};
 };
 
 } // namespace genomes::infantry

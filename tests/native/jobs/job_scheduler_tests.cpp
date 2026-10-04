@@ -57,8 +57,8 @@ void topologyPolicyReservesApplicationSlots() {
     assert(genomes::jobs::topologyWorkerCount(8, 8) == 0U);
 }
 
-void processFallbackUsesCentralParallelScheduler() {
-    auto& scheduler = genomes::jobs::processScheduler();
+void explicitParallelSchedulerExecutesWork() {
+    genomes::jobs::JobSystem scheduler(genomes::jobs::SchedulerConfig{});
     assert(scheduler.mode() == genomes::jobs::SchedulerMode::Parallel);
     std::atomic_bool ran{false};
     const auto handle = scheduler.submit([&](genomes::jobs::JobContext&) {
@@ -68,8 +68,12 @@ void processFallbackUsesCentralParallelScheduler() {
     assert(ran.load(std::memory_order_acquire));
 }
 
-void processSerialExecutorHasNoWorkers() {
-    auto& scheduler = genomes::jobs::processSerialScheduler();
+void explicitSerialExecutorHasNoWorkers() {
+    genomes::jobs::SchedulerConfig config;
+    config.mode = genomes::jobs::SchedulerMode::Serial;
+    config.worker_count = 0U;
+    config.enable_io_worker = false;
+    genomes::jobs::JobSystem scheduler(config);
     assert(scheduler.mode() == genomes::jobs::SchedulerMode::Serial);
     assert(scheduler.workerCount() == 0U);
     bool ran = false;
@@ -305,6 +309,20 @@ void parallelForReportsWorkerFailure() {
     assert(!completed);
 }
 
+void parallelForRejectsWorkerBarrier() {
+    genomes::jobs::JobSystem jobs(2);
+    std::atomic_bool rejected{false};
+    const auto handle = jobs.submit([&](genomes::jobs::JobContext&) {
+        assert(jobs.isWorkerThread());
+        rejected.store(!genomes::jobs::parallelForAndWait(
+                           jobs, 0U, 8U, 2U,
+                           [](const genomes::jobs::BatchRange&) {}),
+                       std::memory_order_release);
+    });
+    handle.wait();
+    assert(rejected.load(std::memory_order_acquire));
+}
+
 void parallelForPreservesStableBatchRangesAcrossModes() {
     constexpr std::size_t begin = 3U;
     constexpr std::size_t end = 103U;
@@ -365,8 +383,8 @@ void parallelForPreservesStableBatchRangesAcrossModes() {
 int main() {
     serialExecutorAndScratchAreStable();
     topologyPolicyReservesApplicationSlots();
-    processFallbackUsesCentralParallelScheduler();
-    processSerialExecutorHasNoWorkers();
+    explicitParallelSchedulerExecutesWork();
+    explicitSerialExecutorHasNoWorkers();
     ioLaneUsesCentralScheduler();
     groupSelectsFailureByJobId();
     cancellationReachesActiveAndPendingJobs();
@@ -377,6 +395,7 @@ int main() {
     ownerPumpsAffinityLanesWithWeightedFairness();
     schedulerCompletesOneHundredThousandJobs();
     parallelForReportsWorkerFailure();
+    parallelForRejectsWorkerBarrier();
     parallelForPreservesStableBatchRangesAcrossModes();
     return 0;
 }

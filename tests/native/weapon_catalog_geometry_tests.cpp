@@ -1,7 +1,9 @@
 #include <genomes/weapons/WeaponCatalog.hpp>
+#include <genomes/proc/ArtifactCache.hpp>
 
 #include <cassert>
 #include <filesystem>
+#include <memory>
 
 int main() {
     using namespace genomes::weapons;
@@ -60,9 +62,15 @@ int main() {
     assert(first.value().cache_key == second.value().cache_key);
     assert(first.value().mesh.vertices.size() == 3588U);
     assert(first.value().mesh.indices.size() / 3U == 3396U);
-    WeaponArtifactCache cache;
-    assert(cache.acquire(*rifle, variant) != nullptr);
-    assert(cache.acquire(*rifle, variant) != nullptr);
-    assert(cache.size() == 1U);
+    genomes::proc::ArtifactCache cache;
+    genomes::proc::ArtifactKey key{};
+    key.namespace_id = genomes::foundation::stable_id("weapons.artifact");
+    key.generator_version = 1U;
+    key.seed = variant.seed;
+    key.input_hash = WeaponGeometryGenerator::cacheKey(*rifle, variant);
+    const auto cached_artifact = std::make_shared<const WeaponArtifact>(first.value());
+    cache.store(key, cached_artifact, {sizeof(WeaponArtifact)});
+    assert(cache.find<WeaponArtifact>(key) == cached_artifact);
+    assert(cache.stats().entries == 1U);
     return 0;
 }

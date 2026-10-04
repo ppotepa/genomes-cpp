@@ -1,4 +1,5 @@
 #include <genomes/render/NullRenderer.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/game_scenes/BuiltinScenes.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
@@ -28,7 +29,8 @@ int main() {
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
-    genomes::runtime::SceneDirector director(renderer, ui, presentation);
+    genomes::jobs::JobSystem jobs{2U};
+    genomes::runtime::SceneDirector director(renderer, ui, presentation, jobs);
 
     const auto menu_id = genomes::foundation::scene_id("scene.main-menu");
     genomes::application::BuiltinSceneConfig config{};

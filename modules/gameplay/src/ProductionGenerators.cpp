@@ -3,7 +3,10 @@
 #include <genomes/buildings/BuildingProcedural.hpp>
 #include <genomes/hydrology/HydrologyProcedural.hpp>
 #include <genomes/terrain/TerrainProcedural.hpp>
+#include <genomes/world/CityPlan.hpp>
 #include <genomes/world/WorldGenerationTask.hpp>
+
+#include <memory>
 
 #if GENOMES_HAS_INFANTRY
 #include <genomes/infantry/InfantryProcedural.hpp>
@@ -21,6 +24,33 @@ makeProductionGeneratorRegistry() {
         return foundation::Result<void, foundation::Error>::success();
     };
     if (const auto result = append(buildings::registerBuildingGenerator(builder)); !result) {
+        return foundation::Result<proc::GeneratorRegistry, foundation::Error>::failure(
+            result.error());
+    }
+    const proc::GeneratorDescriptor roads_descriptor{
+        proc::generatorId("roads.graph"), "roads.graph", {1, 0, 0},
+        foundation::stable_id("world.city-generation-request"),
+        foundation::stable_id("roads.graph"), true, proc::GeneratorExecutionPolicy::Cpu,
+        proc::GeneratorCachePolicy::Artifact};
+    if (const auto result = append(builder.addTyped<world::CityGenerationRequest, roads::RoadGraph>(
+            roads_descriptor,
+            [](const world::CityGenerationRequest& request, proc::GenerationContext& context)
+                -> foundation::Result<std::shared_ptr<const roads::RoadGraph>, foundation::Error> {
+                if (context.cancellationRequested()) {
+                    return foundation::Result<std::shared_ptr<const roads::RoadGraph>,
+                                              foundation::Error>::failure(
+                        {foundation::ErrorCode::InvalidState, "roads generation canceled"});
+                }
+                const auto generated = world::CityGenerator::generate(request);
+                if (!generated) {
+                    return foundation::Result<std::shared_ptr<const roads::RoadGraph>,
+                                              foundation::Error>::failure(generated.error());
+                }
+                return foundation::Result<std::shared_ptr<const roads::RoadGraph>,
+                                          foundation::Error>::success(
+                    std::make_shared<const roads::RoadGraph>(generated.value().road_graph));
+            }));
+        !result) {
         return foundation::Result<proc::GeneratorRegistry, foundation::Error>::failure(
             result.error());
     }

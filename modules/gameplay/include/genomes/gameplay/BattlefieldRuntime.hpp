@@ -65,7 +65,7 @@ public:
 
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldRuntime>,
                                              foundation::Error>
-    start(const BattlefieldScenarioConfig& config = {}, jobs::JobSystem* jobs = nullptr,
+    start(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
           BattlefieldExecutionMode execution_mode = BattlefieldExecutionMode::Parallel,
           proc::ProceduralRuntime* procedural_runtime = nullptr);
 
@@ -77,6 +77,19 @@ public:
     }
 
     [[nodiscard]] api::CommandReceipt submit(api::CommandEnvelope command) override;
+    [[nodiscard]] const weapons::WeaponArtifact* weaponArtifact() const noexcept {
+        return weapon_artifact_.get();
+    }
+    [[nodiscard]] bool consumeRestartRequest() noexcept {
+        const bool requested = restart_requested_;
+        restart_requested_ = false;
+        return requested;
+    }
+    [[nodiscard]] bool consumeWorldRegenerateRequest() noexcept {
+        const bool requested = world_regenerate_requested_;
+        world_regenerate_requested_ = false;
+        return requested;
+    }
     [[nodiscard]] api::SnapshotView snapshotView() const noexcept override;
     [[nodiscard]] api::SnapshotView query(api::ApiId query,
                                           const api::EncodedValue& arguments) const override;
@@ -149,7 +162,7 @@ private:
         destruction::DamageField damage_field{};
     };
 
-    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem* jobs,
+    BattlefieldRuntime(BattlefieldScenarioConfig config, jobs::JobSystem& jobs,
                        BattlefieldExecutionMode execution_mode,
                        proc::ProceduralRuntime* procedural_runtime);
 
@@ -173,6 +186,8 @@ private:
     BattlefieldScenarioConfig config_{};
     BattlefieldExecutionMode execution_mode_{BattlefieldExecutionMode::Parallel};
     jobs::JobSystem* jobs_{nullptr};
+    jobs::JobSystem serial_executor_{jobs::SchedulerConfig{
+        jobs::SchedulerMode::Serial, 0U, 0U, false, 64U * 1024U}};
     proc::ProceduralRuntime* procedural_runtime_{nullptr};
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_{};
@@ -228,6 +243,8 @@ private:
     std::uint64_t scene_epoch_{0U};
     api::CommandQueue api_commands_{};
     std::map<std::string, std::vector<std::uint8_t>, std::less<>> api_world_values_;
+    bool restart_requested_{false};
+    bool world_regenerate_requested_{false};
     BattlefieldRuntimeState state_{BattlefieldRuntimeState::Running};
 };
 

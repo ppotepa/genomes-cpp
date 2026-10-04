@@ -4,6 +4,7 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/jobs/JobSystem.hpp>
+#include <genomes/proc/ProceduralRuntime.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/runtime/FrameCoordinator.hpp>
 #include <genomes/runtime/SceneDirector.hpp>
@@ -70,10 +71,11 @@ private:
     // control and input ordering belong to SceneDirector, not the renderer.
     std::unique_ptr<render::RenderBackend> backend_owner_;
     std::unique_ptr<render::IRenderer> renderer_;
-    // The process scheduler is the single CPU execution authority for the
-    // application; this reference keeps the composition root explicit
-    // without owning a second worker pool.
-    jobs::JobSystem& jobs_;
+    // The application composition root owns the single CPU execution
+    // authority for the session.
+    jobs::JobSystem jobs_;
+    std::unique_ptr<proc::GeneratorRegistry> procedural_registry_;
+    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
     ui::UiRuntime ui_;
     ui::UiContentRegistry content_;
     ui::UiNativePluginManager plugins_;

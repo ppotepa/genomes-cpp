@@ -5,6 +5,7 @@
 #include <genomes/buildings/BuildingModel.hpp>
 #include <genomes/render/RenderTypes.hpp>
 #include <genomes/terrain/HeightField.hpp>
+#include <genomes/terrain/TerrainMesh.hpp>
 #include <genomes/world/WorldPlan.hpp>
 #include <genomes/world/WorldArtifactRevision.hpp>
 
@@ -23,6 +24,9 @@ struct WorldMeshDrawRange final {
 struct WorldMeshArtifact final {
     world::WorldArtifactRevision source_revision{0U};
     std::shared_ptr<const render::RenderMesh> mesh;
+    // Water remains a distinct immutable presentation artifact even when the
+    // compatibility combined mesh is also emitted for existing renderers.
+    std::shared_ptr<const render::RenderMesh> water_mesh;
     std::unordered_map<foundation::StableId, WorldMeshDrawRange> part_draw_ranges;
 };
 
@@ -35,7 +39,8 @@ public:
     [[nodiscard]] static foundation::Result<WorldMeshArtifact, foundation::Error>
     compile(const world::WorldPlan&, const terrain::HeightField&,
             std::span<const buildings::BuildingGenerationResult> resolved_buildings,
-            world::WorldArtifactRevision source_revision);
+            world::WorldArtifactRevision source_revision,
+            const terrain::TerrainMesh* source_water_mesh = nullptr);
 };
 
 } // namespace genomes::world_render

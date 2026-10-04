@@ -108,6 +108,57 @@ void resolveCrossings(hydrology::HydrologyArtifact& hydrology_artifact,
     }
 }
 
+[[nodiscard]] foundation::Result<terrain::TerrainMesh, foundation::Error> buildWaterMesh(
+    const hydrology::HydrologyArtifact& hydrology, const terrain::HeightField& terrain_field) {
+    terrain::TerrainMesh mesh{};
+    mesh.source_width = terrain_field.width();
+    mesh.source_height = terrain_field.height();
+    mesh.sample_step = 1U;
+    for (const hydrology::RiverPath& river : hydrology.rivers) {
+        if (river.point_count < 2U ||
+            static_cast<std::size_t>(river.point_offset) + river.point_count >
+                hydrology.river_points.size()) {
+            continue;
+        }
+        const std::size_t begin = river.point_offset;
+        const std::size_t end = begin + river.point_count;
+        const float half_width = std::max(0.5F, river.width_m * 0.5F);
+        const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
+        for (std::size_t index = begin; index < end; ++index) {
+            const foundation::Vec3 point = hydrology.river_points[index];
+            const foundation::Vec3 before =
+                hydrology.river_points[index == begin ? index : index - 1U];
+            const foundation::Vec3 after =
+                hydrology.river_points[index + 1U == end ? index : index + 1U];
+            const float dx = after.x - before.x;
+            const float dz = after.z - before.z;
+            const float length = std::hypot(dx, dz);
+            if (!std::isfinite(length) || length <= 0.001F) continue;
+            const foundation::Vec3 perpendicular{-dz / length * half_width, 0.0F,
+                                                  dx / length * half_width};
+            const float water_y = std::max(point.y + 0.12F,
+                                           terrain_field.sampleBilinear(point.x, point.z) + 0.10F);
+            const foundation::Vec3 center{point.x, water_y, point.z};
+            mesh.vertices.push_back({{center.x + perpendicular.x, center.y,
+                                      center.z + perpendicular.z},
+                                     {0.0F, 1.0F, 0.0F}, {0.0F, 0.0F}});
+            mesh.vertices.push_back({{center.x - perpendicular.x, center.y,
+                                      center.z - perpendicular.z},
+                                     {0.0F, 1.0F, 0.0F}, {1.0F, 0.0F}});
+        }
+        const std::size_t vertex_count = mesh.vertices.size() - base;
+        if (vertex_count < 4U) continue;
+        for (std::size_t pair = 1U; pair < vertex_count / 2U; ++pair) {
+            const std::uint32_t previous = base + static_cast<std::uint32_t>((pair - 1U) * 2U);
+            const std::uint32_t current = base + static_cast<std::uint32_t>(pair * 2U);
+            mesh.indices.insert(mesh.indices.end(),
+                                {previous, previous + 1U, current + 1U,
+                                 previous, current + 1U, current});
+        }
+    }
+    return foundation::Result<terrain::TerrainMesh, foundation::Error>::success(std::move(mesh));
+}
+
 } // namespace
 
 foundation::Result<void, foundation::Error> WorldScenario::requestNew(
@@ -116,6 +167,11 @@ foundation::Result<void, foundation::Error> WorldScenario::requestNew(
         return foundation::Result<void, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidArgument,
              "invalid world scenario request or building profile"});
+    }
+    if (pending_artifact_ticket_.valid() && !pending_artifact_ticket_.complete()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState,
+             "world artifact compilation is already in progress"});
     }
     pending_ = generation_service_.submit(request, &generation_channel_);
     pending_request_ = request;
@@ -139,6 +195,48 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
         status_.streaming_pending = streamer_->pendingCount();
         status_.streaming_resident = streamer_->residentCount();
     }
+    if (pending_artifact_ticket_.valid()) {
+        if (!pending_artifact_ticket_.complete()) {
+            return foundation::Result<bool, foundation::Error>::success(false);
+        }
+        const auto completed_request = pending_artifact_request_;
+        const auto artifact = pending_artifact_ticket_.artifact();
+        const auto artifact_error = pending_artifact_ticket_.error();
+        const auto artifact_status = pending_artifact_ticket_.status();
+        pending_artifact_ticket_ = {};
+        pending_artifact_request_.reset();
+        if (artifact_status != proc::GenerationStatus::Completed || artifact == nullptr) {
+            status_.generation_pending = false;
+            status_.last_error = artifact_error.code == foundation::ErrorCode::None
+                                     ? foundation::Error{foundation::ErrorCode::Internal,
+                                                         "world artifact ticket produced no result"}
+                                     : artifact_error;
+            return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
+        }
+        if (!completed_request.has_value()) {
+            status_.generation_pending = false;
+            status_.last_error = {foundation::ErrorCode::Internal,
+                                  "world artifact completed without a request"};
+            return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
+        }
+        active_request_ = completed_request;
+        active_artifact_ = std::move(artifact);
+        status_.has_active_world = true;
+        status_.generation_pending = false;
+        status_.active_content_hash = active_artifact_->plan.content_hash;
+        status_.last_error = {};
+        streamer_.reset();
+        streamed_regions_.clear();
+        streaming_tick_ = {};
+        world::WorldCoordinateConfig coordinates{};
+        coordinates.region_size_m = static_cast<double>(completed_request->map_size_m);
+        streamer_ = std::make_unique<world::WorldStreamer>(
+            world::WorldId(foundation::stableHashU64(completed_request->seed)),
+            *completed_request, coordinates, jobs_, world::WorldStreamerConfig{},
+            generation_service_.registry());
+        (void)requestRegion({1, 0, 0});
+        return foundation::Result<bool, foundation::Error>::success(true);
+    }
     if (!pending_.has_value()) {
         return foundation::Result<bool, foundation::Error>::success(false);
     }
@@ -156,41 +254,49 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
     const std::optional<world::WorldGenerationRequest> completed_request = pending_request_;
     pending_request_.reset();
     pending_.reset();
-    status_.generation_pending = false;
     if (!candidate.has_value() || !validCandidate(*candidate)) {
+        status_.generation_pending = false;
         status_.last_error = {foundation::ErrorCode::Internal, "invalid generated world candidate"};
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
     }
     if (!completed_request.has_value()) {
+        status_.generation_pending = false;
         status_.last_error = {foundation::ErrorCode::Internal,
                                "world generation completed without a request"};
         return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
     }
-    const auto artifact = compileArtifactImpl(std::move(*candidate), *completed_request,
-                                              *building_profile_, &procedural_runtime_);
-    if (!artifact) {
-        status_.last_error = artifact.error();
-        return foundation::Result<bool, foundation::Error>::failure(status_.last_error);
-    }
-    active_request_ = completed_request;
-    active_artifact_ = std::make_shared<const WorldScenarioArtifact>(
-        std::move(artifact.value()));
-    status_.has_active_world = true;
-    status_.active_content_hash = active_artifact_->plan.content_hash;
-    status_.last_error = {};
-    streamer_.reset();
-    streamed_regions_.clear();
-    streaming_tick_ = {};
-    world::WorldCoordinateConfig coordinates{};
-    coordinates.region_size_m = static_cast<double>(completed_request->map_size_m);
-    streamer_ = std::make_unique<world::WorldStreamer>(
-        world::WorldId(foundation::stableHashU64(completed_request->seed)),
-        *completed_request, coordinates, jobs_, world::WorldStreamerConfig{},
-        generation_service_.registry());
-    // Keep the first region immediately available while an adjacent region is
-    // prepared asynchronously through the normal streaming service.
-    (void)requestRegion({1, 0, 0});
-    return foundation::Result<bool, foundation::Error>::success(true);
+    pending_artifact_request_ = *completed_request;
+    const auto profile = building_profile_;
+    proc::ProceduralRuntime* runtime = generation_service_.ownsRuntime()
+                                           ? nullptr
+                                           : generation_service_.runtime();
+    proc::GenerationOptions artifact_options{};
+    artifact_options.input_hash = foundation::stableHashU64(completed_request->seed);
+    artifact_options.retained_bytes = sizeof(WorldScenarioArtifact);
+    artifact_options.use_cache = false;
+    pending_artifact_ticket_ = generation_service_.runtime()->requestStage<WorldScenarioArtifact>(
+        proc::generatorId("world.resolved"),
+        proc::SeedPath(completed_request->seed).child("resolved-world", 0),
+        artifact_options,
+        [plan = std::move(*candidate), request = *completed_request, profile,
+         runtime](proc::GenerationContext& context) mutable
+            -> foundation::Result<std::shared_ptr<const WorldScenarioArtifact>, foundation::Error> {
+            if (context.cancellationRequested()) {
+                return foundation::Result<std::shared_ptr<const WorldScenarioArtifact>,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState, "world artifact generation canceled"});
+            }
+            auto result = compileArtifactImpl(std::move(plan), request, *profile, runtime);
+            if (!result) {
+                return foundation::Result<std::shared_ptr<const WorldScenarioArtifact>,
+                                          foundation::Error>::failure(result.error());
+            }
+            return foundation::Result<std::shared_ptr<const WorldScenarioArtifact>,
+                                      foundation::Error>::success(
+                std::make_shared<const WorldScenarioArtifact>(std::move(result.value())));
+        },
+        &generation_channel_);
+    return foundation::Result<bool, foundation::Error>::success(false);
 }
 
 foundation::Result<void, foundation::Error> WorldScenario::startNew(
@@ -199,16 +305,20 @@ foundation::Result<void, foundation::Error> WorldScenario::startNew(
     if (!requested) {
         return requested;
     }
-    if (pending_.has_value()) {
-        pending_->wait();
-    }
-    const auto result = poll();
-    if (!result) {
-        return foundation::Result<void, foundation::Error>::failure(result.error());
-    }
-    if (!result.value()) {
-        return foundation::Result<void, foundation::Error>::failure(
-            {foundation::ErrorCode::Internal, "world generation did not complete"});
+    for (;;) {
+        const auto result = poll();
+        if (!result) {
+            return foundation::Result<void, foundation::Error>::failure(result.error());
+        }
+        if (result.value()) break;
+        if (pending_artifact_ticket_.valid()) {
+            pending_artifact_ticket_.wait();
+        } else if (pending_.has_value()) {
+            pending_->wait();
+        } else {
+            return foundation::Result<void, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal, "world generation did not complete"});
+        }
     }
     active_request_ = request;
     return foundation::Result<void, foundation::Error>::success();
@@ -247,6 +357,9 @@ void WorldScenario::cancelPending() noexcept {
     }
     pending_.reset();
     pending_request_.reset();
+    pending_artifact_ticket_.cancel();
+    pending_artifact_ticket_ = {};
+    pending_artifact_request_.reset();
     status_.generation_pending = false;
 }
 
@@ -306,6 +419,20 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
              "world artifact request, generated plan, and building profile do not match"});
     }
 
+    if (procedural_runtime != nullptr) {
+        proc::GenerationPipeline pipeline;
+        pipeline.addStage(proc::generatorId("terrain.height-field"));
+        pipeline.addStage(proc::generatorId("hydrology.artifact"));
+        pipeline.addStage(proc::generatorId("roads.graph"));
+        pipeline.addStage(proc::generatorId("buildings.site"));
+        pipeline.addStage(proc::generatorId("world.resolved"));
+        const auto pipeline_valid = pipeline.validate(procedural_runtime->registry());
+        if (!pipeline_valid) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                pipeline_valid.error());
+        }
+    }
+
     const world::GridLayout layout = world::GridLayout::forMap(request.map_size_m);
     if (!layout.valid()) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
@@ -326,7 +453,8 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     terrain_spec.origin_offset_z = static_cast<double>(layout.origin.z);
     terrain_spec.generation = request.terrain;
     foundation::Result<terrain::HeightField, foundation::Error> terrain_result =
-        terrain::TerrainGenerator::generate(terrain_spec);
+        foundation::Result<terrain::HeightField, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "terrain generator unavailable"});
     if (procedural_runtime != nullptr &&
         procedural_runtime->registry().find(proc::generatorId("terrain.height-field")) !=
             nullptr) {
@@ -348,14 +476,21 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             terrain_input_hash, foundation::stableHashFloat(request.terrain.roughness));
         generation.options.input_hash = terrain_input_hash;
         generation.options.retained_bytes = sizeof(terrain::HeightField);
-        const auto generated = procedural_runtime->generateInline(generation);
+        auto ticket = procedural_runtime->request(std::move(generation));
+        ticket.wait();
+        const auto generated = ticket.artifact();
         if (generated) {
             terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::success(
-                *generated.value());
+                *generated);
         } else {
             terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::failure(
-                generated.error());
+                ticket.error());
         }
+    } else if (procedural_runtime == nullptr) {
+        // Direct generation is reserved for the explicit deterministic
+        // compileArtifact tool/test entry point. Live scenes must use the
+        // composition-root registry.
+        terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
     }
     if (!terrain_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
@@ -363,18 +498,109 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     }
     terrain::HeightField terrain_field = terrain_result.value();
 
+    // Roads are a first-class procedural stage.  The world plan still carries
+    // the deterministic city seed and parcel semantics, but the production
+    // composition root owns the canonical road artifact consumed by crossings
+    // and presentation.  Deterministic compileArtifact keeps the direct city
+    // result as its explicit tool/test path.
+    if (procedural_runtime != nullptr &&
+        procedural_runtime->registry().find(proc::generatorId("roads.graph")) != nullptr) {
+        const world::CityGenerationRequest city_request{
+            request.seed, request.map_size_m, request.buildings, request.fenced_parcels};
+        proc::GenerationRequest<world::CityGenerationRequest, roads::RoadGraph> generation;
+        generation.generator = proc::generatorId("roads.graph");
+        generation.input = std::make_shared<const world::CityGenerationRequest>(city_request);
+        generation.seed_path = proc::SeedPath(request.seed).child("roads", 0);
+        generation.options.input_hash = foundation::stableHashCombine(
+            foundation::stableHashU64(request.seed), request.map_size_m);
+        generation.options.input_hash = foundation::stableHashCombine(
+            generation.options.input_hash, foundation::stableHashFloat(request.buildings));
+        generation.options.input_hash = foundation::stableHashCombine(
+            generation.options.input_hash, foundation::stableHashFloat(request.fenced_parcels));
+        generation.options.dependency_hash = plan.stage_fingerprints[
+            static_cast<std::size_t>(world::WorldGenerationStage::Roads)]
+                                                   .dependency_fingerprint;
+        generation.options.retained_bytes = sizeof(roads::RoadGraph);
+        auto ticket = procedural_runtime->request(std::move(generation));
+        ticket.wait();
+        const auto generated = ticket.artifact();
+        if (!generated) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                ticket.error());
+        }
+        plan.city.road_graph = *generated;
+    } else if (procedural_runtime != nullptr) {
+        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "roads generator unavailable"});
+    }
+
     const hydrology::HydrologySpec hydrology_spec = makeHydrologySpec(request, terrain_field);
     const hydrology::HydrologyTerrainView terrain_view{
         terrain_field.width(), terrain_field.height(), terrain_field.cellSize(),
         static_cast<float>(terrain_field.originX()), static_cast<float>(terrain_field.originZ()),
         terrain_field.samples()};
-    auto hydrology_result = hydrology::HydrologyGenerator::generate(hydrology_spec, terrain_view);
+    foundation::Result<hydrology::HydrologyArtifact, foundation::Error> hydrology_result =
+        foundation::Result<hydrology::HydrologyArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "hydrology generator unavailable"});
+    if (procedural_runtime != nullptr &&
+        procedural_runtime->registry().find(proc::generatorId("hydrology.artifact")) != nullptr) {
+        auto heights = std::make_shared<const std::vector<float>>(
+            terrain_field.samples().begin(), terrain_field.samples().end());
+        hydrology::HydrologyGenerationInput input{};
+        input.spec = hydrology_spec;
+        input.samples_x = terrain_field.width();
+        input.samples_z = terrain_field.height();
+        input.cell_size_m = terrain_field.cellSize();
+        input.origin_x = static_cast<float>(terrain_field.originX());
+        input.origin_z = static_cast<float>(terrain_field.originZ());
+        input.heights = std::move(heights);
+        proc::GenerationRequest<hydrology::HydrologyGenerationInput,
+                                hydrology::HydrologyArtifact> generation;
+        generation.generator = proc::generatorId("hydrology.artifact");
+        generation.input = std::make_shared<const hydrology::HydrologyGenerationInput>(input);
+        generation.seed_path = proc::SeedPath(request.seed).child("hydrology", 0);
+        std::uint64_t terrain_hash = foundation::stableHashU64(terrain_field.width());
+        terrain_hash = foundation::stableHashCombine(terrain_hash, terrain_field.height());
+        for (const float height : terrain_field.samples()) {
+            terrain_hash = foundation::stableHashCombine(
+                terrain_hash, foundation::stableHashFloat(height));
+        }
+        generation.options.input_hash = foundation::stableHashCombine(
+            foundation::stableHashU64(request.seed), terrain_hash);
+        generation.options.dependency_hash = terrain_hash;
+        generation.options.retained_bytes = sizeof(hydrology::HydrologyArtifact);
+        auto ticket = procedural_runtime->request(std::move(generation));
+        ticket.wait();
+        const auto generated = ticket.artifact();
+        if (generated) {
+            hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
+                                                   foundation::Error>::success(*generated);
+        } else {
+            hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
+                                                   foundation::Error>::failure(ticket.error());
+        }
+    } else if (procedural_runtime == nullptr) {
+        // Explicit deterministic compileArtifact remains the only direct
+        // generator entry point; live scenarios always use ProceduralRuntime.
+        hydrology_result = hydrology::HydrologyGenerator::generate(hydrology_spec, terrain_view);
+    }
     if (!hydrology_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             hydrology_result.error());
     }
     plan.hydrology = std::move(hydrology_result.value());
     resolveCrossings(plan.hydrology, plan.city.road_graph);
+    // The resolved hydrology stage is part of the immutable world identity.
+    // This keeps revision/content hashes tied to the exact heightfield-aware
+    // artifact rather than the preliminary plan produced by WorldGenerator.
+    auto& hydrology_stage = plan.stage_fingerprints[
+        static_cast<std::size_t>(world::WorldGenerationStage::Hydrology)];
+    if (hydrology_stage.dependency_fingerprint != plan.hydrology.content_hash) {
+        plan.content_hash = foundation::stableHashCombine(
+            plan.content_hash, plan.hydrology.content_hash == 0U
+                                   ? foundation::stableHashU64(1U)
+                                   : plan.hydrology.content_hash);
+    }
 
     const auto conflicts_with_water = [&plan](foundation::Vec3 position) {
         const auto water = plan.hydrology.sampleWater(position.x, position.z);
@@ -432,6 +658,11 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             mesh_result.error());
     }
+    const auto water_mesh_result = buildWaterMesh(plan.hydrology, terrain_field);
+    if (!water_mesh_result) {
+        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            water_mesh_result.error());
+    }
 
     ResolvedWorldArtifacts artifact{};
     artifact.plan = std::move(plan);
@@ -446,7 +677,8 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     resolved_buildings->reserve(artifact.plan.building_sites.size());
     for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
         foundation::Result<buildings::BuildingGenerationResult, foundation::Error> building =
-            buildings::BuildingGenerator::generateSite(site, building_profile.siteGeneration());
+            foundation::Result<buildings::BuildingGenerationResult, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState, "building generator unavailable"});
         if (procedural_runtime != nullptr &&
             procedural_runtime->registry().find(proc::generatorId("buildings.site")) != nullptr) {
             proc::GenerationRequest<buildings::BuildingSiteGenerationRequest,
@@ -460,14 +692,21 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
                 site.request_id, static_cast<std::uint64_t>(site.seed));
             generation.options.dependency_hash = building_profile.fingerprint().value;
             generation.options.retained_bytes = sizeof(buildings::BuildingGenerationResult);
-            const auto generated = procedural_runtime->generateInline(generation);
+            auto ticket = procedural_runtime->request(std::move(generation));
+            ticket.wait();
+            const auto generated = ticket.artifact();
             if (generated) {
                 building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::success(*generated.value());
+                                               foundation::Error>::success(*generated);
             } else {
                 building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::failure(generated.error());
+                                               foundation::Error>::failure(ticket.error());
             }
+        } else if (procedural_runtime == nullptr) {
+            // This branch is retained only for the explicit deterministic
+            // compileArtifact test/tool entry point, never for a live scene.
+            building = buildings::BuildingGenerator::generateSite(
+                site, building_profile.siteGeneration());
         }
         if (!building) {
             return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
@@ -479,6 +718,8 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     artifact.terrain = std::make_shared<const terrain::HeightField>(std::move(terrain_field));
     artifact.terrain_mesh = std::make_shared<const terrain::TerrainMesh>(
         std::move(mesh_result.value()));
+    artifact.water_mesh = std::make_shared<const terrain::TerrainMesh>(
+        std::move(water_mesh_result.value()));
     world::WorldSaveModel save{};
     save.metadata.generator_version = artifact.plan.generator_version;
     save.metadata.seed = artifact.plan.seed;

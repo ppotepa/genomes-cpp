@@ -38,7 +38,7 @@ BattlefieldRunResult runBattlefield(genomes::gameplay::BattlefieldScenarioConfig
         procedural_runtime.emplace(*registry, jobs);
     }
     auto runtime = genomes::gameplay::BattlefieldRuntime::start(
-        config, &jobs, mode, procedural_runtime ? &*procedural_runtime : nullptr);
+        config, jobs, mode, procedural_runtime ? &*procedural_runtime : nullptr);
     if (!runtime) {
         std::fprintf(stderr, "battlefield start failed: %.*s\n",
                      static_cast<int>(runtime.error().message.size()),

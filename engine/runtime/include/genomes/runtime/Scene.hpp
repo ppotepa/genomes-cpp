@@ -2,7 +2,6 @@
 
 #include <genomes/foundation/Types.hpp>
 #include <genomes/api/Api.hpp>
-#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/input/InputFrame.hpp>
 #include <genomes/render/PresentationSnapshot.hpp>
 #include <genomes/render/RenderTypes.hpp>
@@ -67,13 +66,6 @@ struct SceneContext {
     SceneCommandQueue& commands;
     ui::UiRuntime& ui;
     render::PresentationSnapshot& presentation;
-    // Central scheduler handle resolved by SceneDirector. Scenes may submit
-    // work through it, but never construct or select worker pools themselves.
-    jobs::JobSystem* scheduler{nullptr};
-    // Compatibility callers that omit a scheduler receive the process-wide
-    // fallback, but may retain legacy inline behavior where required.
-    bool scheduler_explicit{false};
-    jobs::SchedulerTelemetry scheduler_telemetry{};
     render::RenderCapabilities render_capabilities{};
     // Previous completed renderer frame. This is diagnostic/presentation data,
     // never a simulation input.
@@ -81,10 +73,6 @@ struct SceneContext {
     // Durations from the previously completed coordinated frame. They are
     // deliberately observational: scenes may display them but must never use
     // them to alter deterministic simulation state.
-    foundation::Nanoseconds simulation_duration{};
-    foundation::Nanoseconds presentation_duration{};
-    foundation::Nanoseconds gpu_duration{};
-    std::uint64_t rejected_stale_snapshots{0U};
     // Evidence/capture mode disables worker timing as an input to generated
     // presentation state. Simulation still advances through fixed_update.
     bool deterministic_capture{false};

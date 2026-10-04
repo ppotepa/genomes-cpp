@@ -41,8 +41,7 @@ private:
     buildings::BuildingPlan plan_{};
     std::unique_ptr<buildings::BuildingRuntime> runtime_;
     std::shared_ptr<render::RenderMesh> render_mesh_;
-    proc::GeneratorRegistry procedural_registry_;
-    std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
+    proc::ProceduralRuntime* shared_procedural_runtime_{nullptr};
     proc::GenerationChannel generation_channel_;
     proc::GenerationTicket<buildings::BuildingPlan> generation_ticket_;
     std::size_t selected_part_{0};

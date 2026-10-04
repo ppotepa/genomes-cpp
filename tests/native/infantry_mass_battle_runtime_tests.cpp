@@ -1,4 +1,5 @@
 #include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -38,10 +39,12 @@ int main() {
     Config config{};
     config.seed = 0xA11CE55U;
     config.map_size_m = 512U;
-    auto first_result = Runtime::start(config);
-    auto second_result = Runtime::start(config);
     jobs::JobSystem parallel_jobs(4);
-    auto parallel_result = Runtime::start(config, &parallel_jobs);
+    jobs::JobSystem first_jobs(4);
+    jobs::JobSystem second_jobs(4);
+    auto first_result = Runtime::start(config, first_jobs);
+    auto second_result = Runtime::start(config, second_jobs);
+    auto parallel_result = Runtime::start(config, parallel_jobs);
     assert(first_result);
     assert(second_result);
     assert(parallel_result);
@@ -179,7 +182,7 @@ int main() {
 
     Config variety_config = config;
     variety_config.units_per_team = 100U;
-    auto variety_result = Runtime::start(variety_config);
+    auto variety_result = Runtime::start(variety_config, parallel_jobs);
     assert(variety_result);
     Runtime& variety = *variety_result.value();
     std::unordered_set<std::uint8_t> observed_variants;
@@ -203,8 +206,8 @@ int main() {
 
     Config command_config = config;
     command_config.units_per_team = 1U;
-    auto command_result = Runtime::start(command_config);
-    auto baseline_command_result = Runtime::start(command_config);
+    auto command_result = Runtime::start(command_config, parallel_jobs);
+    auto baseline_command_result = Runtime::start(command_config, parallel_jobs);
     assert(command_result);
     assert(baseline_command_result);
     Runtime& commanded = *command_result.value();
@@ -239,8 +242,8 @@ int main() {
     assert(commanded.simulationSnapshot().semantic_hash !=
            baseline_commanded.simulationSnapshot().semantic_hash);
 
-    auto world_command_result = Runtime::start(command_config);
-    auto world_baseline_result = Runtime::start(command_config);
+    auto world_command_result = Runtime::start(command_config, parallel_jobs);
+    auto world_baseline_result = Runtime::start(command_config, parallel_jobs);
     assert(world_command_result && world_baseline_result);
     Runtime& world_commanded = *world_command_result.value();
     Runtime& world_baseline = *world_baseline_result.value();
@@ -278,7 +281,7 @@ int main() {
 
     const auto runConcurrentWorldCommands = [&](std::uint32_t worker_count) {
         jobs::JobSystem command_jobs(worker_count);
-        auto runtime_result = Runtime::start(command_config, &command_jobs);
+        auto runtime_result = Runtime::start(command_config, command_jobs);
         assert(runtime_result);
         auto& runtime = *runtime_result.value();
         constexpr std::array<std::uint8_t, 1U> first_value{1U};

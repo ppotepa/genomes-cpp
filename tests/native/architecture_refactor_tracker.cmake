@@ -258,9 +258,9 @@ if(scene_context_header MATCHES "jobs::JobSystem[ \\t\\r\\n\\*]+jobs([ \\t;=]|$)
     message(FATAL_ERROR
             "SceneContext must expose the central scheduler as scheduler, not legacy jobs")
 endif()
-if(NOT scene_context_header MATCHES "jobs::JobSystem[ \\t\\r\\n\\*]+scheduler")
+if(NOT scene_context_header MATCHES "api::EngineServices[ \\t\\r\\n\\*]+engine_services")
     message(FATAL_ERROR
-            "SceneContext is missing the central scheduler handle")
+            "SceneContext is missing the central engine services handle")
 endif()
 foreach(product_consumer IN ITEMS
         "${GENOMES_SOURCE_DIR}/apps/game/CMakeLists.txt"
@@ -338,7 +338,19 @@ endforeach()
 # scene and must not revive the removed scene-local graph/physics fallback.
 file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.cpp"
      battlefield_scene_source)
+file(READ "${GENOMES_SOURCE_DIR}/engine/game_scenes/include/genomes/game_scenes/BattlefieldScene.hpp"
+     battlefield_scene_header)
+file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/SceneDirector.hpp"
+     scene_director_header)
+if(scene_director_header MATCHES "jobs::JobSystem[ \t\r\n\*]+jobs")
+    message(FATAL_ERROR
+            "SceneDirector must require the composition-root scheduler by reference")
+endif()
 foreach(removed_battlefield_fallback IN ITEMS
+        "fallbackScheduler"
+        "fallbackMassBattleScheduler"
+        "processScheduler"
+        "UnitLabModelRequestGate"
         "simulation_graph_.run"
         "simulation_graph_.compiled"
         "infantry_->fixedUpdate"
@@ -358,30 +370,31 @@ if(battlefield_scene_source MATCHES "serial_scheduler|std::optional<jobs::JobSys
     message(FATAL_ERROR
             "BattlefieldScene must not construct a scene-local scheduler")
 endif()
+if(battlefield_scene_source MATCHES "jobs::JobGraphBuilder|jobs::JobGroup" OR
+   battlefield_scene_header MATCHES "jobs::JobGraph|jobs::JobGroup")
+    message(FATAL_ERROR
+            "BattlefieldScene must delegate presentation graph ownership to a presentation service")
+endif()
+if(battlefield_scene_header MATCHES "genomes/jobs/JobSystem\.hpp|jobs::JobSystem[ \t\r\n\*]+jobs_")
+    message(FATAL_ERROR
+            "BattlefieldScene must retain services, not a scheduler field")
+endif()
 
 # Headless composition is another client of the production world pipeline. It
-# must share the process scheduler rather than creating a second worker pool.
+# owns the scheduler for its process and passes it to every domain.
 file(READ "${GENOMES_SOURCE_DIR}/apps/headless/main.cpp" headless_main_source)
-if(headless_main_source MATCHES "JobSystem[ \t]+world_jobs|JobSystem[ \t]+world_scheduler")
+if(NOT headless_main_source MATCHES "JobSystem[ \t]+scheduler[ \t]*\\(")
     message(FATAL_ERROR
-            "headless world path must use the central process scheduler")
-endif()
-if(NOT headless_main_source MATCHES "processScheduler\(\)")
-    message(FATAL_ERROR
-            "headless world path is missing central process scheduler usage")
+            "headless composition must own the central scheduler")
 endif()
 
 foreach(single_scheduler_client IN ITEMS
         "${GENOMES_SOURCE_DIR}/apps/game/GameApplication.cpp"
         "${GENOMES_SOURCE_DIR}/apps/proc_viewer/ProcViewerApp.cpp")
     file(READ "${single_scheduler_client}" single_scheduler_client_source)
-    if(single_scheduler_client_source MATCHES "JobSystem[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*\\(")
+    if(NOT single_scheduler_client_source MATCHES "jobs_\\(jobs::SchedulerConfig")
         message(FATAL_ERROR
-                "production client constructs a private JobSystem: ${single_scheduler_client}")
-    endif()
-    if(NOT single_scheduler_client_source MATCHES "processScheduler\(\)")
-        message(FATAL_ERROR
-                "production client is missing central process scheduler usage: ${single_scheduler_client}")
+                "production client must own its central scheduler: ${single_scheduler_client}")
     endif()
 endforeach()
 
@@ -405,7 +418,7 @@ foreach(scheduler_source IN LISTS scheduler_owned_sources)
                 "raw asynchronous ownership escaped central scheduler: ${scheduler_source}")
     endif()
 endforeach()
-if(NOT battlefield_scene_source MATCHES "jobs_ = context.scheduler")
+if(NOT battlefield_scene_source MATCHES "engine_services_ = context.engine_services")
     message(FATAL_ERROR
             "BattlefieldScene must use the application-owned scheduler")
 endif()

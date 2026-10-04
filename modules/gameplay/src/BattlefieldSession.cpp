@@ -8,7 +8,7 @@
 namespace genomes::gameplay {
 
 foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem* jobs,
+BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs,
                                   BattlefieldExecutionMode execution_mode,
                                   proc::ProceduralRuntime* procedural_runtime) {
     auto runtime = BattlefieldRuntime::start(config, jobs, execution_mode, procedural_runtime);
@@ -24,8 +24,9 @@ BattlefieldSession::startTactical(const BattlefieldScenarioConfig& config, jobs:
 }
 
 foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>
-BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem* jobs) {
-    auto runtime = InfantryMassBattleRuntime::start(config, jobs);
+BattlefieldSession::startMassBattle(const InfantryMassBattleConfig& config, jobs::JobSystem& jobs,
+                                    proc::ProceduralRuntime* procedural_runtime) {
+    auto runtime = InfantryMassBattleRuntime::start(config, jobs, procedural_runtime);
     if (!runtime) {
         return foundation::Result<std::unique_ptr<BattlefieldSession>, foundation::Error>::failure(
             runtime.error());
@@ -96,6 +97,24 @@ world::WorldArtifactRevision BattlefieldSession::worldArtifactRevision() const n
 
 bool BattlefieldSession::isMassBattle() const noexcept {
     return std::holds_alternative<std::unique_ptr<InfantryMassBattleRuntime>>(runtime_);
+}
+
+const weapons::WeaponArtifact* BattlefieldSession::weaponArtifact() const noexcept {
+    return std::visit([](const auto& runtime) {
+        return runtime != nullptr ? runtime->weaponArtifact() : nullptr;
+    }, runtime_);
+}
+
+bool BattlefieldSession::consumeRestartRequest() noexcept {
+    return std::visit([](const auto& runtime) {
+        return runtime != nullptr && runtime->consumeRestartRequest();
+    }, runtime_);
+}
+
+bool BattlefieldSession::consumeWorldRegenerateRequest() noexcept {
+    return std::visit([](const auto& runtime) {
+        return runtime != nullptr && runtime->consumeWorldRegenerateRequest();
+    }, runtime_);
 }
 
 std::optional<InfantryMassBattleSnapshot> BattlefieldSession::massBattleSnapshot() const noexcept {

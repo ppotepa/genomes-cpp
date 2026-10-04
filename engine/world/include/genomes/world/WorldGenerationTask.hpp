@@ -47,19 +47,24 @@ public:
                                     std::shared_ptr<proc::ArtifactCache> cache = {});
     WorldGenerationService(jobs::JobSystem& jobs,
                            std::shared_ptr<proc::ArtifactCache> cache,
-                           proc::GeneratorRegistry registry);
+                           proc::GeneratorRegistry registry,
+                           proc::ProceduralRuntime* shared_runtime = nullptr);
 
     [[nodiscard]] WorldGenerationTask submit(
         const WorldGenerationRequest& request,
         proc::GenerationChannel* channel = nullptr);
     [[nodiscard]] const proc::GeneratorRegistry& registry() const noexcept { return registry_; }
+    [[nodiscard]] proc::ProceduralRuntime* runtime() noexcept { return runtime_; }
+    [[nodiscard]] const proc::ProceduralRuntime* runtime() const noexcept { return runtime_; }
+    [[nodiscard]] bool ownsRuntime() const noexcept { return owned_runtime_ != nullptr; }
 
 private:
     [[nodiscard]] static proc::GeneratorRegistry makeRegistry();
 
     std::shared_ptr<proc::ArtifactCache> cache_;
     proc::GeneratorRegistry registry_;
-    proc::ProceduralRuntime runtime_;
+    std::unique_ptr<proc::ProceduralRuntime> owned_runtime_;
+    proc::ProceduralRuntime* runtime_{nullptr};
 };
 
 } // namespace genomes::world

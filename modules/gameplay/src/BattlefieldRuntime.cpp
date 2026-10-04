@@ -33,10 +33,6 @@ constexpr float kTargetHalfExtent = 0.5F;
     return {code, message};
 }
 
-[[nodiscard]] jobs::JobSystem& fallbackScheduler() {
-    return jobs::processScheduler();
-}
-
 [[nodiscard]] float sampleWorldGround(const void* context, float x, float z) noexcept {
     const auto* artifact = static_cast<const ResolvedWorldArtifacts*>(context);
     return artifact != nullptr && artifact->terrain != nullptr
@@ -47,16 +43,16 @@ constexpr float kTargetHalfExtent = 0.5F;
 } // namespace
 
 BattlefieldRuntime::BattlefieldRuntime(BattlefieldScenarioConfig config,
-                                         jobs::JobSystem* jobs,
+                                         jobs::JobSystem& jobs,
                                          BattlefieldExecutionMode execution_mode,
                                          proc::ProceduralRuntime* procedural_runtime)
-    : config_{config}, execution_mode_{execution_mode}, jobs_{jobs},
+    : config_{config}, execution_mode_{execution_mode}, jobs_{&jobs},
       procedural_runtime_{procedural_runtime}, combat_{entities_},
       tactical_ai_{config.tactical_ai_profile} {}
 
 foundation::Result<std::unique_ptr<BattlefieldRuntime>, foundation::Error>
 BattlefieldRuntime::start(const BattlefieldScenarioConfig& config,
-                           jobs::JobSystem* jobs,
+                           jobs::JobSystem& jobs,
                            BattlefieldExecutionMode execution_mode,
                            proc::ProceduralRuntime* procedural_runtime) {
     if (!config.valid()) {
@@ -115,9 +111,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     // parallel compatibility scheduler leak into infantry internals while
     // the system graph itself is running on the serial executor.
     if (execution_mode_ == BattlefieldExecutionMode::Inline) {
-        jobs_ = &jobs::processSerialScheduler();
-    } else if (jobs_ == nullptr) {
-        jobs_ = &fallbackScheduler();
+        jobs_ = &serial_executor_;
     }
 
     navigation_ = std::make_unique<navigation::GridNavigationWorld>(
@@ -182,13 +176,15 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
         generation.options.input_hash = foundation::stableHashCombine(
             foundation::stable_id("weapon.carbine"), weapon_variant.seed);
         generation.options.retained_bytes = sizeof(weapons::WeaponArtifact);
-        const auto generated = procedural_runtime_->generateInline(generation);
+        auto ticket = procedural_runtime_->request(std::move(generation));
+        ticket.wait();
+        const auto generated = ticket.artifact();
         if (generated) {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
-                *generated.value());
+                *generated);
         } else {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
-                generated.error());
+                ticket.error());
         }
     }
     if (!artifact) {
@@ -377,7 +373,10 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     decide.access.resource_reads = {foundation::stable_id("battlefield.perception")};
     decide.access.resource_writes = {foundation::stable_id("battlefield.intent")};
     decide.cadence = every_tick;
-    decide.main_thread_only = false;
+    // AIJobPipeline uses a bounded parallel fan-out followed by a barrier.
+    // Keep the barrier on the main lane; invoking it from a worker would
+    // violate the scheduler's non-nested-wait contract.
+    decide.main_thread_only = true;
     decide.after = {foundation::stable_id("battlefield.sense")};
     decide.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
@@ -398,7 +397,9 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                               foundation::stable_id("component.entity.velocity")};
     navigate.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
     navigate.cadence = every_tick;
-    navigate.main_thread_only = false;
+    // InfantrySimulation performs its own bounded batch execution and must
+    // likewise remain outside a worker callback.
+    navigate.main_thread_only = true;
     navigate.after = {foundation::stable_id("battlefield.decide")};
     navigate.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
@@ -653,7 +654,7 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
         simulation_tick_, context.fixed_dt_seconds,
         execution_mode_ == BattlefieldExecutionMode::Parallel
             ? jobs_
-            : &jobs::processSerialScheduler(),
+            : &serial_executor_,
         &command_buffers_);
     if (!result || !snapshot_.error.empty()) {
         const std::string error = result ? snapshot_.error : std::string{result.error().message};
@@ -690,6 +691,16 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
 void BattlefieldRuntime::applyApiCommands() noexcept {
     const auto commands = api_commands_.take(simulation_tick_);
     for (const api::CommandEnvelope& command : commands) {
+        if (command.module == foundation::stable_id("module.infantry") &&
+            command.verb == foundation::stable_id("battlefield.restart")) {
+            restart_requested_ = true;
+            continue;
+        }
+        if (command.module == foundation::stable_id("module.world") &&
+            command.verb == foundation::stable_id("world.regenerate")) {
+            world_regenerate_requested_ = true;
+            continue;
+        }
         if (command.module == foundation::stable_id("module.world") &&
             command.verb == foundation::stable_id("world.set")) {
             const auto values = command.payload.asTuple();

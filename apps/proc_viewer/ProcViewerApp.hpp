@@ -60,7 +60,7 @@ public:
     [[nodiscard]] std::span<const ViewerTraceEntry> trace() const noexcept { return trace_; }
 
 private:
-    jobs::JobSystem& jobs_;
+    jobs::JobSystem jobs_;
     gameplay::WorldScenario scenario_;
     ViewerMode mode_{ViewerMode::WorldDiagnostics};
     std::optional<ViewerArtifact> artifact_;

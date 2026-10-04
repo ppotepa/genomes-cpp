@@ -18,8 +18,8 @@ public:
 
     [[nodiscard]] static foundation::Result<std::unique_ptr<BattlefieldScenario>,
                                              foundation::Error>
-    startBattlefieldScenario(const BattlefieldScenarioConfig& config = {},
-                             jobs::JobSystem* jobs = nullptr);
+    startBattlefieldScenario(const BattlefieldScenarioConfig& config,
+                             jobs::JobSystem& jobs);
 
     void fixedUpdate(double dt = 1.0 / 60.0) noexcept;
     void fixedUpdate(const simulation::TickContext& context) noexcept;
@@ -38,8 +38,7 @@ private:
 };
 
 [[nodiscard]] inline foundation::Result<std::unique_ptr<BattlefieldScenario>, foundation::Error>
-startBattlefieldScenario(const BattlefieldScenarioConfig& config = {},
-                         jobs::JobSystem* jobs = nullptr) {
+startBattlefieldScenario(const BattlefieldScenarioConfig& config, jobs::JobSystem& jobs) {
     return BattlefieldScenario::startBattlefieldScenario(config, jobs);
 }
 

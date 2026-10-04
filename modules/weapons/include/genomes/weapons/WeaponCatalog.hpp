@@ -178,16 +178,4 @@ public:
                                                        const WeaponVariant&) noexcept;
 };
 
-class WeaponArtifactCache final {
-public:
-    [[nodiscard]] const WeaponArtifact* find(foundation::StableId key) const noexcept;
-    void store(WeaponArtifact artifact);
-    [[nodiscard]] const WeaponArtifact* acquire(const WeaponDefinition&,
-                                                const WeaponVariant& = {});
-    [[nodiscard]] std::size_t size() const noexcept { return artifacts_.size(); }
-
-private:
-    std::vector<WeaponArtifact> artifacts_;
-};
-
 } // namespace genomes::weapons

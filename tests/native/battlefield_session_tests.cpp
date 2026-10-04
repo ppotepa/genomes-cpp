@@ -1,14 +1,17 @@
 #include <genomes/gameplay/BattlefieldSession.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 #include <genomes/simulation/EntityController.hpp>
 
 #include <cassert>
+#include <array>
 
 int main() {
     using namespace genomes;
 
     gameplay::InfantryMassBattleConfig config{};
     config.units_per_team = 1U;
-    auto session_result = gameplay::BattlefieldSession::startMassBattle(config, nullptr);
+    jobs::JobSystem jobs{2U};
+    auto session_result = gameplay::BattlefieldSession::startMassBattle(config, jobs);
     assert(session_result);
     auto& session = *session_result.value();
     assert(session.isMassBattle());
@@ -45,5 +48,18 @@ int main() {
     assert(published.metadata.scene_epoch == 17U);
     assert(published.states.size() == 2U);
     assert(session.snapshotView().semantic_hash != first_view.semantic_hash);
+
+    api::CommandEnvelope restart{};
+    restart.module = foundation::stable_id("module.infantry");
+    restart.verb = foundation::stable_id("battlefield.restart");
+    restart.target_tick = foundation::SimulationTick{3U};
+    restart.source = foundation::stable_id("test.session.restart");
+    restart.payload = api::EncodedValue::binary(std::array<std::uint8_t, 1U>{0U});
+    assert(session.submit(std::move(restart)).accepted);
+    const simulation::TickContext tick_three{
+        foundation::SimulationTick{3U}, 1.0 / 60.0, simulation::SessionSimulationTickRateHz};
+    assert(session.advance(tick_three));
+    assert(session.consumeRestartRequest());
+    assert(!session.consumeRestartRequest());
     return 0;
 }

@@ -45,6 +45,7 @@ private:
 } // namespace
 
 int main() {
+    genomes::jobs::JobSystem jobs{2};
     const auto loaded_world_profile = genomes::world::loadWorldGenerationProfile(
         std::filesystem::path{GENOMES_SOURCE_DIR} /
         "mods/core/profiles/world-generation.json");
@@ -69,7 +70,7 @@ int main() {
         genomes::ui::UiRuntime unavailable_ui;
         genomes::render::PresentationSnapshot unavailable_presentation;
         genomes::runtime::SceneDirector unavailable_director(
-            unavailable_renderer, unavailable_ui, unavailable_presentation);
+            unavailable_renderer, unavailable_ui, unavailable_presentation, jobs);
         const auto unavailable_id = genomes::foundation::scene_id("scene.optional-feature");
         assert(unavailable_director.register_unavailable_scene(
             unavailable_id, {genomes::foundation::ErrorCode::UnavailableFeature,
@@ -84,7 +85,7 @@ int main() {
         genomes::ui::UiRuntime catalog_ui;
         genomes::render::PresentationSnapshot catalog_presentation;
         genomes::runtime::SceneDirector catalog_director(
-            catalog_renderer, catalog_ui, catalog_presentation);
+            catalog_renderer, catalog_ui, catalog_presentation, jobs);
         genomes::application::BuiltinSceneConfig catalog_config{};
         catalog_config.real_battlefield = false;
         catalog_config.world_generation_profile = world_profile;
@@ -94,11 +95,10 @@ int main() {
         catalog.install(catalog_director);
         assert(catalog_director.start(genomes::foundation::scene_id("scene.main-menu")));
     }
-    genomes::jobs::JobSystem jobs{2};
     genomes::render::NullRenderer renderer;
     genomes::ui::UiRuntime ui;
     genomes::render::PresentationSnapshot presentation;
-    genomes::runtime::SceneDirector director(renderer, ui, presentation, &jobs);
+    genomes::runtime::SceneDirector director(renderer, ui, presentation, jobs);
     auto active_world_config =
         std::make_shared<genomes::application::WorldGenerationConfig>(world_config);
     genomes::application::configureBuiltinSceneRouting(director, active_world_config);

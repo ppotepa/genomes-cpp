@@ -19,27 +19,6 @@
 
 namespace genomes::jobs {
 
-JobSystem& processScheduler() noexcept {
-    // The process scheduler is the shared fallback for composition roots and
-    // compatibility facades.  Keep it on the same topology policy as an
-    // explicitly constructed central scheduler; callers that require strict
-    // serial execution still pass a Serial-configured instance.
-    static JobSystem scheduler(SchedulerConfig{});
-    return scheduler;
-}
-
-JobSystem& processSerialScheduler() noexcept {
-    static SchedulerConfig config = [] {
-        SchedulerConfig value;
-        value.mode = SchedulerMode::Serial;
-        value.worker_count = 0U;
-        value.enable_io_worker = false;
-        return value;
-    }();
-    static JobSystem scheduler(config);
-    return scheduler;
-}
-
 namespace detail {
 
 struct JobGroupState final {
@@ -727,6 +706,10 @@ std::size_t JobSystem::pump(ExecutionLane lane, std::size_t maximum_jobs) {
 
 std::uint32_t JobSystem::workerCount() const noexcept {
     return static_cast<std::uint32_t>(impl_->worker_data.size());
+}
+
+bool JobSystem::isWorkerThread() const noexcept {
+    return Impl::tls_system == impl_.get() && Impl::tls_lane == ExecutionLane::Worker;
 }
 
 SchedulerMode JobSystem::mode() const noexcept {

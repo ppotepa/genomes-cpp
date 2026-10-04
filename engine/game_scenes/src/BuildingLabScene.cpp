@@ -1,7 +1,6 @@
 #include <genomes/game_scenes/BuildingLabScene.hpp>
 #include <genomes/game_scenes/ApplicationCommand.hpp>
-#include <genomes/buildings/BuildingProcedural.hpp>
-#include <genomes/gameplay/ProductionGenerators.hpp>
+#include <genomes/buildings/BuildingModel.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Types.hpp>
@@ -70,7 +69,6 @@ foundation::SceneId BuildingLabScene::id() const noexcept {
 void BuildingLabScene::on_enter(SceneContext& context) {
     if (generation_ticket_.valid()) {
         generation_ticket_.cancel();
-        generation_ticket_.wait();
         generation_ticket_ = {};
     }
     generation_channel_ = proc::GenerationChannel{};
@@ -86,66 +84,33 @@ void BuildingLabScene::on_enter(SceneContext& context) {
         return;
     }
     const buildings::BuildingSpec spec = building_profile_->labPreview().instantiate(seed_);
-    if (context.scheduler != nullptr) {
-        auto registry = gameplay::makeProductionGeneratorRegistry();
-        if (registry) {
-            procedural_registry_ = std::move(registry.value());
-            procedural_runtime_ = std::make_unique<proc::ProceduralRuntime>(
-                procedural_registry_, *context.scheduler);
-        }
-    }
-    if (procedural_runtime_ != nullptr && !context.deterministic_capture) {
+    shared_procedural_runtime_ = context.engine_services != nullptr
+        ? context.engine_services->procedural_runtime : nullptr;
+    if (shared_procedural_runtime_ != nullptr) {
         proc::GenerationRequest<buildings::BuildingSpec, buildings::BuildingPlan> request;
         request.generator = proc::generatorId("buildings.plan");
         request.input = std::make_shared<const buildings::BuildingSpec>(spec);
         request.seed_path = proc::SeedPath(spec.seed);
         request.options.input_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
         request.options.retained_bytes = sizeof(buildings::BuildingPlan);
-        generation_ticket_ = procedural_runtime_->request(std::move(request), &generation_channel_);
+        if (context.engine_services != nullptr && context.engine_services->generation != nullptr) {
+            request.options.cancellation = context.engine_services->generation->cancellation();
+        }
+        generation_ticket_ = shared_procedural_runtime_->request(
+            std::move(request), &generation_channel_);
         context.ui.clear();
         return;
     }
-
-    foundation::Result<std::shared_ptr<const buildings::BuildingPlan>, foundation::Error> generated =
-        foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
-                           foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidState, "procedural runtime is unavailable"});
-    if (procedural_runtime_ != nullptr) {
-        proc::GenerationRequest<buildings::BuildingSpec, buildings::BuildingPlan> request;
-        request.generator = proc::generatorId("buildings.plan");
-        request.input = std::make_shared<const buildings::BuildingSpec>(spec);
-        request.seed_path = proc::SeedPath(spec.seed);
-        request.options.input_hash = foundation::stableHashCombine(spec.building_id, spec.seed);
-        request.options.retained_bytes = sizeof(buildings::BuildingPlan);
-        generated = procedural_runtime_->generateInline(request);
-    } else {
-        auto legacy = buildings::BuildingGenerator::generate(spec);
-        if (legacy) {
-            generated = foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
-                                           foundation::Error>::success(
-                std::make_shared<const buildings::BuildingPlan>(std::move(legacy.value())));
-        } else {
-            generated = foundation::Result<std::shared_ptr<const buildings::BuildingPlan>,
-                                           foundation::Error>::failure(legacy.error());
-        }
-    }
-    if (!generated) {
-        error_ = generated.error().message;
-    } else {
-        plan_ = *generated.value();
-        runtime_ = std::make_unique<buildings::BuildingRuntime>(plan_);
-        rebuild_mesh();
-    }
+    error_ = "shared procedural runtime is unavailable";
     context.ui.clear();
 }
 
 void BuildingLabScene::on_exit(SceneContext&) {
     if (generation_ticket_.valid()) {
-        generation_ticket_.wait();
+        generation_ticket_.cancel();
         generation_ticket_ = {};
     }
-    procedural_runtime_.reset();
-    procedural_registry_ = {};
+    shared_procedural_runtime_ = nullptr;
     runtime_.reset();
     render_mesh_.reset();
     plan_ = {};

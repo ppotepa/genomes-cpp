@@ -121,6 +121,14 @@ namespace {
         return elevation * (continental_shape * 0.20F + hills * 0.18F +
                             (ridge - 0.58F) * 0.08F * ridge_mask +
                             detail * std::lerp(0.010F, 0.032F, roughness));
+    case world::TerrainPreset::CombatMixed:
+        // Keep the macro signal dominant so movement and tactical sightlines
+        // remain readable, while retaining distinct ridge and plateau forms.
+        return elevation * (continental_shape * 0.30F + hills *
+                            std::lerp(0.22F, 0.34F, hill_mask) +
+                            std::max(0.0F, ridge - 0.48F) * 0.24F * ridge_mask +
+                            knolls * std::lerp(0.045F, 0.10F, hill_mask) +
+                            detail * std::lerp(0.012F, 0.040F, roughness));
     }
     return 0.0F;
 }

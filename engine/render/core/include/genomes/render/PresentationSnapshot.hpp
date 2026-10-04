@@ -37,6 +37,7 @@ struct PresentationSnapshot final {
     std::vector<std::shared_ptr<const SkinnedMeshPrototype>> skinned_prototypes;
     std::vector<SkinnedBonePalette> skinned_palettes;
     std::shared_ptr<const RenderMesh> terrain_mesh;
+    std::shared_ptr<const RenderMesh> water_mesh;
     std::shared_ptr<const RenderMesh> world_mesh;
     std::shared_ptr<const RenderMesh> infantry_mesh;
 
@@ -47,6 +48,7 @@ struct PresentationSnapshot final {
         skinned_prototypes.clear();
         skinned_palettes.clear();
         terrain_mesh.reset();
+        water_mesh.reset();
         world_mesh.reset();
         infantry_mesh.reset();
         camera_request = {};

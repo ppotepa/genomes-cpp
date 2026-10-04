@@ -2,9 +2,6 @@
 
 #include <algorithm>
 #include <exception>
-#include <limits>
-#include <mutex>
-#include <optional>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
@@ -253,165 +250,11 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemGraph::run(
     double fixed_dt,
     jobs::JobSystem* jobs,
     CommandBufferSet* command_buffers) {
-    if (!compiled_) {
-        return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-            graphError("simulation system graph is not compiled"));
-    }
-
-    std::vector<std::size_t> indegrees;
-    indegrees.reserve(graph_.size());
-    for (const CompiledNode& node : graph_) {
-        indegrees.push_back(node.indegree);
-    }
-
-    SystemGraphRunResult result{};
-    if (command_buffers != nullptr) {
-        command_buffers->reset(graph_.size());
-    }
-    std::size_t completed = 0;
-    while (completed < graph_.size()) {
-        struct BatchFailure final {
-            void record(std::uint64_t key, foundation::Error value) {
-                std::lock_guard lock(mutex);
-                if (!error.has_value() || key < failure_key) {
-                    failure_key = key;
-                    error = std::move(value);
-                }
-            }
-
-            [[nodiscard]] bool hasError() const {
-                std::lock_guard lock(mutex);
-                return error.has_value();
-            }
-
-            [[nodiscard]] std::optional<foundation::Error> take() {
-                std::lock_guard lock(mutex);
-                return std::move(error);
-            }
-
-            mutable std::mutex mutex;
-            std::uint64_t failure_key{std::numeric_limits<std::uint64_t>::max()};
-            std::optional<foundation::Error> error;
-        } batch_failure;
-
-        std::vector<std::size_t> ready;
-        for (std::size_t index = 0; index < graph_.size(); ++index) {
-            if (indegrees[index] == 0) {
-                // Mark as claimed using the sentinel. Successors are only
-                // released after this batch finishes.
-                indegrees[index] = std::numeric_limits<std::size_t>::max();
-                ready.push_back(index);
-            }
-        }
-        if (ready.empty()) {
-            return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-                graphError("simulation system graph became cyclic while running"));
-        }
-        std::sort(ready.begin(), ready.end(), [this](std::size_t left, std::size_t right) {
-            return graph_[left].descriptor.id < graph_[right].descriptor.id;
-        });
-        ++result.parallel_batches;
-
-        std::optional<jobs::JobGroup> group;
-        if (jobs != nullptr) {
-            group.emplace(*jobs);
-        }
-        std::vector<jobs::JobHandle> handles;
-        handles.reserve(ready.size());
-        std::vector<bool> executed;
-        executed.reserve(ready.size());
-        for (const std::size_t index : ready) {
-            if (batch_failure.hasError()) {
-                break;
-            }
-            CompiledNode& node = graph_[index];
-            const auto decision = evaluateCadence(node.descriptor.cadence,
-                                                  node.cadence_state,
-                                                  node.descriptor.id,
-                                                  tick);
-            if (!decision.due) {
-                executed.push_back(false);
-                continue;
-            }
-            executed.push_back(true);
-            const auto& descriptor = node.descriptor;
-            CommandBuffer* commands = command_buffers == nullptr
-                                          ? nullptr
-                                          : &command_buffers->at(index);
-            SystemContext context{tick,
-                                  fixed_dt,
-                                  decision.elapsed_ticks,
-                                  descriptor.id,
-                                  descriptor.phase,
-                                  jobs,
-                                  commands};
-            if (jobs != nullptr && !descriptor.main_thread_only) {
-                jobs::JobHandle handle = group->submit(
-                    [callback = descriptor.callback, context, &batch_failure](
-                        jobs::JobContext& job) mutable {
-                        try {
-                            callback(context);
-                        } catch (...) {
-                            batch_failure.record(
-                                job.jobId(), graphError("simulation system callback failed"));
-                            throw;
-                        }
-                    });
-                if (handle.wasCanceled()) {
-                    batch_failure.record(
-                        handle.id(),
-                        {foundation::ErrorCode::Internal,
-                         "simulation system job was canceled during submission"});
-                }
-                handles.push_back(std::move(handle));
-            } else {
-                try {
-                    descriptor.callback(context);
-                } catch (...) {
-                    batch_failure.record(
-                        descriptor.id, graphError("simulation system callback failed"));
-                }
-            }
-        }
-        if (group.has_value()) {
-            group->wait();
-            if (group->failed()) {
-                batch_failure.record(
-                    group->firstFailureId(),
-                    {foundation::ErrorCode::Internal, "simulation system job failed"});
-            }
-        }
-        for (const jobs::JobHandle& handle : handles) {
-            if (handle.wasCanceled()) {
-                batch_failure.record(
-                    handle.id(),
-                    {foundation::ErrorCode::Internal, "simulation system job failed"});
-            }
-        }
-        if (const auto error = batch_failure.take(); error.has_value()) {
-            // Command buffers are an unpublished batch-local result. A failed
-            // batch must not leak partial commands to the next commit owner.
-            if (command_buffers != nullptr) {
-                command_buffers->reset(0);
-            }
-            return foundation::Result<SystemGraphRunResult, foundation::Error>::failure(
-                std::move(*error));
-        }
-
-        for (std::size_t ready_index = 0U; ready_index < ready.size(); ++ready_index) {
-            const std::size_t index = ready[ready_index];
-            ++completed;
-            if (ready_index < executed.size() && executed[ready_index]) {
-                ++result.systems_run;
-            }
-            for (const std::size_t successor : graph_[index].successors) {
-                if (indegrees[successor] != std::numeric_limits<std::size_t>::max()) {
-                    --indegrees[successor];
-                }
-            }
-        }
-    }
-    return foundation::Result<SystemGraphRunResult, foundation::Error>::success(result);
+    // Keep the legacy entry point as a thin synchronous barrier over the same
+    // dependency-aware JobGraph path used by production callers.  The former
+    // implementation released systems only after a whole ready frontier had
+    // completed, which defeated direct prerequisite scheduling.
+    return executionPlan().run(tick, fixed_dt, jobs, command_buffers);
 }
 
 bool SystemGraph::setCadenceTier(SystemId id,

@@ -7,7 +7,7 @@ int main() {
     auto registry = gameplay::makeProductionGeneratorRegistry();
     assert(registry);
     const auto& frozen = registry.value();
-    for (const char* id : {"buildings.plan", "hydrology.artifact",
+    for (const char* id : {"buildings.plan", "hydrology.artifact", "roads.graph",
                            "terrain.height-field", "world.plan"}) {
         const auto* entry = frozen.find(proc::generatorId(id));
         assert(entry != nullptr);

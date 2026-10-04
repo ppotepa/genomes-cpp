@@ -1,6 +1,7 @@
 #include <genomes/gameplay/BattlefieldScenario.hpp>
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
 #include <genomes/world/WorldArtifactRevision.hpp>
+#include <genomes/jobs/JobSystem.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -8,16 +9,18 @@
 int main() {
     using namespace genomes;
 
+    jobs::JobSystem jobs(1);
+
     gameplay::BattlefieldScenarioConfig invalid{};
     invalid.tactical_ai_profile.observation_period_ticks = 0U;
-    assert(!gameplay::startBattlefieldScenario(invalid));
+    assert(!gameplay::startBattlefieldScenario(invalid, jobs));
 
     gameplay::BattlefieldScenarioConfig configured{};
     configured.tactical_ai_profile.observation_period_ticks = 6U;
     configured.tactical_ai_profile.memory_ticks = 90U;
     configured.tactical_ai_profile.target_switch_ratio = 0.75F;
     configured.tactical_ai_profile.fire_alignment_cos = 0.95F;
-    auto scenario = gameplay::startBattlefieldScenario(configured);
+    auto scenario = gameplay::startBattlefieldScenario(configured, jobs);
     assert(scenario);
     const auto& profile = scenario.value()->tacticalProfile();
     assert(profile.observation_period_ticks == 6U);
@@ -27,7 +30,7 @@ int main() {
     scenario.value()->fixedUpdate();
     assert(scenario.value()->snapshot().tick == 1U);
     assert(scenario.value()->snapshot().physics_steps == 1U);
-    auto runtime = gameplay::BattlefieldRuntime::start(configured);
+    auto runtime = gameplay::BattlefieldRuntime::start(configured, jobs);
     assert(runtime);
     assert(!runtime.value()->bindWorldArtifactRevision(0U));
     constexpr world::WorldArtifactRevision artifact_revision{0xA11CEU};
@@ -63,7 +66,7 @@ int main() {
     pipeline_config.tactical_ai_profile.observation_period_ticks = 1U;
     pipeline_config.tactical_ai_profile.memory_ticks = 8U;
     pipeline_config.tactical_ai_profile.fire_alignment_cos = -1.0F;
-    auto pipeline_runtime = gameplay::BattlefieldRuntime::start(pipeline_config);
+    auto pipeline_runtime = gameplay::BattlefieldRuntime::start(pipeline_config, jobs);
     assert(pipeline_runtime);
     for (std::uint32_t tick = 0U;
          tick < pipeline_config.max_ticks && !pipeline_runtime.value()->complete();

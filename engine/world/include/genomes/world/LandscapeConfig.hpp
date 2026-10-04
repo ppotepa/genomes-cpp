@@ -10,6 +10,9 @@ enum class TerrainPreset : std::uint8_t {
     RollingHills,
     Highlands,
     RiverValley,
+    // Balanced battlefield profile: readable macro relief with ridges,
+    // plateaus and a broad river corridor.
+    CombatMixed,
 };
 
 enum class TributaryDensity : std::uint8_t {

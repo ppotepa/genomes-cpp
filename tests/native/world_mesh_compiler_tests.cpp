@@ -38,8 +38,16 @@ int main() {
                                    .extent = {2.0F, 3.0F, 0.2F}});
     const std::array<buildings::BuildingGenerationResult, 1U> resolved_buildings{
         std::move(resolved)};
+    terrain::TerrainMesh resolved_water{};
+    resolved_water.vertices = {
+        {{-10.0F, 0.25F, -1.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, 0.0F}},
+        {{10.0F, 0.25F, -1.0F}, {0.0F, 1.0F, 0.0F}, {1.0F, 0.0F}},
+        {{10.0F, 0.25F, 1.0F}, {0.0F, 1.0F, 0.0F}, {1.0F, 1.0F}},
+        {{-10.0F, 0.25F, 1.0F}, {0.0F, 1.0F, 0.0F}, {0.0F, 1.0F}},
+    };
+    resolved_water.indices = {0U, 1U, 2U, 0U, 2U, 3U};
     const auto compiled = world_render::WorldMeshCompiler::compile(
-        plan, terrain.value(), resolved_buildings, revision);
+        plan, terrain.value(), resolved_buildings, revision, &resolved_water);
     assert(compiled && compiled.value().mesh);
     assert(compiled.value().source_revision == revision);
     assert(compiled.value().mesh->revision == revision);
@@ -56,6 +64,9 @@ int main() {
     assert(compiled.value().mesh->materials[1U].alpha_mode ==
            render::MaterialAlphaMode::Opaque);
     assert(compiled.value().mesh->materials[1U].double_sided);
+    assert(compiled.value().water_mesh != nullptr);
+    assert(compiled.value().water_mesh->vertices.size() == resolved_water.vertices.size());
+    assert(compiled.value().water_mesh->indices == resolved_water.indices);
     const auto range = compiled.value().part_draw_ranges.find(part_id);
     assert(range != compiled.value().part_draw_ranges.end());
     assert(range->second.index_count == 36U);

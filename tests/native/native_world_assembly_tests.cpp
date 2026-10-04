@@ -7,6 +7,7 @@
 #include <genomes/world/WorldGenerationProfile.hpp>
 
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <memory>
@@ -36,6 +37,11 @@ int main() {
     const auto* artifact = scenario.activeArtifact();
     const auto artifact_handle = scenario.activeArtifactHandle();
     assert(artifact != nullptr && artifact->valid());
+    assert(artifact->water_mesh != nullptr);
+    if (!artifact->plan.hydrology.rivers.empty()) {
+        assert(!artifact->water_mesh->vertices.empty());
+        assert(!artifact->water_mesh->indices.empty());
+    }
     const auto layout = world::GridLayout::forMap(request.map_size_m);
     assert(layout.valid());
     assert(artifact->terrain->width() == layout.sample_count);
@@ -133,7 +139,7 @@ int main() {
 
 #if GENOMES_HAS_INFANTRY
     auto battlefield_runtime = gameplay::BattlefieldRuntime::start(
-        {.seed = river_request.seed, .map_size_m = 25U}, &jobs);
+        {.seed = river_request.seed, .map_size_m = 25U}, jobs);
     assert(battlefield_runtime);
     const auto shared_river_artifact =
         std::make_shared<const gameplay::ResolvedWorldArtifacts>(river_artifact.value());
@@ -147,7 +153,7 @@ int main() {
     }
     const auto mass_runtime = gameplay::InfantryMassBattleRuntime::start(
         {.seed = river_request.seed, .map_size_m = river_request.map_size_m,
-         .units_per_team = 8U}, &jobs);
+         .units_per_team = 8U}, jobs);
     assert(mass_runtime);
     assert(mass_runtime.value()->bindWorldArtifact(shared_river_artifact));
     assert(mass_runtime.value()->worldArtifactRevision() == shared_river_artifact->revision);
@@ -206,11 +212,15 @@ int main() {
     latest_request.seed += 2U;
     assert(scenario.requestNew(superseded_request));
     assert(scenario.requestNew(latest_request));
-    for (std::size_t attempt = 0U; attempt < 20'000U &&
+    for (std::size_t attempt = 0U; attempt < 200'000U &&
          scenario.status().generation_pending; ++attempt) {
         const auto polled = scenario.poll();
         assert(polled);
-        std::this_thread::yield();
+        if (attempt % 128U == 0U) {
+            std::this_thread::sleep_for(std::chrono::milliseconds{1});
+        } else {
+            std::this_thread::yield();
+        }
     }
     assert(!scenario.status().generation_pending);
     assert(scenario.activeRequest() != nullptr);
