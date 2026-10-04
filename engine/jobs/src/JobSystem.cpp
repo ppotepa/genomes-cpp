@@ -762,6 +762,10 @@ SchedulerTelemetry JobSystem::telemetry() const noexcept {
         result.canceled_by_class[index] =
             impl_->counters.canceled_by_class[index].load(std::memory_order_relaxed);
     }
+    for (std::size_t index = 0; index < result.queued_by_lane.size(); ++index) {
+        result.queued_by_lane[index] =
+            impl_->queued_by_lane[index].load(std::memory_order_relaxed);
+    }
     return result;
 }
 
