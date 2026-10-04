@@ -31,7 +31,7 @@ void waitForOwnerAffinityFromWorker() {
         [](genomes::jobs::JobContext&) {},
         {.lane = genomes::jobs::ExecutionLane::Main});
     const auto worker = jobs.submit([&](genomes::jobs::JobContext&) {
-        jobs.wait(main_job);
+        main_job.wait();
     });
     jobs.wait(worker);
 }
