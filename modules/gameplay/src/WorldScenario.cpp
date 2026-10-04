@@ -286,7 +286,8 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
                                           foundation::Error>::failure(
                     {foundation::ErrorCode::InvalidState, "world artifact generation canceled"});
             }
-            auto result = compileArtifactImpl(std::move(plan), request, *profile, runtime);
+            auto result = compileArtifactImpl(
+                std::move(plan), request, *profile, runtime, &context);
             if (!result) {
                 return foundation::Result<std::shared_ptr<const WorldScenarioArtifact>,
                                           foundation::Error>::failure(result.error());
@@ -405,13 +406,15 @@ bool WorldScenario::validCandidate(const world::WorldPlan& plan) noexcept {
 foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifact(
     world::WorldPlan plan, const world::WorldGenerationRequest& request,
     const buildings::FrozenBuildingProfile& building_profile) {
-    return compileArtifactImpl(std::move(plan), request, building_profile, nullptr);
+    return compileArtifactImpl(
+        std::move(plan), request, building_profile, nullptr, nullptr);
 }
 
 foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::compileArtifactImpl(
     world::WorldPlan plan, const world::WorldGenerationRequest& request,
     const buildings::FrozenBuildingProfile& building_profile,
-    proc::ProceduralRuntime* procedural_runtime) {
+    proc::ProceduralRuntime* procedural_runtime,
+    proc::GenerationContext* generation_context) {
     if (!request.valid() || !validCandidate(plan) || plan.seed != request.seed ||
         !building_profile.frozen()) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
@@ -476,15 +479,19 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             terrain_input_hash, foundation::stableHashFloat(request.terrain.roughness));
         generation.options.input_hash = terrain_input_hash;
         generation.options.retained_bytes = sizeof(terrain::HeightField);
-        auto ticket = procedural_runtime->request(std::move(generation));
-        ticket.wait();
-        const auto generated = ticket.artifact();
+        if (generation_context == nullptr) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState,
+                 "live world composition is missing its procedural context"});
+        }
+        const auto generated = procedural_runtime->generateInline(
+            std::move(generation), *generation_context);
         if (generated) {
             terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::success(
-                *generated);
+                *generated.value());
         } else {
             terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::failure(
-                ticket.error());
+                generated.error());
         }
     } else if (procedural_runtime == nullptr) {
         // Direct generation is reserved for the explicit deterministic
@@ -521,14 +528,20 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             static_cast<std::size_t>(world::WorldGenerationStage::Roads)]
                                                    .dependency_fingerprint;
         generation.options.retained_bytes = sizeof(roads::RoadGraph);
-        auto ticket = procedural_runtime->request(std::move(generation));
-        ticket.wait();
-        const auto generated = ticket.artifact();
-        if (!generated) {
+        if (generation_context == nullptr) {
             return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
-                ticket.error());
+                {foundation::ErrorCode::InvalidState,
+                 "live road composition is missing its procedural context"});
         }
-        plan.city.road_graph = *generated;
+        const auto generated = procedural_runtime->generateInline(
+            std::move(generation), *generation_context);
+        if (!generated || !generated.value()) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                generated ? foundation::Error{foundation::ErrorCode::Internal,
+                                              "road generator returned null"}
+                          : generated.error());
+        }
+        plan.city.road_graph = *generated.value();
     } else if (procedural_runtime != nullptr) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "roads generator unavailable"});
@@ -569,15 +582,21 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             foundation::stableHashU64(request.seed), terrain_hash);
         generation.options.dependency_hash = terrain_hash;
         generation.options.retained_bytes = sizeof(hydrology::HydrologyArtifact);
-        auto ticket = procedural_runtime->request(std::move(generation));
-        ticket.wait();
-        const auto generated = ticket.artifact();
+        if (generation_context == nullptr) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState,
+                 "live hydrology composition is missing its procedural context"});
+        }
+        const auto generated = procedural_runtime->generateInline(
+            std::move(generation), *generation_context);
         if (generated) {
             hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
-                                                   foundation::Error>::success(*generated);
+                                                   foundation::Error>::success(
+                *generated.value());
         } else {
             hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
-                                                   foundation::Error>::failure(ticket.error());
+                                                   foundation::Error>::failure(
+                generated.error());
         }
     } else if (procedural_runtime == nullptr) {
         // Explicit deterministic compileArtifact remains the only direct
@@ -692,15 +711,22 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
                 site.request_id, static_cast<std::uint64_t>(site.seed));
             generation.options.dependency_hash = building_profile.fingerprint().value;
             generation.options.retained_bytes = sizeof(buildings::BuildingGenerationResult);
-            auto ticket = procedural_runtime->request(std::move(generation));
-            ticket.wait();
-            const auto generated = ticket.artifact();
+            if (generation_context == nullptr) {
+                return foundation::Result<ResolvedWorldArtifacts,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidState,
+                     "live building composition is missing its procedural context"});
+            }
+            const auto generated = procedural_runtime->generateInline(
+                std::move(generation), *generation_context);
             if (generated) {
                 building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::success(*generated);
+                                               foundation::Error>::success(
+                    *generated.value());
             } else {
                 building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::failure(ticket.error());
+                                               foundation::Error>::failure(
+                    generated.error());
             }
         } else if (procedural_runtime == nullptr) {
             // This branch is retained only for the explicit deterministic
