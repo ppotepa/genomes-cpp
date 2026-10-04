@@ -30,7 +30,8 @@ foundation::Result<void, Error> GeneratorRegistry::Builder::add(
                 {ErrorCode::InvalidState, "duplicate generator name"});
         }
     }
-    entries_.push_back({descriptor, std::move(generate), typeid(void), typeid(void), {}});
+    entries_.push_back(
+        {descriptor, std::move(generate), typeid(void), typeid(void), {}, {}});
     return foundation::Result<void, Error>::success();
 }
 
@@ -38,7 +39,8 @@ foundation::Result<void, Error> GeneratorRegistry::Builder::addTypedErased(
     GeneratorDescriptor descriptor,
     std::type_index input_type,
     std::type_index output_type,
-    ErasedGeneratorFunction generate) {
+    ErasedGeneratorFunction generate,
+    ErasedInputHashFunction canonical_input_hash) {
     if (!descriptor.valid() || !generate) {
         return foundation::Result<void, Error>::failure(invalidDescriptor());
     }
@@ -52,7 +54,8 @@ foundation::Result<void, Error> GeneratorRegistry::Builder::addTypedErased(
                 {ErrorCode::InvalidState, "duplicate generator name"});
         }
     }
-    entries_.push_back({descriptor, {}, input_type, output_type, std::move(generate)});
+    entries_.push_back({descriptor, {}, input_type, output_type, std::move(generate),
+                        std::move(canonical_input_hash)});
     return foundation::Result<void, Error>::success();
 }
 
