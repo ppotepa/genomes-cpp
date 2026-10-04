@@ -9,8 +9,10 @@ set(scene_source "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/BattlefieldScene.
 set(artifact_header
     "${GENOMES_SOURCE_DIR}/modules/gameplay/include/genomes/gameplay/WorldScenario.hpp")
 set(mesh_source "${GENOMES_SOURCE_DIR}/modules/world_render/src/WorldMeshCompiler.cpp")
+set(world_scenario_source "${GENOMES_SOURCE_DIR}/modules/gameplay/src/WorldScenario.cpp")
 
-foreach(required_file IN ITEMS runtime_header runtime_source scene_source artifact_header mesh_source)
+foreach(required_file IN ITEMS runtime_header runtime_source scene_source artifact_header mesh_source
+                               world_scenario_source)
     if(NOT EXISTS "${${required_file}}")
         message(FATAL_ERROR "Missing R039 source: ${${required_file}}")
     endif()
@@ -71,5 +73,27 @@ foreach(required_text IN ITEMS
         message(FATAL_ERROR "Battlefield runtime does not consume resolved terrain: ${required_text}")
     endif()
 endforeach()
+
+# Production world resolution is already running inside a procedural worker.
+# It must compose registered children through the shared JobGraph/inline
+# generation path instead of recursively enqueueing a ticket and waiting on it.
+foreach(required_text IN ITEMS
+        "jobs::JobGraphBuilder"
+        "procedural_runtime->generateInline"
+        "builder.precedes(terrain_node, hydrology_node)"
+        "parallel building generation")
+    string(FIND "${world_scenario_source_text}" "${required_text}" position)
+    if(position EQUAL -1)
+        message(FATAL_ERROR
+            "Resolved world procedural DAG lost execution contract: ${required_text}")
+    endif()
+endforeach()
+string(FIND "${world_scenario_source_text}"
+       "auto ticket = procedural_runtime->request"
+       nested_ticket_position)
+if(NOT nested_ticket_position EQUAL -1)
+    message(FATAL_ERROR
+        "Resolved world composition must not use nested procedural request()+wait()")
+endif()
 
 message(STATUS "Resolved world artifact revision source contract inspected")
