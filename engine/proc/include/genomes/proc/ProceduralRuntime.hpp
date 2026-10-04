@@ -327,12 +327,22 @@ public:
             request.seed_path, parent_context.job(),
             parent_context.cancellationToken(), parent_context.supersededToken(),
             &reader, parent_context.diagnostics(), parent_context.scratch());
-        auto generated = entry->generate_typed(request.input.get(), context);
-        if (!generated) {
-            failed_.fetch_add(1, std::memory_order_relaxed);
-            return foundation::Result<std::shared_ptr<const Output>,
-                                      foundation::Error>::failure(generated.error());
-        }
+        const auto generated = [&]()
+            -> foundation::Result<std::shared_ptr<const void>, foundation::Error> {
+            try {
+                return entry->generate_typed(request.input.get(), context);
+            } catch (...) {
+                const foundation::Error error{
+                    foundation::ErrorCode::Internal,
+                    "procedural inline generator threw"};
+                if (parent_context.diagnostics() != nullptr) {
+                    parent_context.diagnostics()->record(
+                        {0U, request.generator, error});
+                }
+                return foundation::Result<std::shared_ptr<const void>,
+                                          foundation::Error>::failure(error);
+            }
+        }();
         if (context.cancellationRequested() ||
             request.options.cancellation.isCancellationRequested()) {
             canceled_.fetch_add(1, std::memory_order_relaxed);
@@ -340,6 +350,11 @@ public:
                                       foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidState,
                  "procedural inline generation canceled"});
+        }
+        if (!generated) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(generated.error());
         }
         auto output = std::static_pointer_cast<const Output>(generated.value());
         if (!output) {
