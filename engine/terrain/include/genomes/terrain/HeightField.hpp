@@ -6,6 +6,7 @@
 #include <genomes/terrain/TerrainSpec.hpp>
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace genomes::terrain {
@@ -45,6 +46,8 @@ public:
     [[nodiscard]] float cellSize() const noexcept {
         return cell_size_m_;
     }
+
+    [[nodiscard]] std::span<const float> samples() const noexcept { return samples_; }
 
 private:
     HeightField(std::uint32_t width,

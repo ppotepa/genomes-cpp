@@ -21,8 +21,42 @@ namespace {
         input_hash, foundation::stableHashFloat(request.fenced_parcels));
     input_hash = foundation::stableHashCombine(
         input_hash, static_cast<std::uint64_t>(request.hydrology_mode));
-    return foundation::stableHashCombine(
+    input_hash = foundation::stableHashCombine(
         input_hash, foundation::stableHashFloat(request.river_probability));
+    input_hash = foundation::stableHashCombine(
+        input_hash, static_cast<std::uint64_t>(request.terrain.preset));
+    input_hash = foundation::stableHashCombine(input_hash, request.terrain.sample_spacing_m);
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.terrain.elevation_range_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.terrain.landform_scale_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.terrain.roughness));
+    input_hash = foundation::stableHashCombine(
+        input_hash, request.hydrology.main_river_min);
+    input_hash = foundation::stableHashCombine(
+        input_hash, request.hydrology.main_river_max);
+    input_hash = foundation::stableHashCombine(
+        input_hash, static_cast<std::uint64_t>(request.hydrology.tributary_density));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.stream_width_min_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.stream_width_max_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.river_width_min_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.river_width_max_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.depth_min_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.depth_max_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.meander_strength));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.valley_width_min_m));
+    input_hash = foundation::stableHashCombine(
+        input_hash, foundation::stableHashFloat(request.hydrology.valley_width_max_m));
+    return input_hash;
 }
 
 } // namespace

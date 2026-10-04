@@ -86,6 +86,12 @@ struct EncodedValue final {
     }
 
     [[nodiscard]] static EncodedValue tuple(std::span<const EncodedValue> values) {
+        if (values.size() > 255U ||
+            std::any_of(values.begin(), values.end(), [](const EncodedValue& value) {
+                return !value.valid();
+            })) {
+            return {CurrentFormat, ValueType::Tuple, {}};
+        }
         std::vector<std::uint8_t> encoded;
         encoded.reserve(1U + values.size() * 10U);
         encoded.push_back(static_cast<std::uint8_t>(values.size()));
@@ -108,8 +114,8 @@ struct EncodedValue final {
         case ValueType::SignedInteger:
         case ValueType::FloatingPoint: return bytes.size() == sizeof(std::uint64_t);
         case ValueType::String:
-        case ValueType::Bytes:
-        case ValueType::Tuple: return true;
+        case ValueType::Bytes: return true;
+        case ValueType::Tuple: return decodeTuple(bytes, format_version).has_value();
         }
         return false;
     }
@@ -143,6 +149,11 @@ struct EncodedValue final {
                    : std::nullopt;
     }
 
+    [[nodiscard]] std::optional<std::vector<EncodedValue>> asTuple() const noexcept {
+        if (type != ValueType::Tuple || format_version != CurrentFormat) return std::nullopt;
+        return decodeTuple(bytes, format_version);
+    }
+
 private:
     [[nodiscard]] std::uint64_t decodeInteger() const noexcept {
         std::uint64_t value{0};
@@ -158,6 +169,33 @@ private:
             bytes[index] = static_cast<std::uint8_t>(value >> (index * 8U));
         }
         return {CurrentFormat, type, std::move(bytes)};
+    }
+
+    [[nodiscard]] static std::optional<std::vector<EncodedValue>> decodeTuple(
+        std::span<const std::uint8_t> encoded, std::uint16_t format_version) noexcept {
+        if (encoded.empty()) return std::nullopt;
+        const std::size_t count = encoded.front();
+        std::size_t cursor = 1U;
+        std::vector<EncodedValue> values;
+        values.reserve(count);
+        for (std::size_t index = 0U; index < count; ++index) {
+            if (cursor > encoded.size() || encoded.size() - cursor < 5U) return std::nullopt;
+            const std::uint8_t raw_type = encoded[cursor++];
+            if (raw_type > static_cast<std::uint8_t>(ValueType::Tuple)) return std::nullopt;
+            std::uint32_t byte_count{0U};
+            for (std::size_t byte = 0U; byte < sizeof(byte_count); ++byte) {
+                byte_count |= static_cast<std::uint32_t>(encoded[cursor++]) << (byte * 8U);
+            }
+            if (byte_count > encoded.size() - cursor) return std::nullopt;
+            EncodedValue value{format_version, static_cast<ValueType>(raw_type),
+                               {encoded.begin() + static_cast<std::ptrdiff_t>(cursor),
+                                encoded.begin() + static_cast<std::ptrdiff_t>(cursor + byte_count)}};
+            if (!value.valid()) return std::nullopt;
+            cursor += byte_count;
+            values.push_back(std::move(value));
+        }
+        return cursor == encoded.size() ? std::optional<std::vector<EncodedValue>>{std::move(values)}
+                                        : std::nullopt;
     }
 };
 
@@ -244,6 +282,9 @@ struct SnapshotView final {
     std::uint64_t scene_epoch{0};
     std::uint64_t semantic_hash{0};
     std::span<const std::uint8_t> bytes{};
+    // A published runtime view keeps its encoded buffer alive while callers
+    // read it. `bytes` remains for zero-copy consumers and compatibility.
+    std::shared_ptr<const std::vector<std::uint8_t>> owner{};
 };
 
 struct SnapshotEntity final {
@@ -261,6 +302,8 @@ struct SnapshotEntity final {
 struct EngineTelemetry final {
     foundation::Nanoseconds simulation_duration{};
     foundation::Nanoseconds presentation_duration{};
+    foundation::Nanoseconds animation_duration{};
+    foundation::Nanoseconds extraction_duration{};
     foundation::Nanoseconds gpu_duration{};
     jobs::SchedulerTelemetry scheduler{};
     std::uint64_t rejected_stale_snapshots{0U};

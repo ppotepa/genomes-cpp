@@ -1,17 +1,6 @@
 Texture2D<float> g_ShadowMap;
 SamplerComparisonState g_ShadowMap_sampler;
 static const float PI=3.141592653589793;
-float shadowVisibility(float3 world,float3 normal) {
-    if(ShadowParameters.z<0.5 || MaterialFlags.w==0)return 1;
-    float4 q=mul(ShadowUVProjection,float4(world,1));
-    float3 uvz=q.xyz/q.w;
-    if(any(uvz.xy<0)||any(uvz.xy>1)||uvz.z<=0||uvz.z>=1)return 1;
-    float bias=ShadowParameters.x*(1+2*(1-saturate(dot(normal,safeNormal(KeyDirectionIntensity.xyz)))));
-    float value=0;
-    [unroll]for(int y=-1;y<=1;++y)[unroll]for(int x=-1;x<=1;++x)
-        value+=g_ShadowMap.SampleCmpLevelZero(g_ShadowMap_sampler,uvz.xy+float2(x,y)*ShadowParameters.y,uvz.z-bias);
-    return value/9;
-}
 float3 directBRDF(float3 base,float metallic,float roughness,float3 n,float3 v,float3 l,float3 irradiance) {
     float nv=max(dot(n,v),1e-4),nl=saturate(dot(n,l));
     float3 h=safeNormal(l+v);float nh=saturate(dot(n,h)),vh=saturate(dot(v,h));
@@ -34,9 +23,33 @@ float4 main(SurfacePixel p,bool front:SV_IsFrontFace):SV_TARGET {
     float roughness=clamp(MaterialFactors.x,.045,1),metallic=saturate(MaterialFactors.y);
     float3 ambient=lerp(HemisphereGround.rgb*HemisphereGround.a,HemisphereSky.rgb*HemisphereSky.a,n.y*.5+.5);
     float3 light=ambient*base*(1-metallic);
+    float keyShadow=1.0;
+    if(ShadowParameters.z>=0.5 && MaterialFlags.w!=0) {
+        float4 shadowClip=mul(ShadowUVProjection,float4(p.WorldPosition,1));
+        float3 shadowUvDepth=shadowClip.xyz/shadowClip.w;
+        if(!any(shadowUvDepth.xy<0)&&!any(shadowUvDepth.xy>1)&&shadowUvDepth.z>0&&shadowUvDepth.z<1) {
+            float shadowBias=ShadowParameters.x*(1+2*(1-saturate(dot(n,safeNormal(KeyDirectionIntensity.xyz)))));
+            float comparisonSum=0.0;
+            [unroll]for(int y=-1;y<=1;++y)[unroll]for(int x=-1;x<=1;++x)
+                comparisonSum+=g_ShadowMap.SampleCmpLevelZero(g_ShadowMap_sampler,shadowUvDepth.xy+float2(x,y)*ShadowParameters.y,shadowUvDepth.z-shadowBias);
+            keyShadow=comparisonSum*(1.0/9.0);
+        }
+    }
     light+=directBRDF(base,metallic,roughness,n,v,safeNormal(KeyDirectionIntensity.xyz),
-        KeyColor.rgb*KeyDirectionIntensity.w*shadowVisibility(p.WorldPosition,n));
+        KeyColor.rgb*KeyDirectionIntensity.w*keyShadow);
     light+=directBRDF(base,metallic,roughness,n,v,safeNormal(FillDirectionIntensity.xyz),FillColor.rgb*FillDirectionIntensity.w);
+    // The generic pass has no IBL texture.  A calm water material would
+    // otherwise become nearly black whenever it is in a key-light shadow.
+    // Materials smoother than 0.20 currently mean the renderer-independent
+    // world-water descriptor; use the already-provided sky hemisphere as a
+    // bounded environment reflection rather than baking a scene-specific tint.
+    float waterReflection=1-smoothstep(.12,.20,roughness);
+    if(waterReflection>0) {
+        float fresnel=pow(1-saturate(dot(n,v)),5);
+        float3 sky=HemisphereSky.rgb*HemisphereSky.a;
+        float3 reflected=sky*(.18+.82*fresnel)*(.30+.70*base);
+        light=lerp(light,max(light,reflected),waterReflection);
+    }
     // sRGB render target performs display encoding once. This pass is direct-light PBR,
     // not an IBL/HDR postprocessing implementation.
     return float4(toneMap(light),alpha);

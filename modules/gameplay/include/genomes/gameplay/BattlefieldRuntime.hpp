@@ -37,12 +37,15 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 #if GENOMES_HAS_INFANTRY
 
 namespace genomes::gameplay {
+
+struct ResolvedWorldArtifacts;
 
 struct BattlefieldPresentationSnapshot final {
     foundation::SnapshotMetadata metadata{};
@@ -93,7 +96,8 @@ public:
         if (simulation_snapshot_.metadata.tick != 0U &&
             simulation_snapshot_.metadata.scene_epoch < next_epoch) {
             simulation_snapshot_ = {};
-            api_snapshot_bytes_.clear();
+            api_snapshot_bytes_.reset();
+            api_world_snapshot_values_.reset();
         }
     }
 
@@ -103,6 +107,8 @@ public:
     // tick cannot observe mixed world revisions.
     [[nodiscard]] bool bindWorldArtifactRevision(
         world::WorldArtifactRevision revision) noexcept;
+    [[nodiscard]] bool bindWorldArtifact(
+        std::shared_ptr<const ResolvedWorldArtifacts> artifact) noexcept;
     [[nodiscard]] world::WorldArtifactRevision worldArtifactRevision() const noexcept {
         return world_artifact_revision_;
     }
@@ -171,6 +177,7 @@ private:
     simulation::EntityStore entities_;
     physics::SimplePhysicsWorld physics_{};
     std::unique_ptr<navigation::GridNavigationWorld> navigation_;
+    std::shared_ptr<const ResolvedWorldArtifacts> world_artifact_;
     std::unique_ptr<infantry::InfantrySimulation> infantry_;
     combat::CombatSystem combat_;
     combat::CombatCommandFlow combat_flow_;
@@ -215,9 +222,12 @@ private:
     simulation::SimulationSnapshotExchange simulation_snapshot_exchange_{};
     BattlefieldPresentationSnapshot presentation_snapshot_{};
     BattlefieldPresentationSnapshotExchange presentation_snapshot_exchange_{};
-    std::vector<std::uint8_t> api_snapshot_bytes_;
+    std::shared_ptr<const std::vector<std::uint8_t>> api_snapshot_bytes_;
+    std::shared_ptr<const std::map<std::string, std::vector<std::uint8_t>, std::less<>>>
+        api_world_snapshot_values_;
     std::uint64_t scene_epoch_{0U};
     api::CommandQueue api_commands_{};
+    std::map<std::string, std::vector<std::uint8_t>, std::less<>> api_world_values_;
     BattlefieldRuntimeState state_{BattlefieldRuntimeState::Running};
 };
 

@@ -6,10 +6,109 @@
 #include <genomes/terrain/TerrainGenerator.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
+#include <span>
 #include <utility>
 
 namespace genomes::gameplay {
+namespace {
+
+[[nodiscard]] hydrology::TributaryDensity hydrologyTributaryDensity(
+    world::TributaryDensity density) noexcept {
+    switch (density) {
+    case world::TributaryDensity::None: return hydrology::TributaryDensity::None;
+    case world::TributaryDensity::Low: return hydrology::TributaryDensity::Low;
+    case world::TributaryDensity::Medium: return hydrology::TributaryDensity::Medium;
+    }
+    return hydrology::TributaryDensity::None;
+}
+
+[[nodiscard]] hydrology::HydrologySpec makeHydrologySpec(
+    const world::WorldGenerationRequest& request, const terrain::HeightField& terrain) noexcept {
+    hydrology::HydrologySpec spec{};
+    spec.seed = request.seed;
+    spec.map_size_m = request.map_size_m;
+    spec.cells_x = terrain.width() - 1U;
+    spec.cells_z = terrain.height() - 1U;
+    spec.cell_size_m = terrain.cellSize();
+    spec.mode = request.hydrology_mode;
+    spec.river_probability = request.river_probability;
+    spec.main_river_min = request.hydrology.main_river_min;
+    spec.main_river_max = request.hydrology.main_river_max;
+    spec.tributary_density = hydrologyTributaryDensity(
+        request.hydrology.tributary_density);
+    spec.stream_width_min_m = request.hydrology.stream_width_min_m;
+    spec.stream_width_max_m = request.hydrology.stream_width_max_m;
+    spec.river_width_min_m = request.hydrology.river_width_min_m;
+    spec.river_width_max_m = request.hydrology.river_width_max_m;
+    spec.depth_min_m = request.hydrology.depth_min_m;
+    spec.depth_max_m = request.hydrology.depth_max_m;
+    spec.meander_strength = request.hydrology.meander_strength;
+    spec.valley_width_min_m = request.hydrology.valley_width_min_m;
+    spec.valley_width_max_m = request.hydrology.valley_width_max_m;
+    return spec;
+}
+
+[[nodiscard]] bool segmentIntersection(foundation::Vec3 a, foundation::Vec3 b,
+                                       foundation::Vec3 c, foundation::Vec3 d,
+                                       foundation::Vec3& intersection) noexcept {
+    const float ab_x = b.x - a.x;
+    const float ab_z = b.z - a.z;
+    const float cd_x = d.x - c.x;
+    const float cd_z = d.z - c.z;
+    const float denominator = ab_x * cd_z - ab_z * cd_x;
+    if (std::abs(denominator) < 1.0e-5F) return false;
+    const float ac_x = c.x - a.x;
+    const float ac_z = c.z - a.z;
+    const float along_ab = (ac_x * cd_z - ac_z * cd_x) / denominator;
+    const float along_cd = (ac_x * ab_z - ac_z * ab_x) / denominator;
+    if (along_ab < 0.0F || along_ab > 1.0F || along_cd < 0.0F || along_cd > 1.0F)
+        return false;
+    intersection = {a.x + ab_x * along_ab, std::lerp(c.y, d.y, along_cd),
+                    a.z + ab_z * along_ab};
+    return true;
+}
+
+void resolveCrossings(hydrology::HydrologyArtifact& hydrology_artifact,
+                      const roads::RoadGraph& roads) {
+    for (const roads::RoadEdge& road : roads.edges()) {
+        const auto road_points = road.centerline.samplePoints();
+        for (const hydrology::RiverPath& river : hydrology_artifact.rivers) {
+            const std::size_t begin = river.point_offset;
+            const std::size_t end = begin + river.point_count;
+            if (end > hydrology_artifact.river_points.size()) continue;
+            bool found = false;
+            for (std::size_t road_point = 1U; road_point < road_points.size() && !found;
+                 ++road_point) {
+                for (std::size_t river_point = begin + 1U; river_point < end; ++river_point) {
+                    foundation::Vec3 position{};
+                    if (!segmentIntersection(road_points[road_point - 1U], road_points[road_point],
+                                             hydrology_artifact.river_points[river_point - 1U],
+                                             hydrology_artifact.river_points[river_point],
+                                             position)) continue;
+                    const auto type = river.width_m <= 3.0F
+                                          ? hydrology::CrossingType::Culvert
+                                          : (river.depth_m <= 0.5F
+                                                 ? hydrology::CrossingType::Ford
+                                                 : hydrology::CrossingType::Bridge);
+                    const auto id = foundation::stableHashCombine(road.id, river.id);
+                    hydrology_artifact.crossings.push_back(
+                        {id == 0U ? 1U : id, river.id, road.id, position,
+                         std::max(road.width, river.width_m + 2.0F), type});
+                    hydrology_artifact.content_hash = foundation::stableHashCombine(
+                        hydrology_artifact.content_hash, id == 0U ? 1U : id);
+                    hydrology_artifact.content_hash = foundation::stableHashCombine(
+                        hydrology_artifact.content_hash, static_cast<std::uint64_t>(type));
+                    found = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+} // namespace
 
 foundation::Result<void, foundation::Error> WorldScenario::requestNew(
     const world::WorldGenerationRequest& request) {
@@ -218,11 +317,14 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     terrain_spec.region = {0, 0, 0};
     terrain_spec.coordinates.region_size_m = static_cast<double>(request.map_size_m);
     terrain_spec.seed_path = proc::SeedPath(request.seed).child("terrain", 0);
-    terrain_spec.samples_x = layout.sample_count;
-    terrain_spec.samples_z = layout.sample_count;
-    terrain_spec.cell_size_m = layout.spacing_m;
+    const std::uint32_t terrain_cell_count =
+        request.map_size_m / request.terrain.sample_spacing_m;
+    terrain_spec.samples_x = terrain_cell_count + 1U;
+    terrain_spec.samples_z = terrain_cell_count + 1U;
+    terrain_spec.cell_size_m = static_cast<float>(request.terrain.sample_spacing_m);
     terrain_spec.origin_offset_x = static_cast<double>(layout.origin.x);
     terrain_spec.origin_offset_z = static_cast<double>(layout.origin.z);
+    terrain_spec.generation = request.terrain;
     foundation::Result<terrain::HeightField, foundation::Error> terrain_result =
         terrain::TerrainGenerator::generate(terrain_spec);
     if (procedural_runtime != nullptr &&
@@ -232,8 +334,19 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
         generation.generator = proc::generatorId("terrain.height-field");
         generation.input = std::make_shared<const terrain::TerrainSpec>(terrain_spec);
         generation.seed_path = terrain_spec.seed_path;
-        generation.options.input_hash = foundation::stableHashCombine(
+        std::uint64_t terrain_input_hash = foundation::stableHashCombine(
             foundation::stableHashU64(request.seed), request.map_size_m);
+        terrain_input_hash = foundation::stableHashCombine(
+            terrain_input_hash, static_cast<std::uint64_t>(request.terrain.preset));
+        terrain_input_hash = foundation::stableHashCombine(
+            terrain_input_hash, request.terrain.sample_spacing_m);
+        terrain_input_hash = foundation::stableHashCombine(
+            terrain_input_hash, foundation::stableHashFloat(request.terrain.elevation_range_m));
+        terrain_input_hash = foundation::stableHashCombine(
+            terrain_input_hash, foundation::stableHashFloat(request.terrain.landform_scale_m));
+        terrain_input_hash = foundation::stableHashCombine(
+            terrain_input_hash, foundation::stableHashFloat(request.terrain.roughness));
+        generation.options.input_hash = terrain_input_hash;
         generation.options.retained_bytes = sizeof(terrain::HeightField);
         const auto generated = procedural_runtime->generateInline(generation);
         if (generated) {
@@ -249,6 +362,71 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             terrain_result.error());
     }
     terrain::HeightField terrain_field = terrain_result.value();
+
+    const hydrology::HydrologySpec hydrology_spec = makeHydrologySpec(request, terrain_field);
+    const hydrology::HydrologyTerrainView terrain_view{
+        terrain_field.width(), terrain_field.height(), terrain_field.cellSize(),
+        static_cast<float>(terrain_field.originX()), static_cast<float>(terrain_field.originZ()),
+        terrain_field.samples()};
+    auto hydrology_result = hydrology::HydrologyGenerator::generate(hydrology_spec, terrain_view);
+    if (!hydrology_result) {
+        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            hydrology_result.error());
+    }
+    plan.hydrology = std::move(hydrology_result.value());
+    resolveCrossings(plan.hydrology, plan.city.road_graph);
+
+    const auto conflicts_with_water = [&plan](foundation::Vec3 position) {
+        const auto water = plan.hydrology.sampleWater(position.x, position.z);
+        return water.has_water || water.distance_m < 2.0F;
+    };
+    const auto conflicts_with_building = [&plan, &conflicts_with_water](
+                                             foundation::Vec3 position) {
+        return conflicts_with_water(position) ||
+               plan.hydrology.isFloodplain(position.x, position.z);
+    };
+    std::erase_if(plan.building_sites, [&conflicts_with_building](const auto& site) {
+        return conflicts_with_building(site.preferred_position);
+    });
+    std::erase_if(plan.features, [&conflicts_with_building, &conflicts_with_water](
+                                     const world::WorldFeature& feature) {
+        switch (feature.kind) {
+        case world::WorldFeatureKind::Building:
+        case world::WorldFeatureKind::Fence:
+        case world::WorldFeatureKind::Parcel:
+            return conflicts_with_building(feature.position);
+        case world::WorldFeatureKind::Vegetation:
+            return conflicts_with_water(feature.position);
+        case world::WorldFeatureKind::TerrainPatch:
+        case world::WorldFeatureKind::Road:
+            return false;
+        }
+        return false;
+    });
+
+    std::vector<terrain::TerrainChannel> channels;
+    channels.reserve(plan.hydrology.rivers.size());
+    for (const hydrology::RiverPath& river : plan.hydrology.rivers) {
+        const std::size_t begin = river.point_offset;
+        const std::size_t end = begin + river.point_count;
+        if (river.point_count < 2U || end > plan.hydrology.river_points.size()) continue;
+        channels.push_back({river.id,
+                            std::span<const foundation::Vec3>(plan.hydrology.river_points)
+                                .subspan(begin, river.point_count),
+                            river.width_m, river.depth_m, river.valley_width_m});
+    }
+    const auto carved = terrain::TerrainGenerator::carveChannels(terrain_field, channels);
+    if (!carved) {
+        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+            carved.error());
+    }
+
+    auto& hydrology_fingerprint = plan.stage_fingerprints[
+        static_cast<std::size_t>(world::WorldGenerationStage::Hydrology)];
+    hydrology_fingerprint.version = hydrology::HydrologyGeneratorVersion;
+    hydrology_fingerprint.dependency_fingerprint = plan.hydrology.content_hash == 0U
+                                                       ? 1U
+                                                       : plan.hydrology.content_hash;
     const auto mesh_result = terrain::TerrainMeshBuilder::build(terrain_field);
     if (!mesh_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(

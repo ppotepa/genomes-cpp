@@ -11,7 +11,7 @@
 
 namespace genomes::world {
 
-inline constexpr std::uint32_t WorldGenerationProfileSchemaVersion = 1U;
+inline constexpr std::uint32_t WorldGenerationProfileSchemaVersion = 3U;
 
 // The application composition root resolves this immutable domain snapshot
 // once. Generators receive only mutable requests copied from this profile and
@@ -33,8 +33,17 @@ public:
         return fingerprint_;
     }
     [[nodiscard]] WorldGenerationRequest makeRequest(proc::Seed seed) const noexcept {
-        return {seed, map_size_m_, vegetation_, buildings_, fenced_parcels_,
-                hydrology_mode_, river_probability_};
+        WorldGenerationRequest request{};
+        request.seed = seed;
+        request.map_size_m = map_size_m_;
+        request.vegetation = vegetation_;
+        request.buildings = buildings_;
+        request.fenced_parcels = fenced_parcels_;
+        request.hydrology_mode = hydrology_mode_;
+        request.river_probability = river_probability_;
+        request.terrain = terrain_;
+        request.hydrology = hydrology_;
+        return request;
     }
     [[nodiscard]] WorldGenerationRequest makeDefaultRequest() const noexcept {
         return makeRequest(default_seed_);
@@ -53,6 +62,8 @@ private:
     float fenced_parcels_{0.0F};
     hydrology::HydrologyMode hydrology_mode_{hydrology::HydrologyMode::Off};
     float river_probability_{0.0F};
+    TerrainGenerationConfig terrain_{};
+    HydrologyGenerationConfig hydrology_{};
     std::string id_;
     std::filesystem::path source_;
     content::FrozenContentSnapshot content_snapshot_{};

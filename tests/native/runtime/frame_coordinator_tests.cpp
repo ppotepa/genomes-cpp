@@ -32,6 +32,9 @@ public:
         *tick_ = tick.tick.value;
         *epoch_ = context.scene_epoch;
         *scheduler_seen_ = context.scheduler != nullptr;
+        assert(context.engine_services != nullptr);
+        assert(context.engine_services->telemetry != nullptr);
+        context.engine_services->telemetry->animation_duration = std::chrono::microseconds{17};
         ++*updates_;
     }
 
@@ -106,6 +109,8 @@ int main() {
     assert(coordinator.telemetry().frame_index == 1U);
     assert(coordinator.telemetry().scheduled_ticks == 1U);
     assert(coordinator.telemetry().completed_ticks == 1U);
+    assert(coordinator.telemetry().animation_duration == std::chrono::microseconds{17});
+    assert(coordinator.telemetry().extraction_duration == director.telemetry().extraction_duration);
     assert(coordinator.telemetry().fault == genomes::runtime::FrameFaultDomain::None);
 
     // Capture/headless scheduling must drain every bounded catch-up tick

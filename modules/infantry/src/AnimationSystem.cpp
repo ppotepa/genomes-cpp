@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <mutex>
@@ -1723,6 +1724,7 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
                  "animation entities must not share transition runtime"});
     }
 
+    const auto evaluation_started = std::chrono::steady_clock::now();
     previous_ = std::move(current_);
     current_ = {};
     current_.simulation_tick = simulation_tick;
@@ -1892,7 +1894,9 @@ foundation::Result<void, foundation::Error> AnimationSystem::evaluate(
               due_count,
               due_count,
               static_cast<std::uint32_t>(chunk_count),
-              current_.pose_revision};
+              current_.pose_revision,
+              std::chrono::duration_cast<foundation::Nanoseconds>(
+                  std::chrono::steady_clock::now() - evaluation_started)};
     return foundation::Result<void, foundation::Error>::success();
 }
 

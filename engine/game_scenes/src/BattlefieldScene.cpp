@@ -11,6 +11,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -32,8 +33,8 @@ BattlefieldScene::~BattlefieldScene() {
 
 namespace {
 
-#if GENOMES_HAS_INFANTRY
 constexpr std::uint64_t MassBattleRtsCameraRevision = 0x52545343414D3031ULL;
+#if GENOMES_HAS_INFANTRY
 constexpr float MassBattleModelYawOffset = 0.0F;
 // Simulation yaw is +Z toward +X; the Diligent world matrix rotates +Z
 // toward -X for positive yaw. Convert only at the presentation boundary.
@@ -65,6 +66,116 @@ static_assert([]() constexpr {
 [[nodiscard]] constexpr const char* massBattleAnimationMode(
     MassBattlePresentationProfile profile) noexcept {
     return profile == MassBattlePresentationProfile::Quality ? "live skinning" : "atlas";
+}
+
+[[nodiscard]] constexpr const char* terrainPresetName(world::TerrainPreset preset) noexcept {
+    switch (preset) {
+    case world::TerrainPreset::Plains: return "Plains";
+    case world::TerrainPreset::RollingHills: return "Rolling hills";
+    case world::TerrainPreset::Highlands: return "Highlands";
+    case world::TerrainPreset::RiverValley: return "River valley";
+    }
+    return "Rolling hills";
+}
+
+[[nodiscard]] constexpr const char* hydrologyModeName(
+    hydrology::HydrologyMode mode) noexcept {
+    switch (mode) {
+    case hydrology::HydrologyMode::Off: return "Off";
+    case hydrology::HydrologyMode::SeededOptional: return "Seeded optional";
+    case hydrology::HydrologyMode::Forced: return "Forced";
+    }
+    return "Off";
+}
+
+[[nodiscard]] constexpr world::TerrainPreset nextTerrainPreset(
+    world::TerrainPreset preset) noexcept {
+    switch (preset) {
+    case world::TerrainPreset::Plains: return world::TerrainPreset::RollingHills;
+    case world::TerrainPreset::RollingHills: return world::TerrainPreset::Highlands;
+    case world::TerrainPreset::Highlands: return world::TerrainPreset::RiverValley;
+    case world::TerrainPreset::RiverValley: return world::TerrainPreset::Plains;
+    }
+    return world::TerrainPreset::RollingHills;
+}
+
+[[nodiscard]] constexpr hydrology::HydrologyMode nextHydrologyMode(
+    hydrology::HydrologyMode mode) noexcept {
+    switch (mode) {
+    case hydrology::HydrologyMode::Off: return hydrology::HydrologyMode::SeededOptional;
+    case hydrology::HydrologyMode::SeededOptional: return hydrology::HydrologyMode::Forced;
+    case hydrology::HydrologyMode::Forced: return hydrology::HydrologyMode::Off;
+    }
+    return hydrology::HydrologyMode::Off;
+}
+
+[[nodiscard]] constexpr std::uint8_t nextTerrainSampleSpacing(
+    std::uint8_t sample_spacing_m) noexcept {
+    // 4 m is the default battlefield detail and 8 m is the lower-cost option.
+    // Finer levels remain available in the profile API, but are deliberately
+    // not offered as a casual live-scene toggle for a 2 km battle map.
+    return sample_spacing_m <= 4U ? 8U : 4U;
+}
+
+[[nodiscard]] foundation::Color lerpColor(foundation::Color from, foundation::Color to,
+                                          float amount) noexcept {
+    const float t = std::clamp(amount, 0.0F, 1.0F);
+    return {std::lerp(from.r, to.r, t), std::lerp(from.g, to.g, t),
+            std::lerp(from.b, to.b, t), std::lerp(from.a, to.a, t)};
+}
+
+[[nodiscard]] float terrainPatchNoise(float x, float z, float cell_size_m,
+                                      foundation::StableId seed) noexcept {
+    const float grid_x = x / cell_size_m;
+    const float grid_z = z / cell_size_m;
+    const int x0 = static_cast<int>(std::floor(grid_x));
+    const int z0 = static_cast<int>(std::floor(grid_z));
+    const auto lattice = [seed](int cell_x, int cell_z) {
+        std::uint64_t hash = foundation::stableHashCombine(
+            seed, static_cast<std::uint64_t>(static_cast<std::int64_t>(cell_x)));
+        hash = foundation::stableHashCombine(
+            hash, static_cast<std::uint64_t>(static_cast<std::int64_t>(cell_z)));
+        return static_cast<float>(hash & 0xFFFFU) / 65535.0F;
+    };
+    const auto smooth = [](float value) {
+        const float t = std::clamp(value, 0.0F, 1.0F);
+        return t * t * (3.0F - 2.0F * t);
+    };
+    const float tx = smooth(grid_x - static_cast<float>(x0));
+    const float tz = smooth(grid_z - static_cast<float>(z0));
+    const float lower = std::lerp(lattice(x0, z0), lattice(x0 + 1, z0), tx);
+    const float upper = std::lerp(lattice(x0, z0 + 1), lattice(x0 + 1, z0 + 1), tx);
+    return std::lerp(lower, upper, tz);
+}
+
+[[nodiscard]] foundation::Color terrainSurfaceColor(
+    const terrain::TerrainMeshVertex& vertex, const world::WorldPlan& plan,
+    float minimum_height, float maximum_height) noexcept {
+    const float relief = std::max(maximum_height - minimum_height, 1.0F);
+    const float elevation = std::clamp((vertex.position.y - minimum_height) / relief, 0.0F, 1.0F);
+    const float slope = std::clamp((1.0F - vertex.normal.y) * 5.0F, 0.0F, 1.0F);
+    const float wetness = plan.hydrology.sampleWater(vertex.position.x, vertex.position.z).wetness;
+    // This is a compact, deterministic surface mask until authored terrain
+    // materials are introduced.  It makes large landforms legible without
+    // leaking renderer textures into world generation.
+    const float broad_patch = terrainPatchNoise(vertex.position.x, vertex.position.z, 180.0F,
+                                                 foundation::stable_id("terrain.surface.broad"));
+    const float fine_patch = terrainPatchNoise(vertex.position.x, vertex.position.z, 52.0F,
+                                                foundation::stable_id("terrain.surface.fine"));
+    const float dryness = std::clamp(elevation * 0.62F + broad_patch * 0.22F +
+                                         fine_patch * 0.08F - wetness * 0.58F,
+                                     0.0F, 1.0F);
+    foundation::Color surface = lerpColor({0.075F, 0.27F, 0.075F, 1.0F},
+                                          {0.48F, 0.38F, 0.105F, 1.0F}, dryness);
+    surface = lerpColor(surface, {0.34F, 0.31F, 0.24F, 1.0F}, slope * slope * 0.48F);
+    surface = lerpColor(surface, {0.055F, 0.20F, 0.085F, 1.0F}, wetness * 0.72F);
+    return surface;
+}
+
+[[nodiscard]] std::string durationText(foundation::Nanoseconds duration) {
+    const double milliseconds = std::chrono::duration<double, std::milli>(duration).count();
+    const double rounded = std::round(milliseconds * 100.0) / 100.0;
+    return std::to_string(rounded) + " ms";
 }
 
 #if GENOMES_HAS_INFANTRY
@@ -166,10 +277,12 @@ static_assert(massBattlePoseBucket(1U,0.0F,12U)==1U&&
 #if GENOMES_HAS_INFANTRY
 bool sample_battlefield_ground(void* context, foundation::Vec3 position,
                                infantry::GroundSample& output) noexcept {
-    const auto* field = static_cast<const terrain::HeightField*>(context);
-    if (field == nullptr) return false;
-    output.height = field->sampleBilinear(position.x, position.z);
-    output.normal = field->normal(position.x, position.z);
+    const auto* artifacts = static_cast<const gameplay::WorldScenarioArtifact*>(context);
+    if (artifacts == nullptr || artifacts->terrain == nullptr) return false;
+    const auto landscape = artifacts->sampleLandscape(position.x, position.z);
+    if (!landscape.traversable()) return false;
+    output.height = landscape.ground_y;
+    output.normal = artifacts->terrain->normal(position.x, position.z);
     return std::isfinite(output.height) && std::isfinite(output.normal.x) &&
            std::isfinite(output.normal.y) && std::isfinite(output.normal.z);
 }
@@ -187,11 +300,28 @@ bool sample_battlefield_ground(void* context, foundation::Vec3 position,
 [[nodiscard]] application::WorldGenerationConfig massBattleWorldConfig(
     application::WorldGenerationConfig config) noexcept {
     if (config.seed == 0U) config.seed = 0x1F4A77U;
+    const bool initial_mass_battle_config = config.map_size_m != 2000U;
     config.map_size_m = 2000U;
     config.vegetation = std::min(config.vegetation, 0.18F);
-    config.buildings = std::min(config.buildings, 0.08F);
-    config.fenced_parcels = std::min(config.fenced_parcels, 0.04F);
-    config.river_probability = std::min(config.river_probability, 0.15F);
+    config.buildings = 0.0F;
+    config.fenced_parcels = 0.0F;
+    if (initial_mass_battle_config) {
+        config.hydrology_mode = hydrology::HydrologyMode::Forced;
+        config.river_probability = 1.0F;
+    }
+    config.terrain.elevation_range_m = std::max(config.terrain.elevation_range_m, 250.0F);
+    if (initial_mass_battle_config) config.terrain.sample_spacing_m = 4U;
+    config.terrain.landform_scale_m = std::min(config.terrain.landform_scale_m, 420.0F);
+    config.terrain.roughness = std::max(config.terrain.roughness, 0.70F);
+    config.hydrology.main_river_min = std::max(config.hydrology.main_river_min, std::uint8_t{1U});
+    config.hydrology.river_width_min_m =
+        std::max(config.hydrology.river_width_min_m, 16.0F);
+    config.hydrology.river_width_max_m =
+        std::max(config.hydrology.river_width_max_m, 28.0F);
+    config.hydrology.valley_width_min_m =
+        std::max(config.hydrology.valley_width_min_m, 48.0F);
+    config.hydrology.valley_width_max_m =
+        std::max(config.hydrology.valley_width_max_m, 110.0F);
     return config;
 }
 
@@ -223,7 +353,7 @@ runtime::SceneLoadingStatus BattlefieldScene::loading_status() const {
                     "Compiling infantry presentation prototype"};
         }
         if (mass_battle_load_stage_ == MassBattleLoadStage::Failed ||
-            mass_battle_runtime_ == nullptr || infantry_model_artifact_ == nullptr) {
+            mass_battle_session_ == nullptr || infantry_model_artifact_ == nullptr) {
             return {runtime::SceneLoadingPhase::Failed, 0.15,
                     generation_error_.empty() ? "Infantry scene initialization failed"
                                               : generation_error_};
@@ -267,7 +397,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
     battlefield_runtime_.reset();
-    mass_battle_runtime_.reset();
+    mass_battle_session_.reset();
+    simulation_facade_ = nullptr;
     procedural_runtime_.reset();
     procedural_registry_ = {};
     if (context.scheduler != nullptr) {
@@ -293,8 +424,9 @@ void BattlefieldScene::on_enter(SceneContext& context) {
         if (viability) {
             battlefield_runtime_ = std::move(viability.value());
             battlefield_runtime_->setSceneEpoch(scene_epoch_);
+            simulation_facade_ = battlefield_runtime_.get();
             if (context.engine_services != nullptr) {
-                context.engine_services->simulation = battlefield_runtime_.get();
+                context.engine_services->simulation = simulation_facade_;
             }
         } else {
             generation_error_ = std::string(viability.error().message);
@@ -323,6 +455,8 @@ void BattlefieldScene::on_enter(SceneContext& context) {
     mass_battle_archetype_counts_.fill(0U);
     mass_battle_lod_counts_.fill(0U);
     mass_battle_evaluated_poses_ = 0U;
+    hydrology_water_cells_ = 0U;
+    hydrology_flood_cells_ = 0U;
     pose_stall_frames_ = 0U;
     last_pose_tick_ = 0U;
     last_pose_revision_ = 0U;
@@ -478,7 +612,8 @@ void BattlefieldScene::on_exit(SceneContext& context) {
     scenario_.reset();
 #if GENOMES_HAS_INFANTRY
     battlefield_runtime_.reset();
-    mass_battle_runtime_.reset();
+    mass_battle_session_.reset();
+    simulation_facade_ = nullptr;
     procedural_runtime_.reset();
     procedural_registry_ = {};
     mass_battle_load_stage_ = MassBattleLoadStage::Inactive;
@@ -495,7 +630,7 @@ void BattlefieldScene::advance_mass_battle_loading() {
         mass_battle_load_stage_ = MassBattleLoadStage::CreateSimulation;
         return;
     case MassBattleLoadStage::CreateSimulation: {
-        auto mass = gameplay::InfantryMassBattleRuntime::start(
+        auto mass = gameplay::BattlefieldSession::startMassBattle(
             {.seed = config_.seed, .map_size_m = config_.map_size_m,
              .units_per_team = MassBattleUnitsPerTeam, .fixed_step_seconds = 1.0F / 60.0F}, jobs_);
         if (!mass) {
@@ -504,8 +639,16 @@ void BattlefieldScene::advance_mass_battle_loading() {
             mass_battle_load_stage_ = MassBattleLoadStage::Failed;
             return;
         }
-        mass_battle_runtime_ = std::move(mass.value());
-        mass_battle_runtime_->setSceneEpoch(scene_epoch_);
+        mass_battle_session_ = std::move(mass.value());
+        mass_battle_session_->setSceneEpoch(scene_epoch_);
+        simulation_facade_ = mass_battle_session_.get();
+        if (world_artifacts_ != nullptr &&
+            !mass_battle_session_->bindWorldArtifact(world_artifacts_)) {
+            generation_error_ = "mass battlefield rejected the resolved world terrain";
+            simulation_failed_ = true;
+            mass_battle_load_stage_ = MassBattleLoadStage::Failed;
+            return;
+        }
         // The scene consumes the same immutable simulation facade for both
         // battlefield modes; the concrete runtime remains an implementation
         // detail of the gameplay module.
@@ -565,7 +708,7 @@ void BattlefieldScene::initialize_infantry_animation() {
     if (animation_system_ && infantry_model_artifact_) {
         const std::size_t expected_count = battlefield_runtime_ != nullptr
             ? battlefield_runtime_->presentationSnapshot().states.size()
-            : mass_battle_runtime_ != nullptr ? mass_battle_runtime_->presentationSnapshot().states.size() : 0U;
+            : mass_battle_session_ != nullptr ? mass_battle_session_->presentationSnapshot().states.size() : 0U;
         if (animation_agents_.size() == expected_count) return;
     }
     animation_job_.wait();
@@ -578,7 +721,7 @@ void BattlefieldScene::initialize_infantry_animation() {
     animation_job_ = {};
     pending_animation_context_.reset();
     pending_animation_error_.reset();
-    if ((!battlefield_runtime_ && !mass_battle_runtime_) || !infantry_model_artifact_) {
+    if ((!battlefield_runtime_ && !mass_battle_session_) || !infantry_model_artifact_) {
         return;
     }
     auto animation = infantry::PresentationAnimation::create(64U);
@@ -589,7 +732,7 @@ void BattlefieldScene::initialize_infantry_animation() {
     animation_system_ = std::move(animation.value());
     const std::size_t expected_count = battlefield_runtime_ != nullptr
         ? battlefield_runtime_->presentationSnapshot().states.size()
-        : mass_battle_runtime_->presentationSnapshot().states.size();
+        : mass_battle_session_->presentationSnapshot().states.size();
     animation_agents_.reserve(expected_count);
     const auto add_agent = [this](simulation::EntityId entity,
                                   std::uint8_t animation_variant,
@@ -614,8 +757,8 @@ void BattlefieldScene::initialize_infantry_animation() {
         agent.lod.setTier(infantry::AnimationLOD::Near);
         animation_agents_.push_back(std::move(agent));
     };
-    if (mass_battle_runtime_ != nullptr) {
-        for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+    if (mass_battle_session_ != nullptr) {
+        for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
             add_agent(state.entity, state.animation_variant, state.animation_phase);
         }
     } else {
@@ -643,7 +786,7 @@ void BattlefieldScene::initialize_infantry_animation() {
 }
 
 void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext& context) {
-    if (!animation_system_ || (!battlefield_runtime_ && !mass_battle_runtime_) ||
+    if (!animation_system_ || (!battlefield_runtime_ && !mass_battle_session_) ||
         !infantry_model_artifact_ ||
         animation_agents_.empty()) {
         return;
@@ -663,7 +806,7 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
     const float mid2 = mid_distance * mid_distance;
 
     std::vector<bool> live_selected(animation_agents_.size(), true);
-    if (mass_battle_runtime_ != nullptr && mass_battle_pose_atlas_ready_ &&
+    if (mass_battle_session_ != nullptr && mass_battle_pose_atlas_ready_ &&
         mass_battle_profile_ != MassBattlePresentationProfile::Quality) {
         struct Candidate final {
             std::size_t agent_index{0U};
@@ -673,9 +816,9 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
             std::uint64_t entity_key{0U};
         };
         std::unordered_map<std::uint64_t,
-                           const gameplay::InfantryMassBattleRenderState*> states;
-        states.reserve(mass_battle_runtime_->presentationSnapshot().states.size());
-        for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+                           const gameplay::BattlefieldUnitPresentation*> states;
+        states.reserve(mass_battle_session_->presentationSnapshot().states.size());
+        for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
             states.emplace(state.entity.packed(), &state);
         }
         const auto was_live = [this](simulation::EntityId entity) {
@@ -722,7 +865,7 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
             live_animation_entities_.push_back(
                 animation_agents_[candidate.agent_index].entity);
         }
-    } else if (mass_battle_runtime_ != nullptr) {
+    } else if (mass_battle_session_ != nullptr) {
         live_animation_entities_.clear();
         live_animation_entities_.reserve(animation_agents_.size());
         for (const auto& agent : animation_agents_)
@@ -893,17 +1036,18 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
             // GroundSurfaceQuery retains its legacy void* callback ABI; the
             // adapter never mutates the const height field through that pointer.
             entity.ground_surface = {context.tick.value,
-                                     const_cast<terrain::HeightField*>(terrain_.get()),
+                                     const_cast<gameplay::WorldScenarioArtifact*>(
+                                         world_artifacts_.get()),
                                      sample_battlefield_ground};
             entity.ground_runtime = &agent.ground_runtime;
         }
         entities.push_back(std::move(entity));
     };
-    if (mass_battle_runtime_ != nullptr) {
+    if (mass_battle_session_ != nullptr) {
         std::unordered_map<std::uint64_t,
-                           const gameplay::InfantryMassBattleRenderState*> states;
-        states.reserve(mass_battle_runtime_->presentationSnapshot().states.size());
-        for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+                           const gameplay::BattlefieldUnitPresentation*> states;
+        states.reserve(mass_battle_session_->presentationSnapshot().states.size());
+        for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
             states.emplace(state.entity.packed(), &state);
         }
         for (std::size_t index = 0U; index < animation_agents_.size(); ++index) {
@@ -935,7 +1079,7 @@ void BattlefieldScene::evaluate_infantry_animation(const simulation::TickContext
     if (entities.empty()) {
         // A zero budget returns the whole crowd to atlas poses. Do not keep
         // rendering the previous live selection indefinitely.
-        if (mass_battle_runtime_ != nullptr) {
+        if (mass_battle_session_ != nullptr) {
             animation_poses_.clear();
             mass_battle_evaluated_poses_ = 0U;
             mass_battle_lod_counts_.fill(0U);
@@ -973,7 +1117,7 @@ void BattlefieldScene::publish_infantry_animation_result() {
             snapshot.palettes.reserve(animation_poses_.size());
             for (const auto& pose : animation_poses_) {
                 render::SkinnedBonePalette palette{};
-                if (mass_battle_runtime_ != nullptr) {
+                if (mass_battle_session_ != nullptr) {
                     const foundation::StableId packed_entity = pose.semantic_id ^
                         foundation::stable_id("battlefield.infantry");
                     palette.instance_id = foundation::stable_id("entity.infantry") ^ packed_entity;
@@ -985,7 +1129,7 @@ void BattlefieldScene::publish_infantry_animation_result() {
                 const auto pose_span = std::span<const infantry::RigTransform>(pose.bones);
                 palette.matrices = infantry_presentation::makePalette(
                     infantry_model_artifact_->skeleton, pose_span);
-                if (mass_battle_runtime_ == nullptr) {
+                if (mass_battle_session_ == nullptr) {
                     palette.local_poses = infantry_presentation::makeLocalPoses(
                         infantry_model_artifact_->skeleton, pose_span);
                 }
@@ -996,7 +1140,7 @@ void BattlefieldScene::publish_infantry_animation_result() {
             (void)pose_exchange_.publish(std::move(write.value()));
         }
     }
-    if (mass_battle_runtime_ != nullptr) {
+    if (mass_battle_session_ != nullptr) {
         mass_battle_lod_counts_.fill(0U);
         for (const auto& agent : animation_agents_) {
             const auto index = static_cast<std::size_t>(agent.lod.tier());
@@ -1007,7 +1151,7 @@ void BattlefieldScene::publish_infantry_animation_result() {
 }
 
 void BattlefieldScene::request_mass_battle_pose_atlas() {
-    if (mass_battle_runtime_ == nullptr || mass_battle_pose_atlas_ready_ ||
+    if (mass_battle_session_ == nullptr || mass_battle_pose_atlas_ready_ ||
         mass_battle_pose_atlas_failed_ ||
         mass_battle_atlas_job_.valid() || !infantry_skinned_prototype_ ||
         !infantry_model_artifact_ || animation_poses_.empty()) {
@@ -1026,7 +1170,7 @@ void BattlefieldScene::request_mass_battle_pose_atlas() {
         std::array<std::optional<infantry::AnimationPose>, MassBattlePoseAtlasSize>>();
     std::array<float, MassBattlePoseAtlasSize> sample_errors{};
     sample_errors.fill(std::numeric_limits<float>::max());
-    for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+    for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
         const std::size_t variant = state.animation_variant % MassBattlePoseVariantCount;
         const std::size_t phases = MassBattlePosePhaseCounts[variant];
         const std::size_t bucket = massBattlePoseBucket(variant, state.animation_phase, phases);
@@ -1106,18 +1250,18 @@ void BattlefieldScene::request_mass_battle_pose_atlas() {
 }
 
 void BattlefieldScene::schedule_mass_battle_presentation() {
-    if (mass_battle_runtime_ == nullptr || !infantry_model_artifact_ ||
+    if (mass_battle_session_ == nullptr || !infantry_model_artifact_ ||
         mass_battle_presentation_group_ || ready_mass_battle_presentation_) {
         return;
     }
     const auto states = std::make_shared<
-        const std::vector<gameplay::InfantryMassBattleRenderState>>(
-        mass_battle_runtime_->presentationSnapshot().states);
+        const std::vector<gameplay::BattlefieldUnitPresentation>>(
+        mass_battle_session_->presentationSnapshot().states);
     if (states->empty()) return;
 
     const auto batch = std::make_shared<MassBattlePresentationBatch>();
     batch->states = *states;
-    batch->tick = mass_battle_runtime_->snapshot().tick;
+    batch->tick = mass_battle_session_->presentationSnapshot().metadata.tick;
     const auto ranges = std::make_shared<
         std::vector<std::vector<render::RenderInstance>>>();
     constexpr std::size_t range_size = 128U;
@@ -1231,8 +1375,8 @@ void BattlefieldScene::set_mass_battle_profile(
 std::size_t BattlefieldScene::massBattleUnitCount() const noexcept {
     if (mode_ != BattlefieldSceneMode::InfantryMassBattle) return 0U;
 #if GENOMES_HAS_INFANTRY
-    if (mass_battle_runtime_ != nullptr)
-        return mass_battle_runtime_->presentationSnapshot().states.size();
+    if (mass_battle_session_ != nullptr)
+        return mass_battle_session_->presentationSnapshot().states.size();
 #endif
     // The configured population is also available while the scene is loading.
     return 2U * MassBattleUnitsPerTeam;
@@ -1243,9 +1387,85 @@ std::size_t BattlefieldScene::liveAnimationBudget() const noexcept {
 }
 
 ui::UiActionResult BattlefieldScene::handle_ui_action(
-    SceneContext&, ui::UiActionId action, const ui::UiActionArguments&) {
+    SceneContext& context, ui::UiActionId action, const ui::UiActionArguments&) {
     if (mode_ != BattlefieldSceneMode::InfantryMassBattle) {
         return ui::UiActionResult::Unknown;
+    }
+    if (action == foundation::stable_id("mass-battle.restart")) {
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle, config_);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.generate-new")) {
+        auto next_config = config_;
+        next_config.seed = foundation::stableHashCombine(
+            config_.seed, foundation::stableHashString("mass-battle.generate-new"));
+        if (next_config.seed == 0U) next_config.seed = 1U;
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle,
+            std::move(next_config));
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.next-terrain")) {
+        auto next_config = config_;
+        next_config.terrain.preset = nextTerrainPreset(next_config.terrain.preset);
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle,
+            std::move(next_config));
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.next-terrain-detail")) {
+        auto next_config = config_;
+        next_config.terrain.sample_spacing_m =
+            nextTerrainSampleSpacing(next_config.terrain.sample_spacing_m);
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle,
+            std::move(next_config));
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.next-hydrology")) {
+        auto next_config = config_;
+        next_config.hydrology_mode = nextHydrologyMode(next_config.hydrology_mode);
+        application::enqueueApplicationCommand(
+            context, application::ApplicationCommandKind::OpenMassBattle,
+            std::move(next_config));
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.frame-battle")) {
+        mass_battle_frame_terrain_ = false;
+        if (++mass_battle_camera_revision_ == 0U)
+            mass_battle_camera_revision_ = MassBattleRtsCameraRevision;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.frame-terrain")) {
+        mass_battle_frame_terrain_ = true;
+        if (++mass_battle_camera_revision_ == 0U)
+            mass_battle_camera_revision_ = MassBattleRtsCameraRevision;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-toggle")) {
+        mass_battle_diagnostics_open_ = !mass_battle_diagnostics_open_;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-overview")) {
+        mass_battle_diagnostics_tab_ = MassBattleDiagnosticsTab::Overview;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-terrain")) {
+        mass_battle_diagnostics_tab_ = MassBattleDiagnosticsTab::Terrain;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-hydrology")) {
+        mass_battle_diagnostics_tab_ = MassBattleDiagnosticsTab::Hydrology;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-performance")) {
+        mass_battle_diagnostics_tab_ = MassBattleDiagnosticsTab::Performance;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("mass-battle.diagnostics-units")) {
+        mass_battle_diagnostics_tab_ = MassBattleDiagnosticsTab::Units;
+        return ui::UiActionResult::Handled;
     }
 #if GENOMES_HAS_INFANTRY
     constexpr std::size_t budget_step = 32U;
@@ -1307,30 +1527,26 @@ void BattlefieldScene::fixed_update(SceneContext& scene_context,
     (void)context;
     return;
 #else
-    if (mass_battle_runtime_ != nullptr) {
-        if (scene_context.engine_services == nullptr ||
-            scene_context.engine_services->simulation == nullptr ||
-            !scene_context.engine_services->simulation->advance(context)) {
-            simulation_failed_ = true;
-            generation_error_ = "Mass Battle simulation update failed";
-            return;
-        }
-        evaluate_infantry_animation(context);
+    if (world_artifacts_ == nullptr) {
         return;
     }
-    if (battlefield_runtime_ != nullptr) {
-        if (scene_context.engine_services == nullptr ||
-            scene_context.engine_services->simulation == nullptr ||
-            !scene_context.engine_services->simulation->advance(context)) {
-            generation_error_ = "Battlefield runtime failed during API advance";
-            simulation_failed_ = true;
-        }
-        evaluate_infantry_animation(context);
+    api::SimulationFacade* simulation = simulation_facade_;
+    if (scene_context.engine_services != nullptr &&
+        scene_context.engine_services->simulation != nullptr) {
+        simulation = scene_context.engine_services->simulation;
+    }
+    if (simulation == nullptr) {
+        // The staged mass-battle session has not reached CreateSimulation yet.
         return;
     }
-    // A missing runtime can only mean that start() failed in on_enter().  Do
-    // not fall back to a second ECS/physics/combat owner in the product scene.
-    return;
+    if (!simulation->advance(context)) {
+        generation_error_ = mode_ == BattlefieldSceneMode::InfantryMassBattle
+            ? "Mass Battle simulation update failed"
+            : "Battlefield runtime failed during API advance";
+        simulation_failed_ = true;
+        return;
+    }
+    evaluate_infantry_animation(context);
 #endif
 }
 
@@ -1349,6 +1565,11 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
             generation_error_ = "infantry pose evaluation job failed";
         } else {
             publish_infantry_animation_result();
+            if (context.engine_services != nullptr &&
+                context.engine_services->telemetry != nullptr && animation_system_.has_value()) {
+                context.engine_services->telemetry->animation_duration =
+                    animation_system_->lastStats().evaluation_duration;
+            }
         }
         if (pending && !simulation_failed_) {
             evaluate_infantry_animation(*pending);
@@ -1370,8 +1591,8 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
         }
     }
     advance_mass_battle_loading();
-    if (context.engine_services != nullptr && mass_battle_runtime_ != nullptr) {
-        context.engine_services->simulation = mass_battle_runtime_.get();
+    if (context.engine_services != nullptr && simulation_facade_ != nullptr) {
+        context.engine_services->simulation = simulation_facade_;
     }
     if (context.engine_services != nullptr && context.engine_services->simulation != nullptr) {
         context.requestPresentationSnapshot(
@@ -1424,6 +1645,73 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
     (void)model.set("orientation", mode_ == BattlefieldSceneMode::InfantryMassBattle
         ? "model +Z | blue +X | red -X" : "");
     const double fps = std::isfinite(dt) && dt > 0.0 ? 1.0 / dt : 0.0;
+    (void)model.set("diagnostics_panel_open", mass_battle_diagnostics_open_);
+    (void)model.set("diagnostics_panel_closed", !mass_battle_diagnostics_open_);
+    (void)model.set("diag_tab_overview",
+                    mass_battle_diagnostics_tab_ == MassBattleDiagnosticsTab::Overview);
+    (void)model.set("diag_tab_terrain",
+                    mass_battle_diagnostics_tab_ == MassBattleDiagnosticsTab::Terrain);
+    (void)model.set("diag_tab_hydrology",
+                    mass_battle_diagnostics_tab_ == MassBattleDiagnosticsTab::Hydrology);
+    (void)model.set("diag_tab_performance",
+                    mass_battle_diagnostics_tab_ == MassBattleDiagnosticsTab::Performance);
+    (void)model.set("diag_tab_units",
+                    mass_battle_diagnostics_tab_ == MassBattleDiagnosticsTab::Units);
+    (void)model.set("terrain_preset", std::string{terrainPresetName(config_.terrain.preset)});
+    (void)model.set("terrain_detail", std::to_string(config_.terrain.sample_spacing_m) + " m");
+    (void)model.set("hydrology_mode", std::string{hydrologyModeName(config_.hydrology_mode)});
+    (void)model.set("camera_frame",
+                    std::string{mass_battle_frame_terrain_ ? "Terrain" : "Battle"});
+    (void)model.set("diag_scene_epoch", std::to_string(scene_epoch_));
+    (void)model.set("diag_fps", static_cast<std::int64_t>(fps + 0.5));
+    (void)model.set("diag_draw_calls",
+                    static_cast<std::int64_t>(context.render_telemetry.draw_calls));
+    (void)model.set("diag_mesh_uploads",
+                    static_cast<std::int64_t>(context.render_telemetry.mesh_uploads));
+    (void)model.set("diag_palette_updates",
+                    static_cast<std::int64_t>(context.render_telemetry.palette_updates));
+    (void)model.set("diag_jobs_queued",
+                    static_cast<std::int64_t>(context.scheduler_telemetry.queued));
+    (void)model.set("diag_jobs_running",
+                    static_cast<std::int64_t>(context.scheduler_telemetry.running));
+    (void)model.set("diag_jobs_completed",
+                    static_cast<std::int64_t>(context.scheduler_telemetry.completed));
+    (void)model.set("diag_jobs_canceled",
+                    static_cast<std::int64_t>(context.scheduler_telemetry.canceled));
+    (void)model.set("diag_sim_ms", durationText(context.simulation_duration));
+    (void)model.set("diag_presentation_ms", durationText(context.presentation_duration));
+    (void)model.set("diag_animation_ms", std::string{"0.000"});
+    (void)model.set("diag_extraction_ms", std::string{"0.000"});
+    (void)model.set("diag_gpu_ms", durationText(context.gpu_duration));
+    (void)model.set("diag_stale_snapshots",
+                    static_cast<std::int64_t>(context.rejected_stale_snapshots));
+    (void)model.set("diag_semantic_hash", std::string{"pending"});
+    (void)model.set("diag_world_hash", std::string{"pending"});
+    (void)model.set("diag_world_revision", std::string{"pending"});
+    (void)model.set("diag_terrain_samples", std::string{"pending"});
+    (void)model.set("diag_terrain_mesh", std::string{"pending"});
+    (void)model.set("diag_elevation", std::string{"pending"});
+    (void)model.set("diag_cell_size", std::string{"pending"});
+    (void)model.set("diag_rivers", static_cast<std::int64_t>(0));
+    (void)model.set("diag_crossings", static_cast<std::int64_t>(0));
+    (void)model.set("diag_water_cells", static_cast<std::int64_t>(0));
+    (void)model.set("diag_flood_cells", static_cast<std::int64_t>(0));
+    (void)model.set("diag_tick", static_cast<std::int64_t>(0));
+    (void)model.set("diag_units", static_cast<std::int64_t>(massBattleUnitCount()));
+    (void)model.set("diag_blue_units", static_cast<std::int64_t>(0));
+    (void)model.set("diag_red_units", static_cast<std::int64_t>(0));
+    (void)model.set("diag_average_speed", std::string{"0.0"});
+    (void)model.set("diag_direction_changes", static_cast<std::int64_t>(0));
+    (void)model.set("diag_published_units",
+                    static_cast<std::int64_t>(mass_battle_visible_units_));
+    (void)model.set("diag_atlas_slots",
+                    static_cast<std::int64_t>(mass_battle_active_pose_slots_));
+    (void)model.set("diag_animation_summary",
+        "idle " + std::to_string(mass_battle_archetype_counts_[0U]) +
+        " | walk " + std::to_string(mass_battle_archetype_counts_[1U]) +
+        " | run " + std::to_string(mass_battle_archetype_counts_[2U]) +
+        " | crouch " + std::to_string(mass_battle_archetype_counts_[3U]) +
+        " | prone " + std::to_string(mass_battle_archetype_counts_[5U]));
     std::string diagnostics = "profile " + profile + " | FPS " +
         std::to_string(static_cast<int>(fps + 0.5)) +
         " | draw calls " + std::to_string(context.render_telemetry.draw_calls) +
@@ -1438,6 +1726,19 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
         " | GPU draw calls " + std::to_string(context.render_telemetry.draw_calls);
     if (context.engine_services != nullptr && context.engine_services->telemetry != nullptr) {
         const auto& telemetry = *context.engine_services->telemetry;
+        (void)model.set("diag_sim_ms",
+                        std::to_string(telemetry.simulation_duration.count() / 1'000'000.0));
+        (void)model.set("diag_presentation_ms",
+                        std::to_string(telemetry.presentation_duration.count() / 1'000'000.0));
+        (void)model.set("diag_animation_ms",
+                        std::to_string(telemetry.animation_duration.count() / 1'000'000.0));
+        (void)model.set("diag_extraction_ms",
+                        std::to_string(telemetry.extraction_duration.count() / 1'000'000.0));
+        (void)model.set("diag_gpu_ms",
+                        std::to_string(telemetry.gpu_duration.count() / 1'000'000.0));
+        (void)model.set("diag_stale_snapshots",
+                        static_cast<std::int64_t>(telemetry.rejected_stale_snapshots));
+        (void)model.set("diag_semantic_hash", std::to_string(telemetry.semantic_hash));
         diagnostics += " | sim ms " + std::to_string(
                            telemetry.simulation_duration.count() / 1'000'000.0) +
                        " | presentation ms " + std::to_string(
@@ -1479,8 +1780,8 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
         (void)model.set("map_size", static_cast<std::int64_t>(plan_->map_size_m));
         (void)model.set("features", feature_summary(*plan_));
 #if GENOMES_HAS_INFANTRY
-        const std::size_t infantry_count = mass_battle_runtime_ != nullptr
-                                                ? mass_battle_runtime_->presentationSnapshot().states.size()
+        const std::size_t infantry_count = mass_battle_session_ != nullptr
+                                                ? mass_battle_session_->presentationSnapshot().states.size()
                                                 : battlefield_runtime_ != nullptr
                                                     ? battlefield_runtime_->presentationSnapshot().states.size()
                                                     : 0U;
@@ -1489,12 +1790,20 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
 #endif
         (void)model.set("units", static_cast<std::int64_t>(infantry_count));
 #if GENOMES_HAS_INFANTRY
-        if (mass_battle_runtime_ != nullptr) {
-            const auto& mass = mass_battle_runtime_->snapshot();
-            (void)model.set("viability", "Mass battle: tick " + std::to_string(mass.tick) +
-                                " units " + std::to_string(mass.total_units) +
-                                " avg speed " + std::to_string(mass.average_speed_mps) +
-                                " m/s turns " + std::to_string(mass.direction_changes));
+        if (const auto mass = mass_battle_session_ != nullptr
+                                  ? mass_battle_session_->massBattleSnapshot()
+                                  : std::optional<gameplay::InfantryMassBattleSnapshot>{}; mass) {
+            (void)model.set("diag_tick", static_cast<std::int64_t>(mass->tick));
+            (void)model.set("diag_units", static_cast<std::int64_t>(mass->total_units));
+            (void)model.set("diag_blue_units", static_cast<std::int64_t>(mass->blue_units));
+            (void)model.set("diag_red_units", static_cast<std::int64_t>(mass->red_units));
+            (void)model.set("diag_average_speed", std::to_string(mass->average_speed_mps));
+            (void)model.set("diag_direction_changes",
+                            static_cast<std::int64_t>(mass->direction_changes));
+            (void)model.set("viability", "Mass battle: tick " + std::to_string(mass->tick) +
+                                " units " + std::to_string(mass->total_units) +
+                                " avg speed " + std::to_string(mass->average_speed_mps) +
+                                " m/s turns " + std::to_string(mass->direction_changes));
         } else if (battlefield_runtime_ != nullptr) {
             const auto& viability = battlefield_runtime_->snapshot();
             (void)model.set("viability", "Combat slice: tick " + std::to_string(viability.tick) +
@@ -1510,6 +1819,26 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
         (void)model.set("elevation", "Elevation: " + std::to_string(terrain_min_height_) + " .. " +
                             std::to_string(terrain_max_height_) + " m");
         (void)model.set("hash", static_cast<std::int64_t>(plan_->content_hash));
+        (void)model.set("diag_world_hash", std::to_string(plan_->content_hash));
+        (void)model.set("diag_world_revision",
+                        std::to_string(world::artifactRevision(*plan_)));
+        (void)model.set("diag_terrain_samples",
+                        std::to_string(terrain_->width()) + " x " +
+                        std::to_string(terrain_->height()));
+        (void)model.set("diag_terrain_mesh",
+                        std::to_string(terrain_mesh_->vertices.size()) + " vertices | " +
+                        std::to_string(terrain_mesh_->triangle_count()) + " triangles");
+        (void)model.set("diag_elevation", std::to_string(terrain_min_height_) + " .. " +
+                                               std::to_string(terrain_max_height_) + " m");
+        (void)model.set("diag_cell_size", std::to_string(terrain_->cellSize()) + " m");
+        (void)model.set("diag_rivers",
+                        static_cast<std::int64_t>(plan_->hydrology.rivers.size()));
+        (void)model.set("diag_crossings",
+                        static_cast<std::int64_t>(plan_->hydrology.crossings.size()));
+        (void)model.set("diag_water_cells",
+                        static_cast<std::int64_t>(hydrology_water_cells_));
+        (void)model.set("diag_flood_cells",
+                        static_cast<std::int64_t>(hydrology_flood_cells_));
         (void)model.set("status",
             mode_ == BattlefieldSceneMode::InfantryMassBattle &&
                     mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
@@ -1530,7 +1859,7 @@ void BattlefieldScene::frame_update(SceneContext& context, double dt) {
     }
 #if GENOMES_HAS_INFANTRY
     if (mode_ == BattlefieldSceneMode::InfantryMassBattle &&
-        mass_battle_runtime_ != nullptr && infantry_model_artifact_ != nullptr &&
+        mass_battle_session_ != nullptr && infantry_model_artifact_ != nullptr &&
         mass_battle_profile_ != MassBattlePresentationProfile::Quality &&
         !mass_battle_pose_atlas_ready_) {
         (void)model.set("status", mass_battle_pose_atlas_failed_
@@ -1593,8 +1922,18 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     }
  #if GENOMES_HAS_INFANTRY
     if (battlefield_runtime_ != nullptr &&
-        !battlefield_runtime_->bindWorldArtifactRevision(world_artifacts_->revision)) {
+        !battlefield_runtime_->bindWorldArtifact(world_artifacts_)) {
         generation_error_ = "battlefield consumers rejected the resolved world revision";
+        plan_.reset();
+        world_artifacts_.reset();
+        terrain_.reset();
+        terrain_mesh_.reset();
+        resolved_buildings_.reset();
+        return;
+    }
+    if (mass_battle_session_ != nullptr &&
+        !mass_battle_session_->bindWorldArtifact(world_artifacts_)) {
+        generation_error_ = "mass battlefield rejected the resolved world terrain";
         plan_.reset();
         world_artifacts_.reset();
         terrain_.reset();
@@ -1634,6 +1973,15 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
         camera_request_.rts.target_max = {camera_map_size * 0.5F - 16.0F,
                                           camera_map_size * 0.5F - 16.0F};
     }
+    terrain_min_height_ = std::numeric_limits<float>::max();
+    terrain_max_height_ = std::numeric_limits<float>::lowest();
+    for (std::uint32_t z = 0; z < terrain_->height(); ++z) {
+        for (std::uint32_t x = 0; x < terrain_->width(); ++x) {
+            const float height = terrain_->at(x, z);
+            terrain_min_height_ = std::min(terrain_min_height_, height);
+            terrain_max_height_ = std::max(terrain_max_height_, height);
+        }
+    }
     auto render_mesh = std::make_shared<render::RenderMesh>();
     render_mesh->mesh_id = foundation::stable_id("mesh.world.terrain");
     render_mesh->revision = world::artifactRevision(*plan_);
@@ -1641,7 +1989,9 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     render_mesh->indices = terrain_mesh_->indices;
     for (const terrain::TerrainMeshVertex& vertex : terrain_mesh_->vertices) {
         render_mesh->vertices.push_back({vertex.position, vertex.normal, vertex.uv,
-                                         {0.19F, 0.42F, 0.22F, 1.0F}});
+                                         terrainSurfaceColor(vertex, *plan_,
+                                                             terrain_min_height_,
+                                                             terrain_max_height_)});
     }
     render_terrain_mesh_ = std::move(render_mesh);
     const auto world_mesh_result = world_render::WorldMeshCompiler::compile(
@@ -1661,25 +2011,33 @@ void BattlefieldScene::finalize_plan(world::WorldPlan plan) {
     // presentation consumes its immutable published presentation snapshot.
     initialize_infantry_animation();
 #endif
-    terrain_min_height_ = std::numeric_limits<float>::max();
-    terrain_max_height_ = std::numeric_limits<float>::lowest();
-    for (std::uint32_t z = 0; z < terrain_->height(); ++z) {
-        for (std::uint32_t x = 0; x < terrain_->width(); ++x) {
-            const float height = terrain_->at(x, z);
-            terrain_min_height_ = std::min(terrain_min_height_, height);
-            terrain_max_height_ = std::max(terrain_max_height_, height);
-        }
-    }
+    hydrology_water_cells_ = static_cast<std::size_t>(std::count_if(
+        plan_->hydrology.water_mask.begin(), plan_->hydrology.water_mask.end(),
+        [](std::uint8_t value) { return value != 0U; }));
+    hydrology_flood_cells_ = static_cast<std::size_t>(std::count_if(
+        plan_->hydrology.flood_mask.begin(), plan_->hydrology.flood_mask.end(),
+        [](std::uint8_t value) { return value != 0U; }));
 }
 
 void BattlefieldScene::build_presentation(SceneContext& context) {
 #if GENOMES_HAS_INFANTRY
-    if (mass_battle_runtime_ != nullptr && !mass_battle_runtime_->presentationSnapshot().states.empty()) {
+    if (mass_battle_session_ != nullptr && mass_battle_frame_terrain_ && terrain_ != nullptr) {
+        const foundation::Vec3 center{0.0F, terrain_->sampleBilinear(0.0, 0.0) + 2.0F, 0.0F};
+        constexpr float initial_pitch = 0.558505361F;
+        const float half_extent = static_cast<float>(config_.map_size_m) * 0.5F;
+        const float distance = std::clamp(
+            half_extent / std::tan(camera_request_.lens.vertical_fov * 0.5F),
+            rts_controls_.min_distance, rts_controls_.max_distance);
+        camera_request_.target = center;
+        camera_request_.position = {center.x, center.y + std::sin(initial_pitch) * distance,
+                                    center.z + std::cos(initial_pitch) * distance};
+    } else if (mass_battle_session_ != nullptr &&
+               !mass_battle_session_->presentationSnapshot().states.empty()) {
         foundation::Vec3 minimum{std::numeric_limits<float>::max(),0.0F,
                                  std::numeric_limits<float>::max()};
         foundation::Vec3 maximum{std::numeric_limits<float>::lowest(),0.0F,
                                  std::numeric_limits<float>::lowest()};
-        for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+        for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
             minimum.x=std::min(minimum.x,state.position.x);
             minimum.z=std::min(minimum.z,state.position.z);
             maximum.x=std::max(maximum.x,state.position.x);
@@ -1697,15 +2055,16 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
         camera_request_.target = center;
         camera_request_.position = {center.x,center.y+std::sin(initial_pitch)*distance,
                                     center.z+std::cos(initial_pitch)*distance};
-        context.presentation.camera.revision=MassBattleRtsCameraRevision;
     }
+    if (mass_battle_session_ != nullptr)
+        context.presentation.camera.revision = mass_battle_camera_revision_;
 #endif
     context.publishCameraRequest(camera_request_);
     context.presentation.terrain_mesh = render_terrain_mesh_;
     context.presentation.world_mesh = render_world_mesh_;
     if (!plan_) {
 #if GENOMES_HAS_INFANTRY
-        if (mass_battle_runtime_ == nullptr)
+        if (mass_battle_session_ == nullptr)
 #endif
         {
             render_infantry_mesh_.reset();
@@ -1714,7 +2073,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
     }
 
 #if GENOMES_HAS_INFANTRY
-    if (battlefield_runtime_ != nullptr || mass_battle_runtime_ != nullptr) {
+    if (battlefield_runtime_ != nullptr || mass_battle_session_ != nullptr) {
         if (infantry_model_artifact_) {
             if (!infantry_skinned_prototype_) {
                 infantry_skinned_prototype_ = infantry_presentation::makePrototype(
@@ -1729,7 +2088,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 const auto bind_local_poses = infantry_presentation::makeLocalPoses(
                     infantry_model_artifact_->skeleton, {});
                 const bool mass_battle_atlas_requested =
-                    mass_battle_runtime_ != nullptr &&
+                    mass_battle_session_ != nullptr &&
                     mass_battle_profile_ != MassBattlePresentationProfile::Quality;
                 const bool mass_battle_atlas = mass_battle_atlas_requested &&
                                                mass_battle_pose_atlas_ready_;
@@ -1741,7 +2100,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 std::unordered_map<foundation::StableId,
                                    const render::SkinnedBonePalette*> published_palettes;
                 bool received_new_pose = false;
-                if (mass_battle_runtime_ != nullptr) {
+                if (mass_battle_session_ != nullptr) {
                     auto latest_pose = pose_exchange_.acquireLatestRead();
                     if (latest_pose) {
                         pose_read.emplace(std::move(latest_pose.value()));
@@ -1787,7 +2146,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                 // then fall back to the immutable atlas (handled above) or a
                 // bind palette. This never blocks the frame thread and avoids
                 // replaying unboundedly stale animation data.
-                if (mass_battle_runtime_ != nullptr && pose_stall_frames_ >= 8U &&
+                if (mass_battle_session_ != nullptr && pose_stall_frames_ >= 8U &&
                     !mass_battle_atlas) {
                     poses.clear();
                     published_palettes.clear();
@@ -1824,9 +2183,9 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     foundation::stable_id("material.infantry.blue");
                 const foundation::StableId red_material =
                     foundation::stable_id("material.infantry.red");
-                if (mass_battle_runtime_ != nullptr) {
+                if (mass_battle_session_ != nullptr) {
                     mass_battle_archetype_counts_.fill(0U);
-                    for (const auto& state : mass_battle_runtime_->presentationSnapshot().states) {
+                    for (const auto& state : mass_battle_session_->presentationSnapshot().states) {
                         const auto index = massBattleArchetypeIndex(state.animation_variant);
                         if (index < mass_battle_archetype_counts_.size()) {
                             ++mass_battle_archetype_counts_[index];
@@ -1834,7 +2193,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                     }
                 }
                 if (mass_battle_atlas) {
-                    const auto& states=mass_battle_runtime_->presentationSnapshot().states;
+                    const auto& states=mass_battle_session_->presentationSnapshot().states;
                     context.presentation.instances.reserve(
                         context.presentation.instances.size()+states.size());
                     const foundation::Vec3 camera_position=context.presentation.camera.enabled
@@ -1917,7 +2276,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                              presentation_position,
                              {state.height/model_height,state.height/model_height,state.height/model_height},
                              infantryPresentationYaw(state.heading),
-                             mass_battle_runtime_->snapshot().tick,flags,
+                             mass_battle_session_->presentationSnapshot().metadata.tick,flags,
                              state.team==infantry::Team::Red
                                  ? foundation::Color{1.0F,0.78F,0.72F,1.0F}
                                  : foundation::Color{0.78F,0.87F,1.0F,1.0F}});
@@ -1954,7 +2313,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                         // retaining a second local-space copy for every one
                         // of 2000 units only duplicates the same skeleton
                         // contract and creates avoidable allocator churn.
-                        if (mass_battle_runtime_ == nullptr) {
+                        if (mass_battle_session_ == nullptr) {
                             palette.local_poses=infantry_presentation::makeLocalPoses(
                                 infantry_model_artifact_->skeleton,pose_span);
                         }
@@ -1988,7 +2347,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                              ? foundation::Color{1.0F, 0.78F, 0.72F, 1.0F}
                              : foundation::Color{0.78F, 0.87F, 1.0F, 1.0F}});
                 };
-                if (mass_battle_runtime_ != nullptr) {
+                if (mass_battle_session_ != nullptr) {
                     const bool balanced_atlas_warmup =
                         mass_battle_profile_ == MassBattlePresentationProfile::Balanced &&
                         mass_battle_atlas_requested && !mass_battle_pose_atlas_ready_;
@@ -2030,7 +2389,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                         ready_mass_battle_presentation_.reset();
                         return;
                     }
-                    const auto& states = mass_battle_runtime_->presentationSnapshot().states;
+                    const auto& states = mass_battle_session_->presentationSnapshot().states;
                     context.presentation.instances.reserve(
                         context.presentation.instances.size() + states.size());
                     context.presentation.skinned_palettes.reserve(
@@ -2074,7 +2433,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                                  {state.height / model_height, state.height / model_height,
                                   state.height / model_height},
                                  infantryPresentationYaw(state.heading),
-                                 mass_battle_runtime_->snapshot().tick, flags,
+                                 mass_battle_session_->presentationSnapshot().metadata.tick, flags,
                                  state.team == infantry::Team::Red
                                      ? foundation::Color{1.0F, 0.78F, 0.72F, 1.0F}
                                      : foundation::Color{0.78F, 0.87F, 1.0F, 1.0F}});
@@ -2082,7 +2441,7 @@ void BattlefieldScene::build_presentation(SceneContext& context) {
                             const auto palette_found = published_palettes.find(
                                 foundation::stable_id("entity.infantry") ^ state.entity.packed());
                             publish_live(state.entity, state.team, position, state.heading,
-                                         state.height, mass_battle_runtime_->snapshot().tick,
+                                         state.height, mass_battle_session_->presentationSnapshot().metadata.tick,
                                          pose_found != poses.end() ? pose_found->second : nullptr,
                                          palette_found != published_palettes.end()
                                              ? palette_found->second : nullptr);

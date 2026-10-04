@@ -238,5 +238,87 @@ int main() {
     assert(baseline_commanded.fixedUpdate(command_tick_two));
     assert(commanded.simulationSnapshot().semantic_hash !=
            baseline_commanded.simulationSnapshot().semantic_hash);
+
+    auto world_command_result = Runtime::start(command_config);
+    auto world_baseline_result = Runtime::start(command_config);
+    assert(world_command_result && world_baseline_result);
+    Runtime& world_commanded = *world_command_result.value();
+    Runtime& world_baseline = *world_baseline_result.value();
+    constexpr std::array<std::uint8_t, 3U> weather_value{4U, 2U, 7U};
+    const std::array world_values{api::EncodedValue::string("weather.phase"),
+                                  api::EncodedValue::binary(weather_value)};
+    api::CommandEnvelope world_set{};
+    world_set.module = foundation::stable_id("module.world");
+    world_set.verb = foundation::stable_id("world.set");
+    world_set.target_tick = foundation::SimulationTick{2U};
+    world_set.source = foundation::stable_id("test.world");
+    world_set.payload = api::EncodedValue::tuple(world_values);
+    assert(world_set.payload.valid());
+    assert(world_commanded.submit(std::move(world_set)).accepted);
+    assert(world_commanded.fixedUpdate(command_tick_one));
+    assert(world_baseline.fixedUpdate(command_tick_one));
+    assert(world_commanded.simulationSnapshot().semantic_hash ==
+           world_baseline.simulationSnapshot().semantic_hash);
+    const auto immutable_view = world_commanded.snapshotView();
+    assert(immutable_view.owner && immutable_view.tick.value == 1U && !immutable_view.bytes.empty());
+    const std::vector<std::uint8_t> immutable_bytes{immutable_view.bytes.begin(),
+                                                     immutable_view.bytes.end()};
+    assert(world_commanded.fixedUpdate(command_tick_two));
+    assert(world_baseline.fixedUpdate(command_tick_two));
+    const std::vector<std::uint8_t> retained_bytes{immutable_view.bytes.begin(),
+                                                   immutable_view.bytes.end()};
+    assert(retained_bytes == immutable_bytes);
+    const auto weather = world_commanded.query(
+        foundation::stable_id("world.query"), api::EncodedValue::string("weather.phase"));
+    assert(weather.owner && weather.tick.value == 2U);
+    const std::vector<std::uint8_t> queried_weather{weather.bytes.begin(), weather.bytes.end()};
+    assert(queried_weather == std::vector<std::uint8_t>({4U, 2U, 7U}));
+    assert(world_commanded.simulationSnapshot().semantic_hash !=
+           world_baseline.simulationSnapshot().semantic_hash);
+
+    const auto runConcurrentWorldCommands = [&](std::uint32_t worker_count) {
+        jobs::JobSystem command_jobs(worker_count);
+        auto runtime_result = Runtime::start(command_config, &command_jobs);
+        assert(runtime_result);
+        auto& runtime = *runtime_result.value();
+        constexpr std::array<std::uint8_t, 1U> first_value{1U};
+        constexpr std::array<std::uint8_t, 1U> second_value{2U};
+        constexpr std::array<std::uint8_t, 1U> third_value{3U};
+        const std::array values{api::EncodedValue::binary(first_value),
+                                api::EncodedValue::binary(second_value),
+                                api::EncodedValue::binary(third_value)};
+        std::array<api::CommandEnvelope, 3U> commands{};
+        // Submission order is deliberately not source order. The envelope
+        // key, rather than worker scheduling, chooses the final value.
+        for (std::size_t index = 0U; index < commands.size(); ++index) {
+            commands[index].module = foundation::stable_id("module.world");
+            commands[index].verb = foundation::stable_id("world.set");
+            commands[index].target_tick = foundation::SimulationTick{2U};
+            commands[index].source = std::array<foundation::StableId, 3U>{30U, 10U, 20U}[index];
+            commands[index].sequence = 100U + index;
+            const std::array payload{api::EncodedValue::string("weather.phase"), values[index]};
+            commands[index].payload = api::EncodedValue::tuple(payload);
+        }
+        std::array<jobs::JobHandle, 3U> submissions{};
+        for (std::size_t index = 0U; index < commands.size(); ++index) {
+            submissions[index] = command_jobs.submit(
+                [&runtime, command = commands[index]](jobs::JobContext&) mutable {
+                    (void)runtime.submit(std::move(command));
+                });
+        }
+        for (const jobs::JobHandle& submission : submissions) submission.wait();
+        assert(runtime.fixedUpdate(command_tick_one));
+        assert(runtime.fixedUpdate(command_tick_two));
+        const auto phase = runtime.query(foundation::stable_id("world.query"),
+                                         api::EncodedValue::string("weather.phase"));
+        const std::vector<std::uint8_t> phase_bytes{phase.bytes.begin(), phase.bytes.end()};
+        assert(phase_bytes == std::vector<std::uint8_t>({1U}));
+        return runtime.simulationSnapshot().semantic_hash;
+    };
+    const std::uint64_t one_worker_command_hash = runConcurrentWorldCommands(1U);
+    const std::uint64_t two_worker_command_hash = runConcurrentWorldCommands(2U);
+    const std::uint64_t four_worker_command_hash = runConcurrentWorldCommands(4U);
+    assert(one_worker_command_hash == two_worker_command_hash);
+    assert(one_worker_command_hash == four_worker_command_hash);
     return 0;
 }

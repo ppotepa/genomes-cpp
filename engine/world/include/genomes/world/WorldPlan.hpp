@@ -8,6 +8,7 @@
 #include <genomes/world/BuildingSite.hpp>
 #include <genomes/world/CityPlan.hpp>
 #include <genomes/world/GridLayout.hpp>
+#include <genomes/world/LandscapeConfig.hpp>
 
 #include <array>
 #include <cmath>
@@ -17,7 +18,7 @@
 
 namespace genomes::world {
 
-inline constexpr std::uint32_t WorldGeneratorVersion = 2;
+inline constexpr std::uint32_t WorldGeneratorVersion = 8;
 inline constexpr std::uint32_t WorldStageFingerprintVersion = 1;
 
 enum class WorldFeatureKind : std::uint8_t {
@@ -60,6 +61,8 @@ struct WorldGenerationRequest final {
     float fenced_parcels{0.0F};
     hydrology::HydrologyMode hydrology_mode{hydrology::HydrologyMode::Off};
     float river_probability{0.0F};
+    TerrainGenerationConfig terrain{};
+    HydrologyGenerationConfig hydrology{};
 
     [[nodiscard]] bool valid() const noexcept {
         const auto valid_density = [](float value) {
@@ -70,10 +73,12 @@ struct WorldGenerationRequest final {
             hydrology_mode == hydrology::HydrologyMode::SeededOptional ||
             hydrology_mode == hydrology::HydrologyMode::Forced;
         return seed != 0U && map_size_m >= 128 && map_size_m <= 4096 && map_size_m % 8U == 0U &&
+               map_size_m % terrain.sample_spacing_m == 0U &&
                valid_density(vegetation) &&
                valid_density(buildings) && valid_density(fenced_parcels) &&
                std::isfinite(river_probability) && river_probability >= 0.0F &&
-               river_probability <= 1.0F && valid_hydrology_mode;
+               river_probability <= 1.0F && valid_hydrology_mode && terrain.valid() &&
+               hydrology.valid();
     }
 };
 

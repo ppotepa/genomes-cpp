@@ -51,6 +51,31 @@ template <typename T>
     return numberText(static_cast<int>(std::lround(value * 100.0F))) + "%";
 }
 
+[[nodiscard]] std::string terrainPresetLabel(world::TerrainPreset preset) {
+    switch (preset) {
+    case world::TerrainPreset::Plains: return "plains";
+    case world::TerrainPreset::RollingHills: return "rolling hills";
+    case world::TerrainPreset::Highlands: return "highlands";
+    case world::TerrainPreset::RiverValley: return "river valley";
+    }
+    return "invalid";
+}
+
+[[nodiscard]] std::string terrainPresetValue(world::TerrainPreset preset) {
+    if (preset == world::TerrainPreset::RollingHills) return "rolling-hills";
+    if (preset == world::TerrainPreset::RiverValley) return "river-valley";
+    return terrainPresetLabel(preset);
+}
+
+[[nodiscard]] std::string hydrologyModeValue(hydrology::HydrologyMode mode) {
+    switch (mode) {
+    case hydrology::HydrologyMode::Off: return "off";
+    case hydrology::HydrologyMode::SeededOptional: return "seeded-optional";
+    case hydrology::HydrologyMode::Forced: return "forced";
+    }
+    return "off";
+}
+
 [[nodiscard]] std::string entryLabel(
     WorldConfigEntry entry, const application::WorldGenerationConfig& config,
     const application::WorldSeedInput& seed_input) {
@@ -62,7 +87,7 @@ template <typename T>
         return "Map size: " + numberText(config.map_size_m) + " x " +
                numberText(config.map_size_m) + " m";
     case WorldConfigEntry::Preset:
-        return "Preset: village with settlement";
+        return "Terrain: " + terrainPresetLabel(config.terrain.preset);
     case WorldConfigEntry::Hydrology:
         switch (config.hydrology_mode) {
         case hydrology::HydrologyMode::Off:
@@ -153,6 +178,21 @@ void WorldConfigScene::frame_update(SceneContext& context, double) {
     size.options = {{"400", "400m", true}, {"600", "600m", true},
                     {"800", "800m", true}, {"1200", "1200m", true}};
     (void)model.set_field("map_size", std::move(size));
+    ui::UiFieldState terrain_preset{};
+    terrain_preset.value = terrainPresetValue(state_.config.terrain.preset);
+    terrain_preset.commit_policy = ui::UiCommitPolicy::OnChange;
+    terrain_preset.options = {{"plains", "Plains", true},
+                              {"rolling-hills", "Rolling hills", true},
+                              {"highlands", "Highlands", true},
+                              {"river-valley", "River valley", true}};
+    (void)model.set_field("terrain_preset", std::move(terrain_preset));
+    ui::UiFieldState hydrology_mode{};
+    hydrology_mode.value = hydrologyModeValue(state_.config.hydrology_mode);
+    hydrology_mode.commit_policy = ui::UiCommitPolicy::OnChange;
+    hydrology_mode.options = {{"off", "Off", true},
+                              {"seeded-optional", "Sometimes", true},
+                              {"forced", "Always", true}};
+    (void)model.set_field("hydrology_mode", std::move(hydrology_mode));
     ui::UiFieldState vegetation{}; vegetation.value = static_cast<double>(state_.config.vegetation);
     vegetation.commit_policy = ui::UiCommitPolicy::Live; vegetation.minimum = 0.0; vegetation.maximum = 1.0; vegetation.step = 0.05;
     (void)model.set_field("vegetation", std::move(vegetation));
@@ -194,6 +234,26 @@ ui::UiActionResult WorldConfigScene::handle_ui_action(
         if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) return ui::UiActionResult::Rejected;
         if (size != 400U && size != 600U && size != 800U && size != 1200U) return ui::UiActionResult::Rejected;
         state_.config.map_size_m = static_cast<std::uint32_t>(size);
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("world.terrain-preset")) {
+        if (value == "plains") state_.config.terrain.preset = world::TerrainPreset::Plains;
+        else if (value == "rolling-hills")
+            state_.config.terrain.preset = world::TerrainPreset::RollingHills;
+        else if (value == "highlands")
+            state_.config.terrain.preset = world::TerrainPreset::Highlands;
+        else if (value == "river-valley")
+            state_.config.terrain.preset = world::TerrainPreset::RiverValley;
+        else return ui::UiActionResult::Rejected;
+        return ui::UiActionResult::Handled;
+    }
+    if (action == foundation::stable_id("world.hydrology-mode")) {
+        if (value == "off") state_.config.hydrology_mode = hydrology::HydrologyMode::Off;
+        else if (value == "seeded-optional")
+            state_.config.hydrology_mode = hydrology::HydrologyMode::SeededOptional;
+        else if (value == "forced")
+            state_.config.hydrology_mode = hydrology::HydrologyMode::Forced;
+        else return ui::UiActionResult::Rejected;
         return ui::UiActionResult::Handled;
     }
     if (action == foundation::stable_id("world.vegetation") ||
@@ -284,7 +344,13 @@ void WorldConfigScene::adjust(int direction) noexcept {
         state_.config.hydrology_mode = static_cast<hydrology::HydrologyMode>(mode);
         break;
     }
-    case WorldConfigEntry::Preset:
+    case WorldConfigEntry::Preset: {
+        constexpr int preset_count = 4;
+        int preset = static_cast<int>(state_.config.terrain.preset);
+        preset = (preset + direction + preset_count) % preset_count;
+        state_.config.terrain.preset = static_cast<world::TerrainPreset>(preset);
+        break;
+    }
     case WorldConfigEntry::Start:
     case WorldConfigEntry::Back:
     case WorldConfigEntry::Count:

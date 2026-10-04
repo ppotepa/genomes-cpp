@@ -409,7 +409,7 @@ if(NOT battlefield_scene_source MATCHES "jobs_ = context.scheduler")
     message(FATAL_ERROR
             "BattlefieldScene must use the application-owned scheduler")
 endif()
-if(NOT battlefield_scene_source MATCHES "engine_services->simulation->advance")
+if(NOT battlefield_scene_source MATCHES "simulation->advance")
     message(FATAL_ERROR
             "BattlefieldScene does not dispatch its authoritative simulation facade")
 endif()
@@ -421,13 +421,13 @@ if(NOT battlefield_scene_source MATCHES "battlefield_runtime_->presentationSnaps
     message(FATAL_ERROR
             "BattlefieldScene must consume the BattlefieldRuntime presentation snapshot")
 endif()
-if(battlefield_scene_source MATCHES "mass_battle_runtime_->renderStates\(\)")
+if(battlefield_scene_source MATCHES "InfantryMassBattleRuntime")
     message(FATAL_ERROR
-            "BattlefieldScene must consume Mass Battle presentation snapshots")
+            "BattlefieldScene must not depend on the Mass Battle runtime type")
 endif()
-if(NOT battlefield_scene_source MATCHES "mass_battle_runtime_->presentationSnapshot\(\)")
+if(NOT battlefield_scene_source MATCHES "mass_battle_session_->presentationSnapshot\(\)")
     message(FATAL_ERROR
-            "BattlefieldScene must consume the Mass Battle presentation snapshot")
+            "BattlefieldScene must consume the Mass Battle session presentation snapshot")
 endif()
 if(battlefield_scene_source MATCHES "WeaponHandlingSystem|weapon_handling_\\.step")
     message(FATAL_ERROR

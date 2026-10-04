@@ -12,16 +12,21 @@
 #include <genomes/simulation/EntityStore.hpp>
 #include <genomes/simulation/EntityController.hpp>
 #include <genomes/simulation/SimulationSnapshot.hpp>
+#include <genomes/world/WorldArtifactRevision.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <map>
+#include <string>
 #include <vector>
 
 #if GENOMES_HAS_INFANTRY
 
 namespace genomes::gameplay {
+
+struct ResolvedWorldArtifacts;
 
 struct InfantryMassBattleConfig final {
     std::uint64_t seed{0x1F4A77U};
@@ -86,12 +91,28 @@ public:
         return {foundation::SimulationTick{simulation_snapshot_.metadata.tick},
                 simulation_snapshot_.metadata.scene_epoch,
                 simulation_snapshot_.semantic_hash,
+                api_snapshot_bytes_ ? std::span<const std::uint8_t>{*api_snapshot_bytes_}
+                                    : std::span<const std::uint8_t>{},
                 api_snapshot_bytes_};
     }
     [[nodiscard]] api::SnapshotView query(api::ApiId query_id,
-                                          const api::EncodedValue&) const override {
-        return query_id == foundation::stable_id("world.snapshot") ? snapshotView()
-                                                                      : api::SnapshotView{};
+                                          const api::EncodedValue& arguments) const override {
+        if (query_id == foundation::stable_id("world.snapshot")) {
+            return snapshotView();
+        }
+        if (query_id == foundation::stable_id("world.query") &&
+            arguments.type == api::ValueType::String && arguments.valid()) {
+            const auto key = arguments.asString();
+            if (!key || !api_world_snapshot_values_) return {};
+            const auto found = api_world_snapshot_values_->find(*key);
+            if (found == api_world_snapshot_values_->end()) return {};
+            auto result = std::make_shared<const std::vector<std::uint8_t>>(found->second);
+            return {foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+                    simulation_snapshot_.metadata.scene_epoch,
+                    simulation_snapshot_.semantic_hash,
+                    std::span<const std::uint8_t>{*result}, std::move(result)};
+        }
+        return {};
     }
 
     void setSceneEpoch(std::uint64_t epoch) noexcept {
@@ -108,7 +129,8 @@ public:
         if (simulation_snapshot_.metadata.tick != 0U &&
             simulation_snapshot_.metadata.scene_epoch < next_epoch) {
             simulation_snapshot_ = {};
-            api_snapshot_bytes_.clear();
+            api_snapshot_bytes_.reset();
+            api_world_snapshot_values_.reset();
         }
     }
 
@@ -133,6 +155,9 @@ public:
         return simulation_snapshot_exchange_;
     }
     [[nodiscard]] const simulation::EntityStore& entities() const noexcept { return entities_; }
+    [[nodiscard]] bool bindWorldArtifact(
+        std::shared_ptr<const ResolvedWorldArtifacts> artifact) noexcept;
+    [[nodiscard]] world::WorldArtifactRevision worldArtifactRevision() const noexcept;
 
 private:
     struct Unit final {
@@ -184,11 +209,17 @@ private:
     InfantryMassBattlePresentationSnapshotExchange presentation_snapshot_exchange_{};
     simulation::SimulationSnapshot simulation_snapshot_;
     simulation::SimulationSnapshotExchange simulation_snapshot_exchange_{};
-    std::vector<std::uint8_t> api_snapshot_bytes_;
+    std::shared_ptr<const std::vector<std::uint8_t>> api_snapshot_bytes_;
     InfantryMassBattleSnapshot snapshot_{};
     std::uint64_t scene_epoch_{0U};
     api::CommandQueue api_commands_{};
+    // Opaque module-owned values accepted through world.set.  The map keeps
+    // stable key order so the published semantic hash is worker-independent.
+    std::map<std::string, std::vector<std::uint8_t>, std::less<>> api_world_values_;
+    std::shared_ptr<const std::map<std::string, std::vector<std::uint8_t>, std::less<>>>
+        api_world_snapshot_values_;
     jobs::JobSystem* jobs_{nullptr};
+    std::shared_ptr<const ResolvedWorldArtifacts> world_artifact_;
 };
 
 } // namespace genomes::gameplay

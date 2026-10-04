@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "id": "world-generation-default",
   "default_seed": 1592598566,
   "map_size_m": 600,
@@ -7,5 +7,26 @@
   "buildings": 0.55,
   "fenced_parcels": 0.48,
   "hydrology_mode": "seeded-optional",
-  "river_probability": 0.35
+  "river_probability": 0.35,
+  "terrain": {
+    "preset": "rolling-hills",
+    "sample_spacing_m": 8,
+    "elevation_range_m": 70.0,
+    "landform_scale_m": 600.0,
+    "roughness": 0.35
+  },
+  "hydrology": {
+    "main_river_min": 0,
+    "main_river_max": 1,
+    "tributary_density": "low",
+    "stream_width_min_m": 1.0,
+    "stream_width_max_m": 4.0,
+    "river_width_min_m": 5.0,
+    "river_width_max_m": 14.0,
+    "depth_min_m": 0.3,
+    "depth_max_m": 2.0,
+    "meander_strength": 0.4,
+    "valley_width_min_m": 20.0,
+    "valley_width_max_m": 80.0
+  }
 }

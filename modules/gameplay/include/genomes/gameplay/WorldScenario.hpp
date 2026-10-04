@@ -40,6 +40,15 @@ struct WorldSemanticSnapshot final {
     [[nodiscard]] bool valid() const noexcept { return content_hash != 0U && feature_count > 0U; }
 };
 
+struct LandscapeSample final {
+    float ground_y{0.0F};
+    hydrology::WaterSample water{};
+
+    [[nodiscard]] bool traversable(float maximum_water_depth_m = 0.35F) const noexcept {
+        return !water.has_water || water.depth_m <= maximum_water_depth_m;
+    }
+};
+
 // The committed world artifact is the smallest backend-neutral handoff from
 // procedural generation to a battlefield or a diagnostic viewer.  Semantic
 // data remains authoritative in WorldPlan; terrain is generated from the same
@@ -68,6 +77,13 @@ struct ResolvedWorldArtifacts final {
                terrain->height() >= 2U && !terrain_mesh->vertices.empty() &&
                !terrain_mesh->indices.empty() &&
                resolved_buildings->size() == plan.building_sites.size() && !save_package->empty();
+    }
+
+    [[nodiscard]] LandscapeSample sampleLandscape(float x, float z) const noexcept {
+        LandscapeSample result{};
+        if (terrain != nullptr) result.ground_y = terrain->sampleBilinear(x, z);
+        result.water = plan.hydrology.sampleWater(x, z);
+        return result;
     }
 };
 

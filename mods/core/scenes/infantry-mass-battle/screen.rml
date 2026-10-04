@@ -19,8 +19,38 @@
         <p class="status">{{ status }}</p>
         <p class="controls">{{ description }}</p>
         <p class="feature">{{ features }}</p>
+        <div class="control-group">
+          <p class="section-label">WORLD</p>
+          <div class="action-row">
+            <button data-action="mass-battle.restart">Restart battle</button>
+            <button class="primary" data-action="mass-battle.generate-new">Generate new world</button>
+          </div>
+          <div class="setting-row">
+            <span>Terrain</span><strong>{{ terrain_preset }}</strong>
+            <button data-action="mass-battle.next-terrain">Next</button>
+          </div>
+          <div class="setting-row">
+            <span>Terrain detail</span><strong>{{ terrain_detail }}</strong>
+            <button data-action="mass-battle.next-terrain-detail">Cycle</button>
+          </div>
+          <div class="setting-row">
+            <span>Rivers</span><strong>{{ hydrology_mode }}</strong>
+            <button data-action="mass-battle.next-hydrology">Cycle</button>
+          </div>
+          <p class="hint">World changes regenerate terrain and restart the deterministic battle.</p>
+        </div>
+        <div class="control-group">
+          <p class="section-label">VIEW</p>
+          <div class="action-row three">
+            <button data-action="mass-battle.frame-battle">Frame battle</button>
+            <button data-action="mass-battle.frame-terrain">Frame terrain</button>
+            <button data-action="mass-battle.diagnostics-toggle">Diagnostics</button>
+          </div>
+          <p class="hint">Current framing: {{ camera_frame }}</p>
+        </div>
         <div class="mass-battle-profile">
-          <span class="profile-label">{{ profile }} · {{ animation_mode }}</span>
+          <p class="section-label">PRESENTATION</p>
+          <span class="profile-label">{{ profile }} | {{ animation_mode }}</span>
           <div class="profile-buttons">
             <button data-action="mass-battle.profile-quality">Quality</button>
             <button data-action="mass-battle.profile-balanced">Balanced</button>
@@ -36,12 +66,107 @@
           <p class="orientation">{{ live_animation_note }}</p>
         </div>
         <div class="hud-meta">
-          <span>{{ seed }}</span>
-          <span>{{ map_size }}</span>
+          <span>Seed {{ seed }}</span>
+          <span>{{ map_size }} m map</span>
         </div>
-        <p class="diagnostics" data-if="show_diagnostics">{{ diagnostics }}</p>
         <button class="ghost pause" data-action="scene.open-pause">Pause simulation</button>
       </section>
+      <section id="infantry-mass-battle-diagnostics" class="hud-card diagnostics-panel"
+               data-model="ui_builtin_battlefield" data-if="diagnostics_panel_open">
+        <header class="diagnostics-header">
+          <div>
+            <p class="eyebrow">LIVE INSPECTOR</p>
+            <h2>Battle diagnostics</h2>
+          </div>
+          <button class="close-button" data-action="mass-battle.diagnostics-toggle">X</button>
+        </header>
+        <div class="diagnostics-tabs">
+          <button data-action="mass-battle.diagnostics-overview">Overview</button>
+          <button data-action="mass-battle.diagnostics-terrain">Terrain</button>
+          <button data-action="mass-battle.diagnostics-hydrology">Water</button>
+        </div>
+        <div class="diagnostics-tabs second-row">
+          <button data-action="mass-battle.diagnostics-performance">Performance</button>
+          <button data-action="mass-battle.diagnostics-units">Units</button>
+        </div>
+
+        <div class="diagnostic-page" data-if="diag_tab_overview">
+          <p class="section-label">SESSION</p>
+          <div class="metric-grid">
+            <span>Seed</span><strong>{{ seed }}</strong>
+            <span>Scene epoch</span><strong>{{ diag_scene_epoch }}</strong>
+            <span>World revision</span><strong>{{ diag_world_revision }}</strong>
+            <span>Simulation tick</span><strong>{{ diag_tick }}</strong>
+            <span>Units</span><strong>{{ diag_units }}</strong>
+            <span>FPS</span><strong>{{ diag_fps }}</strong>
+          </div>
+          <p class="hash-line">Semantic hash<br/>{{ diag_semantic_hash }}</p>
+          <p class="hash-line">World hash<br/>{{ diag_world_hash }}</p>
+        </div>
+
+        <div class="diagnostic-page" data-if="diag_tab_terrain">
+          <p class="section-label">PROCEDURAL TERRAIN</p>
+          <div class="metric-grid">
+            <span>Preset</span><strong>{{ terrain_preset }}</strong>
+            <span>Map size</span><strong>{{ map_size }} m</strong>
+            <span>Samples</span><strong>{{ diag_terrain_samples }}</strong>
+            <span>Cell size</span><strong>{{ diag_cell_size }}</strong>
+            <span>Elevation</span><strong>{{ diag_elevation }}</strong>
+          </div>
+          <p class="detail-line">{{ diag_terrain_mesh }}</p>
+          <p class="hint">The authoritative unit height and traversal checks use this generated height field.</p>
+        </div>
+
+        <div class="diagnostic-page" data-if="diag_tab_hydrology">
+          <p class="section-label">HYDROLOGY</p>
+          <div class="metric-grid">
+            <span>Mode</span><strong>{{ hydrology_mode }}</strong>
+            <span>Rivers</span><strong>{{ diag_rivers }}</strong>
+            <span>Crossings</span><strong>{{ diag_crossings }}</strong>
+            <span>Water cells</span><strong>{{ diag_water_cells }}</strong>
+            <span>Floodplain cells</span><strong>{{ diag_flood_cells }}</strong>
+          </div>
+          <p class="hint">Deep water blocks formation movement; crossings remain part of the generated world plan.</p>
+        </div>
+
+        <div class="diagnostic-page" data-if="diag_tab_performance">
+          <p class="section-label">FRAME COST</p>
+          <div class="metric-grid">
+            <span>Simulation CPU</span><strong>{{ diag_sim_ms }} ms</strong>
+            <span>Presentation CPU</span><strong>{{ diag_presentation_ms }} ms</strong>
+            <span>Animation CPU</span><strong>{{ diag_animation_ms }} ms</strong>
+            <span>Extraction CPU</span><strong>{{ diag_extraction_ms }} ms</strong>
+            <span>GPU</span><strong>{{ diag_gpu_ms }} ms</strong>
+            <span>Draw calls</span><strong>{{ diag_draw_calls }}</strong>
+            <span>Mesh uploads</span><strong>{{ diag_mesh_uploads }}</strong>
+            <span>Palette updates</span><strong>{{ diag_palette_updates }}</strong>
+          </div>
+          <p class="section-label spaced">SCHEDULER</p>
+          <div class="metric-grid">
+            <span>Queued / running</span><strong>{{ diag_jobs_queued }} / {{ diag_jobs_running }}</strong>
+            <span>Completed</span><strong>{{ diag_jobs_completed }}</strong>
+            <span>Canceled</span><strong>{{ diag_jobs_canceled }}</strong>
+            <span>Stale snapshots</span><strong>{{ diag_stale_snapshots }}</strong>
+          </div>
+        </div>
+
+        <div class="diagnostic-page" data-if="diag_tab_units">
+          <p class="section-label">FORMATIONS</p>
+          <div class="metric-grid">
+            <span>Blue / red</span><strong>{{ diag_blue_units }} / {{ diag_red_units }}</strong>
+            <span>Average speed</span><strong>{{ diag_average_speed }} m/s</strong>
+            <span>Direction changes</span><strong>{{ diag_direction_changes }}</strong>
+            <span>Published units</span><strong>{{ diag_published_units }}</strong>
+            <span>Atlas slots</span><strong>{{ diag_atlas_slots }}</strong>
+            <span>Live animation</span><strong>{{ live_animation_budget }} / {{ live_animation_limit }}</strong>
+          </div>
+          <p class="detail-line">{{ diag_animation_summary }}</p>
+          <p class="hint">{{ orientation }}</p>
+        </div>
+      </section>
+      <button id="diagnostics-reopen" data-model="ui_builtin_battlefield"
+              data-if="diagnostics_panel_closed"
+              data-action="mass-battle.diagnostics-toggle">Open diagnostics</button>
       <section id="scene-loading" class="loading-panel" data-model="ui_builtin_battlefield"
                data-if="scene_loading_active">
         <p class="eyebrow">{{ scene_loading_phase }}</p>

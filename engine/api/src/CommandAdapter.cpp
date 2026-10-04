@@ -33,6 +33,35 @@ namespace {
 [[nodiscard]] foundation::Result<EncodedValue, foundation::Error> scalar(
     std::string_view token) {
     token = trim(token);
+    if (token.size() >= 5U && token.starts_with("hex\"") && token.back() == '\"') {
+        const std::string_view hexadecimal = token.substr(4U, token.size() - 5U);
+        if ((hexadecimal.size() & 1U) != 0U) {
+            return foundation::Result<EncodedValue, foundation::Error>::failure(
+                parseError("hex command argument must have an even number of digits"));
+        }
+        const auto nibble = [](char character) constexpr -> std::optional<std::uint8_t> {
+            if (character >= '0' && character <= '9')
+                return static_cast<std::uint8_t>(character - '0');
+            if (character >= 'a' && character <= 'f')
+                return static_cast<std::uint8_t>(character - 'a' + 10);
+            if (character >= 'A' && character <= 'F')
+                return static_cast<std::uint8_t>(character - 'A' + 10);
+            return std::nullopt;
+        };
+        std::vector<std::uint8_t> bytes;
+        bytes.reserve(hexadecimal.size() / 2U);
+        for (std::size_t index = 0U; index < hexadecimal.size(); index += 2U) {
+            const auto high = nibble(hexadecimal[index]);
+            const auto low = nibble(hexadecimal[index + 1U]);
+            if (!high || !low) {
+                return foundation::Result<EncodedValue, foundation::Error>::failure(
+                    parseError("hex command argument contains a non-hexadecimal digit"));
+            }
+            bytes.push_back(static_cast<std::uint8_t>((*high << 4U) | *low));
+        }
+        return foundation::Result<EncodedValue, foundation::Error>::success(
+            EncodedValue::binary(bytes));
+    }
     if (token.size() >= 2U && token.front() == '"' && token.back() == '"')
         return foundation::Result<EncodedValue, foundation::Error>::success(
             EncodedValue::string(token.substr(1U, token.size() - 2U)));
@@ -114,6 +143,12 @@ foundation::Result<CommandEnvelope, foundation::Error> TextCommandAdapter::parse
     if (descriptor->arguments.size() != values.size()) {
         return foundation::Result<CommandEnvelope, foundation::Error>::failure(
             parseError("command argument count does not match its schema"));
+    }
+    for (std::size_t index = 0U; index < values.size(); ++index) {
+        if (values[index].type != descriptor->arguments[index]) {
+            return foundation::Result<CommandEnvelope, foundation::Error>::failure(
+                parseError("command argument type does not match its schema"));
+        }
     }
     EncodedValue payload{};
     if (values.size() == 1U) payload = std::move(values.front());

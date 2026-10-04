@@ -130,40 +130,76 @@ void append_river(render::RenderMesh& mesh,
             hydrology.river_points.size()) {
         return;
     }
-    const foundation::Color color{0.08F, 0.28F, 0.52F, 0.88F};
+    // Keep water visibly distinct under the neutral world lighting.  This is
+    // vertex colour only; the material remains renderer-independent.
+    const foundation::Color color{0.035F, 0.72F, 0.98F, 1.0F};
     const float half_width = std::max(0.5F, river.width_m * 0.5F);
     const std::size_t begin = river.point_offset;
     const std::size_t end = begin + river.point_count;
-    for (std::size_t index = begin + 1; index < end; ++index) {
-        const foundation::Vec3 from = hydrology.river_points[index - 1];
+    // Hydrology paths intentionally stay compact.  The water ribbon needs a
+    // cross section at least every terrain cell, otherwise interpolated water
+    // can disappear below a hill between two valid river control points.
+    std::vector<foundation::Vec3> centerline;
+    centerline.reserve(river.point_count * 3U);
+    centerline.push_back(hydrology.river_points[begin]);
+    const float presentation_step_m = std::max(2.0F, terrain.cellSize() * 0.5F);
+    for (std::size_t index = begin + 1U; index < end; ++index) {
+        const foundation::Vec3 from = hydrology.river_points[index - 1U];
         const foundation::Vec3 to = hydrology.river_points[index];
-        const float dx = to.x - from.x;
-        const float dz = to.z - from.z;
-        const float length = std::sqrt(dx * dx + dz * dz);
+        const std::uint32_t subdivisions = std::max(
+            1U, static_cast<std::uint32_t>(std::ceil(
+                    std::hypot(to.x - from.x, to.z - from.z) / presentation_step_m)));
+        for (std::uint32_t subdivision = 1U; subdivision <= subdivisions; ++subdivision) {
+            const float t = static_cast<float>(subdivision) / static_cast<float>(subdivisions);
+            centerline.push_back({std::lerp(from.x, to.x, t), std::lerp(from.y, to.y, t),
+                                  std::lerp(from.z, to.z, t)});
+        }
+    }
+    const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
+    mesh.vertices.reserve(mesh.vertices.size() + centerline.size() * 2U);
+    mesh.indices.reserve(mesh.indices.size() + (centerline.size() - 1U) * 6U);
+    float travelled_m = 0.0F;
+    const auto water_surface = [&terrain](foundation::Vec3 point) {
+            // The visual surface must remain above the final carved terrain,
+            // including the interpolated bank samples between height-field
+            // vertices. Otherwise a correct hydrology artifact can render as
+            // an apparently dry canyon.
+            point.y = std::max(point.y + 0.12F,
+                               terrain.sampleBilinear(point.x, point.z) + 0.10F);
+            return point;
+    };
+    for (std::size_t index = 0U; index < centerline.size(); ++index) {
+        const foundation::Vec3 point = centerline[index];
+        const foundation::Vec3& before = centerline[index == 0U ? index : index - 1U];
+        const foundation::Vec3& after = centerline[index + 1U == centerline.size() ? index : index + 1U];
+        const float dx = after.x - before.x;
+        const float dz = after.z - before.z;
+        const float length = std::hypot(dx, dz);
         if (!std::isfinite(length) || length <= 0.001F) {
-            continue;
+            return;
+        }
+        if (index > 0U) {
+            travelled_m += std::hypot(point.x - before.x, point.z - before.z);
         }
         const foundation::Vec3 perpendicular{-dz / length * half_width, 0.0F,
-                                             dx / length * half_width};
-        const auto water_surface = [&terrain](foundation::Vec3 point) {
-            point.y = terrain.sampleBilinear(point.x, point.z) + 0.10F;
-            return point;
-        };
-        const foundation::Vec3 vertices[] = {
-            water_surface({from.x + perpendicular.x, from.y, from.z + perpendicular.z}),
-            water_surface({from.x - perpendicular.x, from.y, from.z - perpendicular.z}),
-            water_surface({to.x - perpendicular.x, to.y, to.z - perpendicular.z}),
-            water_surface({to.x + perpendicular.x, to.y, to.z + perpendicular.z}),
-        };
-        const std::uint32_t base = static_cast<std::uint32_t>(mesh.vertices.size());
-        for (std::size_t corner = 0; corner < 4; ++corner) {
-            mesh.vertices.push_back({vertices[corner], {0.0F, 1.0F, 0.0F},
-                                     {corner == 1 || corner == 2 ? 1.0F : 0.0F,
-                                      corner >= 2 ? 1.0F : 0.0F},
-                                     color});
-        }
+                                              dx / length * half_width};
+        // A river has one water level across a cross section. Sampling the
+        // two banks independently made every terrain-cell difference twist
+        // the quad, turning a calm river into a chain of dark shards.
+        const foundation::Vec3 center = water_surface(point);
+        mesh.vertices.push_back({{center.x + perpendicular.x, center.y,
+                                 center.z + perpendicular.z},
+                                 {0.0F, 1.0F, 0.0F}, {0.0F, travelled_m / half_width}, color});
+        mesh.vertices.push_back({{center.x - perpendicular.x, center.y,
+                                 center.z - perpendicular.z},
+                                 {0.0F, 1.0F, 0.0F}, {1.0F, travelled_m / half_width}, color});
+    }
+    for (std::size_t index = 1U; index < centerline.size(); ++index) {
+        const std::uint32_t previous = base + static_cast<std::uint32_t>((index - 1U) * 2U);
+        const std::uint32_t current = base + static_cast<std::uint32_t>(index * 2U);
         mesh.indices.insert(mesh.indices.end(),
-                            {base, base + 1, base + 2, base, base + 2, base + 3});
+                            {previous, previous + 1U, current + 1U,
+                             previous, current + 1U, current});
     }
 }
 
@@ -184,6 +220,7 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
     }
 
     auto mesh = std::make_shared<render::RenderMesh>();
+    render::RenderMesh water_mesh{};
     std::unordered_map<foundation::StableId, WorldMeshDrawRange> part_draw_ranges;
     mesh->mesh_id = foundation::stable_id("mesh.world.semantic");
     mesh->vertices.reserve(plan.features.size() * 24);
@@ -237,8 +274,19 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
     for (const roads::RoadEdge& edge : plan.city.road_graph.edges()) {
         append_road_edge(*mesh, edge, terrain);
     }
-    for (const hydrology::RiverPath& river : plan.hydrology.rivers) {
-        append_river(*mesh, plan.hydrology, river, terrain);
+    for (const hydrology::RiverCrossing& crossing : plan.hydrology.crossings) {
+        const float height = crossing.type == hydrology::CrossingType::Bridge ? 0.35F : 0.12F;
+        const foundation::Color color = crossing.type == hydrology::CrossingType::Bridge
+                                             ? foundation::Color{0.28F, 0.29F, 0.27F, 1.0F}
+                                             : foundation::Color{0.40F, 0.34F, 0.24F, 1.0F};
+        foundation::Vec3 center = crossing.position;
+        center.y += height * 0.5F + 0.08F;
+        const auto crossing_result = append_centered_box(
+            *mesh, center, {crossing.deck_width_m, height, crossing.deck_width_m}, color, 0.0F);
+        if (!crossing_result) {
+            return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
+                crossing_result.error());
+        }
     }
 
     // Presentation consumes plans resolved by world orchestration. It must
@@ -275,9 +323,61 @@ WorldMeshCompiler::compile(const world::WorldPlan& plan, const terrain::HeightFi
         }
     }
 
+    // Water has its own material range. Appending it after every road,
+    // crossing, building and vegetation triangle keeps future blended-water
+    // passes isolated from the opaque semantic world geometry.
+    for (const hydrology::RiverPath& river : plan.hydrology.rivers) {
+        append_river(water_mesh, plan.hydrology, river, terrain);
+    }
+    const std::size_t opaque_index_count = mesh->indices.size();
+    if (!water_mesh.vertices.empty() && !water_mesh.indices.empty()) {
+        const std::size_t vertex_offset = mesh->vertices.size();
+        if (vertex_offset > std::numeric_limits<std::uint32_t>::max() ||
+            water_mesh.vertices.size() > std::numeric_limits<std::uint32_t>::max() -
+                                           vertex_offset) {
+            return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange, "water mesh exceeds index range"});
+        }
+        mesh->vertices.insert(mesh->vertices.end(), water_mesh.vertices.begin(),
+                              water_mesh.vertices.end());
+        mesh->indices.reserve(mesh->indices.size() + water_mesh.indices.size());
+        for (const std::uint32_t index : water_mesh.indices) {
+            mesh->indices.push_back(index + static_cast<std::uint32_t>(vertex_offset));
+        }
+    }
+
     if (mesh->vertices.empty() || mesh->indices.empty()) {
         return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "world plan compiled to an empty mesh"});
+    }
+    render::MaterialDescriptor opaque{};
+    opaque.material_id = foundation::stable_id("material.world.opaque");
+    opaque.revision = 1U;
+    opaque.roughness = 0.92F;
+    opaque.vertex_color = true;
+    render::MaterialDescriptor water{};
+    water.material_id = foundation::stable_id("material.world.water");
+    water.revision = 1U;
+    water.roughness = 0.14F;
+    water.opacity = 1.0F;
+    water.alpha_mode = render::MaterialAlphaMode::Opaque;
+    water.double_sided = true;
+    water.vertex_color = true;
+    mesh->materials = {opaque, water};
+    if (opaque_index_count > 0U) {
+        mesh->material_groups.push_back(
+            {0U, static_cast<std::uint32_t>(opaque_index_count), 0U});
+    }
+    const std::size_t water_index_count = mesh->indices.size() - opaque_index_count;
+    if (water_index_count > 0U) {
+        if (opaque_index_count > std::numeric_limits<std::uint32_t>::max() ||
+            water_index_count > std::numeric_limits<std::uint32_t>::max()) {
+            return foundation::Result<WorldMeshArtifact, foundation::Error>::failure(
+                {foundation::ErrorCode::OutOfRange, "world material draw range exceeds limit"});
+        }
+        mesh->material_groups.push_back(
+            {static_cast<std::uint32_t>(opaque_index_count),
+             static_cast<std::uint32_t>(water_index_count), 1U});
     }
     mesh->revision = source_revision;
     return foundation::Result<WorldMeshArtifact, foundation::Error>::success(

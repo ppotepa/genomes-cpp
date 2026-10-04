@@ -55,6 +55,11 @@ add_test(NAME architecture.scene_api_boundary
         -P "${CMAKE_CURRENT_SOURCE_DIR}/scene_api_boundary_guard.cmake")
 set_tests_properties(architecture.scene_api_boundary PROPERTIES
     LABELS "source;cpu;architecture;api")
+add_test(NAME architecture.module_execution_boundary
+    COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/module_execution_boundary_guard.cmake")
+set_tests_properties(architecture.module_execution_boundary PROPERTIES
+    LABELS "source;cpu;architecture;modules;jobs")
 add_test(NAME simulation.battlefield_pipeline_source_contract
     COMMAND "${CMAKE_COMMAND}" "-DGENOMES_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/battlefield_pipeline_guard.cmake")
@@ -435,6 +440,14 @@ if(GENOMES_ENABLE_INFANTRY)
     set_tests_properties(simulation.infantry_mass_battle PROPERTIES
         LABELS "cpu;simulation;determinism;infantry;mass-battle")
 
+    add_executable(genomes_test_battlefield_session battlefield_session_tests.cpp)
+    target_link_libraries(genomes_test_battlefield_session PRIVATE genomes::gameplay)
+    genomes_set_project_warnings(genomes_test_battlefield_session)
+    genomes_enable_test_assertions(genomes_test_battlefield_session)
+    add_test(NAME simulation.battlefield_session COMMAND genomes_test_battlefield_session)
+    set_tests_properties(simulation.battlefield_session PROPERTIES
+        LABELS "cpu;simulation;api;infantry;mass-battle")
+
     add_executable(genomes_test_infantry_presentation infantry_presentation_tests.cpp)
     target_link_libraries(genomes_test_infantry_presentation PRIVATE genomes::game_scenes)
     target_compile_definitions(genomes_test_infantry_presentation PRIVATE
@@ -679,6 +692,14 @@ target_link_libraries(genomes_test_terrain_model PRIVATE genomes::terrain)
 genomes_set_project_warnings(genomes_test_terrain_model)
 genomes_enable_test_assertions(genomes_test_terrain_model)
 add_test(NAME terrain.model COMMAND genomes_test_terrain_model)
+
+add_executable(genomes_test_hydrology_landscape hydrology_landscape_tests.cpp)
+target_link_libraries(genomes_test_hydrology_landscape PRIVATE
+    genomes::hydrology genomes::terrain)
+genomes_set_project_warnings(genomes_test_hydrology_landscape)
+genomes_enable_test_assertions(genomes_test_hydrology_landscape)
+add_test(NAME world.hydrology_landscape COMMAND genomes_test_hydrology_landscape)
+set_tests_properties(world.hydrology_landscape PROPERTIES LABELS "cpu;world;hydrology;terrain")
 
 add_executable(genomes_test_render_backend
     render/render_backend_smoke.cpp)

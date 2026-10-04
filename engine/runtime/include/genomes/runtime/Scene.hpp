@@ -78,6 +78,13 @@ struct SceneContext {
     // Previous completed renderer frame. This is diagnostic/presentation data,
     // never a simulation input.
     render::RenderUploadTelemetry render_telemetry{};
+    // Durations from the previously completed coordinated frame. They are
+    // deliberately observational: scenes may display them but must never use
+    // them to alter deterministic simulation state.
+    foundation::Nanoseconds simulation_duration{};
+    foundation::Nanoseconds presentation_duration{};
+    foundation::Nanoseconds gpu_duration{};
+    std::uint64_t rejected_stale_snapshots{0U};
     // Evidence/capture mode disables worker timing as an input to generated
     // presentation state. Simulation still advances through fixed_update.
     bool deterministic_capture{false};

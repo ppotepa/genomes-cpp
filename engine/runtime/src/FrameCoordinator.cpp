@@ -81,6 +81,8 @@ CoordinatedFrameResult FrameCoordinator::advance(
     }
     telemetry_.presentation_duration = std::chrono::duration_cast<foundation::Nanoseconds>(
         std::chrono::steady_clock::now() - presentation_started);
+    telemetry_.animation_duration = director_.telemetry().animation_duration;
+    telemetry_.extraction_duration = director_.telemetry().extraction_duration;
     telemetry_.frame_index += 1U;
     telemetry_.scheduled_ticks = result.scheduled_ticks;
     telemetry_.completed_ticks = result.completed_ticks;
@@ -91,6 +93,8 @@ CoordinatedFrameResult FrameCoordinator::advance(
     telemetry_.rejected_stale_snapshots = director_.presentation_api().rejectedStale();
     director_.telemetry().simulation_duration = telemetry_.simulation_duration;
     director_.telemetry().presentation_duration = telemetry_.presentation_duration;
+    director_.telemetry().animation_duration = telemetry_.animation_duration;
+    director_.telemetry().extraction_duration = telemetry_.extraction_duration;
     director_.telemetry().scheduler = telemetry_.scheduler;
     director_.telemetry().rejected_stale_snapshots = telemetry_.rejected_stale_snapshots;
     if (telemetry_.fault != FrameFaultDomain::GpuFailure && !tick_failed) {

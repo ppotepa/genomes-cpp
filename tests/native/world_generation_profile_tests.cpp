@@ -44,6 +44,9 @@ int main() {
     assert(request.fenced_parcels == 0.48F);
     assert(request.hydrology_mode == hydrology::HydrologyMode::SeededOptional);
     assert(request.river_probability == 0.35F);
+    assert(request.terrain.preset == world::TerrainPreset::RollingHills);
+    assert(request.terrain.sample_spacing_m == 8U);
+    assert(request.hydrology.tributary_density == world::TributaryDensity::Low);
 
     const auto changed_seed = profile.makeRequest(0x1234ULL);
     assert(changed_seed.valid());
@@ -70,7 +73,14 @@ int main() {
       "river_probability":0.35,"hydrology_mode":"seeded-optional",
       "fenced_parcels":0.48,"buildings":0.55,"vegetation":0.62,
       "map_size_m":600,"default_seed":1592598566,
-      "id":"world-generation-default","schema_version":1
+      "hydrology":{"valley_width_max_m":80.0,"valley_width_min_m":20.0,
+        "meander_strength":0.4,"depth_max_m":2.0,"depth_min_m":0.3,
+        "river_width_max_m":14.0,"river_width_min_m":5.0,
+        "stream_width_max_m":4.0,"stream_width_min_m":1.0,
+        "tributary_density":"low","main_river_max":1,"main_river_min":0},
+      "terrain":{"roughness":0.35,"landform_scale_m":600.0,"sample_spacing_m":8,
+        "elevation_range_m":70.0,"preset":"rolling-hills"},
+      "id":"world-generation-default","schema_version":3
     })json";
     const auto reordered_profile = world::loadWorldGenerationProfile(
         writeDocument(temporary, "reordered.json", reordered));

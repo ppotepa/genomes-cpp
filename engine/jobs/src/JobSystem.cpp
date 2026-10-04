@@ -284,11 +284,16 @@ struct JobSystem::Impl final {
             case ExecutionLane::Render: destination = &render_queue; break;
             }
         }
+        // The wake predicate is inspected while holding wake_mutex. Publish
+        // both the queue entry and its count while holding that mutex, so a
+        // worker cannot observe an empty scheduler just before this signal
+        // and sleep past it.
         {
-            std::lock_guard lock(destination->mutex);
+            std::lock_guard wake_lock(wake_mutex);
+            std::lock_guard queue_lock(destination->mutex);
+            queued.fetch_add(1, std::memory_order_release);
             destination->queues[priorityIndex(node.options.priority)].push_back(std::move(node));
         }
-        queued.fetch_add(1, std::memory_order_release);
         wake.notify_all();
     }
 
@@ -461,11 +466,15 @@ struct JobSystem::Impl final {
         if (node.continuation) {
             node.continuation();
         }
-        if (node.group) {
-            node.group->finish(node.id, failure);
-        }
         if (node.tracked) {
             outstanding.fetch_sub(1, std::memory_order_acq_rel);
+        }
+        // A completion can let its owner immediately tear down the scheduler.
+        // Publish it only after this node is no longer counted as outstanding,
+        // otherwise shutdown can observe a completed graph with a permanently
+        // retained task count while its workers are being joined.
+        if (node.group) {
+            node.group->finish(node.id, failure);
         }
         wake.notify_all();
     }
@@ -675,12 +684,18 @@ void JobSystem::shutdown(ShutdownMode mode) noexcept {
     if (Impl::tls_system == impl_.get() || std::this_thread::get_id() != impl_->owner_thread) {
         terminateContract("scheduler shutdown requires the owner thread");
     }
-    JobSystemState expected = JobSystemState::Running;
     const JobSystemState closing = mode == ShutdownMode::Drain
                                        ? JobSystemState::ClosingDrain
                                        : JobSystemState::ClosingCancel;
-    if (!impl_->state.compare_exchange_strong(expected, closing, std::memory_order_acq_rel)) {
-        return;
+    {
+        // workerLoop evaluates its wake predicate while holding wake_mutex.
+        // Change the scheduler state under the same mutex so shutdown cannot
+        // notify between that evaluation and the worker blocking on the CV.
+        std::lock_guard wake_lock(impl_->wake_mutex);
+        JobSystemState expected = JobSystemState::Running;
+        if (!impl_->state.compare_exchange_strong(expected, closing, std::memory_order_acq_rel)) {
+            return;
+        }
     }
     if (mode == ShutdownMode::CancelPending) {
         impl_->cancelAllQueued();

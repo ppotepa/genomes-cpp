@@ -96,6 +96,13 @@ foundation::Result<CityPlan, foundation::Error> CityGenerator::generate(
     content_hash = foundation::stableHashCombine(content_hash, plan.seed);
     content_hash = foundation::stableHashCombine(content_hash, plan.map_size_m);
 
+    // A terrain-only scenario is a valid world composition. Do not stamp a
+    // cross-shaped city road graph into an otherwise wilderness battlefield.
+    if (building_count == 0U) {
+        plan.content_hash = content_hash == 0U ? 1U : content_hash;
+        return foundation::Result<CityPlan, foundation::Error>::success(std::move(plan));
+    }
+
     const proc::SeedPath root_path(plan.seed);
     proc::RandomStream road_random(root_path.child("roads", 0));
     auto append_road = [&plan, &generated_roads, &content_hash](foundation::Vec3 position,

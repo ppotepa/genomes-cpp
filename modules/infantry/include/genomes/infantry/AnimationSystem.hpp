@@ -2,6 +2,7 @@
 
 #include <genomes/foundation/Error.hpp>
 #include <genomes/foundation/Result.hpp>
+#include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/infantry/AnimationLOD.hpp>
 #include <genomes/infantry/AnimationRuntime.hpp>
@@ -115,6 +116,7 @@ struct AnimationEvaluationStats final {
     std::uint32_t evaluated_count{0};
     std::uint32_t chunk_count{0};
     std::uint64_t pose_revision{0};
+    foundation::Nanoseconds evaluation_duration{};
 };
 
 struct PresentationBudget final {

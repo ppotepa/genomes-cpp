@@ -1,6 +1,7 @@
 #include <genomes/runtime/SceneDirector.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <utility>
 
@@ -66,6 +67,10 @@ SceneContext SceneDirector::make_context() noexcept {
     return {commands_, ui_, presentation_, jobs_, scheduler_explicit_, jobs_->telemetry(),
             renderer_.capabilities(),
             renderer_.uploadTelemetry(),
+            telemetry_.simulation_duration,
+            telemetry_.presentation_duration,
+            telemetry_.gpu_duration,
+            telemetry_.rejected_stale_snapshots,
             deterministic_capture_, framebuffer_width_, framebuffer_height_, session_ui_scale_,
             &presentation_.camera_request,
             &presentation_.has_camera_request,
@@ -233,7 +238,10 @@ void SceneDirector::frame_update(double dt) {
                           std::clamp(loading.progress, 0.0, 1.0));
     (void)ui_.model().set("scene_loading_message", loading.message);
     ui_.update(dt);
+    const auto extraction_started = std::chrono::steady_clock::now();
     current_->build_presentation(context);
+    telemetry_.extraction_duration = std::chrono::duration_cast<foundation::Nanoseconds>(
+        std::chrono::steady_clock::now() - extraction_started);
     if (engine_services_.simulation != nullptr) {
         telemetry_.semantic_hash = engine_services_.simulation->snapshotView().semantic_hash;
     }

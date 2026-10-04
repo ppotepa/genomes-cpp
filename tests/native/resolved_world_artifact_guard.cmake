@@ -41,7 +41,7 @@ string(FIND "${scene_source_text}"
        "world_render::WorldMeshCompiler::compile("
        mesh_compile_position)
 string(FIND "${scene_source_text}"
-       "battlefield_runtime_->bindWorldArtifactRevision(world_artifacts_->revision)"
+       "battlefield_runtime_->bindWorldArtifact(world_artifacts_)"
        runtime_bind_position)
 if(mesh_compile_position EQUAL -1 OR runtime_bind_position EQUAL -1)
     message(FATAL_ERROR
@@ -59,6 +59,16 @@ foreach(required_text IN ITEMS
     string(FIND "${runtime_source_text}" "${required_text}" position)
     if(position EQUAL -1)
         message(FATAL_ERROR "Battlefield runtime lost R039 consumer binding: ${required_text}")
+    endif()
+endforeach()
+
+foreach(required_text IN ITEMS
+        "physics_.setGroundHeightQuery"
+        "world_artifact_->sampleLandscape"
+        "navigation_->setBlocked")
+    string(FIND "${runtime_source_text}" "${required_text}" position)
+    if(position EQUAL -1)
+        message(FATAL_ERROR "Battlefield runtime does not consume resolved terrain: ${required_text}")
     endif()
 endforeach()
 

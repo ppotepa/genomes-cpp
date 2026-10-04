@@ -1,4 +1,5 @@
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
+#include <genomes/gameplay/WorldScenario.hpp>
 
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/weapons/WeaponProcedural.hpp>
@@ -34,6 +35,13 @@ constexpr float kTargetHalfExtent = 0.5F;
 
 [[nodiscard]] jobs::JobSystem& fallbackScheduler() {
     return jobs::processScheduler();
+}
+
+[[nodiscard]] float sampleWorldGround(const void* context, float x, float z) noexcept {
+    const auto* artifact = static_cast<const ResolvedWorldArtifacts*>(context);
+    return artifact != nullptr && artifact->terrain != nullptr
+               ? artifact->terrain->sampleBilinear(x, z)
+               : 0.0F;
 }
 
 } // namespace
@@ -77,13 +85,27 @@ api::SnapshotView BattlefieldRuntime::snapshotView() const noexcept {
                 : foundation::SimulationTick{simulation_snapshot_.metadata.tick},
             simulation_snapshot_.metadata.scene_epoch,
             simulation_snapshot_.semantic_hash,
+            api_snapshot_bytes_ ? std::span<const std::uint8_t>{*api_snapshot_bytes_}
+                                : std::span<const std::uint8_t>{},
             api_snapshot_bytes_};
 }
 
 api::SnapshotView BattlefieldRuntime::query(api::ApiId query_id,
-                                            const api::EncodedValue&) const {
+                                            const api::EncodedValue& arguments) const {
     if (query_id == foundation::stable_id("world.snapshot")) {
         return snapshotView();
+    }
+    if (query_id == foundation::stable_id("world.query") &&
+        arguments.type == api::ValueType::String && arguments.valid()) {
+        const auto key = arguments.asString();
+        if (!key || !api_world_snapshot_values_) return {};
+        const auto found = api_world_snapshot_values_->find(*key);
+        if (found == api_world_snapshot_values_->end()) return {};
+        auto result = std::make_shared<const std::vector<std::uint8_t>>(found->second);
+        return {foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+                simulation_snapshot_.metadata.scene_epoch,
+                simulation_snapshot_.semantic_hash,
+                std::span<const std::uint8_t>{*result}, std::move(result)};
     }
     return {};
 }
@@ -567,6 +589,42 @@ bool BattlefieldRuntime::bindWorldArtifactRevision(
     return true;
 }
 
+bool BattlefieldRuntime::bindWorldArtifact(
+    std::shared_ptr<const ResolvedWorldArtifacts> artifact) noexcept {
+    if (artifact == nullptr || !artifact->valid() || navigation_ == nullptr ||
+        !bindWorldArtifactRevision(artifact->revision)) {
+        return false;
+    }
+
+    world_artifact_ = std::move(artifact);
+    physics_.setGroundHeightQuery({world_artifact_.get(), sampleWorldGround});
+
+    const navigation::NavGridSpec& navigation_spec = navigation_->spec();
+    for (std::uint32_t z = 0U; z < navigation_spec.height; ++z) {
+        for (std::uint32_t x = 0U; x < navigation_spec.width; ++x) {
+            const float world_x = navigation_spec.origin.x +
+                                  (static_cast<float>(x) + 0.5F) * navigation_spec.cell_size;
+            const float world_z = navigation_spec.origin.z +
+                                  (static_cast<float>(z) + 0.5F) * navigation_spec.cell_size;
+            const LandscapeSample landscape = world_artifact_->sampleLandscape(world_x, world_z);
+            const foundation::Vec3 normal = world_artifact_->terrain->normal(world_x, world_z);
+            const bool too_steep = normal.y < 0.70710678F;
+            if (!navigation_->setBlocked(x, z, !landscape.traversable() || too_steep)) {
+                return false;
+            }
+        }
+    }
+
+    entities_.forEachLive([this](simulation::EntityId entity) {
+        foundation::Vec3* position = entities_.position(entity);
+        if (position == nullptr) return;
+        position->y = world_artifact_->sampleLandscape(position->x, position->z).ground_y;
+    });
+    infantry_->extractPresentation();
+    publishPresentationSnapshot();
+    return true;
+}
+
 void BattlefieldRuntime::fixedUpdate(double dt) noexcept {
     if (!std::isfinite(dt) || dt <= 0.0) {
         return;
@@ -632,6 +690,18 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
 void BattlefieldRuntime::applyApiCommands() noexcept {
     const auto commands = api_commands_.take(simulation_tick_);
     for (const api::CommandEnvelope& command : commands) {
+        if (command.module == foundation::stable_id("module.world") &&
+            command.verb == foundation::stable_id("world.set")) {
+            const auto values = command.payload.asTuple();
+            if (!values || values->size() != 2U || (*values)[0].type != api::ValueType::String ||
+                (*values)[1].type != api::ValueType::Bytes) {
+                continue;
+            }
+            const auto key = (*values)[0].asString();
+            if (!key) continue;
+            api_world_values_[std::string(*key)] = (*values)[1].bytes;
+            continue;
+        }
         if (command.module != foundation::stable_id("module.infantry") ||
             command.verb != foundation::stable_id("units.issue") ||
             command.payload.type != api::ValueType::Bytes ||
@@ -723,6 +793,14 @@ void BattlefieldRuntime::commitSnapshot() noexcept {
             published.semantic_hash = foundation::stableHashCombine(
                 published.semantic_hash, *flags);
         });
+        for (const auto& [key, value] : api_world_values_) {
+            published.semantic_hash = foundation::stableHashCombine(
+                published.semantic_hash, foundation::stableHashString(key));
+            for (const std::uint8_t byte : value) {
+                published.semantic_hash = foundation::stableHashCombine(
+                    published.semantic_hash, byte);
+            }
+        }
         if (const auto published_result = simulation_snapshot_exchange_.publish(
                 std::move(write.value())); published_result) {
             simulation_snapshot_ = published;
@@ -735,10 +813,12 @@ void BattlefieldRuntime::commitSnapshot() noexcept {
                                 entity.position.z, entity.velocity.x, entity.velocity.y,
                                 entity.velocity.z, entity.heading_radians, entity.flags});
             }
-            api_snapshot_bytes_ = api::encodeSnapshot(
-                foundation::SimulationTick{simulation_snapshot_.metadata.tick},
-                simulation_snapshot_.metadata.scene_epoch,
-                simulation_snapshot_.semantic_hash, wire);
+            api_snapshot_bytes_ = std::make_shared<const std::vector<std::uint8_t>>(
+                api::encodeSnapshot(foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+                                    simulation_snapshot_.metadata.scene_epoch,
+                                    simulation_snapshot_.semantic_hash, wire));
+            api_world_snapshot_values_ = std::make_shared<const std::map<
+                std::string, std::vector<std::uint8_t>, std::less<>>>(api_world_values_);
         }
     }
 }

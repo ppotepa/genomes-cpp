@@ -378,6 +378,25 @@ foreach(_mass_profile_ui_contract IN ITEMS "{{ profile }}" "{{ animation_mode }}
         message(FATAL_ERROR "Infantry Mass Battle HUD misses ${_mass_profile_ui_contract}")
     endif()
 endforeach()
+foreach(_mass_world_ui_contract IN ITEMS "infantry-mass-battle-diagnostics"
+                                            "mass-battle.restart"
+                                            "mass-battle.generate-new"
+                                            "mass-battle.next-terrain"
+                                            "mass-battle.next-terrain-detail"
+                                            "mass-battle.next-hydrology"
+                                            "mass-battle.frame-battle"
+                                            "mass-battle.frame-terrain"
+                                            "mass-battle.diagnostics-toggle"
+                                            "diag_tab_overview"
+                                            "diag_tab_terrain"
+                                            "diag_tab_hydrology"
+                                            "diag_tab_performance"
+                                            "diag_tab_units")
+    string(FIND "${_mass_battle_rml}" "${_mass_world_ui_contract}" _mass_world_ui_found)
+    if(_mass_world_ui_found LESS 0)
+        message(FATAL_ERROR "Infantry Mass Battle world UI misses ${_mass_world_ui_contract}")
+    endif()
+endforeach()
 file(READ "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/Scene.hpp" _scene_contract)
 foreach(_loading_contract IN ITEMS "SceneLoadingPhase" "Starting" "InProgress"
                                    "Completed" "Failed" "loading_status")

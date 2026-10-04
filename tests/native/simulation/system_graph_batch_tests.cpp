@@ -64,7 +64,7 @@ void mainThreadFailureDrainsAcceptedWorkerAndClearsCommands() {
 }
 
 void reverseCompletionFailureDrainsEveryAcceptedHandle() {
-    genomes::jobs::JobSystem jobs(2);
+    genomes::jobs::JobSystem jobs(3);
     SystemGraph graph;
     std::latch both_started{2};
     std::latch failure_observed{1};
@@ -99,7 +99,7 @@ void reverseCompletionFailureDrainsEveryAcceptedHandle() {
 }
 
 void directDependencyReleasesWithoutFrontierBarrier() {
-    genomes::jobs::JobSystem jobs(2);
+    genomes::jobs::JobSystem jobs(3);
     SystemGraph graph;
     std::latch slow_started{1};
     std::latch release_slow{1};
@@ -150,6 +150,34 @@ void executionPlanStartsWithoutWorkerBlocking() {
     assert(completion.isComplete());
     assert(!completion.failed());
     assert(runs.load(std::memory_order_relaxed) == 1U);
+}
+
+void asynchronousExecutionPlanCommitsExactlyOnceAfterAllLeaves() {
+    genomes::jobs::JobSystem jobs(2);
+    const auto owner_thread = std::this_thread::get_id();
+    SystemGraph graph;
+    std::atomic_uint32_t leaves{0U};
+    std::atomic_uint32_t commits{0U};
+    assert(graph.add(descriptor(360, false, [&](genomes::simulation::SystemContext&) {
+        leaves.fetch_add(1U, std::memory_order_release);
+    })));
+    assert(graph.add(descriptor(361, false, [&](genomes::simulation::SystemContext&) {
+        leaves.fetch_add(1U, std::memory_order_release);
+    })));
+    assert(graph.compile());
+
+    auto plan = graph.executionPlan();
+    const auto completion = plan.start(
+        {1U}, 1.0 / 60.0, &jobs, nullptr,
+        [&] {
+            assert(std::this_thread::get_id() == owner_thread);
+            assert(leaves.load(std::memory_order_acquire) == 2U);
+            commits.fetch_add(1U, std::memory_order_relaxed);
+        });
+    jobs.wait(completion);
+    assert(completion.isComplete());
+    assert(!completion.failed());
+    assert(commits.load(std::memory_order_relaxed) == 1U);
 }
 
 void cadenceNoOpReportsOnlyDueSystems() {
@@ -225,6 +253,7 @@ int main() {
     reverseCompletionFailureDrainsEveryAcceptedHandle();
     directDependencyReleasesWithoutFrontierBarrier();
     executionPlanStartsWithoutWorkerBlocking();
+    asynchronousExecutionPlanCommitsExactlyOnceAfterAllLeaves();
     cadenceNoOpReportsOnlyDueSystems();
     legacyGraphCadenceReportsOnlyDueSystems();
     cadenceDoesNotWrapAtMaximumTick();

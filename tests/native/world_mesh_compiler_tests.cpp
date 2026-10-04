@@ -21,6 +21,9 @@ int main() {
     plan.features.push_back({foundation::stable_id("world.mesh.test"),
                              world::WorldFeatureKind::TerrainPatch});
     plan.building_sites.emplace_back();
+    plan.hydrology.river_points = {{-48.0F, 0.0F, 0.0F}, {48.0F, -1.0F, 0.0F}};
+    plan.hydrology.rivers.push_back({foundation::stable_id("world.mesh.river"),
+                                     0U, 2U, 20.0F, 1.0F, 48.0F});
     // A presentation compiler receives resolved plans; it must not silently
     // regenerate this site or accept a mixed-resolution artifact.
     const world::WorldArtifactRevision revision = world::artifactRevision(plan);
@@ -40,6 +43,19 @@ int main() {
     assert(compiled && compiled.value().mesh);
     assert(compiled.value().source_revision == revision);
     assert(compiled.value().mesh->revision == revision);
+    assert(compiled.value().mesh->materials.size() == 2U);
+    assert(compiled.value().mesh->material_groups.size() == 2U);
+    const auto& opaque = compiled.value().mesh->material_groups[0U];
+    const auto& water = compiled.value().mesh->material_groups[1U];
+    assert(opaque.material_index == 0U);
+    assert(water.material_index == 1U);
+    assert(opaque.first_index == 0U);
+    assert(water.first_index == opaque.index_count);
+    assert(water.index_count >= 6U);
+    assert(water.index_count % 6U == 0U);
+    assert(compiled.value().mesh->materials[1U].alpha_mode ==
+           render::MaterialAlphaMode::Opaque);
+    assert(compiled.value().mesh->materials[1U].double_sided);
     const auto range = compiled.value().part_draw_ranges.find(part_id);
     assert(range != compiled.value().part_draw_ranges.end());
     assert(range->second.index_count == 36U);

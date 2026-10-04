@@ -54,6 +54,16 @@ constexpr float kPi = 3.14159265358979323846F;
     return static_cast<std::uint32_t>(std::floor(clamped));
 }
 
+[[nodiscard]] hydrology::TributaryDensity hydrologyTributaryDensity(
+    TributaryDensity density) noexcept {
+    switch (density) {
+    case TributaryDensity::None: return hydrology::TributaryDensity::None;
+    case TributaryDensity::Low: return hydrology::TributaryDensity::Low;
+    case TributaryDensity::Medium: return hydrology::TributaryDensity::Medium;
+    }
+    return hydrology::TributaryDensity::None;
+}
+
 } // namespace
 
 foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
@@ -94,14 +104,38 @@ foundation::Result<WorldPlan, foundation::Error> WorldGenerator::generate(
         layout_fingerprint, std::bit_cast<std::uint32_t>(layout.spacing_m));
     layout_fingerprint = foundation::stableHashCombine(
         layout_fingerprint, std::bit_cast<std::uint32_t>(layout.extent_m));
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, static_cast<std::uint64_t>(request.terrain.preset));
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, request.terrain.sample_spacing_m);
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, std::bit_cast<std::uint32_t>(request.terrain.elevation_range_m));
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, std::bit_cast<std::uint32_t>(request.terrain.landform_scale_m));
+    layout_fingerprint = foundation::stableHashCombine(
+        layout_fingerprint, std::bit_cast<std::uint32_t>(request.terrain.roughness));
     plan.stage_fingerprints[static_cast<std::size_t>(WorldGenerationStage::Terrain)] = {
         WorldGenerationStage::Terrain, root_path.child("terrain", 0).seed(),
         WorldStageFingerprintVersion, nonzero(layout_fingerprint)};
+    content_hash = foundation::stableHashCombine(content_hash, layout_fingerprint);
     hydrology_spec.cells_x = layout.cell_count;
     hydrology_spec.cells_z = hydrology_spec.cells_x;
-    hydrology_spec.cell_size_m = 8.0F;
+    hydrology_spec.cell_size_m = layout.spacing_m;
     hydrology_spec.mode = request.hydrology_mode;
     hydrology_spec.river_probability = request.river_probability;
+    hydrology_spec.main_river_min = request.hydrology.main_river_min;
+    hydrology_spec.main_river_max = request.hydrology.main_river_max;
+    hydrology_spec.tributary_density = hydrologyTributaryDensity(
+        request.hydrology.tributary_density);
+    hydrology_spec.stream_width_min_m = request.hydrology.stream_width_min_m;
+    hydrology_spec.stream_width_max_m = request.hydrology.stream_width_max_m;
+    hydrology_spec.river_width_min_m = request.hydrology.river_width_min_m;
+    hydrology_spec.river_width_max_m = request.hydrology.river_width_max_m;
+    hydrology_spec.depth_min_m = request.hydrology.depth_min_m;
+    hydrology_spec.depth_max_m = request.hydrology.depth_max_m;
+    hydrology_spec.meander_strength = request.hydrology.meander_strength;
+    hydrology_spec.valley_width_min_m = request.hydrology.valley_width_min_m;
+    hydrology_spec.valley_width_max_m = request.hydrology.valley_width_max_m;
     const auto hydrology_result = hydrology::HydrologyGenerator::generate(hydrology_spec);
     if (!hydrology_result) {
         return foundation::Result<WorldPlan, foundation::Error>::failure(

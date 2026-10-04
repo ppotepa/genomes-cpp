@@ -1,4 +1,5 @@
 #include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
+#include <genomes/gameplay/WorldScenario.hpp>
 
 #if GENOMES_HAS_INFANTRY
 
@@ -116,6 +117,26 @@ foundation::Result<void, foundation::Error> InfantryMassBattleRuntime::initializ
     return foundation::Result<void, foundation::Error>::success();
 }
 
+bool InfantryMassBattleRuntime::bindWorldArtifact(
+    std::shared_ptr<const ResolvedWorldArtifacts> artifact) noexcept {
+    if (artifact == nullptr || !artifact->valid() ||
+        (world_artifact_ != nullptr && world_artifact_->revision != artifact->revision)) {
+        return false;
+    }
+    world_artifact_ = std::move(artifact);
+    for (Unit& unit : units_) {
+        foundation::Vec3* position = entities_.position(unit.entity);
+        if (position == nullptr) return false;
+        position->y = world_artifact_->sampleLandscape(position->x, position->z).ground_y;
+        unit.goal.y = position->y;
+    }
+    return rebuildRenderStates(snapshot_.tick);
+}
+
+world::WorldArtifactRevision InfantryMassBattleRuntime::worldArtifactRevision() const noexcept {
+    return world_artifact_ != nullptr ? world_artifact_->revision : 0U;
+}
+
 bool InfantryMassBattleRuntime::fixedUpdate(const simulation::TickContext& context) noexcept {
     if (!std::isfinite(context.fixed_dt_seconds) || context.fixed_dt_seconds <= 0.0) {
         return false;
@@ -199,8 +220,18 @@ bool InfantryMassBattleRuntime::fixedUpdate(const simulation::TickContext& conte
                     update.position.z = std::clamp(update.position.z, -limit, limit);
                     update.heading = wrappedAngle(kHalfTau - update.heading);
                 }
-                const float speed = std::sqrt(command.velocity.x * command.velocity.x +
-                                              command.velocity.z * command.velocity.z);
+                if (world_artifact_ != nullptr) {
+                    const LandscapeSample landscape = world_artifact_->sampleLandscape(
+                        update.position.x, update.position.z);
+                    if (!landscape.traversable()) {
+                        update.position = input_states_[index].position;
+                        update.velocity = {};
+                    }
+                    update.position.y = world_artifact_->sampleLandscape(
+                        update.position.x, update.position.z).ground_y;
+                }
+                const float speed = std::sqrt(update.velocity.x * update.velocity.x +
+                                              update.velocity.z * update.velocity.z);
                 update.velocity = {std::sin(update.heading) * speed, 0.0F,
                                    std::cos(update.heading) * speed};
             }
@@ -243,6 +274,18 @@ api::CommandReceipt InfantryMassBattleRuntime::submit(api::CommandEnvelope comma
 void InfantryMassBattleRuntime::applyApiCommands(foundation::SimulationTick tick) noexcept {
     const auto commands = api_commands_.take(tick);
     for (const auto& command : commands) {
+        if (command.module == foundation::stable_id("module.world") &&
+            command.verb == foundation::stable_id("world.set")) {
+            const auto values = command.payload.asTuple();
+            if (!values || values->size() != 2U || (*values)[0].type != api::ValueType::String ||
+                (*values)[1].type != api::ValueType::Bytes) {
+                continue;
+            }
+            const auto key = (*values)[0].asString();
+            if (!key) continue;
+            api_world_values_[std::string(*key)] = (*values)[1].bytes;
+            continue;
+        }
         if (command.module != foundation::stable_id("module.infantry") ||
             command.verb != foundation::stable_id("units.issue") ||
             command.payload.type != api::ValueType::Bytes ||
@@ -319,6 +362,15 @@ InfantryMassBattleRuntime::UnitUpdate InfantryMassBattleRuntime::updateUnit(
                                    -limit, limit);
         output.goal.z = std::clamp(output.position.z + std::cos(bearing) * range,
                                    -limit, limit);
+    }
+    if (world_artifact_ != nullptr) {
+        const LandscapeSample destination = world_artifact_->sampleLandscape(
+            output.goal.x, output.goal.z);
+        if (destination.traversable()) {
+            output.goal.y = destination.ground_y;
+        } else {
+            output.goal = output.position;
+        }
     }
     const float dt = static_cast<float>(context.fixed_dt_seconds);
     output.animation_phase += unit.animation_speed * dt * 1.25F;
@@ -417,6 +469,14 @@ bool InfantryMassBattleRuntime::rebuildRenderStates(std::uint64_t tick) noexcept
         simulation_candidate.semantic_hash = foundation::stableHashCombine(
             simulation_candidate.semantic_hash, candidate.states[index].animation_variant);
     }
+    for (const auto& [key, value] : api_world_values_) {
+        simulation_candidate.semantic_hash = foundation::stableHashCombine(
+            simulation_candidate.semantic_hash, foundation::stableHashString(key));
+        for (const std::uint8_t byte : value) {
+            simulation_candidate.semantic_hash = foundation::stableHashCombine(
+                simulation_candidate.semantic_hash, byte);
+        }
+    }
     snapshot_candidate.average_speed_mps = candidate.states.empty()
         ? 0.0F : total_speed / static_cast<float>(candidate.states.size());
     simulation_snapshot_ = simulation_candidate;
@@ -428,9 +488,12 @@ bool InfantryMassBattleRuntime::rebuildRenderStates(std::uint64_t tick) noexcept
                         entity.position.z, entity.velocity.x, entity.velocity.y,
                         entity.velocity.z, entity.heading_radians, entity.flags});
     }
-    api_snapshot_bytes_ = api::encodeSnapshot(
-        foundation::SimulationTick{simulation_snapshot_.metadata.tick},
-        simulation_snapshot_.metadata.scene_epoch, simulation_snapshot_.semantic_hash, wire);
+    api_snapshot_bytes_ = std::make_shared<const std::vector<std::uint8_t>>(
+        api::encodeSnapshot(foundation::SimulationTick{simulation_snapshot_.metadata.tick},
+                            simulation_snapshot_.metadata.scene_epoch,
+                            simulation_snapshot_.semantic_hash, wire));
+    api_world_snapshot_values_ = std::make_shared<const std::map<
+        std::string, std::vector<std::uint8_t>, std::less<>>>(api_world_values_);
     if (auto write = simulation_snapshot_exchange_.acquireWrite(); write) {
         write.value().snapshot() = simulation_snapshot_;
         if (const auto published = simulation_snapshot_exchange_.publish(

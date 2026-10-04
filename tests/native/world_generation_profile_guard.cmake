@@ -52,13 +52,19 @@ string(JSON buildings ERROR_VARIABLE buildings_error GET "${profile_text}" build
 string(JSON fenced ERROR_VARIABLE fenced_error GET "${profile_text}" fenced_parcels)
 string(JSON hydrology ERROR_VARIABLE hydrology_error GET "${profile_text}" hydrology_mode)
 string(JSON river ERROR_VARIABLE river_error GET "${profile_text}" river_probability)
+string(JSON terrain_preset ERROR_VARIABLE terrain_error GET "${profile_text}" terrain preset)
+string(JSON terrain_spacing ERROR_VARIABLE terrain_spacing_error GET "${profile_text}" terrain sample_spacing_m)
+string(JSON tributaries ERROR_VARIABLE tributary_error GET "${profile_text}" hydrology tributary_density)
 if(schema_error OR id_error OR seed_error OR map_error OR vegetation_error OR
-   buildings_error OR fenced_error OR hydrology_error OR river_error)
+   buildings_error OR fenced_error OR hydrology_error OR river_error OR
+   terrain_error OR terrain_spacing_error OR tributary_error)
     message(FATAL_ERROR "world generation profile is missing a required field")
 endif()
-if(NOT schema EQUAL 1 OR NOT id STREQUAL "world-generation-default" OR
+if(NOT schema EQUAL 3 OR NOT id STREQUAL "world-generation-default" OR
    NOT seed EQUAL 1592598566 OR NOT map_size EQUAL 600 OR
-   NOT hydrology STREQUAL "seeded-optional")
+   NOT hydrology STREQUAL "seeded-optional" OR
+   NOT terrain_preset STREQUAL "rolling-hills" OR NOT terrain_spacing EQUAL 8 OR
+   NOT tributaries STREQUAL "low")
     message(FATAL_ERROR "world generation profile core identity/defaults changed")
 endif()
 

@@ -6,6 +6,7 @@ if(GENOMES_ENABLE_INFANTRY)
     target_sources(genomes_gameplay PRIVATE
         src/BattlefieldScenario.cpp
         src/BattlefieldRuntime.cpp
+        src/BattlefieldSession.cpp
         src/InfantryMassBattleRuntime.cpp)
 endif()
 

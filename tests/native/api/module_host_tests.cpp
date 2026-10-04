@@ -91,9 +91,28 @@ void commandOrderingAndEncodingAreValueOnly() {
     assert(wire[0] == 'G' && wire[1] == 'S' && wire[2] == 'N' && wire[3] == 'P');
 }
 
+void tuplesAreVersionedAndRejectMalformedChildren() {
+    constexpr std::array<std::uint8_t, 3U> bytes{1U, 2U, 3U};
+    const std::array values{genomes::api::EncodedValue::string("weather"),
+                            genomes::api::EncodedValue::binary(bytes)};
+    const auto tuple = genomes::api::EncodedValue::tuple(values);
+    assert(tuple.valid());
+    const auto decoded = tuple.asTuple();
+    assert(decoded && decoded->size() == 2U);
+    assert((*decoded)[0].asString().has_value() && (*decoded)[0].asString().value() == "weather");
+    assert((*decoded)[1].type == genomes::api::ValueType::Bytes);
+    assert((*decoded)[1].bytes == std::vector<std::uint8_t>({1U, 2U, 3U}));
+
+    auto malformed = tuple;
+    malformed.bytes.pop_back();
+    assert(!malformed.valid());
+    assert(!malformed.asTuple());
+}
+
 void textAdapterUsesRegisteredSchema() {
     genomes::api::ModuleHost host;
     const auto core = genomes::foundation::stable_id("core");
+    const auto world = genomes::foundation::stable_id("module.world");
     assert(host.registerModule(
         {.id = core, .version = {}, .required_modules = {},
          .required_capabilities = {}, .provided_capabilities = {}},
@@ -103,11 +122,28 @@ void textAdapterUsesRegisteredSchema() {
             return registry.declareCommand(genomes::foundation::stable_id("core"),
                                            std::move(quit));
         }));
+    assert(host.registerModule(
+        {.id = world, .version = {}, .required_modules = {},
+         .required_capabilities = {}, .provided_capabilities = {}},
+        [world](auto& registry, auto&) {
+            genomes::api::ApiOperationDescriptor set{};
+            set.id = genomes::foundation::stable_id("world.set");
+            set.arguments = {genomes::api::ValueType::String, genomes::api::ValueType::Bytes};
+            return registry.declareCommand(world, std::move(set));
+        }));
     assert(host.finalize());
     genomes::api::TextCommandAdapter adapter(host.registry());
     const auto parsed = adapter.parse("core.quit()", {4U},
                                      genomes::foundation::stable_id("console"));
     assert(parsed && parsed.value().module == core && parsed.value().payload.valid());
+    const auto world_set = adapter.parse("world.set(\"weather.phase\", hex\"040207\")", {5U},
+                                         genomes::foundation::stable_id("console"));
+    assert(world_set && world_set.value().module == world);
+    const auto values = world_set.value().payload.asTuple();
+    assert(values && values->size() == 2U && (*values)[1].type == genomes::api::ValueType::Bytes);
+    assert((*values)[1].bytes == std::vector<std::uint8_t>({4U, 2U, 7U}));
+    assert(!adapter.parse("world.set(\"weather.phase\", \"wrong\")", {5U},
+                          genomes::foundation::stable_id("console")));
 }
 
 } // namespace
@@ -116,6 +152,7 @@ int main() {
     deterministicModuleOrderAndFreeze();
     missingAndCyclicDependenciesAreRejected();
     commandOrderingAndEncodingAreValueOnly();
+    tuplesAreVersionedAndRejectMalformedChildren();
     textAdapterUsesRegisteredSchema();
     return 0;
 }

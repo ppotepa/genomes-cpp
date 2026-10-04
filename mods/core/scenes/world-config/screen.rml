@@ -25,6 +25,18 @@
             <option data-for="option : map_size_options" data-attr-value="option.value" data-attrif-disabled="!option.enabled" data-attrif-selected="option.selected">{{ option.label }}</option>
           </select>
         </label>
+        <label class="field">
+          <span class="field-label">Terrain</span>
+          <select class="field-control" data-value="terrain_preset" data-field="terrain_preset" data-control="world.terrain-preset">
+            <option data-for="option : terrain_preset_options" data-attr-value="option.value" data-attrif-disabled="!option.enabled" data-attrif-selected="option.selected">{{ option.label }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Rivers and streams</span>
+          <select class="field-control" data-value="hydrology_mode" data-field="hydrology_mode" data-control="world.hydrology-mode">
+            <option data-for="option : hydrology_mode_options" data-attr-value="option.value" data-attrif-disabled="!option.enabled" data-attrif-selected="option.selected">{{ option.label }}</option>
+          </select>
+        </label>
         <div class="divider"/>
         <h3>WORLD COMPOSITION</h3>
         <label class="field">

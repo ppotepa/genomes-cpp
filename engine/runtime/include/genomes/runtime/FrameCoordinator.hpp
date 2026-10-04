@@ -37,6 +37,8 @@ struct FrameCoordinatorTelemetry final {
     foundation::Nanoseconds cpu_duration{};
     foundation::Nanoseconds simulation_duration{};
     foundation::Nanoseconds presentation_duration{};
+    foundation::Nanoseconds animation_duration{};
+    foundation::Nanoseconds extraction_duration{};
     foundation::Nanoseconds gpu_duration{};
     jobs::SchedulerTelemetry scheduler{};
     std::uint64_t rejected_stale_snapshots{0U};

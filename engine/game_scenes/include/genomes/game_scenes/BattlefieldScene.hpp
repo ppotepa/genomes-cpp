@@ -5,8 +5,8 @@
 #include <genomes/buildings/BuildingProfile.hpp>
 #include <genomes/camera/Camera.hpp>
 #if GENOMES_HAS_INFANTRY
+#include <genomes/gameplay/BattlefieldSession.hpp>
 #include <genomes/gameplay/BattlefieldRuntime.hpp>
-#include <genomes/gameplay/InfantryMassBattleRuntime.hpp>
 #endif
 #include <genomes/gameplay/WorldScenario.hpp>
 #if GENOMES_HAS_INFANTRY
@@ -54,6 +54,14 @@ enum class MassBattlePresentationProfile : std::uint8_t {
     Quality,
     Balanced,
     Stress,
+};
+
+enum class MassBattleDiagnosticsTab : std::uint8_t {
+    Overview,
+    Terrain,
+    Hydrology,
+    Performance,
+    Units,
 };
 
 enum class MassBattleAnimationArchetype : std::uint8_t {
@@ -177,7 +185,7 @@ private:
     struct MassBattlePresentationBatch final {
         std::vector<render::RenderInstance> instances;
 #if GENOMES_HAS_INFANTRY
-        std::vector<gameplay::InfantryMassBattleRenderState> states;
+        std::vector<gameplay::BattlefieldUnitPresentation> states;
 #else
         std::vector<std::byte> states;
 #endif
@@ -191,12 +199,19 @@ private:
     std::array<std::size_t, 8U> mass_battle_archetype_counts_{};
     std::array<std::size_t, 4U> mass_battle_lod_counts_{};
     std::size_t mass_battle_evaluated_poses_{0U};
+    MassBattleDiagnosticsTab mass_battle_diagnostics_tab_{
+        MassBattleDiagnosticsTab::Overview};
+    bool mass_battle_diagnostics_open_{true};
+    bool mass_battle_frame_terrain_{false};
+    std::uint64_t mass_battle_camera_revision_{0x52545343414D3031ULL};
+    std::size_t hydrology_water_cells_{0U};
+    std::size_t hydrology_flood_cells_{0U};
     std::shared_ptr<const render::SkinnedMeshPrototype> infantry_skinned_prototype_;
     camera::CameraRequest camera_request_{};
     combat::TacticalAIProfile tactical_ai_profile_{};
 #if GENOMES_HAS_INFANTRY
     std::unique_ptr<gameplay::BattlefieldRuntime> battlefield_runtime_;
-    std::unique_ptr<gameplay::InfantryMassBattleRuntime> mass_battle_runtime_;
+    std::unique_ptr<gameplay::BattlefieldSession> mass_battle_session_;
     infantry::InfantryModelCompiler infantry_model_compiler_;
     proc::GeneratorRegistry procedural_registry_;
     std::unique_ptr<proc::ProceduralRuntime> procedural_runtime_;
@@ -235,6 +250,10 @@ private:
     BattlefieldSceneMode mode_{BattlefieldSceneMode::Tactical};
     std::uint64_t scene_epoch_{0U};
     bool simulation_failed_{false};
+    // The scene advances authoritative state only through this API boundary.
+    // Concrete gameplay runtimes remain temporary presentation providers until
+    // their two legacy snapshot shapes are fully unified.
+    api::SimulationFacade* simulation_facade_{nullptr};
     std::unique_ptr<world::WorldRegionStreamer> region_streamer_;
     jobs::JobSystem* jobs_{nullptr};
     jobs::CancelToken cancellation_{};
