@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace genomes::game_scenes {
 
@@ -111,11 +112,24 @@ void MassBattlePresentationScheduler::scheduleAtlas(
     auto baked = std::make_shared<PoseAtlas>();
     pending_atlas_ = baked;
     jobs::JobGraphBuilder builder;
-    (void)builder.add(
-        [baked, prototype = std::move(prototype), artifact = std::move(artifact),
-         samples = std::move(samples)](jobs::JobContext&) {
-            for (std::size_t slot = 0U; slot < baked->size(); ++slot) {
-                if (!(*samples)[slot].has_value()) return;
+    jobs::JobOptions options;
+    options.lane = jobs::ExecutionLane::Worker;
+    options.work_class = jobs::WorkClass::Presentation;
+    options.priority = jobs::JobPriority::Background;
+
+    // CPU deformation is deliberately worker work.  The render lane only
+    // consumes the completed immutable atlas and performs GPU-facing work.
+    // Each slot owns a distinct array element, so all atlas samples can be
+    // baked independently without a merge lock or main/render-thread stall.
+    for (std::size_t slot = 0U; slot < baked->size(); ++slot) {
+        (void)builder.add(
+            [baked, prototype, artifact, samples, slot](jobs::JobContext& context) {
+                if (context.isCancellationRequested()) {
+                    return;
+                }
+                if (!(*samples)[slot].has_value()) {
+                    throw std::runtime_error("mass battle atlas sample is missing");
+                }
                 const auto palette = infantry_presentation::makePalette(
                     artifact->skeleton, std::span<const infantry::RigTransform>(
                         (*samples)[slot]->bones));
@@ -125,8 +139,9 @@ void MassBattlePresentationScheduler::scheduleAtlas(
                     foundation::stable_id("mesh.infantry.mass-battle.pose-atlas"), slot + 1U);
                 mesh->revision = foundation::stableHashCombine(prototype->revision, mesh->mesh_id);
                 (*baked)[slot] = std::move(mesh);
-            }
-        }, jobs::JobOptions{jobs::ExecutionLane::Render, jobs::WorkClass::Render});
+            },
+            options);
+    }
     atlas_completion_ = std::move(builder).build().start(*jobs_);
 }
 
