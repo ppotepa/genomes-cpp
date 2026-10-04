@@ -114,6 +114,14 @@ int main() {
     assert(unknown_stage.status() == proc::GenerationStatus::Failed);
     assert(unknown_stage.error().code == foundation::ErrorCode::NotFound);
 
+    auto typed_as_stage = runtime.requestStage<int>(
+        proc::generatorId("test.integer"), proc::SeedPath(91), stage_options,
+        [](proc::GenerationContext&) -> RuntimeResult {
+            return RuntimeResult::success(std::make_shared<const int>(1));
+        });
+    assert(typed_as_stage.status() == proc::GenerationStatus::Failed);
+    assert(typed_as_stage.error().code == foundation::ErrorCode::InvalidArgument);
+
     const proc::GeneratorDescriptor stage_descriptor{
         proc::generatorId("test.stage"), "test.stage", {1, 0, 0},
         foundation::stable_id("test.stage.input"), foundation::stable_id("test.stage.output"),
@@ -284,6 +292,13 @@ int main() {
         const auto generated = inline_runtime.generateInline(
             make_request(9, foundation::stable_id("ignored.caller.hash")), parent);
         assert(generated && *generated.value() == 27);
+        const auto failed_inline = inline_runtime.generateInline(
+            make_request(4, foundation::stable_id("ignored.failure.hash")), parent);
+        assert(!failed_inline);
+        const auto recorded = diagnostics.snapshot();
+        assert(!recorded.empty());
+        assert(recorded.back().generator == proc::generatorId("test.integer"));
+        assert(recorded.back().error.code == foundation::ErrorCode::Internal);
         inline_composed.store(true, std::memory_order_release);
     });
     inline_worker.wait(inline_owner);
