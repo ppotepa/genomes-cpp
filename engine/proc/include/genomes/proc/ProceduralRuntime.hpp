@@ -268,6 +268,96 @@ public:
     ProceduralRuntime& operator=(const ProceduralRuntime&) = delete;
 
     template <class Input, class Output>
+    [[nodiscard]] foundation::Result<std::shared_ptr<const Output>, foundation::Error>
+    generateInline(GenerationRequest<Input, Output> request,
+                   GenerationContext& parent_context) {
+        requested_.fetch_add(1, std::memory_order_relaxed);
+        const GeneratorEntry* entry = registry_.find(request.generator);
+        if (entry == nullptr || !entry->generate_typed ||
+            entry->input_cpp_type != std::type_index(typeid(Input)) ||
+            entry->output_cpp_type != std::type_index(typeid(Output)) || !request.input) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument,
+                 "procedural inline generator type/input mismatch"});
+        }
+        if (parent_context.cancellationRequested() ||
+            request.options.cancellation.isCancellationRequested()) {
+            canceled_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState,
+                 "procedural inline generation canceled"});
+        }
+        if (entry->canonical_input_hash) {
+            const foundation::StableId canonical_hash =
+                entry->canonical_input_hash(request.input.get());
+            if (canonical_hash == 0U) {
+                failed_.fetch_add(1, std::memory_order_relaxed);
+                return foundation::Result<std::shared_ptr<const Output>,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidArgument,
+                     "procedural generator produced an invalid canonical input hash"});
+            }
+            request.options.input_hash = canonical_hash;
+        }
+        const bool cacheable = request.options.use_cache &&
+                               entry->descriptor.cache == GeneratorCachePolicy::Artifact;
+        if (cacheable && request.options.input_hash == 0U) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument,
+                 "cacheable procedural inline request has no canonical input hash"});
+        }
+        const ArtifactKey key = makeKey(*entry, request.seed_path, request.options);
+        if (cacheable) {
+            if (auto cached = cache_->find<Output>(key)) {
+                cache_hits_.fetch_add(1, std::memory_order_relaxed);
+                completed_.fetch_add(1, std::memory_order_relaxed);
+                return foundation::Result<std::shared_ptr<const Output>,
+                                          foundation::Error>::success(std::move(cached));
+            }
+            cache_misses_.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        ArtifactReader reader(*cache_);
+        GenerationContext context(
+            request.seed_path, parent_context.job(),
+            parent_context.cancellationToken(), parent_context.supersededToken(),
+            &reader, parent_context.diagnostics(), parent_context.scratch());
+        auto generated = entry->generate_typed(request.input.get(), context);
+        if (!generated) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(generated.error());
+        }
+        if (context.cancellationRequested() ||
+            request.options.cancellation.isCancellationRequested()) {
+            canceled_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidState,
+                 "procedural inline generation canceled"});
+        }
+        auto output = std::static_pointer_cast<const Output>(generated.value());
+        if (!output) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "procedural inline generator returned null"});
+        }
+        if (cacheable) {
+            cache_->store(key, output, {request.options.retained_bytes});
+        }
+        completed_.fetch_add(1, std::memory_order_relaxed);
+        return foundation::Result<std::shared_ptr<const Output>,
+                                  foundation::Error>::success(std::move(output));
+    }
+
+    template <class Input, class Output>
     [[nodiscard]] GenerationTicket<Output> request(
         GenerationRequest<Input, Output> request,
         GenerationChannel* channel = nullptr) {
