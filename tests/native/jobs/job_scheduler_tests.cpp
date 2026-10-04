@@ -353,6 +353,22 @@ void parallelForReportsWorkerFailure() {
     assert(!completed);
 }
 
+void directJobHandleWaitHelpsFromWorker() {
+    genomes::jobs::JobSystem jobs(1);
+    std::atomic_bool child_ran{false};
+    const auto parent = jobs.submit([&](genomes::jobs::JobContext&) {
+        const auto child = jobs.submit([&](genomes::jobs::JobContext&) {
+            child_ran.store(true, std::memory_order_release);
+        });
+        // Direct handle waits use the same cooperative scheduler path as
+        // jobs.wait(handle); with one worker this must still make progress.
+        child.wait();
+        assert(child.isComplete());
+    });
+    parent.wait();
+    assert(child_ran.load(std::memory_order_acquire));
+}
+
 void parallelForWorkerBarrierHelpsWithoutDeadlock() {
     // One worker is the important case: the parent occupies that worker while
     // waiting, so completion proves JobGroup::wait helps execute its children.
@@ -446,6 +462,7 @@ int main() {
     ownerPumpsAffinityLanesWithWeightedFairness();
     schedulerCompletesOneHundredThousandJobs();
     parallelForReportsWorkerFailure();
+    directJobHandleWaitHelpsFromWorker();
     parallelForWorkerBarrierHelpsWithoutDeadlock();
     parallelForPreservesStableBatchRangesAcrossModes();
     return 0;
