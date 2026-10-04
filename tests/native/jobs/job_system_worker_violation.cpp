@@ -24,6 +24,29 @@ void destroyFromWorker() {
     handle.wait();
 }
 
+void waitForOwnerAffinityFromWorker() {
+    genomes::jobs::JobSystem jobs(1);
+    const auto main_job = jobs.submit(
+        [](genomes::jobs::JobContext&) {},
+        {.lane = genomes::jobs::ExecutionLane::Main});
+    const auto worker = jobs.submit([&](genomes::jobs::JobContext&) {
+        jobs.wait(main_job);
+    });
+    jobs.wait(worker);
+}
+
+void waitForOwnerAffinityGroupFromWorker() {
+    genomes::jobs::JobSystem jobs(1);
+    const auto worker = jobs.submit([&](genomes::jobs::JobContext&) {
+        genomes::jobs::JobGroup group(jobs);
+        (void)group.submit(
+            [](genomes::jobs::JobContext&) {},
+            {.lane = genomes::jobs::ExecutionLane::Render});
+        group.wait();
+    });
+    jobs.wait(worker);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -36,6 +59,14 @@ int main(int argc, char** argv) {
     }
     if (std::string_view(argv[1]) == "--destructor") {
         destroyFromWorker();
+        return 3;
+    }
+    if (std::string_view(argv[1]) == "--affinity-wait") {
+        waitForOwnerAffinityFromWorker();
+        return 3;
+    }
+    if (std::string_view(argv[1]) == "--affinity-group-wait") {
+        waitForOwnerAffinityGroupFromWorker();
         return 3;
     }
     return 2;
