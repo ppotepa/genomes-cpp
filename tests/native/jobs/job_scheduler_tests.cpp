@@ -100,6 +100,25 @@ void ioLaneUsesCentralScheduler() {
     assert(ran.load(std::memory_order_acquire));
 }
 
+void ioLaneFallsBackToWorkerWhenDedicatedIoIsDisabled() {
+    genomes::jobs::SchedulerConfig config;
+    config.worker_count = 1U;
+    config.enable_io_worker = false;
+    genomes::jobs::JobSystem jobs(config);
+    std::atomic_bool ran{false};
+    const auto handle = jobs.submit(
+        [&](genomes::jobs::JobContext& context) {
+            assert(context.lane() == genomes::jobs::ExecutionLane::Worker);
+            assert(context.workClass() == genomes::jobs::WorkClass::BlockingIO);
+            ran.store(true, std::memory_order_release);
+        },
+        {.lane = genomes::jobs::ExecutionLane::IO,
+         .work_class = genomes::jobs::WorkClass::BlockingIO});
+    jobs.wait(handle);
+    assert(handle.lane() == genomes::jobs::ExecutionLane::Worker);
+    assert(ran.load(std::memory_order_acquire));
+}
+
 void groupSelectsFailureByJobId() {
     genomes::jobs::JobSystem jobs(2);
     genomes::jobs::JobGroup group(jobs);
@@ -416,6 +435,7 @@ int main() {
     explicitParallelSchedulerExecutesWork();
     explicitSerialExecutorHasNoWorkers();
     ioLaneUsesCentralScheduler();
+    ioLaneFallsBackToWorkerWhenDedicatedIoIsDisabled();
     groupSelectsFailureByJobId();
     cancellationReachesActiveAndPendingJobs();
     graphRunsFanInAndDeepContinuationsExactlyOnce();
