@@ -4,6 +4,7 @@
 #include <genomes/foundation/Result.hpp>
 #include <genomes/foundation/StableHash.hpp>
 #include <genomes/foundation/Time.hpp>
+#include <genomes/execution/SystemSpec.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 #include <genomes/simulation/Cadence.hpp>
 #include <genomes/simulation/SimulationCommand.hpp>
@@ -12,7 +13,6 @@
 #include <cstddef>
 #include <functional>
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -20,7 +20,8 @@ namespace genomes::simulation {
 
 class SystemExecutionPlan;
 
-using AccessKey = foundation::StableId;
+using AccessKey = execution::AccessKey;
+using SystemAccess = execution::SystemAccess;
 
 // The phase order is part of the simulation contract. New systems should be
 // placed in the narrowest phase that contains their authoritative writes.
@@ -38,15 +39,6 @@ enum class SystemPhase : std::uint8_t {
     PresentationExtract,
 };
 
-struct SystemAccess final {
-    std::vector<AccessKey> reads;
-    std::vector<AccessKey> writes;
-    std::vector<AccessKey> resource_reads;
-    std::vector<AccessKey> resource_writes;
-
-    [[nodiscard]] bool valid() const noexcept;
-};
-
 struct SystemContext final {
     foundation::SimulationTick tick{};
     double fixed_dt{0.0};
@@ -59,11 +51,13 @@ struct SystemContext final {
 
 using SystemCallback = std::function<void(SystemContext&)>;
 
-struct SystemDescriptor final {
-    SystemId id{0};
+struct SystemDescriptor final : execution::SystemSpec {
     SystemPhase phase{SystemPhase::Commit};
-    SystemAccess access{};
     CadencePolicy cadence{};
+
+    // Compatibility-only inputs. SystemGraph::add() normalizes these into the
+    // inherited canonical predecessors/lane fields before the graph stores the
+    // descriptor. New production systems should not write these fields.
     bool main_thread_only{false};
     std::vector<SystemId> before;
     std::vector<SystemId> after;
@@ -116,8 +110,8 @@ private:
         CadenceState cadence_state{};
     };
 
-    [[nodiscard]] bool hasHazard(const SystemDescriptor& left,
-                                 const SystemDescriptor& right) const noexcept;
+    [[nodiscard]] bool hasHazard(const execution::SystemSpec& left,
+                                 const execution::SystemSpec& right) const noexcept;
     bool addEdge(std::size_t from, std::size_t to) noexcept;
     [[nodiscard]] const SystemDescriptor* findSystem(SystemId id) const noexcept;
     void fail(std::string message);

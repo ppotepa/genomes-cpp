@@ -11,7 +11,7 @@ add_library(genomes_simulation STATIC
 
 target_include_directories(genomes_simulation PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(genomes_simulation PUBLIC genomes::foundation genomes::jobs)
+target_link_libraries(genomes_simulation PUBLIC genomes::foundation genomes::jobs genomes::execution)
 target_compile_features(genomes_simulation PUBLIC cxx_std_20)
 genomes_set_project_warnings(genomes_simulation)
 

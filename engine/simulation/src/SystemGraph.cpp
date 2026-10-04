@@ -62,23 +62,48 @@ namespace {
 
 } // namespace
 
-bool SystemAccess::valid() const noexcept {
-    const auto valid_keys = [](const std::vector<AccessKey>& values) noexcept {
-        return std::all_of(values.begin(), values.end(), [](AccessKey key) { return key != 0; });
-    };
-    return valid_keys(reads) && valid_keys(writes) && valid_keys(resource_reads) &&
-           valid_keys(resource_writes);
-}
-
 bool SystemDescriptor::valid() const noexcept {
-    return id != 0 && access.valid() && cadence.valid() && static_cast<bool>(callback) &&
-           !hasId(before, id) && !hasId(after, id);
+    if (main_thread_only && lane != jobs::ExecutionLane::Worker &&
+        lane != jobs::ExecutionLane::Main) {
+        return false;
+    }
+    const auto valid_legacy_ids = [this](const std::vector<SystemId>& values) noexcept {
+        return std::all_of(values.begin(), values.end(), [this](SystemId value) {
+            return value != 0U && value != id;
+        });
+    };
+    return execution::SystemSpec::valid() && cadence.valid() &&
+           static_cast<bool>(callback) && valid_legacy_ids(before) &&
+           valid_legacy_ids(after);
 }
 
 foundation::Result<void, foundation::Error> SystemGraph::add(SystemDescriptor descriptor) {
     if (!descriptor.valid()) {
         return foundation::Result<void, foundation::Error>::failure(
             graphError("invalid simulation system descriptor"));
+    }
+
+    // Normalize legacy scheduling fields exactly once at the graph boundary.
+    // From this point onward the inherited execution::SystemSpec is the sole
+    // source of dependency and lane semantics.
+    if (descriptor.main_thread_only) {
+        descriptor.lane = jobs::ExecutionLane::Main;
+    }
+    for (const SystemId predecessor : descriptor.after) {
+        if (!hasId(descriptor.predecessors, predecessor)) {
+            descriptor.predecessors.push_back(predecessor);
+        }
+    }
+    std::sort(descriptor.predecessors.begin(), descriptor.predecessors.end());
+    descriptor.predecessors.erase(
+        std::unique(descriptor.predecessors.begin(), descriptor.predecessors.end()),
+        descriptor.predecessors.end());
+    descriptor.main_thread_only = false;
+    descriptor.after.clear();
+
+    if (!static_cast<const execution::SystemSpec&>(descriptor).valid()) {
+        return foundation::Result<void, foundation::Error>::failure(
+            graphError("invalid canonical simulation system specification"));
     }
     if (findSystem(descriptor.id) != nullptr) {
         return foundation::Result<void, foundation::Error>::failure(
@@ -97,8 +122,8 @@ void SystemGraph::clear() noexcept {
     compiled_ = false;
 }
 
-bool SystemGraph::hasHazard(const SystemDescriptor& left,
-                            const SystemDescriptor& right) const noexcept {
+bool SystemGraph::hasHazard(const execution::SystemSpec& left,
+                            const execution::SystemSpec& right) const noexcept {
     const bool component_hazard =
         intersects(left.access.writes, right.access.reads) ||
         intersects(left.access.writes, right.access.writes) ||
@@ -152,7 +177,9 @@ foundation::Result<void, foundation::Error> SystemGraph::compile() {
         indices.emplace(systems_[index].id, index);
     }
 
-    for (const SystemDescriptor& descriptor : systems_) {
+    for (std::size_t descriptor_index = 0; descriptor_index < graph_.size();
+         ++descriptor_index) {
+        const SystemDescriptor& descriptor = graph_[descriptor_index].descriptor;
         const auto from_iterator = indices.find(descriptor.id);
         if (from_iterator == indices.end()) {
             fail("internal system graph index failure");
@@ -170,7 +197,7 @@ foundation::Result<void, foundation::Error> SystemGraph::compile() {
             }
             addEdge(from, target->second);
         }
-        for (const SystemId source_id : descriptor.after) {
+        for (const SystemId source_id : descriptor.predecessors) {
             const auto source = indices.find(source_id);
             if (source == indices.end()) {
                 fail("system '" + std::to_string(descriptor.id) +

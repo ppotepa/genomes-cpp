@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -42,6 +43,41 @@ void deterministicModuleOrderAndFreeze() {
     assert(host.frozen());
     assert(!host.registerModule({.id = 99, .version = {}, .required_modules = {},
                                  .required_capabilities = {}, .provided_capabilities = {}}, {}));
+}
+
+void canonicalSystemSpecIsSharedByApiRegistration() {
+    static_assert(std::is_base_of_v<genomes::execution::SystemSpec,
+                                    genomes::api::ApiSystemDescriptor>);
+
+    genomes::api::ModuleHost host;
+    const auto core = genomes::foundation::stable_id("module.system-core");
+    const auto domain = genomes::foundation::stable_id("module.system-domain");
+    const auto producer = genomes::foundation::stable_id("system.producer");
+    const auto consumer = genomes::foundation::stable_id("system.consumer");
+    assert(host.registerModule(
+        {.id = core, .version = {}, .required_modules = {},
+         .required_capabilities = {}, .provided_capabilities = {}},
+        [producer](auto& registry, auto& context) {
+            genomes::api::ApiSystemDescriptor system{};
+            system.id = producer;
+            system.access.writes = {genomes::foundation::stable_id("resource.snapshot")};
+            return registry.declareSystem(context.module(), std::move(system));
+        }));
+    assert(host.registerModule(
+        {.id = domain, .version = {}, .required_modules = {core},
+         .required_capabilities = {}, .provided_capabilities = {}},
+        [producer, consumer](auto& registry, auto& context) {
+            genomes::api::ApiSystemDescriptor system{};
+            system.id = consumer;
+            system.predecessors = {producer};
+            system.access.reads = {genomes::foundation::stable_id("resource.snapshot")};
+            system.lane = genomes::jobs::ExecutionLane::Worker;
+            return registry.declareSystem(context.module(), std::move(system));
+        }));
+    assert(host.finalize());
+    assert((host.registry().systemOrder() ==
+            std::vector<genomes::api::ApiId>{producer, consumer}));
+    assert(host.registry().systems()[1].second.predecessors == std::vector{producer});
 }
 
 void missingAndCyclicDependenciesAreRejected() {
@@ -160,6 +196,7 @@ void textAdapterUsesRegisteredSchema() {
 
 int main() {
     deterministicModuleOrderAndFreeze();
+    canonicalSystemSpecIsSharedByApiRegistration();
     missingAndCyclicDependenciesAreRejected();
     commandOrderingAndEncodingAreValueOnly();
     tuplesAreVersionedAndRejectMalformedChildren();

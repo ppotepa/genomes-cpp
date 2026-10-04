@@ -87,7 +87,7 @@ foundation::Result<void, foundation::Error> ModuleRegistry::declareQuery(
 
 foundation::Result<void, foundation::Error> ModuleRegistry::declareSystem(
     ModuleId module, ApiSystemDescriptor descriptor) {
-    if (module == 0 || descriptor.id == 0 ||
+    if (module == 0 || !descriptor.valid() ||
         std::any_of(systems_.begin(), systems_.end(), [&](const auto& item) {
             return item.second.id == descriptor.id;
         })) {

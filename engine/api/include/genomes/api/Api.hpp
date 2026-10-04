@@ -5,6 +5,7 @@
 #include <genomes/foundation/Time.hpp>
 #include <genomes/foundation/Types.hpp>
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/execution/SystemSpec.hpp>
 #include <genomes/jobs/Cancellation.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 
@@ -343,14 +344,11 @@ struct ApiOperationDescriptor final {
     bool deterministic{true};
 };
 
-struct ApiSystemDescriptor final {
-    ApiId id{0};
+// API introspection and simulation execution share one semantic system
+// contract. API-specific schema versioning extends, rather than duplicates,
+// the canonical execution::SystemSpec fields.
+struct ApiSystemDescriptor final : execution::SystemSpec {
     ApiVersion schema_version{};
-    std::vector<ApiId> predecessors;
-    std::vector<CapabilityId> reads;
-    std::vector<CapabilityId> writes;
-    jobs::ExecutionLane lane{jobs::ExecutionLane::Worker};
-    bool deterministic{true};
 };
 
 struct ModuleDescriptor final {

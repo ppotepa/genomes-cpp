@@ -160,14 +160,13 @@ foreach(forbidden_facade_text IN ITEMS
     endif()
 endforeach()
 
-# Central scheduler ownership: AI and infantry navigation are CPU worker
-# systems in normal parallel execution. Inline/deterministic execution keeps
-# the graph on the owner lane by setting main_thread_only from the explicit
-# execution-mode flag rather than hard-coding affinity per subsystem.
+# Central scheduler ownership: simulation systems use the canonical lane
+# field from execution::SystemSpec. Inline/deterministic execution explicitly
+# selects Main while normal production execution selects Worker.
 foreach(required_worker_system IN ITEMS
         "const bool inline_execution = execution_mode_ == BattlefieldExecutionMode::Inline"
-        "decide.main_thread_only = inline_execution"
-        "navigate.main_thread_only = inline_execution")
+        "decide.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker"
+        "navigate.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker")
     string(FIND "${battlefield}" "${required_worker_system}" worker_position)
     if(worker_position EQUAL -1)
         message(FATAL_ERROR

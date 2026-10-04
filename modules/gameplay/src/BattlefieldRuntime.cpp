@@ -351,7 +351,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // affinity.  The execution plan runs them on the central worker lane;
     // graph dependencies provide the ordering and the commit phase remains
     // the sole authoritative state publication point.
-    sense.main_thread_only = inline_execution;
+    sense.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
     sense.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             runPerception();
@@ -374,8 +374,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // AIJobPipeline uses bounded nested bulk work. Worker waits are
     // cooperative and execute runnable child batches, so decision evaluation
     // no longer needs artificial main-lane affinity.
-    decide.main_thread_only = inline_execution;
-    decide.after = {foundation::stable_id("battlefield.sense")};
+    decide.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    decide.predecessors = {foundation::stable_id("battlefield.sense")};
     decide.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             runDecision();
@@ -398,8 +398,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // InfantrySimulation performs bounded batch execution through the same
     // scheduler. Cooperative worker waits keep the parent live while child
     // ranges execute, including on a one-worker configuration.
-    navigate.main_thread_only = inline_execution;
-    navigate.after = {foundation::stable_id("battlefield.decide")};
+    navigate.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    navigate.predecessors = {foundation::stable_id("battlefield.decide")};
     navigate.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
             infantry_->fixedUpdate(context.fixed_dt, context.tick);
@@ -423,8 +423,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     move_intent.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     move_intent.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     move_intent.cadence = every_tick;
-    move_intent.main_thread_only = inline_execution;
-    move_intent.after = {foundation::stable_id("battlefield.navigate")};
+    move_intent.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    move_intent.predecessors = {foundation::stable_id("battlefield.navigate")};
     move_intent.callback = [](simulation::SystemContext&) {
         // InfantrySimulation::fixedUpdate has already emitted the command
         // buffer in Navigate; this phase is the typed hand-off boundary.
@@ -442,8 +442,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_commands.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_commands.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_commands.cadence = every_tick;
-    physics_commands.main_thread_only = inline_execution;
-    physics_commands.after = {foundation::stable_id("battlefield.move-intent")};
+    physics_commands.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    physics_commands.predecessors = {foundation::stable_id("battlefield.move-intent")};
     physics_commands.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty() && infantry_) {
             infantry_->applyPhysicsCommands();
@@ -464,8 +464,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_step.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_step.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_step.cadence = every_tick;
-    physics_step.main_thread_only = inline_execution;
-    physics_step.after = {foundation::stable_id("battlefield.physics-commands")};
+    physics_step.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    physics_step.predecessors = {foundation::stable_id("battlefield.physics-commands")};
     physics_step.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty() && infantry_) {
             // The runtime is the sole owner of this world step. Infantry only
@@ -489,8 +489,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     combat.access.resource_reads = {foundation::stable_id("battlefield.intent")};
     combat.access.resource_writes = {foundation::stable_id("battlefield.projectiles")};
     combat.cadence = every_tick;
-    combat.main_thread_only = inline_execution;
-    combat.after = {foundation::stable_id("battlefield.physics-step")};
+    combat.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    combat.predecessors = {foundation::stable_id("battlefield.physics-step")};
     combat.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
             queueFire(static_cast<float>(context.fixed_dt));
@@ -512,8 +512,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     damage.access.resource_reads = {foundation::stable_id("battlefield.projectiles")};
     damage.access.resource_writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
-    damage.main_thread_only = inline_execution;
-    damage.after = {foundation::stable_id("battlefield.combat-ballistics")};
+    damage.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    damage.predecessors = {foundation::stable_id("battlefield.combat-ballistics")};
     damage.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             applyImpactDamage();
@@ -534,8 +534,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                                     foundation::stable_id("battlefield.health")};
     commit.access.resource_writes = {foundation::stable_id("battlefield.snapshot")};
     commit.cadence = every_tick;
-    commit.main_thread_only = inline_execution;
-    commit.after = {foundation::stable_id("battlefield.damage-destruction")};
+    commit.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    commit.predecessors = {foundation::stable_id("battlefield.damage-destruction")};
     commit.callback = [](simulation::SystemContext&) {
         // Authoritative ECS writes are applied by CommandCommitter after the
         // execution plan drains. Snapshot publication therefore happens only
@@ -556,8 +556,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     presentation.access.resource_writes = {
         foundation::stable_id("battlefield.presentation")};
     presentation.cadence = every_tick;
-    presentation.main_thread_only = inline_execution;
-    presentation.after = {foundation::stable_id("battlefield.commit")};
+    presentation.lane = inline_execution ? jobs::ExecutionLane::Main : jobs::ExecutionLane::Worker;
+    presentation.predecessors = {foundation::stable_id("battlefield.commit")};
     presentation.callback = [](simulation::SystemContext&) {
         // Presentation extraction is deliberately delayed until after the
         // authoritative command commit in fixedUpdate().

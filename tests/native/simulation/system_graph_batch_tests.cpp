@@ -163,6 +163,34 @@ void legacyRunUsesDirectDependencyScheduling() {
     assert(direct_successor_ran.load(std::memory_order_acquire));
 }
 
+void canonicalSpecDrivesLaneAndPredecessors() {
+    genomes::jobs::JobSystem jobs(2);
+    const auto owner_thread = std::this_thread::get_id();
+    SystemGraph graph;
+    std::atomic_bool worker_ran{false};
+    std::atomic_bool owner_ran{false};
+
+    auto producer = descriptor(320, false, [&](genomes::simulation::SystemContext&) {
+        worker_ran.store(true, std::memory_order_release);
+    });
+    producer.lane = genomes::jobs::ExecutionLane::Worker;
+    assert(graph.add(std::move(producer)));
+
+    auto consumer = descriptor(321, false, [&](genomes::simulation::SystemContext&) {
+        assert(worker_ran.load(std::memory_order_acquire));
+        assert(std::this_thread::get_id() == owner_thread);
+        owner_ran.store(true, std::memory_order_release);
+    });
+    consumer.predecessors = {320};
+    consumer.lane = genomes::jobs::ExecutionLane::Main;
+    assert(graph.add(std::move(consumer)));
+    assert(graph.compile());
+
+    const auto result = graph.run({}, 1.0 / 60.0, &jobs);
+    assert(result);
+    assert(owner_ran.load(std::memory_order_acquire));
+}
+
 void executionPlanStartsWithoutWorkerBlocking() {
     genomes::jobs::JobSystem jobs(2);
     SystemGraph graph;
@@ -284,6 +312,7 @@ int main() {
     reverseCompletionFailureDrainsEveryAcceptedHandle();
     directDependencyReleasesWithoutFrontierBarrier();
     legacyRunUsesDirectDependencyScheduling();
+    canonicalSpecDrivesLaneAndPredecessors();
     executionPlanStartsWithoutWorkerBlocking();
     asynchronousExecutionPlanCommitsExactlyOnceAfterAllLeaves();
     cadenceNoOpReportsOnlyDueSystems();

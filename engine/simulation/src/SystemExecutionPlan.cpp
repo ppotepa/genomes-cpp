@@ -78,11 +78,10 @@ jobs::JobCompletion SystemExecutionPlan::start(foundation::SimulationTick tick,
         CommandBuffer* commands = command_buffers == nullptr
                                       ? nullptr
                                       : &command_buffers->at(index);
-        SystemContext context{tick, fixed_dt, decision.elapsed_ticks, descriptor.id,
+        SystemContext context{tick, fixed_dt, decision.elapsed_ticks, compiled.descriptor.id,
                               descriptor.phase, scheduler, commands};
         jobs::JobOptions options;
-        options.lane = descriptor.main_thread_only ? jobs::ExecutionLane::Main
-                                                   : jobs::ExecutionLane::Worker;
+        options.lane = compiled.descriptor.lane;
         options.work_class = jobs::WorkClass::Simulation;
         options.priority = jobs::JobPriority::Critical;
         nodes.push_back(builder.add(
@@ -166,13 +165,12 @@ foundation::Result<SystemGraphRunResult, foundation::Error> SystemExecutionPlan:
         SystemContext context{tick,
                               fixed_dt,
                               decision.elapsed_ticks,
-                              descriptor.id,
+                              compiled.descriptor.id,
                               descriptor.phase,
                               scheduler,
                               commands};
         jobs::JobOptions options;
-        options.lane = descriptor.main_thread_only ? jobs::ExecutionLane::Main
-                                                   : jobs::ExecutionLane::Worker;
+        options.lane = compiled.descriptor.lane;
         options.work_class = jobs::WorkClass::Simulation;
         options.priority = jobs::JobPriority::Critical;
         nodes.push_back(builder.add(
