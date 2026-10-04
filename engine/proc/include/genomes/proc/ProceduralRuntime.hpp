@@ -353,6 +353,10 @@ public:
         }
         if (!generated) {
             failed_.fetch_add(1, std::memory_order_relaxed);
+            if (parent_context.diagnostics() != nullptr) {
+                parent_context.diagnostics()->record(
+                    {0U, request.generator, generated.error()});
+            }
             return foundation::Result<std::shared_ptr<const Output>,
                                       foundation::Error>::failure(generated.error());
         }
@@ -570,12 +574,15 @@ public:
             GenerationContext&)> execute,
         GenerationChannel* channel = nullptr) {
         const GeneratorEntry* entry = registry_.find(stage);
-        if (entry == nullptr || !entry->descriptor.valid()) {
+        if (entry == nullptr || !entry->descriptor.valid() || entry->generate_typed) {
             auto state = std::make_shared<detail::GenerationTicketState<Output>>();
             state->request_id = next_request_.fetch_add(1, std::memory_order_relaxed);
             state->transition(GenerationStatus::Failed, {},
-                              {foundation::ErrorCode::NotFound,
-                               "procedural stage is not registered"});
+                              {entry == nullptr ? foundation::ErrorCode::NotFound
+                                                : foundation::ErrorCode::InvalidArgument,
+                               entry == nullptr
+                                   ? "procedural stage is not registered"
+                                   : "typed generator cannot be invoked as a composition stage"});
             failed_.fetch_add(1, std::memory_order_relaxed);
             requested_.fetch_add(1, std::memory_order_relaxed);
             return GenerationTicket<Output>(std::move(state));
