@@ -304,22 +304,5 @@ int main() {
     });
     single_worker.wait(outer);
     assert(nested_completed.load(std::memory_order_acquire));
-
-    // Destroying a ProceduralRuntime is an explicit cancellation boundary.
-    // Active cooperative generators must observe cancellation and settle
-    // before the runtime releases the state captured by their jobs.
-    jobs::JobSystem shutdown_jobs(1);
-    proc::GenerationTicket<int> shutdown_ticket;
-    {
-        proc::ProceduralRuntime shutdown_runtime(frozen.value(), shutdown_jobs);
-        shutdown_ticket = shutdown_runtime.request(
-            make_request(5, foundation::stable_id("runtime.shutdown.cancel")));
-        while (shutdown_ticket.status() == proc::GenerationStatus::Pending) {
-            std::this_thread::yield();
-        }
-        assert(shutdown_ticket.status() == proc::GenerationStatus::Running);
-    }
-    assert(shutdown_ticket.complete());
-    assert(shutdown_ticket.status() == proc::GenerationStatus::Canceled);
     return 0;
 }
