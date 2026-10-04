@@ -10,6 +10,8 @@
 
 namespace genomes::jobs {
 
+class JobSystem;
+
 namespace detail {
 
 struct JobState final {
@@ -64,13 +66,9 @@ public:
         return static_cast<bool>(state_->failure);
     }
 
-    void wait() const noexcept {
-        if (!state_) {
-            return;
-        }
-        std::unique_lock lock(state_->mutex);
-        state_->condition.wait(lock, [this] { return state_->complete; });
-    }
+    // Always routes through the owning scheduler so worker-side waits retain
+    // cooperative helping and owner-affinity contract checks.
+    void wait() const noexcept;
 
     [[nodiscard]] JobId id() const noexcept { return id_; }
     [[nodiscard]] ExecutionLane lane() const noexcept { return lane_; }
@@ -87,11 +85,21 @@ private:
     friend class JobSystem;
 
     explicit JobHandle(std::shared_ptr<detail::JobState> state,
+                       JobSystem* system = nullptr,
                        JobId id = 0,
                        ExecutionLane lane = ExecutionLane::Worker) noexcept
-        : state_(std::move(state)), id_(id), lane_(lane) {}
+        : state_(std::move(state)), system_(system), id_(id), lane_(lane) {}
+
+    void waitRaw() const noexcept {
+        if (!state_) {
+            return;
+        }
+        std::unique_lock lock(state_->mutex);
+        state_->condition.wait(lock, [this] { return state_->complete; });
+    }
 
     std::shared_ptr<detail::JobState> state_;
+    JobSystem* system_{nullptr};
     JobId id_{0};
     ExecutionLane lane_{ExecutionLane::Worker};
 };
