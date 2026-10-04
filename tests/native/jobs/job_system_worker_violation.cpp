@@ -1,3 +1,4 @@
+#include <genomes/jobs/JobGraph.hpp>
 #include <genomes/jobs/JobSystem.hpp>
 
 #include <cstdlib>
