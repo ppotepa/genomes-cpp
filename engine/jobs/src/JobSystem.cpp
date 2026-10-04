@@ -241,7 +241,7 @@ struct JobSystem::Impl final {
 
         const JobId id = forced_id.value_or(reserveIds(1));
         auto job_state = std::make_shared<detail::JobState>();
-        JobHandle handle(job_state, id, options.lane);
+        JobHandle handle(job_state, &system, id, options.lane);
         if (register_group && group) {
             group->add(1, options.lane);
         }
@@ -625,7 +625,7 @@ JobHandle JobSystem::submit(JobGroup& group, JobFunction function, JobOptions op
     if (group.system_ != this || !group.state_) {
         auto state = std::make_shared<detail::JobState>();
         state->finish(true, {});
-        return JobHandle(std::move(state));
+        return JobHandle(std::move(state), this);
     }
     return impl_->submit(std::move(function), options, group.state_, true);
 }
@@ -649,7 +649,7 @@ void JobSystem::wait(const JobHandle& handle) const noexcept {
     if (std::this_thread::get_id() == impl_->owner_thread) {
         if (handle.lane() != ExecutionLane::Main &&
             handle.lane() != ExecutionLane::Render) {
-            handle.wait();
+            handle.waitRaw();
             return;
         }
         while (!handle.isComplete()) {
@@ -664,7 +664,18 @@ void JobSystem::wait(const JobHandle& handle) const noexcept {
         }
         return;
     }
-    handle.wait();
+    handle.waitRaw();
+}
+
+void JobHandle::wait() const noexcept {
+    if (!state_ || isComplete()) {
+        return;
+    }
+    if (system_ != nullptr) {
+        system_->wait(*this);
+        return;
+    }
+    waitRaw();
 }
 
 void JobSystem::wait(const JobCompletion& completion) const noexcept {
