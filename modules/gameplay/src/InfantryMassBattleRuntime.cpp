@@ -4,7 +4,7 @@
 #if GENOMES_HAS_INFANTRY
 
 #include <genomes/foundation/StableHash.hpp>
-#include <genomes/jobs/ParallelFor.hpp>
+#include <genomes/jobs/JobGraph.hpp>
 #include <genomes/weapons/WeaponCatalog.hpp>
 #include <genomes/weapons/WeaponProcedural.hpp>
 
@@ -179,96 +179,118 @@ bool InfantryMassBattleRuntime::fixedUpdate(const simulation::TickContext& conte
     }
     try {
         std::atomic<bool> controller_failed{false};
-        if (!jobs::parallelForAndWait(jobs_, 0, units_.size(), 128,
-                                 [this, &context, &controller_failed](
-                                     const jobs::BatchRange& range) {
-            for (std::size_t index = range.begin; index < range.end; ++index) {
-                unit_updates_[index] = updateUnit(units_[index], input_states_[index], context);
-            }
-            std::array<simulation::EntityControlRequest, 128U> requests{};
-            std::array<simulation::EntityControlCommand, 128U> commands{};
-            const std::size_t count = range.end - range.begin;
-            for (std::size_t offset = 0U; offset < count; ++offset) {
-                const std::size_t index = range.begin + offset;
-                const Unit& unit = units_[index];
-                const UnitUpdate& update = unit_updates_[index];
-                auto& request = requests[offset];
-                request.state = input_states_[index];
-                request.enabled = unit_updates_[index].valid;
-                request.order.entity = unit.entity;
-                request.order.kind = (update.animation_variant == 1U ||
-                                      update.animation_variant == 2U ||
-                                      update.animation_variant == 4U ||
-                                      update.animation_variant == 6U)
-                    ? simulation::EntityOrderKind::MoveTo
-                    : simulation::EntityOrderKind::Hold;
-                request.order.destination = update.goal;
-                request.order.action = infantry::infantryUnitActionId(
-                    update.animation_variant);
-                request.order.source = foundation::stable_id("controller.mass-battle");
-                request.order.issued_tick = context.tick.value;
-                request.order.expires_tick = context.tick.value;
-                request.requested_speed_mps = update.animation_variant == 1U
-                    ? unit.base_speed_mps
-                    : update.animation_variant == 2U ? unit.base_speed_mps * 2.0F
-                    : update.animation_variant == 4U ? unit.base_speed_mps * 0.55F
-                    : update.animation_variant == 6U ? unit.base_speed_mps * 0.25F
-                                                     : 0.0F;
-                request.maximum_speed_mps = unit.base_speed_mps * 2.0F;
-                request.acceleration_mps2 = 2.8F;
-                request.turn_rate_radians_per_second = 0.65F +
-                    unitRandom01(config_.seed, unit.entity.packed(),
-                                 update.last_direction_epoch + 17U) * 0.75F;
-            }
-            const auto controlled = infantry_controller_.updateBatch(
-                std::span<const simulation::EntityControlRequest>(requests.data(), count),
-                std::span<simulation::EntityControlCommand>(commands.data(), count),
-                context);
-            if (!controlled) {
-                controller_failed.store(true, std::memory_order_release);
-                return;
-            }
-            const float limit = std::max(
-                1.0F, static_cast<float>(config_.map_size_m) * 0.5F - 12.0F);
-            for (std::size_t offset = 0U; offset < count; ++offset) {
-                const std::size_t index = range.begin + offset;
-                UnitUpdate& update = unit_updates_[index];
-                if (!update.valid) continue;
-                const auto& command = commands[offset];
-                if (command.entity != units_[index].entity) {
-                    controller_failed.store(true, std::memory_order_release);
-                    return;
-                }
-                update.position = command.position;
-                update.velocity = command.velocity;
-                update.heading = command.heading_radians;
-                if (update.position.x < -limit || update.position.x > limit) {
-                    update.position.x = std::clamp(update.position.x, -limit, limit);
-                    update.heading = wrappedAngle(-update.heading);
-                }
-                if (update.position.z < -limit || update.position.z > limit) {
-                    update.position.z = std::clamp(update.position.z, -limit, limit);
-                    update.heading = wrappedAngle(kHalfTau - update.heading);
-                }
-                if (world_artifact_ != nullptr) {
-                    const LandscapeSample landscape = world_artifact_->sampleLandscape(
-                        update.position.x, update.position.z);
-                    if (!landscape.traversable()) {
-                        update.position = input_states_[index].position;
-                        update.velocity = {};
+        constexpr std::size_t update_grain = 128U;
+        const std::size_t range_count =
+            units_.size() / update_grain +
+            (units_.size() % update_grain != 0U ? 1U : 0U);
+        jobs::JobGraphBuilder builder;
+        jobs::JobOptions options;
+        options.lane = jobs::ExecutionLane::Worker;
+        options.work_class = jobs::WorkClass::Simulation;
+        options.priority = jobs::JobPriority::Critical;
+        for (std::size_t batch = 0U; batch < range_count; ++batch) {
+            const std::size_t begin = batch * update_grain;
+            const std::size_t end = begin + std::min(units_.size() - begin, update_grain);
+            (void)builder.add(
+                [this, &context, &controller_failed, begin, end](jobs::JobContext& job) {
+                    if (job.isCancellationRequested()) return;
+                    for (std::size_t index = begin; index < end; ++index) {
+                        unit_updates_[index] =
+                            updateUnit(units_[index], input_states_[index], context);
                     }
-                    update.position.y = world_artifact_->sampleLandscape(
-                        update.position.x, update.position.z).ground_y;
-                }
-                const float speed = std::sqrt(update.velocity.x * update.velocity.x +
-                                              update.velocity.z * update.velocity.z);
-                update.velocity = {std::sin(update.heading) * speed, 0.0F,
-                                   std::cos(update.heading) * speed};
-            }
-        })) {
+                    std::array<simulation::EntityControlRequest, update_grain> requests{};
+                    std::array<simulation::EntityControlCommand, update_grain> commands{};
+                    const std::size_t count = end - begin;
+                    for (std::size_t offset = 0U; offset < count; ++offset) {
+                        const std::size_t index = begin + offset;
+                        const Unit& unit = units_[index];
+                        const UnitUpdate& update = unit_updates_[index];
+                        auto& request = requests[offset];
+                        request.state = input_states_[index];
+                        request.enabled = update.valid;
+                        request.order.entity = unit.entity;
+                        request.order.kind = (update.animation_variant == 1U ||
+                                              update.animation_variant == 2U ||
+                                              update.animation_variant == 4U ||
+                                              update.animation_variant == 6U)
+                            ? simulation::EntityOrderKind::MoveTo
+                            : simulation::EntityOrderKind::Hold;
+                        request.order.destination = update.goal;
+                        request.order.action = infantry::infantryUnitActionId(
+                            update.animation_variant);
+                        request.order.source = foundation::stable_id("controller.mass-battle");
+                        request.order.issued_tick = context.tick.value;
+                        request.order.expires_tick = context.tick.value;
+                        request.requested_speed_mps = update.animation_variant == 1U
+                            ? unit.base_speed_mps
+                            : update.animation_variant == 2U ? unit.base_speed_mps * 2.0F
+                            : update.animation_variant == 4U ? unit.base_speed_mps * 0.55F
+                            : update.animation_variant == 6U ? unit.base_speed_mps * 0.25F
+                                                             : 0.0F;
+                        request.maximum_speed_mps = unit.base_speed_mps * 2.0F;
+                        request.acceleration_mps2 = 2.8F;
+                        request.turn_rate_radians_per_second = 0.65F +
+                            unitRandom01(config_.seed, unit.entity.packed(),
+                                         update.last_direction_epoch + 17U) * 0.75F;
+                    }
+                    const auto controlled = infantry_controller_.updateBatch(
+                        std::span<const simulation::EntityControlRequest>(
+                            requests.data(), count),
+                        std::span<simulation::EntityControlCommand>(
+                            commands.data(), count),
+                        context);
+                    if (!controlled) {
+                        controller_failed.store(true, std::memory_order_release);
+                        return;
+                    }
+                    const float limit = std::max(
+                        1.0F, static_cast<float>(config_.map_size_m) * 0.5F - 12.0F);
+                    for (std::size_t offset = 0U; offset < count; ++offset) {
+                        const std::size_t index = begin + offset;
+                        UnitUpdate& update = unit_updates_[index];
+                        if (!update.valid) continue;
+                        const auto& command = commands[offset];
+                        if (command.entity != units_[index].entity) {
+                            controller_failed.store(true, std::memory_order_release);
+                            return;
+                        }
+                        update.position = command.position;
+                        update.velocity = command.velocity;
+                        update.heading = command.heading_radians;
+                        if (update.position.x < -limit || update.position.x > limit) {
+                            update.position.x = std::clamp(update.position.x, -limit, limit);
+                            update.heading = wrappedAngle(-update.heading);
+                        }
+                        if (update.position.z < -limit || update.position.z > limit) {
+                            update.position.z = std::clamp(update.position.z, -limit, limit);
+                            update.heading = wrappedAngle(kHalfTau - update.heading);
+                        }
+                        if (world_artifact_ != nullptr) {
+                            const LandscapeSample landscape =
+                                world_artifact_->sampleLandscape(
+                                    update.position.x, update.position.z);
+                            if (!landscape.traversable()) {
+                                update.position = input_states_[index].position;
+                                update.velocity = {};
+                            }
+                            update.position.y = world_artifact_->sampleLandscape(
+                                update.position.x, update.position.z).ground_y;
+                        }
+                        const float speed = std::sqrt(
+                            update.velocity.x * update.velocity.x +
+                            update.velocity.z * update.velocity.z);
+                        update.velocity = {std::sin(update.heading) * speed, 0.0F,
+                                           std::cos(update.heading) * speed};
+                    }
+                },
+                options);
+        }
+        auto update_group = std::move(builder).build().run(jobs_);
+        update_group.wait();
+        if (update_group.failed() ||
+            controller_failed.load(std::memory_order_acquire)) {
             return false;
         }
-        if (controller_failed.load(std::memory_order_acquire)) return false;
     } catch (...) {
         return false;
     }
@@ -447,33 +469,51 @@ bool InfantryMassBattleRuntime::rebuildRenderStates(std::uint64_t tick) noexcept
     const std::size_t range_count = units_.size() / extraction_grain +
                                     (units_.size() % extraction_grain != 0U ? 1U : 0U);
     std::vector<RangeOutput> ranges(range_count);
-    if (!jobs::parallelForAndWait(jobs_, 0U, units_.size(), extraction_grain,
-                             [this, &ranges](const jobs::BatchRange& range) {
-        RangeOutput& output = ranges[range.batch_index];
-        output.states.reserve(range.end - range.begin);
-        output.entities.reserve(range.end - range.begin);
-        for (std::size_t index = range.begin; index < range.end; ++index) {
-            const Unit& unit = units_[index];
-            simulation::EntityReadView state{};
-            if (!entities_.read(unit.entity, state)) {
-                continue;
-            }
-            const float speed = std::sqrt(state.velocity.x * state.velocity.x +
-                                          state.velocity.z * state.velocity.z);
-            output.total_speed += speed;
-            output.direction_changes += unit.direction_changes;
-            const infantry::AgentState activity = unit.animation_variant == 7U
-                ? infantry::AgentState::Engage
-                : speed > 0.01F ? infantry::AgentState::Advance
-                                : infantry::AgentState::Idle;
-            output.states.push_back(
-                {unit.entity, unit.team, state.position, state.heading, 1.75F,
-                 activity, unit.animation_phase,
-                 unit.animation_speed, unit.animation_variant});
-            output.entities.push_back(
-                {unit.entity, state.position, state.velocity, state.heading, state.flags});
+    try {
+        jobs::JobGraphBuilder builder;
+        jobs::JobOptions options;
+        options.lane = jobs::ExecutionLane::Worker;
+        options.work_class = jobs::WorkClass::Presentation;
+        options.priority = jobs::JobPriority::Normal;
+        for (std::size_t batch = 0U; batch < range_count; ++batch) {
+            const std::size_t begin = batch * extraction_grain;
+            const std::size_t end =
+                begin + std::min(units_.size() - begin, extraction_grain);
+            (void)builder.add(
+                [this, &ranges, batch, begin, end](jobs::JobContext& job) {
+                    if (job.isCancellationRequested()) return;
+                    RangeOutput& output = ranges[batch];
+                    output.states.reserve(end - begin);
+                    output.entities.reserve(end - begin);
+                    for (std::size_t index = begin; index < end; ++index) {
+                        const Unit& unit = units_[index];
+                        simulation::EntityReadView state{};
+                        if (!entities_.read(unit.entity, state)) continue;
+                        const float speed = std::sqrt(
+                            state.velocity.x * state.velocity.x +
+                            state.velocity.z * state.velocity.z);
+                        output.total_speed += speed;
+                        output.direction_changes += unit.direction_changes;
+                        const infantry::AgentState activity =
+                            unit.animation_variant == 7U
+                                ? infantry::AgentState::Engage
+                                : speed > 0.01F ? infantry::AgentState::Advance
+                                               : infantry::AgentState::Idle;
+                        output.states.push_back(
+                            {unit.entity, unit.team, state.position, state.heading, 1.75F,
+                             activity, unit.animation_phase,
+                             unit.animation_speed, unit.animation_variant});
+                        output.entities.push_back(
+                            {unit.entity, state.position, state.velocity,
+                             state.heading, state.flags});
+                    }
+                },
+                options);
         }
-    })) {
+        auto extraction_group = std::move(builder).build().run(jobs_);
+        extraction_group.wait();
+        if (extraction_group.failed()) return false;
+    } catch (...) {
         return false;
     }
 
