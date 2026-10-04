@@ -373,10 +373,10 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     decide.access.resource_reads = {foundation::stable_id("battlefield.perception")};
     decide.access.resource_writes = {foundation::stable_id("battlefield.intent")};
     decide.cadence = every_tick;
-    // AIJobPipeline uses a bounded parallel fan-out followed by a barrier.
-    // Keep the barrier on the main lane; invoking it from a worker would
-    // violate the scheduler's non-nested-wait contract.
-    decide.main_thread_only = true;
+    // AIJobPipeline uses bounded nested bulk work. Worker waits are
+    // cooperative and execute runnable child batches, so decision evaluation
+    // no longer needs artificial main-lane affinity.
+    decide.main_thread_only = false;
     decide.after = {foundation::stable_id("battlefield.sense")};
     decide.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
@@ -397,9 +397,10 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                               foundation::stable_id("component.entity.velocity")};
     navigate.access.resource_writes = {foundation::stable_id("battlefield.infantry")};
     navigate.cadence = every_tick;
-    // InfantrySimulation performs its own bounded batch execution and must
-    // likewise remain outside a worker callback.
-    navigate.main_thread_only = true;
+    // InfantrySimulation performs bounded batch execution through the same
+    // scheduler. Cooperative worker waits keep the parent live while child
+    // ranges execute, including on a one-worker configuration.
+    navigate.main_thread_only = false;
     navigate.after = {foundation::stable_id("battlefield.decide")};
     navigate.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
