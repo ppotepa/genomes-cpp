@@ -59,6 +59,9 @@ int main() {
                 throw std::runtime_error("expected generator exception");
             }
             return RuntimeResult::success(std::make_shared<const int>(input * 3));
+        },
+        [](const int& input) {
+            return foundation::stableHashU64(static_cast<std::uint64_t>(input));
         })));
     auto frozen = std::move(builder).freeze();
     assert(frozen);
@@ -153,6 +156,20 @@ int main() {
         request.options.retained_bytes = sizeof(int);
         return request;
     };
+
+    const std::uint32_t before_canonical_identity =
+        calls.load(std::memory_order_relaxed);
+    const auto caller_collision_a = runtime.generateInline(
+        make_request(7, foundation::stable_id("caller.supplied.same-hash")));
+    const auto caller_collision_b = runtime.generateInline(
+        make_request(8, foundation::stable_id("caller.supplied.same-hash")));
+    assert(caller_collision_a && *caller_collision_a.value() == 21);
+    assert(caller_collision_b && *caller_collision_b.value() == 24);
+    assert(calls.load(std::memory_order_relaxed) == before_canonical_identity + 2U);
+    const auto caller_collision_cached = runtime.generateInline(
+        make_request(7, foundation::stable_id("different.caller.hash")));
+    assert(caller_collision_cached && *caller_collision_cached.value() == 21);
+    assert(calls.load(std::memory_order_relaxed) == before_canonical_identity + 2U);
 
     const auto inline_result = runtime.generateInline(
         make_request(2, foundation::stable_id("input.two")));
