@@ -716,13 +716,16 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
             generation_context->supersededToken();
         proc::ArtifactReader* artifact_reader = generation_context->artifacts();
         proc::GenerationDiagnostics* diagnostics = generation_context->diagnostics();
+        const foundation::StableId building_profile_hash =
+            building_profile.fingerprint().value;
         for (std::size_t index = 0U; index < artifact.plan.building_sites.size(); ++index) {
             const world::BuildingSiteRequest site = artifact.plan.building_sites[index];
             const buildings::BuildingSiteGenerationProfile profile =
                 building_profile.siteGeneration();
             (void)builder.add(
                 [procedural_runtime, site, profile, index, &generated_buildings,
-                 parent_cancellation, superseded, artifact_reader, diagnostics](
+                 parent_cancellation, superseded, artifact_reader, diagnostics,
+                 building_profile_hash](
                     jobs::JobContext& job) {
                     proc::GenerationContext child_context(
                         proc::SeedPath(site.seed), &job, parent_cancellation,
@@ -734,10 +737,7 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
                         std::make_shared<const buildings::BuildingSiteGenerationRequest>(
                             buildings::BuildingSiteGenerationRequest{site, profile});
                     generation.seed_path = proc::SeedPath(site.seed);
-                    generation.options.dependency_hash =
-                        foundation::stableHashCombine(
-                            foundation::stable_id("building-profile"),
-                            foundation::stableHashFloat(profile.floor_height));
+                    generation.options.dependency_hash = building_profile_hash;
                     generation.options.retained_bytes =
                         sizeof(buildings::BuildingGenerationResult);
                     generated_buildings[index].emplace(
