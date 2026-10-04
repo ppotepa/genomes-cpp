@@ -2,6 +2,7 @@
 
 #include <genomes/buildings/BuildingProcedural.hpp>
 #include <genomes/foundation/StableHash.hpp>
+#include <genomes/jobs/JobGraph.hpp>
 #include <genomes/proc/SeedPath.hpp>
 #include <genomes/terrain/TerrainGenerator.hpp>
 
@@ -694,51 +695,90 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     artifact.destruction_invalidations->bindWorldRevision(artifact.revision);
     auto resolved_buildings = std::make_shared<std::vector<buildings::BuildingGenerationResult>>();
     resolved_buildings->reserve(artifact.plan.building_sites.size());
-    for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
-        foundation::Result<buildings::BuildingGenerationResult, foundation::Error> building =
-            foundation::Result<buildings::BuildingGenerationResult, foundation::Error>::failure(
-                {foundation::ErrorCode::InvalidState, "building generator unavailable"});
-        if (procedural_runtime != nullptr &&
-            procedural_runtime->registry().find(proc::generatorId("buildings.site")) != nullptr) {
-            proc::GenerationRequest<buildings::BuildingSiteGenerationRequest,
-                                    buildings::BuildingGenerationResult>
-                generation;
-            generation.generator = proc::generatorId("buildings.site");
-            generation.input = std::make_shared<const buildings::BuildingSiteGenerationRequest>(
-                buildings::BuildingSiteGenerationRequest{site, building_profile.siteGeneration()});
-            generation.seed_path = proc::SeedPath(site.seed);
-            generation.options.input_hash = foundation::stableHashCombine(
-                site.request_id, static_cast<std::uint64_t>(site.seed));
-            generation.options.dependency_hash = building_profile.fingerprint().value;
-            generation.options.retained_bytes = sizeof(buildings::BuildingGenerationResult);
-            if (generation_context == nullptr) {
-                return foundation::Result<ResolvedWorldArtifacts,
-                                          foundation::Error>::failure(
-                    {foundation::ErrorCode::InvalidState,
-                     "live building composition is missing its procedural context"});
-            }
-            const auto generated = procedural_runtime->generateInline(
-                std::move(generation), *generation_context);
-            if (generated) {
-                building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::success(
-                    *generated.value());
-            } else {
-                building = foundation::Result<buildings::BuildingGenerationResult,
-                                               foundation::Error>::failure(
-                    generated.error());
-            }
-        } else if (procedural_runtime == nullptr) {
-            // This branch is retained only for the explicit deterministic
-            // compileArtifact test/tool entry point, never for a live scene.
-            building = buildings::BuildingGenerator::generateSite(
-                site, building_profile.siteGeneration());
-        }
-        if (!building) {
+    if (procedural_runtime != nullptr) {
+        if (generation_context == nullptr || generation_context->job() == nullptr) {
             return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
-                building.error());
+                {foundation::ErrorCode::InvalidState,
+                 "live building composition is missing its worker context"});
         }
-        resolved_buildings->push_back(std::move(building.value()));
+        using BuildingResult = foundation::Result<
+            std::shared_ptr<const buildings::BuildingGenerationResult>, foundation::Error>;
+        std::vector<std::optional<BuildingResult>> generated_buildings(
+            artifact.plan.building_sites.size());
+        jobs::JobGraphBuilder builder;
+        jobs::JobOptions options;
+        options.lane = jobs::ExecutionLane::Worker;
+        options.work_class = jobs::WorkClass::Procedural;
+        options.priority = jobs::JobPriority::Normal;
+        const jobs::CancelToken parent_cancellation =
+            generation_context->cancellationToken();
+        const jobs::CancelToken superseded =
+            generation_context->supersededToken();
+        proc::ArtifactReader* artifact_reader = generation_context->artifacts();
+        proc::GenerationDiagnostics* diagnostics = generation_context->diagnostics();
+        for (std::size_t index = 0U; index < artifact.plan.building_sites.size(); ++index) {
+            const world::BuildingSiteRequest site = artifact.plan.building_sites[index];
+            const buildings::BuildingSiteGenerationProfile profile =
+                building_profile.siteGeneration();
+            (void)builder.add(
+                [procedural_runtime, site, profile, index, &generated_buildings,
+                 parent_cancellation, superseded, artifact_reader, diagnostics](
+                    jobs::JobContext& job) {
+                    proc::GenerationContext child_context(
+                        proc::SeedPath(site.seed), &job, parent_cancellation,
+                        superseded, artifact_reader, diagnostics);
+                    proc::GenerationRequest<buildings::BuildingSiteGenerationRequest,
+                                            buildings::BuildingGenerationResult> generation;
+                    generation.generator = proc::generatorId("buildings.site");
+                    generation.input =
+                        std::make_shared<const buildings::BuildingSiteGenerationRequest>(
+                            buildings::BuildingSiteGenerationRequest{site, profile});
+                    generation.seed_path = proc::SeedPath(site.seed);
+                    generation.options.dependency_hash =
+                        foundation::stableHashCombine(
+                            foundation::stable_id("building-profile"),
+                            foundation::stableHashFloat(profile.floor_height));
+                    generation.options.retained_bytes =
+                        sizeof(buildings::BuildingGenerationResult);
+                    generated_buildings[index].emplace(
+                        procedural_runtime->generateInline(
+                            std::move(generation), child_context));
+                },
+                options);
+        }
+        auto building_group = std::move(builder).build().run(
+            generation_context->job()->system());
+        building_group.wait();
+        if (building_group.failed()) {
+            return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "parallel building generation job failed"});
+        }
+        for (std::size_t index = 0U; index < generated_buildings.size(); ++index) {
+            if (!generated_buildings[index].has_value()) {
+                return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
+                    {foundation::ErrorCode::Internal,
+                     "parallel building generation produced no result"});
+            }
+            auto& generated = *generated_buildings[index];
+            if (!generated || !generated.value()) {
+                return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
+                    generated ? foundation::Error{foundation::ErrorCode::Internal,
+                                                  "building generator returned null"}
+                              : generated.error());
+            }
+            resolved_buildings->push_back(*generated.value());
+        }
+    } else {
+        for (const world::BuildingSiteRequest& site : artifact.plan.building_sites) {
+            auto building = buildings::BuildingGenerator::generateSite(
+                site, building_profile.siteGeneration());
+            if (!building) {
+                return foundation::Result<ResolvedWorldArtifacts, foundation::Error>::failure(
+                    building.error());
+            }
+            resolved_buildings->push_back(std::move(building.value()));
+        }
     }
     artifact.resolved_buildings = std::move(resolved_buildings);
     artifact.terrain = std::make_shared<const terrain::HeightField>(std::move(terrain_field));
