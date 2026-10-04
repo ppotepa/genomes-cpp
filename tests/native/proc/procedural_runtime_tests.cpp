@@ -206,6 +206,9 @@ int main() {
         descriptor(2), [&calls](const int& input, proc::GenerationContext&) -> RuntimeResult {
             calls.fetch_add(1, std::memory_order_relaxed);
             return RuntimeResult::success(std::make_shared<const int>(input * 3));
+        },
+        [](const int& input) {
+            return foundation::stableHashU64(static_cast<std::uint64_t>(input));
         })));
     auto versioned_registry = std::move(versioned_builder).freeze();
     assert(versioned_registry);
