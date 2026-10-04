@@ -256,6 +256,31 @@ void graphFailureSuppressesContinuation() {
     assert(continuation_runs.load(std::memory_order_relaxed) == 0U);
 }
 
+void laneTelemetrySeparatesOwnerQueues() {
+    genomes::jobs::JobSystem jobs(1);
+    genomes::jobs::JobGroup group(jobs);
+    (void)group.submit(
+        [](genomes::jobs::JobContext&) {},
+        {.lane = genomes::jobs::ExecutionLane::Main});
+    (void)group.submit(
+        [](genomes::jobs::JobContext&) {},
+        {.lane = genomes::jobs::ExecutionLane::Render,
+         .work_class = genomes::jobs::WorkClass::Render});
+    const auto queued = jobs.telemetry();
+    assert(queued.queued_by_lane[
+               static_cast<std::size_t>(genomes::jobs::ExecutionLane::Main)] == 1U);
+    assert(queued.queued_by_lane[
+               static_cast<std::size_t>(genomes::jobs::ExecutionLane::Render)] == 1U);
+    assert(jobs.pump(genomes::jobs::ExecutionLane::Main) == 1U);
+    assert(jobs.pump(genomes::jobs::ExecutionLane::Render) == 1U);
+    group.wait();
+    const auto drained = jobs.telemetry();
+    assert(drained.queued_by_lane[
+               static_cast<std::size_t>(genomes::jobs::ExecutionLane::Main)] == 0U);
+    assert(drained.queued_by_lane[
+               static_cast<std::size_t>(genomes::jobs::ExecutionLane::Render)] == 0U);
+}
+
 void ownerPumpsAffinityLanesWithWeightedFairness() {
     genomes::jobs::JobSystem jobs(1);
     std::vector<genomes::jobs::JobPriority> order;
@@ -397,6 +422,7 @@ int main() {
     graphCanStartFromWorkerAndScheduleContinuation();
     graphCancellationSuppressesPendingContinuation();
     graphFailureSuppressesContinuation();
+    laneTelemetrySeparatesOwnerQueues();
     ownerPumpsAffinityLanesWithWeightedFairness();
     schedulerCompletesOneHundredThousandJobs();
     parallelForReportsWorkerFailure();
