@@ -470,49 +470,199 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     terrain_spec.origin_offset_x = static_cast<double>(layout.origin.x);
     terrain_spec.origin_offset_z = static_cast<double>(layout.origin.z);
     terrain_spec.generation = request.terrain;
+
     foundation::Result<terrain::HeightField, foundation::Error> terrain_result =
         foundation::Result<terrain::HeightField, foundation::Error>::failure(
             {foundation::ErrorCode::InvalidState, "terrain generator unavailable"});
-    if (procedural_runtime != nullptr &&
-        procedural_runtime->registry().find(proc::generatorId("terrain.height-field")) !=
-            nullptr) {
-        proc::GenerationRequest<terrain::TerrainSpec, terrain::HeightField> generation;
-        generation.generator = proc::generatorId("terrain.height-field");
-        generation.input = std::make_shared<const terrain::TerrainSpec>(terrain_spec);
-        generation.seed_path = terrain_spec.seed_path;
-        std::uint64_t terrain_input_hash = foundation::stableHashCombine(
-            foundation::stableHashU64(request.seed), request.map_size_m);
-        terrain_input_hash = foundation::stableHashCombine(
-            terrain_input_hash, static_cast<std::uint64_t>(request.terrain.preset));
-        terrain_input_hash = foundation::stableHashCombine(
-            terrain_input_hash, request.terrain.sample_spacing_m);
-        terrain_input_hash = foundation::stableHashCombine(
-            terrain_input_hash, foundation::stableHashFloat(request.terrain.elevation_range_m));
-        terrain_input_hash = foundation::stableHashCombine(
-            terrain_input_hash, foundation::stableHashFloat(request.terrain.landform_scale_m));
-        terrain_input_hash = foundation::stableHashCombine(
-            terrain_input_hash, foundation::stableHashFloat(request.terrain.roughness));
-        generation.options.input_hash = terrain_input_hash;
-        generation.options.retained_bytes = sizeof(terrain::HeightField);
-        if (generation_context == nullptr) {
+    foundation::Result<hydrology::HydrologyArtifact, foundation::Error> hydrology_result =
+        foundation::Result<hydrology::HydrologyArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "hydrology generator unavailable"});
+
+    if (procedural_runtime != nullptr) {
+        if (generation_context == nullptr || generation_context->job() == nullptr) {
             return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
                 {foundation::ErrorCode::InvalidState,
-                 "live world composition is missing its procedural context"});
+                 "live world composition is missing its worker context"});
         }
-        const auto generated = procedural_runtime->generateInline(
-            std::move(generation), *generation_context);
-        if (generated) {
-            terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::success(
-                *generated.value());
-        } else {
-            terrain_result = foundation::Result<terrain::HeightField, foundation::Error>::failure(
-                generated.error());
+        using TerrainStageResult = foundation::Result<
+            std::shared_ptr<const terrain::HeightField>, foundation::Error>;
+        using RoadStageResult = foundation::Result<
+            std::shared_ptr<const roads::RoadGraph>, foundation::Error>;
+        using HydrologyStageResult = foundation::Result<
+            std::shared_ptr<const hydrology::HydrologyArtifact>, foundation::Error>;
+        auto terrain_generated = std::make_shared<std::optional<TerrainStageResult>>();
+        auto roads_generated = std::make_shared<std::optional<RoadStageResult>>();
+        auto hydrology_generated = std::make_shared<std::optional<HydrologyStageResult>>();
+        const jobs::CancelToken parent_cancellation =
+            generation_context->cancellationToken();
+        const jobs::CancelToken superseded =
+            generation_context->supersededToken();
+        proc::ArtifactReader* artifact_reader = generation_context->artifacts();
+        proc::GenerationDiagnostics* diagnostics = generation_context->diagnostics();
+
+        jobs::JobOptions options;
+        options.lane = jobs::ExecutionLane::Worker;
+        options.work_class = jobs::WorkClass::Procedural;
+        options.priority = jobs::JobPriority::Normal;
+        jobs::JobGraphBuilder builder;
+
+        const auto terrain_node = builder.add(
+            [procedural_runtime, terrain_spec, terrain_generated,
+             parent_cancellation, superseded, artifact_reader, diagnostics](
+                jobs::JobContext& job) {
+                proc::GenerationContext child_context(
+                    terrain_spec.seed_path, &job, parent_cancellation, superseded,
+                    artifact_reader, diagnostics);
+                proc::GenerationRequest<terrain::TerrainSpec, terrain::HeightField> generation;
+                generation.generator = proc::generatorId("terrain.height-field");
+                generation.input = std::make_shared<const terrain::TerrainSpec>(terrain_spec);
+                generation.seed_path = terrain_spec.seed_path;
+                generation.options.retained_bytes = sizeof(terrain::HeightField);
+                terrain_generated->emplace(
+                    procedural_runtime->generateInline(
+                        std::move(generation), child_context));
+            },
+            options);
+
+        const world::CityGenerationRequest city_request{
+            request.seed, request.map_size_m, request.buildings, request.fenced_parcels};
+        const auto roads_node = builder.add(
+            [procedural_runtime, city_request, roads_generated, &plan,
+             parent_cancellation, superseded, artifact_reader, diagnostics](
+                jobs::JobContext& job) {
+                proc::GenerationContext child_context(
+                    proc::SeedPath(city_request.seed).child("roads", 0), &job,
+                    parent_cancellation, superseded, artifact_reader, diagnostics);
+                proc::GenerationRequest<world::CityGenerationRequest, roads::RoadGraph> generation;
+                generation.generator = proc::generatorId("roads.graph");
+                generation.input =
+                    std::make_shared<const world::CityGenerationRequest>(city_request);
+                generation.seed_path =
+                    proc::SeedPath(city_request.seed).child("roads", 0);
+                generation.options.dependency_hash = plan.stage_fingerprints[
+                    static_cast<std::size_t>(world::WorldGenerationStage::Roads)]
+                                                        .dependency_fingerprint;
+                generation.options.retained_bytes = sizeof(roads::RoadGraph);
+                roads_generated->emplace(
+                    procedural_runtime->generateInline(
+                        std::move(generation), child_context));
+            },
+            options);
+
+        const auto hydrology_node = builder.add(
+            [procedural_runtime, request, terrain_generated, hydrology_generated,
+             parent_cancellation, superseded, artifact_reader, diagnostics](
+                jobs::JobContext& job) {
+                if (!terrain_generated->has_value() ||
+                    !static_cast<bool>(terrain_generated->value()) ||
+                    !terrain_generated->value().value()) {
+                    const foundation::Error error =
+                        terrain_generated->has_value() &&
+                                !static_cast<bool>(terrain_generated->value())
+                            ? terrain_generated->value().error()
+                            : foundation::Error{foundation::ErrorCode::InvalidState,
+                                                "terrain prerequisite did not complete"};
+                    hydrology_generated->emplace(
+                        HydrologyStageResult::failure(error));
+                    return;
+                }
+                const terrain::HeightField& terrain_field =
+                    *terrain_generated->value().value();
+                const hydrology::HydrologySpec hydrology_spec =
+                    makeHydrologySpec(request, terrain_field);
+                auto heights = std::make_shared<const std::vector<float>>(
+                    terrain_field.samples().begin(), terrain_field.samples().end());
+                hydrology::HydrologyGenerationInput input{};
+                input.spec = hydrology_spec;
+                input.samples_x = terrain_field.width();
+                input.samples_z = terrain_field.height();
+                input.cell_size_m = terrain_field.cellSize();
+                input.origin_x = static_cast<float>(terrain_field.originX());
+                input.origin_z = static_cast<float>(terrain_field.originZ());
+                input.heights = std::move(heights);
+                proc::GenerationContext child_context(
+                    proc::SeedPath(request.seed).child("hydrology", 0), &job,
+                    parent_cancellation, superseded, artifact_reader, diagnostics);
+                proc::GenerationRequest<hydrology::HydrologyGenerationInput,
+                                        hydrology::HydrologyArtifact> generation;
+                generation.generator = proc::generatorId("hydrology.artifact");
+                generation.input =
+                    std::make_shared<const hydrology::HydrologyGenerationInput>(
+                        std::move(input));
+                generation.seed_path =
+                    proc::SeedPath(request.seed).child("hydrology", 0);
+                generation.options.retained_bytes =
+                    sizeof(hydrology::HydrologyArtifact);
+                hydrology_generated->emplace(
+                    procedural_runtime->generateInline(
+                        std::move(generation), child_context));
+            },
+            options);
+        builder.precedes(terrain_node, hydrology_node);
+        (void)roads_node;
+
+        auto generation_group = std::move(builder).build().run(
+            generation_context->job()->system());
+        generation_group.wait();
+        if (generation_group.failed()) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                {foundation::ErrorCode::Internal,
+                 "world procedural dependency graph failed"});
         }
-    } else if (procedural_runtime == nullptr) {
-        // Direct generation is reserved for the explicit deterministic
-        // compileArtifact tool/test entry point. Live scenes must use the
-        // composition-root registry.
+        if (!terrain_generated->has_value() ||
+            !static_cast<bool>(terrain_generated->value()) ||
+            !terrain_generated->value().value()) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                terrain_generated->has_value() &&
+                        !static_cast<bool>(terrain_generated->value())
+                    ? terrain_generated->value().error()
+                    : foundation::Error{foundation::ErrorCode::Internal,
+                                        "terrain stage produced no artifact"});
+        }
+        if (!roads_generated->has_value() ||
+            !static_cast<bool>(roads_generated->value()) ||
+            !roads_generated->value().value()) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                roads_generated->has_value() &&
+                        !static_cast<bool>(roads_generated->value())
+                    ? roads_generated->value().error()
+                    : foundation::Error{foundation::ErrorCode::Internal,
+                                        "roads stage produced no artifact"});
+        }
+        if (!hydrology_generated->has_value() ||
+            !static_cast<bool>(hydrology_generated->value()) ||
+            !hydrology_generated->value().value()) {
+            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
+                hydrology_generated->has_value() &&
+                        !static_cast<bool>(hydrology_generated->value())
+                    ? hydrology_generated->value().error()
+                    : foundation::Error{foundation::ErrorCode::Internal,
+                                        "hydrology stage produced no artifact"});
+        }
+        terrain_result = foundation::Result<terrain::HeightField,
+                                            foundation::Error>::success(
+            *terrain_generated->value().value());
+        plan.city.road_graph = *roads_generated->value().value();
+        hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
+                                              foundation::Error>::success(
+            *hydrology_generated->value().value());
+    } else {
+        // Explicit deterministic compileArtifact remains the only direct
+        // generator path. Live product/tool registries use the DAG above.
         terrain_result = terrain::TerrainGenerator::generate(terrain_spec);
+        if (terrain_result) {
+            const terrain::HeightField& generated_terrain = terrain_result.value();
+            const hydrology::HydrologySpec hydrology_spec =
+                makeHydrologySpec(request, generated_terrain);
+            const hydrology::HydrologyTerrainView terrain_view{
+                generated_terrain.width(), generated_terrain.height(),
+                generated_terrain.cellSize(),
+                static_cast<float>(generated_terrain.originX()),
+                static_cast<float>(generated_terrain.originZ()),
+                generated_terrain.samples()};
+            hydrology_result =
+                hydrology::HydrologyGenerator::generate(hydrology_spec, terrain_view);
+        }
     }
     if (!terrain_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
@@ -520,104 +670,6 @@ foundation::Result<WorldScenarioArtifact, foundation::Error> WorldScenario::comp
     }
     terrain::HeightField terrain_field = terrain_result.value();
 
-    // Roads are a first-class procedural stage.  The world plan still carries
-    // the deterministic city seed and parcel semantics, but the production
-    // composition root owns the canonical road artifact consumed by crossings
-    // and presentation.  Deterministic compileArtifact keeps the direct city
-    // result as its explicit tool/test path.
-    if (procedural_runtime != nullptr &&
-        procedural_runtime->registry().find(proc::generatorId("roads.graph")) != nullptr) {
-        const world::CityGenerationRequest city_request{
-            request.seed, request.map_size_m, request.buildings, request.fenced_parcels};
-        proc::GenerationRequest<world::CityGenerationRequest, roads::RoadGraph> generation;
-        generation.generator = proc::generatorId("roads.graph");
-        generation.input = std::make_shared<const world::CityGenerationRequest>(city_request);
-        generation.seed_path = proc::SeedPath(request.seed).child("roads", 0);
-        generation.options.input_hash = foundation::stableHashCombine(
-            foundation::stableHashU64(request.seed), request.map_size_m);
-        generation.options.input_hash = foundation::stableHashCombine(
-            generation.options.input_hash, foundation::stableHashFloat(request.buildings));
-        generation.options.input_hash = foundation::stableHashCombine(
-            generation.options.input_hash, foundation::stableHashFloat(request.fenced_parcels));
-        generation.options.dependency_hash = plan.stage_fingerprints[
-            static_cast<std::size_t>(world::WorldGenerationStage::Roads)]
-                                                   .dependency_fingerprint;
-        generation.options.retained_bytes = sizeof(roads::RoadGraph);
-        if (generation_context == nullptr) {
-            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
-                {foundation::ErrorCode::InvalidState,
-                 "live road composition is missing its procedural context"});
-        }
-        const auto generated = procedural_runtime->generateInline(
-            std::move(generation), *generation_context);
-        if (!generated || !generated.value()) {
-            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
-                generated ? foundation::Error{foundation::ErrorCode::Internal,
-                                              "road generator returned null"}
-                          : generated.error());
-        }
-        plan.city.road_graph = *generated.value();
-    } else if (procedural_runtime != nullptr) {
-        return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidState, "roads generator unavailable"});
-    }
-
-    const hydrology::HydrologySpec hydrology_spec = makeHydrologySpec(request, terrain_field);
-    const hydrology::HydrologyTerrainView terrain_view{
-        terrain_field.width(), terrain_field.height(), terrain_field.cellSize(),
-        static_cast<float>(terrain_field.originX()), static_cast<float>(terrain_field.originZ()),
-        terrain_field.samples()};
-    foundation::Result<hydrology::HydrologyArtifact, foundation::Error> hydrology_result =
-        foundation::Result<hydrology::HydrologyArtifact, foundation::Error>::failure(
-            {foundation::ErrorCode::InvalidState, "hydrology generator unavailable"});
-    if (procedural_runtime != nullptr &&
-        procedural_runtime->registry().find(proc::generatorId("hydrology.artifact")) != nullptr) {
-        auto heights = std::make_shared<const std::vector<float>>(
-            terrain_field.samples().begin(), terrain_field.samples().end());
-        hydrology::HydrologyGenerationInput input{};
-        input.spec = hydrology_spec;
-        input.samples_x = terrain_field.width();
-        input.samples_z = terrain_field.height();
-        input.cell_size_m = terrain_field.cellSize();
-        input.origin_x = static_cast<float>(terrain_field.originX());
-        input.origin_z = static_cast<float>(terrain_field.originZ());
-        input.heights = std::move(heights);
-        proc::GenerationRequest<hydrology::HydrologyGenerationInput,
-                                hydrology::HydrologyArtifact> generation;
-        generation.generator = proc::generatorId("hydrology.artifact");
-        generation.input = std::make_shared<const hydrology::HydrologyGenerationInput>(input);
-        generation.seed_path = proc::SeedPath(request.seed).child("hydrology", 0);
-        std::uint64_t terrain_hash = foundation::stableHashU64(terrain_field.width());
-        terrain_hash = foundation::stableHashCombine(terrain_hash, terrain_field.height());
-        for (const float height : terrain_field.samples()) {
-            terrain_hash = foundation::stableHashCombine(
-                terrain_hash, foundation::stableHashFloat(height));
-        }
-        generation.options.input_hash = foundation::stableHashCombine(
-            foundation::stableHashU64(request.seed), terrain_hash);
-        generation.options.dependency_hash = terrain_hash;
-        generation.options.retained_bytes = sizeof(hydrology::HydrologyArtifact);
-        if (generation_context == nullptr) {
-            return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
-                {foundation::ErrorCode::InvalidState,
-                 "live hydrology composition is missing its procedural context"});
-        }
-        const auto generated = procedural_runtime->generateInline(
-            std::move(generation), *generation_context);
-        if (generated) {
-            hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
-                                                   foundation::Error>::success(
-                *generated.value());
-        } else {
-            hydrology_result = foundation::Result<hydrology::HydrologyArtifact,
-                                                   foundation::Error>::failure(
-                generated.error());
-        }
-    } else if (procedural_runtime == nullptr) {
-        // Explicit deterministic compileArtifact remains the only direct
-        // generator entry point; live scenarios always use ProceduralRuntime.
-        hydrology_result = hydrology::HydrologyGenerator::generate(hydrology_spec, terrain_view);
-    }
     if (!hydrology_result) {
         return foundation::Result<WorldScenarioArtifact, foundation::Error>::failure(
             hydrology_result.error());
