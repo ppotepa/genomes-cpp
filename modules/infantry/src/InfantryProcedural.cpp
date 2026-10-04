@@ -41,6 +41,9 @@ foundation::Result<void, foundation::Error> registerInfantryGenerator(
             return foundation::Result<
                 std::shared_ptr<const InfantryModelCompileResult>, foundation::Error>::success(
                 std::make_shared<const InfantryModelCompileResult>(std::move(generated.value())));
+        },
+        [](const InfantryModelRequest& request) {
+            return InfantryModelCompiler::canonicalRequestKey(request);
         });
 }
 
