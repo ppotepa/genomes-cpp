@@ -95,6 +95,10 @@ constexpr std::array<JobPriority, 13> priority_schedule{
     return static_cast<std::size_t>(priority);
 }
 
+[[nodiscard]] constexpr std::size_t laneIndex(ExecutionLane lane) noexcept {
+    return static_cast<std::size_t>(lane);
+}
+
 [[nodiscard]] SchedulerConfig compatibilityConfig(std::uint32_t worker_count,
                                                   std::uint32_t reserved_threads) noexcept {
     SchedulerConfig config;
@@ -251,6 +255,7 @@ struct JobSystem::Impl final {
     }
 
     void push(JobNode node) {
+        const ExecutionLane lane = node.options.lane;
         QueueSet* destination = nullptr;
         if (node.options.lane == ExecutionLane::Worker && tls_system == this &&
             tls_lane == ExecutionLane::Worker && tls_worker_index < worker_data.size()) {
@@ -271,12 +276,16 @@ struct JobSystem::Impl final {
             std::lock_guard wake_lock(wake_mutex);
             std::lock_guard queue_lock(destination->mutex);
             queued.fetch_add(1, std::memory_order_release);
+            queued_by_lane[laneIndex(lane)].fetch_add(1, std::memory_order_release);
             destination->queues[priorityIndex(node.options.priority)].push_back(std::move(node));
         }
         wake.notify_all();
     }
 
-    [[nodiscard]] bool popWeighted(QueueSet& queues, JobNode& output, bool from_back = false) {
+    [[nodiscard]] bool popWeighted(QueueSet& queues,
+                                   ExecutionLane lane,
+                                   JobNode& output,
+                                   bool from_back = false) {
         std::lock_guard lock(queues.mutex);
         for (std::size_t attempt = 0; attempt < priority_schedule.size(); ++attempt) {
             const JobPriority priority = priority_schedule[queues.schedule_cursor];
@@ -291,6 +300,7 @@ struct JobSystem::Impl final {
                     queue.pop_front();
                 }
                 queued.fetch_sub(1, std::memory_order_acq_rel);
+                queued_by_lane[laneIndex(lane)].fetch_sub(1, std::memory_order_acq_rel);
                 return true;
             }
         }
@@ -301,7 +311,7 @@ struct JobSystem::Impl final {
         WorkerData& worker = *worker_data[index];
         if (worker.local_since_external >= 32U) {
             worker.local_since_external = 0;
-            if (popWeighted(worker_injection, node)) {
+            if (popWeighted(worker_injection, ExecutionLane::Worker, node)) {
                 counters.injection_pops.fetch_add(1, std::memory_order_relaxed);
                 return true;
             }
@@ -309,12 +319,12 @@ struct JobSystem::Impl final {
                 return true;
             }
         }
-        if (popWeighted(worker.local, node)) {
+        if (popWeighted(worker.local, ExecutionLane::Worker, node)) {
             ++worker.local_since_external;
             return true;
         }
         worker.local_since_external = 0;
-        if (popWeighted(worker_injection, node)) {
+        if (popWeighted(worker_injection, ExecutionLane::Worker, node)) {
             counters.injection_pops.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
@@ -324,7 +334,7 @@ struct JobSystem::Impl final {
     [[nodiscard]] bool steal(std::uint32_t thief, JobNode& node) {
         for (std::size_t offset = 1; offset < worker_data.size(); ++offset) {
             const std::size_t victim = (static_cast<std::size_t>(thief) + offset) % worker_data.size();
-            if (popWeighted(worker_data[victim]->local, node, true)) {
+            if (popWeighted(worker_data[victim]->local, ExecutionLane::Worker, node, true)) {
                 counters.stolen.fetch_add(1, std::memory_order_relaxed);
                 return true;
             }
@@ -358,7 +368,8 @@ struct JobSystem::Impl final {
             }
             std::unique_lock lock(wake_mutex);
             wake.wait(lock, [this] {
-                return queued.load(std::memory_order_acquire) > 0 ||
+                return queued_by_lane[laneIndex(ExecutionLane::Worker)]
+                           .load(std::memory_order_acquire) > 0 ||
                        state.load(std::memory_order_acquire) != JobSystemState::Running;
             });
         }
@@ -371,7 +382,7 @@ struct JobSystem::Impl final {
         tls_lane = ExecutionLane::IO;
         for (;;) {
             JobNode node;
-            if (popWeighted(io_queue, node)) {
+            if (popWeighted(io_queue, ExecutionLane::IO, node)) {
                 execute(std::move(node), io_scratch, no_worker, ExecutionLane::IO);
                 continue;
             }
@@ -383,7 +394,8 @@ struct JobSystem::Impl final {
             }
             std::unique_lock lock(wake_mutex);
             wake.wait(lock, [this] {
-                return queued.load(std::memory_order_acquire) > 0 ||
+                return queued_by_lane[laneIndex(ExecutionLane::IO)]
+                           .load(std::memory_order_acquire) > 0 ||
                        state.load(std::memory_order_acquire) != JobSystemState::Running;
             });
         }
@@ -469,14 +481,14 @@ struct JobSystem::Impl final {
         ScratchContext& scratch = serial_scratch;
         std::size_t executed = 0;
         JobNode node;
-        while (executed < maximum_jobs && popWeighted(source, node)) {
+        while (executed < maximum_jobs && popWeighted(source, lane, node)) {
             execute(std::move(node), scratch, no_worker, lane);
             ++executed;
         }
         return executed;
     }
 
-    void cancelQueue(QueueSet& source) noexcept {
+    void cancelQueue(QueueSet& source, ExecutionLane lane) noexcept {
         std::vector<JobNode> canceled;
         {
             std::lock_guard lock(source.mutex);
@@ -488,18 +500,19 @@ struct JobSystem::Impl final {
             }
         }
         queued.fetch_sub(canceled.size(), std::memory_order_acq_rel);
+        queued_by_lane[laneIndex(lane)].fetch_sub(canceled.size(), std::memory_order_acq_rel);
         for (JobNode& node : canceled) {
             finish(std::move(node), true, {});
         }
     }
 
     void cancelAllQueued() noexcept {
-        cancelQueue(worker_injection);
-        cancelQueue(io_queue);
-        cancelQueue(main_queue);
-        cancelQueue(render_queue);
+        cancelQueue(worker_injection, ExecutionLane::Worker);
+        cancelQueue(io_queue, ExecutionLane::IO);
+        cancelQueue(main_queue, ExecutionLane::Main);
+        cancelQueue(render_queue, ExecutionLane::Render);
         for (auto& worker : worker_data) {
-            cancelQueue(worker->local);
+            cancelQueue(worker->local, ExecutionLane::Worker);
         }
     }
 
@@ -516,6 +529,7 @@ struct JobSystem::Impl final {
     std::atomic<JobSystemState> state{JobSystemState::Running};
     std::atomic<JobId> next_id{1};
     std::atomic_size_t queued{0};
+    std::array<std::atomic_size_t, 4> queued_by_lane{};
     std::atomic_size_t outstanding{0};
     std::mutex wake_mutex;
     std::condition_variable wake;
