@@ -161,17 +161,49 @@ foreach(forbidden_facade_text IN ITEMS
 endforeach()
 
 # Central scheduler ownership: AI and infantry navigation are CPU worker
-# systems. They may use bounded nested work because worker waits help execute
-# scheduler-owned children.
+# systems in normal parallel execution. Inline/deterministic execution keeps
+# the graph on the owner lane by setting main_thread_only from the explicit
+# execution-mode flag rather than hard-coding affinity per subsystem.
 foreach(required_worker_system IN ITEMS
-        "decide.main_thread_only = false"
-        "navigate.main_thread_only = false")
+        "const bool inline_execution = execution_mode_ == BattlefieldExecutionMode::Inline"
+        "decide.main_thread_only = inline_execution"
+        "navigate.main_thread_only = inline_execution")
     string(FIND "${battlefield}" "${required_worker_system}" worker_position)
     if(worker_position EQUAL -1)
         message(FATAL_ERROR
-            "Battlefield system regained artificial main-thread affinity: ${required_worker_system}")
+            "Battlefield system lost central scheduler execution-mode contract: ${required_worker_system}")
     endif()
 endforeach()
+
+# Mass-battle atlas deformation is CPU work. It must never be queued on the
+# owner/render lane, because FrameCoordinator pumps Render immediately before
+# presentation. The atlas fan-out belongs to worker/background presentation
+# work and only its completed immutable meshes may later reach the renderer.
+set(mass_presentation_scheduler
+    "${GENOMES_SOURCE_DIR}/engine/game_scenes/src/MassBattlePresentationScheduler.cpp")
+if(NOT EXISTS "${mass_presentation_scheduler}")
+    message(FATAL_ERROR "Missing mass-battle presentation scheduler source")
+endif()
+file(READ "${mass_presentation_scheduler}" mass_presentation)
+foreach(required_atlas_text IN ITEMS
+        "options.lane = jobs::ExecutionLane::Worker"
+        "options.work_class = jobs::WorkClass::Presentation"
+        "options.priority = jobs::JobPriority::Background"
+        "render::deformSkinnedCPU"
+        "for (std::size_t slot = 0U; slot < baked->size(); ++slot)")
+    string(FIND "${mass_presentation}" "${required_atlas_text}" atlas_position)
+    if(atlas_position EQUAL -1)
+        message(FATAL_ERROR
+            "Mass-battle atlas lost worker/background bake contract: ${required_atlas_text}")
+    endif()
+endforeach()
+string(FIND "${mass_presentation}"
+       "jobs::ExecutionLane::Render"
+       atlas_render_lane_position)
+if(NOT atlas_render_lane_position EQUAL -1)
+    message(FATAL_ERROR
+        "CPU mass-battle atlas bake must not execute on Render lane")
+endif()
 
 if(DEFINED mass_battle)
     string(FIND "${mass_battle}" "jobs::JobGraphBuilder" mass_graph_position)
