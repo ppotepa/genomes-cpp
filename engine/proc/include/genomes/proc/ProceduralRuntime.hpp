@@ -365,7 +365,7 @@ public:
                  "procedural inline generator returned null"});
         }
         if (cacheable) {
-            cache_->store(key, output, {options.retained_bytes});
+            cache_->store(key, output, {request.options.retained_bytes});
         }
         completed_.fetch_add(1, std::memory_order_relaxed);
         return foundation::Result<std::shared_ptr<const Output>,
