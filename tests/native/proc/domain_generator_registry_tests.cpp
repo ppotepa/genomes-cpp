@@ -12,6 +12,7 @@ int main() {
         const auto* entry = frozen.find(proc::generatorId(id));
         assert(entry != nullptr);
         assert(entry->generate_typed);
+        assert(entry->canonical_input_hash);
         assert(entry->descriptor.cache == proc::GeneratorCachePolicy::Artifact);
     }
 #if GENOMES_HAS_INFANTRY
