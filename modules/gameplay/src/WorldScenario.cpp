@@ -268,9 +268,23 @@ foundation::Result<bool, foundation::Error> WorldScenario::poll() {
     }
     pending_artifact_request_ = *completed_request;
     const auto profile = building_profile_;
-    proc::ProceduralRuntime* runtime = generation_service_.ownsRuntime()
-                                           ? nullptr
-                                           : generation_service_.runtime();
+    proc::ProceduralRuntime* runtime = generation_service_.runtime();
+    if (runtime != nullptr) {
+        const auto& registry = runtime->registry();
+        const bool complete_production_pipeline =
+            registry.find(proc::generatorId("terrain.height-field")) != nullptr &&
+            registry.find(proc::generatorId("hydrology.artifact")) != nullptr &&
+            registry.find(proc::generatorId("roads.graph")) != nullptr &&
+            registry.find(proc::generatorId("buildings.site")) != nullptr &&
+            registry.find(proc::generatorId("world.resolved")) != nullptr;
+        if (!complete_production_pipeline) {
+            // Minimal fixture registries deliberately exercise the synchronous
+            // deterministic compatibility path. A full production/tool registry
+            // must always use the common ProceduralRuntime, regardless of who
+            // owns that runtime object.
+            runtime = nullptr;
+        }
+    }
     proc::GenerationOptions artifact_options{};
     artifact_options.input_hash = foundation::stableHashU64(completed_request->seed);
     artifact_options.retained_bytes = sizeof(WorldScenarioArtifact);
