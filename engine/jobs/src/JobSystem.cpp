@@ -672,13 +672,13 @@ void JobSystem::wait(const JobCompletion& completion) const noexcept {
         return;
     }
     if (Impl::tls_system == impl_.get() && Impl::tls_lane == ExecutionLane::Worker) {
-        {
-            std::lock_guard lock(completion.state_->mutex);
-            if (completion.state_->owner_affinity_pending != 0U) {
-                terminateContract("worker cannot wait for owner-affinity job group");
-            }
-        }
         while (!completion.isComplete()) {
+            {
+                std::lock_guard lock(completion.state_->mutex);
+                if (completion.state_->owner_affinity_pending != 0U) {
+                    terminateContract("worker cannot wait for owner-affinity job group");
+                }
+            }
             if (!impl_->executeOne(Impl::tls_worker_index)) {
                 std::this_thread::yield();
             }
