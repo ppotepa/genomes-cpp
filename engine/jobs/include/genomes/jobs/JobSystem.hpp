@@ -68,9 +68,10 @@ public:
         std::size_t maximum_jobs = static_cast<std::size_t>(-1));
 
     [[nodiscard]] std::uint32_t workerCount() const noexcept;
-    // Synchronous barriers are only valid on the owner/main lane or in
-    // explicit test executors. Worker callbacks must use JobGraph
-    // continuations instead of waiting for child work.
+    // Worker waits are cooperative: while waiting for scheduler-owned
+    // work they help execute runnable worker tasks. Prefer JobGraph
+    // continuations for large pipelines, but bounded nested bulk operations
+    // remain deadlock-safe even with a single worker.
     [[nodiscard]] bool isWorkerThread() const noexcept;
     [[nodiscard]] SchedulerMode mode() const noexcept;
     [[nodiscard]] JobSystemState state() const noexcept;
