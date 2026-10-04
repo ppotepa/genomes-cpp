@@ -7,6 +7,10 @@ if(NOT EXISTS "${source}")
     message(FATAL_ERROR "Missing authoritative battlefield source: ${source}")
 endif()
 file(READ "${source}" battlefield)
+set(mass_source "${GENOMES_SOURCE_DIR}/modules/gameplay/src/InfantryMassBattleRuntime.cpp")
+if(EXISTS "${mass_source}")
+    file(READ "${mass_source}" mass_battle)
+endif()
 
 # R032/R033: the authoritative runtime declares the complete tick boundary,
 # including the hand-off into presentation extraction.  Keep these checks
@@ -155,5 +159,40 @@ foreach(forbidden_facade_text IN ITEMS
                 "BattlefieldScenario facade regained authoritative state: ${forbidden_facade_text}")
     endif()
 endforeach()
+
+# Central scheduler ownership: AI and infantry navigation are CPU worker
+# systems. They may use bounded nested work because worker waits help execute
+# scheduler-owned children.
+foreach(required_worker_system IN ITEMS
+        "decide.main_thread_only = false"
+        "navigate.main_thread_only = false")
+    string(FIND "${battlefield}" "${required_worker_system}" worker_position)
+    if(worker_position EQUAL -1)
+        message(FATAL_ERROR
+            "Battlefield system regained artificial main-thread affinity: ${required_worker_system}")
+    endif()
+endforeach()
+
+if(DEFINED mass_battle)
+    string(FIND "${mass_battle}" "jobs::JobGraphBuilder" mass_graph_position)
+    if(mass_graph_position EQUAL -1)
+        message(FATAL_ERROR "Mass Battle must schedule range work through JobGraph")
+    endif()
+    string(FIND "${mass_battle}" "parallelForAndWait" mass_parallel_wait_position)
+    if(NOT mass_parallel_wait_position EQUAL -1)
+        message(FATAL_ERROR
+            "Mass Battle must not own parallelForAndWait barriers after JobGraph migration")
+    endif()
+    foreach(required_mass_contract IN ITEMS
+            "jobs::WorkClass::Simulation"
+            "jobs::WorkClass::Presentation"
+            "for (std::size_t index = 0; index < units_.size(); ++index)")
+        string(FIND "${mass_battle}" "${required_mass_contract}" mass_contract_position)
+        if(mass_contract_position EQUAL -1)
+            message(FATAL_ERROR
+                "Mass Battle lost scheduler/commit contract: ${required_mass_contract}")
+        endif()
+    endforeach()
+endif()
 
 message(STATUS "Battlefield weapon-to-damage source contract inspected")
