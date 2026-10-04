@@ -350,7 +350,7 @@ public:
                  "procedural inline generator returned null"});
         }
         if (cacheable) {
-            cache_->store(key, output, {request.options.retained_bytes});
+            cache_->store(key, output, {options.retained_bytes});
         }
         completed_.fetch_add(1, std::memory_order_relaxed);
         return foundation::Result<std::shared_ptr<const Output>,
@@ -659,9 +659,29 @@ public:
                 {foundation::ErrorCode::InvalidArgument,
                  "procedural generator type mismatch"});
         }
-        const ArtifactKey key = makeKey(*entry, request.seed_path, request.options);
-        const bool cacheable = request.options.use_cache &&
+        GenerationOptions options = request.options;
+        if (entry->canonical_input_hash) {
+            const foundation::StableId canonical_hash =
+                entry->canonical_input_hash(request.input.get());
+            if (canonical_hash == 0U) {
+                failed_.fetch_add(1, std::memory_order_relaxed);
+                return foundation::Result<std::shared_ptr<const Output>,
+                                          foundation::Error>::failure(
+                    {foundation::ErrorCode::InvalidArgument,
+                     "procedural generator produced an invalid canonical input hash"});
+            }
+            options.input_hash = canonical_hash;
+        }
+        const bool cacheable = options.use_cache &&
                                entry->descriptor.cache == GeneratorCachePolicy::Artifact;
+        if (cacheable && options.input_hash == 0U) {
+            failed_.fetch_add(1, std::memory_order_relaxed);
+            return foundation::Result<std::shared_ptr<const Output>,
+                                      foundation::Error>::failure(
+                {foundation::ErrorCode::InvalidArgument,
+                 "cacheable procedural request has no canonical input hash"});
+        }
+        const ArtifactKey key = makeKey(*entry, request.seed_path, options);
         if (cacheable) {
             if (auto cached = cache_->find<Output>(key)) {
                 cache_hits_.fetch_add(1, std::memory_order_relaxed);
@@ -673,7 +693,7 @@ public:
         cache_misses_.fetch_add(cacheable ? 1U : 0U, std::memory_order_relaxed);
         jobs::ScratchContext scratch;
         ArtifactReader reader(*cache_);
-        GenerationContext context(request.seed_path, nullptr, request.options.cancellation,
+        GenerationContext context(request.seed_path, nullptr, options.cancellation,
                                   {}, &reader, &diagnostics_, &scratch);
         const auto generated = [&]()
             -> foundation::Result<std::shared_ptr<const void>, foundation::Error> {
@@ -687,7 +707,7 @@ public:
                     error);
             }
         }();
-        if (request.options.cancellation.isCancellationRequested() ||
+        if (options.cancellation.isCancellationRequested() ||
             context.cancellationRequested()) {
             canceled_.fetch_add(1, std::memory_order_relaxed);
             return foundation::Result<std::shared_ptr<const Output>, foundation::Error>::failure(
