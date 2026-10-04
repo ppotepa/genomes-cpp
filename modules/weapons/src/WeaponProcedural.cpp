@@ -29,6 +29,9 @@ foundation::Result<void, foundation::Error> registerWeaponGenerator(
             }
             return foundation::Result<std::shared_ptr<const WeaponArtifact>, foundation::Error>::success(
                 std::make_shared<const WeaponArtifact>(std::move(generated.value())));
+        },
+        [](const WeaponGenerationRequest& request) {
+            return WeaponGeometryGenerator::cacheKey(request.definition, request.variant);
         });
 }
 
