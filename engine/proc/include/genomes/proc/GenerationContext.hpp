@@ -33,6 +33,12 @@ public:
         return job_ == nullptr ? inline_scratch_ : &job_->scratch();
     }
     [[nodiscard]] jobs::JobContext* job() const noexcept { return job_; }
+    [[nodiscard]] jobs::CancelToken cancellationToken() const noexcept {
+        return cancellation_;
+    }
+    [[nodiscard]] jobs::CancelToken supersededToken() const noexcept {
+        return superseded_;
+    }
     [[nodiscard]] ArtifactReader* artifacts() const noexcept { return artifacts_; }
     [[nodiscard]] GenerationDiagnostics* diagnostics() const noexcept { return diagnostics_; }
 
