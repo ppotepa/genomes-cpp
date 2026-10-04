@@ -159,7 +159,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     const weapons::WeaponVariant weapon_variant{
         proc::Seed(foundation::stableHashCombine(config_.seed, 0xB17U)), 1.0F, 0.0F, 0U};
     foundation::Result<weapons::WeaponArtifact, foundation::Error> artifact =
-        weapons::WeaponGeometryGenerator::build(*weapon, weapon_variant);
+        foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
+            {foundation::ErrorCode::InvalidState, "weapon generator unavailable"});
     if (procedural_runtime_ != nullptr &&
         procedural_runtime_->registry().find(proc::generatorId("weapons.artifact")) != nullptr) {
         proc::GenerationRequest<weapons::WeaponGenerationRequest, weapons::WeaponArtifact>
@@ -168,19 +169,19 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
         generation.input = std::make_shared<const weapons::WeaponGenerationRequest>(
             weapons::WeaponGenerationRequest{*weapon, weapon_variant});
         generation.seed_path = proc::SeedPath(weapon_variant.seed);
-        generation.options.input_hash = foundation::stableHashCombine(
-            foundation::stable_id("weapon.carbine"), weapon_variant.seed);
         generation.options.retained_bytes = sizeof(weapons::WeaponArtifact);
-        auto ticket = procedural_runtime_->request(std::move(generation));
-        ticket.wait();
-        const auto generated = ticket.artifact();
-        if (generated) {
+        const auto generated = procedural_runtime_->generateInline(generation);
+        if (generated && generated.value()) {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::success(
-                *generated);
+                *generated.value());
         } else {
             artifact = foundation::Result<weapons::WeaponArtifact, foundation::Error>::failure(
-                ticket.error());
+                generated ? foundation::Error{foundation::ErrorCode::Internal,
+                                              "weapon generator returned null"}
+                          : generated.error());
         }
+    } else {
+        artifact = weapons::WeaponGeometryGenerator::build(*weapon, weapon_variant);
     }
     if (!artifact) {
         return foundation::Result<void, foundation::Error>::failure(artifact.error());
