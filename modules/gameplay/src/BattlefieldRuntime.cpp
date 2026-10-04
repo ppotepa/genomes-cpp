@@ -107,13 +107,6 @@ api::SnapshotView BattlefieldRuntime::query(api::ApiId query_id,
 }
 
 foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
-    // Inline is a whole-runtime execution policy. Do not let a caller's
-    // parallel compatibility scheduler leak into infantry internals while
-    // the system graph itself is running on the serial executor.
-    if (execution_mode_ == BattlefieldExecutionMode::Inline) {
-        jobs_ = &serial_executor_;
-    }
-
     navigation_ = std::make_unique<navigation::GridNavigationWorld>(
         navigation::NavGridSpec{4U, 4U, 6.25F, {-12.5F, 0.0F, -12.5F}});
     if (!navigation_ || !navigation_->valid()) {
@@ -122,7 +115,9 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
                           "battlefield navigation setup failed"));
     }
     infantry_ = std::make_unique<infantry::InfantrySimulation>(
-        entities_, navigation_.get(), &physics_, jobs_, true);
+        entities_, navigation_.get(), &physics_,
+        execution_mode_ == BattlefieldExecutionMode::Parallel ? jobs_ : nullptr,
+        true);
     const infantry::InfantryGenome genome{1.75F, 1.75, 3.0F, 24.0F, 24.0F, 100.0F, 0U};
     const auto blue = infantry_->spawn({infantry::Team::Blue, {0.0F, 0.0F, -kSpawnOffset},
                                         genome, infantry::SquadKey{infantry::Team::Blue, 1U},
@@ -339,6 +334,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
         return true;
     };
     constexpr simulation::CadencePolicy every_tick{simulation::CadenceKind::EveryTick};
+    const bool inline_execution = execution_mode_ == BattlefieldExecutionMode::Inline;
 
     simulation::SystemDescriptor sense{};
     sense.id = foundation::stable_id("battlefield.sense");
@@ -353,7 +349,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // affinity.  The execution plan runs them on the central worker lane;
     // graph dependencies provide the ordering and the commit phase remains
     // the sole authoritative state publication point.
-    sense.main_thread_only = false;
+    sense.main_thread_only = inline_execution;
     sense.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
             runPerception();
@@ -376,7 +372,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // AIJobPipeline uses bounded nested bulk work. Worker waits are
     // cooperative and execute runnable child batches, so decision evaluation
     // no longer needs artificial main-lane affinity.
-    decide.main_thread_only = false;
+    decide.main_thread_only = inline_execution;
     decide.after = {foundation::stable_id("battlefield.sense")};
     decide.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
@@ -400,7 +396,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     // InfantrySimulation performs bounded batch execution through the same
     // scheduler. Cooperative worker waits keep the parent live while child
     // ranges execute, including on a one-worker configuration.
-    navigate.main_thread_only = false;
+    navigate.main_thread_only = inline_execution;
     navigate.after = {foundation::stable_id("battlefield.decide")};
     navigate.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
@@ -425,7 +421,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     move_intent.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     move_intent.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     move_intent.cadence = every_tick;
-    move_intent.main_thread_only = false;
+    move_intent.main_thread_only = inline_execution;
     move_intent.after = {foundation::stable_id("battlefield.navigate")};
     move_intent.callback = [](simulation::SystemContext&) {
         // InfantrySimulation::fixedUpdate has already emitted the command
@@ -444,7 +440,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_commands.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_commands.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_commands.cadence = every_tick;
-    physics_commands.main_thread_only = false;
+    physics_commands.main_thread_only = inline_execution;
     physics_commands.after = {foundation::stable_id("battlefield.move-intent")};
     physics_commands.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty() && infantry_) {
@@ -466,7 +462,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     physics_step.access.resource_reads = {foundation::stable_id("battlefield.infantry")};
     physics_step.access.resource_writes = {foundation::stable_id("battlefield.physics")};
     physics_step.cadence = every_tick;
-    physics_step.main_thread_only = false;
+    physics_step.main_thread_only = inline_execution;
     physics_step.after = {foundation::stable_id("battlefield.physics-commands")};
     physics_step.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty() && infantry_) {
@@ -491,7 +487,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     combat.access.resource_reads = {foundation::stable_id("battlefield.intent")};
     combat.access.resource_writes = {foundation::stable_id("battlefield.projectiles")};
     combat.cadence = every_tick;
-    combat.main_thread_only = false;
+    combat.main_thread_only = inline_execution;
     combat.after = {foundation::stable_id("battlefield.physics-step")};
     combat.callback = [this](simulation::SystemContext& context) {
         if (snapshot_.error.empty()) {
@@ -514,7 +510,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     damage.access.resource_reads = {foundation::stable_id("battlefield.projectiles")};
     damage.access.resource_writes = {foundation::stable_id("battlefield.health")};
     damage.cadence = every_tick;
-    damage.main_thread_only = false;
+    damage.main_thread_only = inline_execution;
     damage.after = {foundation::stable_id("battlefield.combat-ballistics")};
     damage.callback = [this](simulation::SystemContext&) {
         if (snapshot_.error.empty()) {
@@ -536,7 +532,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
                                     foundation::stable_id("battlefield.health")};
     commit.access.resource_writes = {foundation::stable_id("battlefield.snapshot")};
     commit.cadence = every_tick;
-    commit.main_thread_only = false;
+    commit.main_thread_only = inline_execution;
     commit.after = {foundation::stable_id("battlefield.damage-destruction")};
     commit.callback = [](simulation::SystemContext&) {
         // Authoritative ECS writes are applied by CommandCommitter after the
@@ -558,7 +554,7 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::configureGraph()
     presentation.access.resource_writes = {
         foundation::stable_id("battlefield.presentation")};
     presentation.cadence = every_tick;
-    presentation.main_thread_only = false;
+    presentation.main_thread_only = inline_execution;
     presentation.after = {foundation::stable_id("battlefield.commit")};
     presentation.callback = [](simulation::SystemContext&) {
         // Presentation extraction is deliberately delayed until after the
@@ -653,9 +649,7 @@ void BattlefieldRuntime::fixedUpdate(const simulation::TickContext& context) noe
     applyApiCommands();
     const auto result = execution_plan_.run(
         simulation_tick_, context.fixed_dt_seconds,
-        execution_mode_ == BattlefieldExecutionMode::Parallel
-            ? jobs_
-            : &serial_executor_,
+        jobs_,
         &command_buffers_);
     if (!result || !snapshot_.error.empty()) {
         const std::string error = result ? snapshot_.error : std::string{result.error().message};
