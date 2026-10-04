@@ -6,6 +6,7 @@
 #include <genomes/foundation/Types.hpp>
 #include <genomes/infantry/AppearanceArtifact.hpp>
 #include <genomes/infantry/EquipmentFit.hpp>
+#include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/InfantryGenome.hpp>
 #include <genomes/infantry/RigBuilder.hpp>
 #include <genomes/proc/ArtifactCache.hpp>
@@ -62,6 +63,7 @@ struct InfantryModelArtifact final {
     EquipmentState equipment{};
     EquipmentFit equipment_fit{};
     GearArtifact gear{};
+    AppearanceMesh gear_surface{};
     foundation::StableId cache_key{0};
 };
 

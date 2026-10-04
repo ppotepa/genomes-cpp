@@ -1,7 +1,6 @@
 #include <genomes/game_scenes/InfantryPresentation.hpp>
 #include <genomes/infantry/AppearanceCatalog.hpp>
 
-#include <genomes/infantry/GearSurfaceGenerator.hpp>
 #include <genomes/infantry/EquipmentCatalog.hpp>
 #include <genomes/infantry/InfantryMaterials.hpp>
 #include <genomes/foundation/StableHash.hpp>
@@ -237,9 +236,7 @@ std::shared_ptr<const render::SkinnedMeshPrototype> makePrototype(
     };
     append(model.appearance.body);
     append(model.appearance.hair);
-    if (const auto gear_surface = infantry::GearSurfaceGenerator::build(model.gear); gear_surface) {
-        append(gear_surface.value());
-    }
+    append(model.gear_surface);
     appendWeapon(*mesh, model, generation, weapon_attachment, weapon_artifact);
 
     mesh->morph_target_count = static_cast<std::uint32_t>(

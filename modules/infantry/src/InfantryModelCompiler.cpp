@@ -165,6 +165,10 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     if (!gear) {
         return failure(gear.error());
     }
+    auto gear_surface = GearSurfaceGenerator::build(gear.value());
+    if (!gear_surface) {
+        return failure(gear_surface.error());
+    }
 
     auto result = std::make_shared<InfantryModelArtifact>();
     result->genome = genome.value();
@@ -174,6 +178,7 @@ InfantryModelCompiler::compile(const InfantryModelRequest& request) {
     result->equipment = equipment.value();
     result->equipment_fit = fit.value();
     result->gear = gear.value();
+    result->gear_surface = std::move(gear_surface.value());
     result->cache_key = foundation::stableHashCombine(
         foundation::stableHashCombine(foundation::stable_id("genomes.infantry.model"),
                                       InfantryArtifactVersion), canonical.seed);
