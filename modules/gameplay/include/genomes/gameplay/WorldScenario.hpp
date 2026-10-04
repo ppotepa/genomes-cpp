@@ -154,7 +154,8 @@ private:
     compileArtifactImpl(world::WorldPlan plan,
                         const world::WorldGenerationRequest& request,
                         const buildings::FrozenBuildingProfile& building_profile,
-                        proc::ProceduralRuntime* procedural_runtime);
+                        proc::ProceduralRuntime* procedural_runtime,
+                        proc::GenerationContext* generation_context);
 
     jobs::JobSystem& jobs_;
     world::WorldGenerationService generation_service_;
