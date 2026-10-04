@@ -293,6 +293,15 @@ genomes_enable_test_assertions(genomes_test_api_module_host)
 add_test(NAME api.module_host COMMAND genomes_test_api_module_host)
 set_tests_properties(api.module_host PROPERTIES LABELS "cpu;api;architecture")
 
+add_executable(genomes_test_module_system_bridge
+    runtime/module_system_bridge_tests.cpp)
+target_link_libraries(genomes_test_module_system_bridge PRIVATE genomes::runtime_core)
+genomes_set_project_warnings(genomes_test_module_system_bridge)
+genomes_enable_test_assertions(genomes_test_module_system_bridge)
+add_test(NAME runtime.module_system_bridge COMMAND genomes_test_module_system_bridge)
+set_tests_properties(runtime.module_system_bridge PROPERTIES
+    LABELS "cpu;runtime;api;simulation;architecture")
+
 add_executable(genomes_test_config_hash config_hash_tests.cpp)
 target_link_libraries(genomes_test_config_hash PRIVATE genomes::foundation)
 genomes_set_project_warnings(genomes_test_config_hash)

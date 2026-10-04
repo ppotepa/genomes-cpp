@@ -375,6 +375,7 @@ public:
         ModuleId module, ApiId id) const noexcept;
     [[nodiscard]] const ApiOperationDescriptor* findQuery(
         ModuleId module, ApiId id) const noexcept;
+    [[nodiscard]] const ApiSystemDescriptor* findSystem(ApiId id) const noexcept;
 
     [[nodiscard]] const std::vector<std::pair<ModuleId, ApiOperationDescriptor>>&
     commands() const noexcept {

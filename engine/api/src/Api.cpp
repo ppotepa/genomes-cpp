@@ -137,6 +137,14 @@ const ApiOperationDescriptor* ModuleRegistry::findQuery(
     return found == queries_.end() ? nullptr : &found->second;
 }
 
+const ApiSystemDescriptor* ModuleRegistry::findSystem(ApiId id) const noexcept {
+    const auto found = std::find_if(systems_.begin(), systems_.end(),
+                                    [id](const auto& item) {
+                                        return item.second.id == id;
+                                    });
+    return found == systems_.end() ? nullptr : &found->second;
+}
+
 foundation::Result<void, foundation::Error> ModuleHost::registerModule(
     ModuleDescriptor descriptor, Registration registration) {
     if (frozen_) {

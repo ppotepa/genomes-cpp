@@ -1,5 +1,6 @@
 add_library(genomes_runtime_core STATIC
     src/FrameCoordinator.cpp
+    src/ModuleSystemBridge.cpp
     src/RenderCoordinator.cpp
     src/SceneDirector.cpp)
 

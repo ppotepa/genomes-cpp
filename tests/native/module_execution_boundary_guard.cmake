@@ -79,3 +79,42 @@ if(NOT LEGACY_LANE_EXECUTION EQUAL -1)
     message(FATAL_ERROR
         "SystemExecutionPlan must consume canonical SystemSpec::lane, not legacy affinity flags")
 endif()
+
+
+# Runtime implementation binding may provide lifecycle-specific phase/cadence
+# and callback only. Canonical lane/access/dependency semantics must come from
+# the frozen ModuleRegistry.
+set(MODULE_SYSTEM_BRIDGE_HEADER
+    "${GENOMES_SOURCE_DIR}/engine/runtime/include/genomes/runtime/ModuleSystemBridge.hpp")
+set(MODULE_SYSTEM_BRIDGE_SOURCE
+    "${GENOMES_SOURCE_DIR}/engine/runtime/src/ModuleSystemBridge.cpp")
+foreach(BRIDGE_FILE IN ITEMS "${MODULE_SYSTEM_BRIDGE_HEADER}" "${MODULE_SYSTEM_BRIDGE_SOURCE}")
+    if(NOT EXISTS "${BRIDGE_FILE}")
+        message(FATAL_ERROR "module execution bridge is missing: ${BRIDGE_FILE}")
+    endif()
+endforeach()
+file(READ "${MODULE_SYSTEM_BRIDGE_HEADER}" MODULE_SYSTEM_BRIDGE_HEADER_TEXT)
+file(READ "${MODULE_SYSTEM_BRIDGE_SOURCE}" MODULE_SYSTEM_BRIDGE_SOURCE_TEXT)
+foreach(FORBIDDEN_BINDING_FIELD IN ITEMS
+        "ExecutionLane lane"
+        "SystemAccess access"
+        "std::vector<simulation::SystemId> predecessors")
+    string(FIND "${MODULE_SYSTEM_BRIDGE_HEADER_TEXT}" "${FORBIDDEN_BINDING_FIELD}"
+           BINDING_FIELD_POSITION)
+    if(NOT BINDING_FIELD_POSITION EQUAL -1)
+        message(FATAL_ERROR
+            "ModuleSystemBinding duplicated canonical SystemSpec field: ${FORBIDDEN_BINDING_FIELD}")
+    endif()
+endforeach()
+foreach(REQUIRED_BRIDGE_TEXT IN ITEMS
+        "registry.systemOrder()"
+        "registry.findSystem"
+        "static_cast<const execution::SystemSpec&>(*registered)"
+        "static_cast<execution::SystemSpec&>(descriptor)")
+    string(FIND "${MODULE_SYSTEM_BRIDGE_SOURCE_TEXT}" "${REQUIRED_BRIDGE_TEXT}"
+           BRIDGE_TEXT_POSITION)
+    if(BRIDGE_TEXT_POSITION EQUAL -1)
+        message(FATAL_ERROR
+            "ModuleSystemBridge lost canonical registry bridge: ${REQUIRED_BRIDGE_TEXT}")
+    endif()
+endforeach()
