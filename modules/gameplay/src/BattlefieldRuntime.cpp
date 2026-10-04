@@ -186,7 +186,8 @@ foundation::Result<void, foundation::Error> BattlefieldRuntime::initialize() {
     if (!artifact) {
         return foundation::Result<void, foundation::Error>::failure(artifact.error());
     }
-    weapon_artifact_ = std::make_shared<const weapons::WeaponArtifact>(artifact.value());
+    weapon_artifact_ = std::make_shared<const weapons::WeaponArtifact>(
+        std::move(artifact.value()));
     const auto make_runtime_state = [this](simulation::EntityId entity) {
         weapons::WeaponRuntimeState state{};
         state.selected_weapon = weapon_id_;
