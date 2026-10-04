@@ -107,6 +107,13 @@ CoordinatedFrameResult FrameCoordinator::advance(
 
 void FrameCoordinator::present() {
     const auto started = std::chrono::steady_clock::now();
+    if (!director_.rendererHealthy()) {
+        telemetry_.fault = FrameFaultDomain::GpuFailure;
+        telemetry_.gpu_duration = std::chrono::duration_cast<foundation::Nanoseconds>(
+            std::chrono::steady_clock::now() - started);
+        director_.telemetry().gpu_duration = telemetry_.gpu_duration;
+        return;
+    }
     (void)jobs_.pump(jobs::ExecutionLane::Render);
     if (!render_coordinator_.present()) {
         telemetry_.fault = FrameFaultDomain::GpuFailure;
