@@ -1,0 +1,35 @@
+name: headless-architecture
+
+on:
+  push:
+    branches:
+      - main
+      - 'chatgpt/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  headless-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure
+        run: cmake --preset headless-core-debug
+      - name: Build focused architecture tests
+        run: >
+          cmake --build --preset headless-core-debug --target
+          genomes_test_job_scheduler
+          genomes_test_procedural_runtime
+          genomes_test_domain_generator_registry
+          genomes_test_system_graph_batch
+          genomes_test_infantry_mass_battle_runtime
+          genomes_test_battlefield_determinism
+      - name: Run focused architecture tests
+        run: >
+          ctest --preset headless-core-debug
+          -R '^(jobs\.scheduler|proc\.runtime|proc\.domain_generator_registry|simulation\.system_graph_batch|simulation\.infantry_mass_battle|simulation\.battlefield_determinism|architecture\.scene_api_boundary|architecture\.module_execution_boundary|simulation\.battlefield_pipeline_source_contract|world\.resolved_artifact_revision_source_contract)$'
+          --output-on-failure
