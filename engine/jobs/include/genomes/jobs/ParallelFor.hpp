@@ -116,11 +116,9 @@ template <class Function>
     if (end <= begin || grain_size == 0) {
         return true;
     }
-    if (system.isWorkerThread()) {
-        // A worker must not synchronously wait for child batches. The caller
-        // can submit the batches and attach a continuation to their group.
-        return false;
-    }
+    // JobGroup::wait uses the scheduler's worker-helping path when
+    // invoked from a worker. This keeps nested bounded bulk work live even
+    // with a single worker while still using the shared scheduler queues.
     JobGroup group(system);
     const auto handles = parallelFor(group, begin, end, grain_size,
                                      std::forward<Function>(function));
