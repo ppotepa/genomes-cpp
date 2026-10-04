@@ -44,6 +44,11 @@ foundation::Result<void, Error> GeneratorRegistry::Builder::addTypedErased(
     if (!descriptor.valid() || !generate) {
         return foundation::Result<void, Error>::failure(invalidDescriptor());
     }
+    if (descriptor.cache == GeneratorCachePolicy::Artifact && !canonical_input_hash) {
+        return foundation::Result<void, Error>::failure(
+            {ErrorCode::InvalidArgument,
+             "cacheable typed generator requires a canonical input hash"});
+    }
     for (const GeneratorEntry& entry : entries_) {
         if (entry.descriptor.id == descriptor.id) {
             return foundation::Result<void, Error>::failure(
