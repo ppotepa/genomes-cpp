@@ -1,0 +1,34 @@
+name: headless-core-ci
+
+on:
+  push:
+    branches:
+      - main
+      - "chatgpt/**"
+  pull_request:
+
+jobs:
+  headless-core-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: cmake --preset headless-core-debug
+
+      - name: Build
+        run: cmake --build --preset headless-core-debug
+
+      - name: Focused architecture tests
+        run: >
+          ctest --preset headless-core-debug
+          -R "jobs|proc|system_graph|frame_coordinator|world|mass_battle|scene_api|resolved_world"
+          --output-on-failure
