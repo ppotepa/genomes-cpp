@@ -265,6 +265,27 @@ int main() {
     assert(telemetry.cache_hits >= 1);
     assert(telemetry.cache_misses >= 1);
 
+    // Worker-side composition should execute a registered child inline
+    // through the same cache/cancellation contract, without creating a nested
+    // ticket or consuming another worker just to wait for it.
+    jobs::JobSystem inline_worker(1);
+    proc::ArtifactCache inline_cache;
+    proc::ProceduralRuntime inline_runtime(frozen.value(), inline_worker, &inline_cache);
+    std::atomic_bool inline_composed{false};
+    const auto inline_owner = inline_worker.submit([&](jobs::JobContext& job) {
+        jobs::CancelSource cancellation;
+        proc::ArtifactReader reader(inline_cache);
+        proc::GenerationDiagnostics diagnostics;
+        proc::GenerationContext parent(
+            proc::SeedPath(77), &job, cancellation.token(), {}, &reader, &diagnostics);
+        const auto generated = inline_runtime.generateInline(
+            make_request(9, foundation::stable_id("ignored.caller.hash")), parent);
+        assert(generated && *generated.value() == 27);
+        inline_composed.store(true, std::memory_order_release);
+    });
+    inline_worker.wait(inline_owner);
+    assert(inline_composed.load(std::memory_order_acquire));
+
     // A composed generator may synchronously consume a child ticket while it
     // is itself running on the scheduler.  Ticket wait must use the owning
     // scheduler's worker-helping path, otherwise a one-worker pool deadlocks.
